@@ -17,16 +17,15 @@ from pprint import pformat
 from queue import Empty, Queue
 from threading import Event, Thread
 from time import sleep, time_ns
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Union, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 import chevron
 import pytest
 from attr import attrib, attrs
 from ci_environment import detect_ci_environment
-from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 from filelock import FileLock
 from pydantic import ValidationError
-from pytest import ExitCode, Session, hookimpl
+from pytest import ExitCode, hookimpl
 
 from messages import (
     Attachment,
@@ -67,6 +66,14 @@ from pytest_bdd.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.packaging import get_distribution_version
 from pytest_bdd.steps import Matcher
 from pytest_bdd.utils import PytestBDDIdGeneratorHandler, deepattrgetter
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
+    from pytest import Item, Metafunc, Session
+
+    from pytest_bdd.model import Feature, Step
 
 
 @attrs(eq=False)
@@ -212,7 +219,7 @@ class MessagePlugin:
         )
 
     @hookimpl(hookwrapper=True)
-    def pytest_generate_tests(self, metafunc):
+    def pytest_generate_tests(self, metafunc: Metafunc):
         yield
         if self.is_disabled:
             return
@@ -236,21 +243,23 @@ class MessagePlugin:
 
                 if is_set(feature) and hasattr(feature_source, "uri") and feature_source.uri not in feature_registry:
                     feature_registry.add(feature_source.uri)
-                    cast(Config, config).hook.pytest_bdd_message(config=config, message=Message(source=feature_source))
+                    cast("Config", config).hook.pytest_bdd_message(
+                        config=config, message=Message(source=feature_source)
+                    )
 
-                    cast(Config, config).hook.pytest_bdd_message(
+                    cast("Config", config).hook.pytest_bdd_message(
                         config=config, message=Message(gherkin_document=feature.gherkin_document)
                     )
                 if is_set(pickle) and id(pickle) not in pickle_registry:
-                    cast(Config, config).hook.pytest_bdd_message(config=config, message=Message(pickle=pickle))
+                    cast("Config", config).hook.pytest_bdd_message(config=config, message=Message(pickle=pickle))
 
-    def pytest_bdd_message(self, config: Config, message: Message):
+    def pytest_bdd_message(self, config: Config, message: Message) -> None:
         if self.is_disabled:
             return
-        message_json = message.model_dump_json(exclude_none=True, by_alias=True)  # type: ignore[attr-defined] # migration to pydantic2
+        message_json = message.model_dump_json(exclude_none=True, by_alias=True)
         self.process_messages_io_queue.put_nowait(message_json)
 
-    def pytest_runtestloop(self, session: Session):
+    def pytest_runtestloop(self, session: Session) -> None:
         if self.is_disabled:
             return
         config = session.config
@@ -261,7 +270,7 @@ class MessagePlugin:
             message=Message(test_run_started=TestRunStarted(timestamp=self.get_timestamp())),
         )
 
-    def pytest_sessionstart(self, session):
+    def pytest_sessionstart(self, session: Session) -> None:
         if self.is_disabled:
             return
 
@@ -274,7 +283,6 @@ class MessagePlugin:
             config=config,
             message=Message(
                 meta=Meta(
-                    # TODO: Get from environment
                     protocol_version="22.0.0",
                     implementation=Product(
                         name="pytest-bdd-ng", version=str(get_distribution_version("pytest-bdd-ng"))
@@ -287,7 +295,7 @@ class MessagePlugin:
             ),
         )
 
-    def pytest_sessionfinish(self, session, exitstatus):
+    def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> None:
         if self.is_disabled:
             return
         config = session.config
@@ -311,7 +319,7 @@ class MessagePlugin:
             os.unlink(self.messages_file_path)
 
     @hookimpl(hookwrapper=True)
-    def pytest_fixture_setup(self, fixturedef: FixtureDef, request):
+    def pytest_fixture_setup(self, fixturedef: FixtureDef, request: FixtureRequest):
         if self.is_disabled:
             yield
             return
@@ -335,12 +343,12 @@ class MessagePlugin:
                 config=config,
                 message=Message(
                     hook=Hook(
-                        id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+                        id=cast("PytestBDDIdGeneratorHandler", config).pytest_bdd_id_generator.get_next_id(),
                         **({"name": hook_name} if hook_name is not None else {}),
                         source_reference=SourceReference(
                             uri=relpath(
                                 getfile(func),
-                                str(get_config_root_path(cast(Config, config))),
+                                str(get_config_root_path(cast("Config", config))),
                             ),
                             location=Location(line=getsourcelines(func)[1]),
                         ),
@@ -352,17 +360,15 @@ class MessagePlugin:
         yield
 
     @hookimpl(hookwrapper=True)
-    def pytest_runtest_setup(self, item):
+    def pytest_runtest_setup(self, item: Item):
         yield
         if self.is_disabled:
             return
 
         session = item.session
-        config: Union[Config, PytestBDDIdGeneratorHandler] = (
-            session.config
-        )  # https://github.com/python/typing/issues/213
+        config: Config | PytestBDDIdGeneratorHandler = session.config
 
-        hook_handler = cast(Config, config).hook
+        hook_handler = cast("Config", config).hook
 
         request = item._request
         scenario = request.getfixturevalue("scenario")
@@ -393,12 +399,7 @@ class MessagePlugin:
 
                     parameter_type_registry = parameter_type_registry_getter(request)
 
-                    parameter_types = dict(
-                        map(
-                            lambda parameter_type: (id(parameter_type), parameter_type),
-                            parameter_type_registry.parameter_types,
-                        )
-                    )
+                    parameter_types = {id(pt): pt for pt in parameter_type_registry.parameter_types}
 
                     not_yet_registered_parameter_types = {
                         key: parameter_type
@@ -415,7 +416,9 @@ class MessagePlugin:
                                     regular_expressions=parameter_type.regexps,
                                     prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
                                     use_for_snippets=parameter_type._use_for_snippets,
-                                    id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+                                    id=cast(
+                                        "PytestBDDIdGeneratorHandler", config
+                                    ).pytest_bdd_id_generator.get_next_id(),
                                 ),
                             ),
                         )
@@ -436,14 +439,13 @@ class MessagePlugin:
                     step=step,
                     previous_step=previous_step,
                 )
-            except StepHandler.Matcher.MatchNotFoundError as e:
+            except Matcher.MatchNotFoundError:
                 pass
             else:
                 test_step = TestStep(
-                    id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+                    id=cast("PytestBDDIdGeneratorHandler", config).pytest_bdd_id_generator.get_next_id(),
                     pickle_step_id=step.id,
                     step_definition_ids=[step_definition.as_message(config).id],
-                    # TODO Check step_match_arguments_lists
                 )
                 test_steps.append(test_step)
                 self.current_test_case_step_id_to_step_mapping[id(step)] = test_step
@@ -451,7 +453,7 @@ class MessagePlugin:
                 previous_step = step
 
         self.current_test_case = TestCase(
-            id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+            id=cast("PytestBDDIdGeneratorHandler", config).pytest_bdd_id_generator.get_next_id(),
             pickle_id=scenario.id,
             test_steps=test_steps,
         )
