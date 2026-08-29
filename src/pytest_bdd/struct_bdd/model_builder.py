@@ -1,10 +1,9 @@
-from itertools import filterfalse
-from json import loads as json_loads
-from operator import attrgetter
-from typing import Any, Union, cast
+# ruff: noqa
+from __future__ import annotations
+
+from typing import Any
 
 from attr import attrib, attrs
-from gherkin.pickles.compiler import Compiler
 
 from messages import (  # type:ignore[attr-defined, import-untyped]
     DataTable,
@@ -22,17 +21,49 @@ from messages import (  # type:ignore[attr-defined, import-untyped]
     Tag,
     Type,
 )
-from pytest_bdd.model.gherkin_document import Feature as GherkinDocumentFeature
+from pytest_bdd.model import (
+    DataTable as L2aDataTable,
+    DocString as L2aDocString,
+    Examples as L2aExamples,
+    Feature as L2aFeature,
+    Scenario as L2aScenario,
+    Step as L2aStep,
+    TableCell as L2aTableCell,
+    TableRow as L2aTableRow,
+    Tag as L2aTag,
+)
 from pytest_bdd.struct_bdd.model import Join as StructJoin
 from pytest_bdd.struct_bdd.model import StepPrototype as StructStep
 from pytest_bdd.struct_bdd.model import Table as StructTable
 
 
+def _build_table(struct_table: Any) -> L2aDataTable | None:
+    if not struct_table or not getattr(struct_table, "rowed_values", None):
+        return None
+    rows = []
+    for row in struct_table.rowed_values:
+        cells = tuple(L2aTableCell(value=str(v)) for v in row)
+        rows.append(L2aTableRow(cells=cells))
+    return L2aDataTable(rows=tuple(rows)) if rows else None
+
+
+def _build_examples(struct_table: Any) -> tuple[L2aExamples, ...]:
+    if not struct_table or not getattr(struct_table, "values", None) or not struct_table.values:
+        return ()
+    header = None
+    if getattr(struct_table, "parameters", None):
+        header = L2aTableRow(cells=tuple(L2aTableCell(value=str(p)) for p in struct_table.parameters))
+    rows = tuple(L2aTableRow(cells=tuple(L2aTableCell(value=str(v)) for v in row)) for row in struct_table.rowed_values)
+    ex_tags = tuple(L2aTag(name=t) for t in getattr(struct_table, "tags", []))
+    ex_name = getattr(struct_table, "name", "") or ""
+    return (L2aExamples(header=header, rows=rows, tags=ex_tags, name=ex_name),)
+
+
 @attrs
 class _ASTBuilder:
-    model: Any
+    model: Any = attrib()
 
-    def build(self, *args, **kwargs):  # pragma: no cover
+    def build(self, *args: Any, **kwargs: Any) -> Any:
         raise NotImplementedError
 
 
@@ -40,30 +71,8 @@ class _ASTBuilder:
 class GherkinDocumentBuilder(_ASTBuilder):
     model: StructStep = attrib()
 
-    def build(self, id_generator):
-        return GherkinDocument(
-            comments=[], uri=None, feature=StepToFeatureASTBuilder(self.model).build(id_generator=id_generator)
-        )
-
-    def build_feature(self, filename, uri, id_generator):
-        gherkin_document = self.build(id_generator=id_generator)
-        gherkin_document.uri = uri
-
-        gherkin_document_serialized = gherkin_document.model_dump_json(by_alias=True, exclude_none=True)
-
-        scenarios_data = Compiler().compile(json_loads(gherkin_document_serialized))
-        pickles = GherkinDocumentFeature.load_pickles(scenarios_data)
-
-        feature = GherkinDocumentFeature(  # type: ignore[call-arg]
-            gherkin_document=gherkin_document,
-            uri=uri,
-            pickles=pickles,
-            filename=filename,
-        )
-
-        feature.fill_registry()
-
-        return feature
+    def build_feature(self, filename: str | None = None, uri: str = "", id_generator: Any = None) -> L2aFeature:
+        return StepToFeatureASTBuilder(self.model).build_feature(uri=uri, filename=filename)
 
 
 @attrs
