@@ -8,7 +8,7 @@ from operator import attrgetter, contains, methodcaller
 from pathlib import Path
 from subprocess import CalledProcessError
 from types import ModuleType
-from typing import Any, Deque, Optional, Union
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -17,7 +17,7 @@ from pathvalidate import is_valid_filepath
 
 from messages import Pickle  # type:ignore[attr-defined, import-untyped]
 from messages import PickleStep as Step  # type:ignore[attr-defined]
-from pytest_bdd import cucumber_json, generation, gherkin_terminal_reporter, given, steps, then, when
+from pytest_bdd import cucumber_json, generation, gherkin_terminal_reporter, given, hooks, steps, then, when
 from pytest_bdd.allure_logging import AllurePytestBDD
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
 from pytest_bdd.collector import Module as ModuleCollector
@@ -40,9 +40,8 @@ from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.parsers import cucumber_expression
 from pytest_bdd.reporting import ScenarioReporterPlugin
 from pytest_bdd.runner import ScenarioRunner
-from pytest_bdd.scenario import FeaturePathType
+from pytest_bdd.scenario import FeaturePathType, scenarios
 from pytest_bdd.scenario import add_options as scenario_add_options
-from pytest_bdd.scenario import scenarios
 from pytest_bdd.scenario_locator import FileScenarioLocator, UrlScenarioLocator
 from pytest_bdd.steps import StepHandler
 from pytest_bdd.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
@@ -68,8 +67,6 @@ except CalledProcessError:
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
-    from pytest_bdd import hooks
-
     pluginmanager.add_hookspecs(hooks)
 
 
@@ -100,7 +97,7 @@ def step_matcher(pytestconfig) -> StepHandler.Matcher:
 
 
 @pytest.fixture
-def steps_left() -> Deque[Step]:
+def steps_left() -> deque[Step]:
     """Fixture containing steps which are left to be executed"""
     return deque()
 
@@ -115,7 +112,7 @@ def parameter_type_registry():
 def attach(request: FixtureRequest):
     """Fixture parameter type registry for Cucumber expressions"""
 
-    def add_attachment(attachment, media_type: Optional[str] = None, file_name=None):
+    def add_attachment(attachment, media_type: str | None = None, file_name=None):
         request.config.hook.pytest_bdd_attach(
             request=request, attachment=attachment, media_type=media_type, file_name=file_name
         )
@@ -150,6 +147,8 @@ def pytest_configure(config: Config) -> None:
     config.pluginmanager.register(ScenarioRunner())
     config.pluginmanager.register(MessagePlugin(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
     config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
+    if hasattr(config, "stash"):
+        config.stash[IdGenerator.pytest_bdd_id_generator] = IdGenerator.from_stash(config.stash)
     setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
     if STRUCT_BDD_INSTALLED:
         config.pluginmanager.register(StructBDDPlugin())
@@ -183,22 +182,21 @@ else:
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_plugin_registered(plugin, manager):
-    if hasattr(plugin, "__file__") and isinstance(plugin, (type, ModuleType)):
+    if hasattr(plugin, "__file__") and isinstance(plugin, type | ModuleType):
         StepHandler.Registry.inject_registry_fixture_and_register_steps(plugin)
 
 
 def _build_filter(filter_):
     if callable(filter_):
         updated_filter = filter_
+    elif filter_ is None:
+        updated_filter = None
     else:
-        if filter_ is None:
-            updated_filter = None
-        else:
-            if not isinstance(filter_, str):
-                filter_ = str(filter_)
+        if not isinstance(filter_, str):
+            filter_ = str(filter_)
 
-            def updated_filter(config, feature, scenario):
-                return scenario.name == filter_
+        def updated_filter(config, feature, scenario):
+            return scenario.name == filter_
 
     return updated_filter
 
@@ -238,7 +236,7 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
     elif isinstance(features_path_type, FeaturePathType):
         pass
     else:
-        raise ValueError(f"Unknown feature path type")
+        raise ValueError("Unknown feature path type")
 
     feature_paths = list(mark_arguments["feature_paths"] or [])
 
@@ -317,7 +315,7 @@ def pytest_generate_tests(metafunc: Metafunc):
         )
 
 
-def pytest_cmdline_main(config: Config) -> Optional[int]:
+def pytest_cmdline_main(config: Config) -> int | None:
     return generation.cmdline_main(config)
 
 
@@ -328,13 +326,14 @@ def _pytest_collect_file(parent: Collector, file_path=None):
     if is_enabled_feature_autoload is None:
         is_enabled_feature_autoload = not config.getini("disable_feature_autoload")
     if not is_enabled_feature_autoload:
-        return
+        return None
 
     config = parent.config
     hook = parent.config.hook
 
     if hook.pytest_bdd_is_collectible(config=config, path=Path(file_path)):
         return FeatureFileCollector.build(parent=parent, file_path=file_path)
+    return None
 
 
 if PYTEST7:  # Done intentionally because of API change
@@ -349,7 +348,7 @@ else:
 
 
 @pytest.mark.trylast
-def pytest_bdd_convert_tag_to_marks(feature, scenario, tag) -> Optional[Collection[Union[Mark, MarkDecorator]]]:
+def pytest_bdd_convert_tag_to_marks(feature, scenario, tag) -> Collection[Mark | MarkDecorator] | None:
     return [getattr(pytest.mark, tag)]
 
 
@@ -360,12 +359,13 @@ def pytest_bdd_match_step_definition_to_step(request, feature, scenario, step, p
     return step_matcher(request, feature, scenario, step, previous_step, step_registry)
 
 
-def pytest_bdd_get_mimetype(config: Config, path: Path):
+def pytest_bdd_get_mimetype(config: Config, path: Path) -> str | None:
     # TODO use mimetypes module
     if str(path).endswith(".gherkin") or str(path).endswith(".feature"):
         return Mimetype.gherkin_plain.value
-    elif (str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md")) and is_npm_gherkin_installed:
+    if (str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md")) and is_npm_gherkin_installed:
         return Mimetype.markdown.value
+    return None
 
 
 def pytest_bdd_get_parser(config: Config, mimetype: str):
@@ -375,7 +375,6 @@ def pytest_bdd_get_parser(config: Config, mimetype: str):
     }.get(mimetype)
 
 
-def pytest_bdd_is_collectible(config: Config, path: Path):
+def pytest_bdd_is_collectible(config: Config, path: Path) -> bool:
     # TODO add more extensions
-    if any(map(partial(contains, {".gherkin", ".feature", ".url", ".desktop", ".webloc"}), path.suffixes)):
-        return True
+    return any(map(partial(contains, {".gherkin", ".feature", ".url", ".desktop", ".webloc"}), path.suffixes))
