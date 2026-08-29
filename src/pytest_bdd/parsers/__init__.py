@@ -7,6 +7,7 @@ from pytest_bdd.parsers.base import (
     StepParser,
     StepParserProtocol,
 )
+from pytest_bdd.parsers.string_parser import string
 
 __all__ = [
     "ParserBuildValueError",
@@ -14,4 +15,5 @@ __all__ = [
     "StepMatch",
     "StepParser",
     "StepParserProtocol",
+    "string",
 ]
