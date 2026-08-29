@@ -6,6 +6,7 @@ import pytest
 
 try:
     import hamcrest
+
     all_of = hamcrest.all_of
     any_of = hamcrest.any_of
     assert_that = hamcrest.assert_that
@@ -48,7 +49,7 @@ def has_step(name, *matchers):
 
 def match(matcher, *args):
     for i, arg in enumerate(args):
-        if not hasattr(arg, "__call__"):
+        if not callable(arg):
             matcher = partial(matcher, arg)
         else:
             matcher = partial(matcher, match(arg, *args[i + 1 :]))
@@ -120,7 +121,7 @@ def allured_testdir(testdir, request):
 
 @pytest.fixture
 def context():
-    return dict()
+    return {}
 
 
 @pytest.fixture
@@ -131,7 +132,7 @@ def allure_report(allured_testdir, context):
 @given(parsers.re("(?P<name>\\w+)(?P<extension>\\.\\w+) with content:"))
 def feature_definition(name, extension, testdir, step):
     content = step.doc_string.content
-    testdir.makefile(extension, **dict([(name, content)]))
+    testdir.makefile(extension, **{name: content})
 
 
 @when("run pytest-bdd with allure")

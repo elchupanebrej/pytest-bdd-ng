@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import RunResult

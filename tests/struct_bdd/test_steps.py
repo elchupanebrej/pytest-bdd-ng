@@ -287,9 +287,7 @@ def test_steps(testdir, kind, file_content, tmp_path):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """.format(
-            kind=kind
-        )
+        """.format(kind=kind)
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1, failed=0)
@@ -375,9 +373,7 @@ def test_default_loader(testdir, kind, file_content):
         @then("the list should be [1, 2, 3]")
         def check_results(results):
             assert results == [1, 2, 3]
-        """.format(
-            kind=kind
-        )
+        """.format(kind=kind)
     )
     result = testdir.runpytest("--disable-feature-autoload")
     result.assert_outcomes(passed=1, failed=0)

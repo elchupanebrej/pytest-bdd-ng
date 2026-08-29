@@ -1,7 +1,5 @@
 from textwrap import dedent
 
-import pytest
-
 
 def test_markdown(testdir):
     testdir.makefile(

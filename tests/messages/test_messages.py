@@ -3,13 +3,14 @@ from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
 from pprint import pformat
-from typing import TYPE_CHECKING, Type, Union, cast
+from typing import TYPE_CHECKING, cast
 
+import pytest
 from pydantic import ValidationError
 
-from messages import Attachment, ContentEncoding  # type:ignore[attr-defined]
-from messages import Envelope as Message  # type:ignore[attr-defined]
-from messages import (  # type:ignore[attr-defined]
+from messages import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]
+    Attachment,
+    ContentEncoding,
     GherkinDocument,
     Hook,
     Meta,
@@ -18,6 +19,7 @@ from messages import (  # type:ignore[attr-defined]
     Source,
     StepDefinition,
 )
+from messages import Envelope as Message  # type:ignore[attr-defined]
 from messages import TestCase as _TestCase  # type:ignore[attr-defined]
 from messages import TestCaseFinished as _TestCaseFinished  # type:ignore[attr-defined]
 from messages import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
@@ -57,11 +59,10 @@ def unfold_message(message: Message):
     for attr in unfoldable_attrs:
         if (unfold := getattr(message, attr)) is not None:
             return unfold
-    else:  # pragma: nocover
-        raise ValueError("Empty message was given")
+    raise ValueError("Empty message was given")
 
 
-def list_filter_by_type(t: Union[type, Iterable[type]], items):
+def list_filter_by_type(t: type | Iterable[type], items):
     return list(filter(partial(flip(isinstance), tuple(t) if isinstance(t, Iterable) else t), items))
 
 
@@ -82,10 +83,10 @@ def parse_and_unflold_messages(lines):
     return list(map(unfold_message, parsed_messages))
 
 
-import pytest
-
-
-@pytest.mark.skipif(not (samples_path / "minimal" / "minimal.feature").exists(), reason="compatibility-kit devkit samples not present")
+@pytest.mark.skipif(
+    not (samples_path / "minimal" / "minimal.feature").exists(),
+    reason="compatibility-kit devkit samples not present",
+)
 def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     testdir.makefile(
         ".feature",
@@ -518,7 +519,7 @@ def test_hook_type_messages(testdir, tmp_path):
     )
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest import fixture
         from pytest_bdd import when
         from pytest_bdd.hook import before_tag, before_mark, after_tag, around_mark
@@ -581,13 +582,13 @@ def test_hook_type_messages(testdir, tmp_path):
     assert len(attachment_messages) == 4, f"Messages: {pformat(messages)}"
 
     # before_mark hook
-    assert any(map(lambda message: message.tag_expression == "tag" and message.name is None, attachment_messages))
+    assert any(message.tag_expression == "tag" and message.name is None for message in attachment_messages)
 
     # before_tag hook
-    assert any(map(lambda message: message.tag_expression == "@tag" and message.name == "before", attachment_messages))
+    assert any(message.tag_expression == "@tag" and message.name == "before" for message in attachment_messages)
 
     # after_tag hook
-    assert any(map(lambda message: message.tag_expression == "@tag" and message.name == "after", attachment_messages))
+    assert any(message.tag_expression == "@tag" and message.name == "after" for message in attachment_messages)
 
     # after_tag hook
-    assert any(map(lambda message: message.tag_expression == "tag" and message.name == "around", attachment_messages))
+    assert any(message.tag_expression == "tag" and message.name == "around" for message in attachment_messages)

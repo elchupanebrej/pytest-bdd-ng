@@ -2,7 +2,6 @@
 
 import re
 from pathlib import Path
-from typing import Optional, Union
 
 import pytest
 
@@ -13,7 +12,7 @@ execnet_gateway_base = execnet.gateway_base
 class OfType:
     """Helper object comparison to which is always 'equal'."""
 
-    def __init__(self, type: Optional[type] = None) -> None:
+    def __init__(self, type: type | None = None) -> None:
         self.type = type
 
     def __eq__(self, other: object) -> bool:
@@ -22,7 +21,7 @@ class OfType:
 
 def matchreport(
     result,
-    inamepart_match: Union[str, re.Pattern] = "",
+    inamepart_match: str | re.Pattern = "",
     names="pytest_runtest_logreport pytest_collectreport",
     when=None,
 ):
@@ -35,11 +34,12 @@ def matchreport(
         if when and rep.when != when:
             continue
         iname_parts = rep.nodeid.split("::")
-        if not inamepart_match:
-            values.append(rep)
-        elif inamepart_match in iname_parts:
-            values.append(rep)
-        elif isinstance(inamepart_match, re.Pattern) and any(map(inamepart_match.match, iname_parts)):
+        if (
+            not inamepart_match
+            or inamepart_match in iname_parts
+            or isinstance(inamepart_match, re.Pattern)
+            and any(map(inamepart_match.match, iname_parts))
+        ):
             values.append(rep)
     if not values:
         raise ValueError(f"could not find test report matching {inamepart_match}: no test reports at all!")

@@ -166,9 +166,7 @@ def test_step_parameters_should_be_replaced_by_their_values(testdir):
                 Examples:
                 | start | eat | left |
                 |{start}|{eat}|{left}|
-            """.format(
-            **example
-        ),
+            """.format(**example),
     )
     testdir.makeconftest(
         # language=python

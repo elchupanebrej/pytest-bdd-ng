@@ -5,12 +5,12 @@ from typing import TYPE_CHECKING
 import pytest
 from pytest import mark
 
-pytest_httpserver = pytest.importorskip("pytest_httpserver")
-HTTPServer = pytest_httpserver.HTTPServer
-
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.mimetypes import Mimetype
 from pytest_bdd.webloc import write as webloc_write
+
+pytest_httpserver = pytest.importorskip("pytest_httpserver")
+HTTPServer = pytest_httpserver.HTTPServer
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
@@ -33,10 +33,10 @@ MINIMAL_FEATURE = dedent(
 
 MINIMAL_CONFTEST = dedent(
     # language=python
-    f"""\
+    """\
     from pytest_bdd import given
 
-    @given("I have {{cuckes_count}} cukes in my belly")
+    @given("I have {cuckes_count} cukes in my belly")
     def results(cuckes_count):
         assert cuckes_count == '42'
     """
@@ -115,10 +115,10 @@ def test_feature_load_by_http_from_webloc_file(testdir: "Testdir", httpserver: H
     webloc_write(Path(testdir.tmpdir) / "test_http.webloc", f"http://localhost:{httpserver.port}/feature")
     testdir.makeconftest(
         # language=python
-        f"""\
+        """\
         from pytest_bdd import given
 
-        @given("I have {{cuckes_count}} cukes in my belly")
+        @given("I have {cuckes_count} cukes in my belly")
         def results(cuckes_count):
             assert cuckes_count == '42'
 
@@ -211,10 +211,10 @@ def test_feature_load_by_http_with_base_url_from_ini(testdir, httpserver: HTTPSe
 
     testdir.makepyfile(
         # language=python
-        test_http=f"""\
+        test_http="""\
             from pytest_bdd import given, scenarios, FeaturePathType
 
-            @given("I have {{cuckes_count}} cukes in my belly")
+            @given("I have {cuckes_count} cukes in my belly")
             def results(cuckes_count):
                 assert cuckes_count == '42'
 

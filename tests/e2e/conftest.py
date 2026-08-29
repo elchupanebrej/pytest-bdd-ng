@@ -7,11 +7,11 @@ from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pytest
 from pytest import fixture
 
 try:
     import pytest_httpserver
+
     HTTPServer = pytest_httpserver.HTTPServer
 except ImportError:
     pytest_httpserver = None
@@ -94,7 +94,7 @@ def _(testdir: "Testdir", step):
 def check_pytest_test_statuses(pytest_result, step):
     outcomes_kwargs = map(attrgetter("value"), step.data_table.rows[0].cells)
     outcomes_kwargs_values = map(compose(int, attrgetter("value")), step.data_table.rows[1].cells)
-    outcome_result = dict(zip(outcomes_kwargs, outcomes_kwargs_values))
+    outcome_result = dict(zip(outcomes_kwargs, outcomes_kwargs_values, strict=False))
 
     assert_outcomes(pytest_result, **outcome_result)
 
@@ -106,12 +106,14 @@ def check_pytest_stdout_lines(pytest_result, step):
     pytest_result.stdout.fnmatch_lines(lines)
 
 
-@given(re.compile(r"Copy path from \"(?P<initial_path>(\w|\\|.)+)\" to test path \"(?P<final_path>(\w|\\|.)+)\""))
-def copy_path(request, testdir: "Testdir", initial_path, final_path, step):
-    full_initial_path = (Path(request.config.rootdir) / Path(initial_path).as_posix()).resolve(strict=True)
-    full_final_path = Path(testdir.tmpdir) / Path(final_path).as_posix()
+@given(
+    re.compile(r"Copy \"(?P<initial_path>(\w|\\|.)+)\" into \"(?P<final_path>(\w|\\|.)+)\""),
+    converters={"initial_path": Path, "final_path": Path},
+)
+def copy_file(testdir, initial_path: Path, final_path: Path):
+    full_initial_path = Path(testdir.tmpdir) / initial_path
+    full_final_path = Path(testdir.tmpdir) / final_path
     if full_initial_path.is_file():
-        full_final_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(full_initial_path, full_final_path)
     else:
         shutil.copytree(full_initial_path, full_final_path, dirs_exist_ok=True)
@@ -119,7 +121,7 @@ def copy_path(request, testdir: "Testdir", initial_path, final_path, step):
 
 @then(
     re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" has \"(?P<line_count>(\w|\\|.)+)\" lines"),
-    converters=dict(line_count=int, file_path=Path),
+    converters={"line_count": int, "file_path": Path},
 )
 def _(file_path: Path, line_count: int):
     with file_path.open("r") as fp:
@@ -129,13 +131,13 @@ def _(file_path: Path, line_count: int):
 
 @then(
     re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" is not empty"),
-    converters=dict(file_path=Path),
+    converters={"file_path": Path},
 )
 def _(file_path: Path, testdir):
     assert (Path(str(testdir.tmpdir)) / file_path).stat().st_size != 0
 
 
-@then(re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"), converters=dict(file_path=Path))
+@then(re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"), converters={"file_path": Path})
 def _(file_path: Path):
     with file_path.open(mode="r") as ast_file:
         try:
