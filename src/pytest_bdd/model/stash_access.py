@@ -4,7 +4,6 @@ import contextlib
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 from attrs import define, field
-from returns.maybe import Maybe, Nothing, Some
 
 from pytest_bdd.exceptions import (
     PytestBDDStashAlreadyInitializedError,
@@ -72,27 +71,26 @@ class StashAccess:
             return None
 
     @classmethod
-    def get_optional(cls, stash: Any, stash_type: type[B] | StashKey[B] | Any) -> Maybe[B]:
+    def get_optional(cls, stash: Any, stash_type: type[B] | StashKey[B] | Any) -> B | None:
         key = getattr(stash_type, "STASH_KEY", stash_type)
         candidate = cls._stash_get(stash, key)
         if candidate is None and key != stash_type:
             candidate = cls._stash_get(stash, stash_type)
         if candidate is None:
-            return Nothing
+            return None
         if isinstance(stash_type, type) and not isinstance(candidate, stash_type):
             raise PytestBDDStashTypeMismatchError(
                 stash_key=str(key),
                 actual_type=type(candidate).__name__,
                 expected_type=stash_type.__name__,
             )
-        return Some(candidate)
+        return candidate
 
     @classmethod
     def require(cls, stash: Any, stash_type: type[B] | StashKey[B] | Any, *, missing_message: str) -> B:
         candidate = cls.get_optional(stash, stash_type)
-        val = candidate.value_or(None)
-        if val is not None:
-            return val
+        if candidate is not None:
+            return candidate
         raise PytestBDDStashLookupError(missing_message)
 
     @classmethod
@@ -111,7 +109,7 @@ class StashAccess:
         duplicate_message: str,
     ) -> B:
         existing = cls.get_optional(stash, stash_type)
-        if existing.value_or(None) is not None:
+        if existing is not None:
             raise PytestBDDStashAlreadyInitializedError(duplicate_message)
         val = value_factory()
         return cls.set(stash, val, key=getattr(stash_type, "STASH_KEY", stash_type))
@@ -129,7 +127,7 @@ class StashBound:
         return f"`{cls.__name__}` is already initialized in config.stash."
 
     @classmethod
-    def find_in_stash(cls: type[B], stash: Any) -> Maybe[B]:
+    def find_in_stash(cls: type[B], stash: Any) -> B | None:
         return StashAccess.get_optional(stash, cls)
 
     @classmethod
