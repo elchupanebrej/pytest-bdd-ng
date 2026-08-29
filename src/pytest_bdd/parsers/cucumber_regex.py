@@ -34,7 +34,10 @@ class cucumber_regular_expression(_CucumberExpression):
         self.parameter_type_registry_like = parameter_type_registry
 
     @__init__.register
-    def _(self, expression: CucumberRegularExpression) -> None:
+    def _(
+        self,
+        expression: CucumberRegularExpression,
+    ) -> None:
         self.pattern = expression.expression_regexp.pattern
         self.parameter_type_registry_like = expression.parameter_type_registry
 
