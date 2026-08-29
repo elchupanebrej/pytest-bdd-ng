@@ -220,6 +220,8 @@ def stringify(value: StringableProtocol | str | bytes) -> str:
 
 
 class IdGenerator:
+    pytest_bdd_id_generator = "pytest_bdd_id_generator"
+
     def __init__(self):
         self._id_counter = 0
 
@@ -230,6 +232,16 @@ class IdGenerator:
             self._id_counter += 1
 
     get_next_id = __next__
+
+    @classmethod
+    def from_stash(cls, stash):
+        if hasattr(stash, "get"):
+            gen = stash.get(cls.pytest_bdd_id_generator, None)
+            if gen is None:
+                gen = cls()
+                stash[cls.pytest_bdd_id_generator] = gen
+            return gen
+        return cls()
 
 
 def is_local_url(urllike):
