@@ -4,6 +4,7 @@ import re as std_re
 
 from pytest_bdd.parsers.base import ParserBuildValueError, RegistryMode, StepMatch, StepParser, StepParserProtocol
 from pytest_bdd.parsers.cucumber_expression import cucumber_expression
+from pytest_bdd.parsers.cucumber_regex import cucumber_regular_expression
 from pytest_bdd.parsers.re_parser import re as bdd_re
 from pytest_bdd.parsers.string_parser import string
 
@@ -60,3 +61,13 @@ def test_cucumber_expression_parser() -> None:
     assert parser.is_matching(None, "I have 5 cucumbers") and not parser.is_matching(None, "I have five cucumbers")
     args = parser.parse_arguments(None, "I have 5 cucumbers", anonymous_group_names=["count"])
     assert args == {"count": 5}
+
+
+def test_cucumber_regular_expression_parser() -> None:
+    reg_parser = cucumber_regular_expression(
+        r"I have (?P<count>\d+) cucumbers", parameter_type_registry=RegistryMode.GLOBAL
+    )
+    assert reg_parser.is_matching(None, "I have 10 cucumbers")
+    assert reg_parser.arguments == ["count"]
+    args = reg_parser.parse_arguments(None, "I have 10 cucumbers", anonymous_group_names=["num"])
+    assert args == {"num": "10"}
