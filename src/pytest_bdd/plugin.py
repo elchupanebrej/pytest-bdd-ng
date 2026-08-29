@@ -1,22 +1,20 @@
+from __future__ import annotations
+
 from collections import deque
-from collections.abc import Collection, Iterable, Sequence
 from contextlib import suppress
 from functools import partial
 from inspect import signature
-from itertools import chain, starmap
+from itertools import chain
 from operator import attrgetter, contains, methodcaller
 from pathlib import Path
 from subprocess import CalledProcessError
 from types import ModuleType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
-from _pytest.nodes import Collector
 from pathvalidate import is_valid_filepath
 
-from messages import Pickle  # type:ignore[attr-defined, import-untyped]
-from messages import PickleStep as Step  # type:ignore[attr-defined]
 from pytest_bdd import cucumber_json, generation, gherkin_terminal_reporter, given, hooks, steps, then, when
 from pytest_bdd.allure_logging import AllurePytestBDD
 from pytest_bdd.collector import FeatureFileModule as FeatureFileCollector
@@ -34,7 +32,6 @@ from pytest_bdd.compatibility.pytest import (
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.message_plugin import MessagePlugin
 from pytest_bdd.mimetypes import Mimetype
-from pytest_bdd.model import Feature
 from pytest_bdd.npm_resource import check_npm, check_npm_package
 from pytest_bdd.parser import GherkinParser, MarkdownGherkinParser
 from pytest_bdd.parsers import cucumber_expression
@@ -45,6 +42,14 @@ from pytest_bdd.scenario import add_options as scenario_add_options
 from pytest_bdd.scenario_locator import FileScenarioLocator, UrlScenarioLocator
 from pytest_bdd.steps import StepHandler
 from pytest_bdd.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Iterable, Sequence
+
+    from _pytest.nodes import Collector
+
+    from messages import PickleStep as Step
+    from pytest_bdd.model import Feature, Scenario
 
 if STRUCT_BDD_INSTALLED:
     from pytest_bdd.struct_bdd.plugin import StructBDDPlugin
@@ -206,11 +211,10 @@ def _build_filter(filter_):
     elif filter_ is None:
         updated_filter = None
     else:
-        if not isinstance(filter_, str):
-            filter_ = str(filter_)
+        filter_str = str(filter_)
 
         def updated_filter(config, feature, scenario):
-            return scenario.name == filter_
+            return scenario.name == filter_str or scenario.name.startswith(f"{filter_str}[")
 
     return updated_filter
 
@@ -292,17 +296,19 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
     return chain(*locators_iterables)
 
 
-def _build_scenario_param(feature: Feature, pickle: Pickle, feature_data: str, config: Config):
+def _build_scenario_param(feature: Feature, scenario: Scenario, config: Config):
     marks = []
-    for tag in feature._get_pickle_tag_names(pickle):
-        tag_marks = config.hook.pytest_bdd_convert_tag_to_marks(feature=feature, scenario=pickle, tag=tag)
+    feature_tags = getattr(feature, "tag_names", ()) or ()
+    scenario_tags = getattr(scenario, "tag_names", ()) or ()
+    all_tags = set(feature_tags).union(scenario_tags)
+    for tag in all_tags:
+        tag_marks = config.hook.pytest_bdd_convert_tag_to_marks(feature=feature, scenario=scenario, tag=tag)
         if tag_marks is not None:
             marks.extend(tag_marks)
     return pytest.param(
         feature,
-        pickle,
-        feature_data,
-        id=f"{feature.uri}-{feature.name}-{pickle.name}{feature.build_pickle_table_rows_breadcrumb(pickle)}",
+        scenario,
+        id=f"{feature.uri or feature.filename or 'feature'}-{feature.name}-{scenario.name}",
         marks=marks,
     )
 
@@ -319,12 +325,18 @@ def pytest_generate_tests(metafunc: Metafunc):
     if "pytest_bdd_scenario" in mark_names:
         scenario_marks = filter(lambda mark: mark.name == "scenarios", marks)
         locators = chain_map(partial(_build_scenario_locators_from_mark, config=config), scenario_marks)
-        feature_scenario_feature_source = chain_map(methodcaller("resolve", config), locators)
+        feature_scenarios = list(chain_map(methodcaller("resolve", config), locators))
 
-        metafunc.parametrize(
-            "feature, scenario, feature_source",
-            starmap(partial(_build_scenario_param, config=config), feature_scenario_feature_source),
-        )
+        if not feature_scenarios:
+            metafunc.parametrize(
+                ("feature", "scenario"),
+                [pytest.param(None, None, marks=pytest.mark.skip(reason="No scenarios found"))],
+            )
+        else:
+            metafunc.parametrize(
+                ("feature", "scenario"),
+                [_build_scenario_param(feat, sc, config=config) for feat, sc in feature_scenarios],
+            )
 
 
 def pytest_cmdline_main(config: Config) -> int | None:
@@ -361,7 +373,8 @@ else:
 
 @pytest.mark.trylast
 def pytest_bdd_convert_tag_to_marks(feature, scenario, tag) -> Collection[Mark | MarkDecorator] | None:
-    return [getattr(pytest.mark, tag)]
+    tag_clean = tag.lstrip("@")
+    return [getattr(pytest.mark, tag_clean)]
 
 
 def pytest_bdd_match_step_definition_to_step(request, feature, scenario, step, previous_step) -> StepHandler.Definition:

@@ -11,13 +11,13 @@ from urllib.request import urlopen
 
 from attrs import define, field
 
+from pytest_bdd.model import Feature, Scenario, Step
 from pytest_bdd.parser import ParserRegistry, default_parser_registry
 from pytest_bdd.utils import is_local_url
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
-    from pytest_bdd.model import Feature, Scenario
     from pytest_bdd.parser import ParserProtocol
 
 
@@ -38,8 +38,49 @@ class ScenarioLocatorFilterMixin:
     filter_: Callable[[Any, Feature, Scenario], bool] | None = field(default=None, kw_only=True)
 
     def filter_scenarios(self, feature: Feature, config: Any = None) -> Iterable[tuple[Feature, Scenario]]:
-        for scenario in feature.scenarios:
-            if self.filter_ is None or self.filter_(config, feature, scenario):
+        all_scenarios = getattr(feature, "all_scenarios", feature.scenarios)
+        for scenario in all_scenarios:
+            if scenario.examples:
+                for example in scenario.examples:
+                    if not example.header or not example.rows:
+                        continue
+                    headers = [c.value for c in example.header.cells]
+                    for row in example.rows:
+                        mapping = {
+                            h: (c.value if i < len(row.cells) else "")
+                            for i, (h, c) in enumerate(zip(headers, row.cells, strict=False))
+                        }
+                        expanded_steps = []
+                        for step in scenario.steps:
+                            expanded_name = step.name
+                            for k, v in mapping.items():
+                                expanded_name = expanded_name.replace(f"<{k}>", v)
+                            expanded_steps.append(
+                                Step(
+                                    name=expanded_name,
+                                    keyword=step.keyword,
+                                    line=step.line,
+                                    doc_string=step.doc_string,
+                                    data_table=step.data_table,
+                                    type=step.type,
+                                    id=step.id,
+                                )
+                            )
+                        expanded_tags = scenario.tags + (example.tags or ())
+                        expanded_scenario = Scenario(
+                            name=f"{scenario.name}[table_rows:[line: {row.line}]]",
+                            keyword=scenario.keyword,
+                            description=scenario.description,
+                            line=scenario.line,
+                            id=f"{scenario.id or scenario.name}-{row.id or row.line}",
+                            tags=expanded_tags,
+                            steps=tuple(expanded_steps),
+                            background=scenario.background,
+                            examples=(),
+                        )
+                        if self.filter_ is None or self.filter_(config, feature, expanded_scenario):
+                            yield feature, expanded_scenario
+            elif self.filter_ is None or self.filter_(config, feature, scenario):
                 yield feature, scenario
 
     def resolve(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[tuple[Feature, Scenario]]:
@@ -89,11 +130,23 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                 continue
 
 
+DEFAULT_FEATURE_PATTERNS = (
+    "**/*.feature",
+    "**/*.gherkin",
+    "**/*.feature.md",
+    "**/*.gherkin.md",
+    "**/*.bdd.yaml",
+    "**/*.bdd.yml",
+    "**/*.bdd.json",
+    "**/*.bdd.toml",
+)
+
+
 @define
 class FileScenarioLocator(ScenarioLocatorFilterMixin):
     feature_paths: list[str | Path] = field(factory=list)
     encoding: str = "utf-8"
-    features_base_dir: str | Path | None = None
+    features_base_dir: Path | str | Callable[[Any], Path | str] | None = None
     mimetype: str | None = None
     parser_type: type[ParserProtocol] | None = None
     parser: ParserProtocol | None = None
@@ -125,7 +178,8 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     feature_pathlike if feature_pathlike.is_absolute() else features_base_dir / feature_pathlike
                 )
                 if feature_path.is_dir():
-                    yield from filter(methodcaller("is_file"), feature_path.glob("**/*"))
+                    for pat in DEFAULT_FEATURE_PATTERNS:
+                        yield from filter(methodcaller("is_file"), feature_path.glob(pat))
                 elif feature_path.is_file():
                     yield feature_path
             else:
@@ -133,7 +187,8 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                 path_obj = Path(raw_str)
                 if path_obj.is_absolute():
                     if path_obj.is_dir():
-                        yield from filter(methodcaller("is_file"), path_obj.glob("**/*"))
+                        for pat in DEFAULT_FEATURE_PATTERNS:
+                            yield from filter(methodcaller("is_file"), path_obj.glob(pat))
                     elif path_obj.is_file():
                         yield path_obj
                     else:
@@ -141,16 +196,20 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                             methodcaller("is_file"),
                             path_obj.parent.glob(path_obj.name),
                         )
+                elif raw_str in (".", ""):
+                    for pat in DEFAULT_FEATURE_PATTERNS:
+                        yield from filter(methodcaller("is_file"), features_base_dir.glob(pat))
+                elif any(c in raw_str for c in ("*", "?", "[")):
+                    yield from filter(methodcaller("is_file"), features_base_dir.glob(raw_str))
                 else:
-                    found = list(filter(methodcaller("is_file"), features_base_dir.glob(raw_str)))
-                    if found:
-                        yield from found
+                    target = features_base_dir / path_obj
+                    if target.is_dir():
+                        for pat in DEFAULT_FEATURE_PATTERNS:
+                            yield from filter(methodcaller("is_file"), target.glob(pat))
+                    elif target.is_file():
+                        yield target
                     else:
-                        target = features_base_dir / path_obj
-                        if target.is_dir():
-                            yield from filter(methodcaller("is_file"), target.glob("**/*"))
-                        elif target.is_file():
-                            yield target
+                        yield from filter(methodcaller("is_file"), features_base_dir.glob(raw_str))
 
     @staticmethod
     def _build_file_uri(features_base_dir: Path, feature_path: Path) -> str:
