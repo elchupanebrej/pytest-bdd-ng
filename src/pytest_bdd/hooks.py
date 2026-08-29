@@ -1,14 +1,18 @@
-from collections.abc import Iterable
-from io import BufferedIOBase, TextIOBase
-from pathlib import Path
-from typing import Any, Optional, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from pytest import hookspec
 
-from messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
-from messages import Pickle  # type:ignore[attr-defined]
-from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Mark
-from pytest_bdd.model import Feature
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from io import BufferedIOBase, TextIOBase
+    from pathlib import Path
+
+    from messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
+    from messages import Pickle  # type:ignore[attr-defined]
+    from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Mark
+    from pytest_bdd.model import Feature
 
 """Pytest-bdd pytest hooks."""
 
@@ -50,12 +54,17 @@ def pytest_bdd_step_func_lookup_error(request, feature, scenario, step, exceptio
 
 
 @hookspec(firstresult=True)
-def pytest_bdd_convert_tag_to_marks(feature, scenario, tag) -> Optional[Iterable[Mark]]:
-    """Apply a tag (from a ``.feature`` file) to the given test item.
+def pytest_bdd_apply_tag(tag, function):
+    """Apply a tag (from a .feature file) to the given test function."""
+
+
+@hookspec(firstresult=True)
+def pytest_bdd_convert_tag_to_marks(feature, scenario, tag) -> Iterable[Mark] | None:
+    """Apply a tag (from a .feature file) to the given test item.
 
     The default implementation does the equivalent of
-    ``getattr(pytest.mark, tag)(function)``, but you can override this hook and
-    return ``True`` to do more sophisticated handling of tags.
+    getattr(pytest.mark, tag)(function), but you can override this hook and
+    return True to do more sophisticated handling of tags.
     """
 
 
@@ -95,8 +104,8 @@ def pytest_bdd_get_mimetype(config: Config, path: Path):
 
 def pytest_bdd_attach(
     request: FixtureRequest,
-    attachment: Union[str, bytes, bytearray, BufferedIOBase, TextIOBase, Any],
-    media_type: Optional[str],
-    file_name: Optional[str],
+    attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | Any,
+    media_type: str | None,
+    file_name: str | None,
 ):
     """Internal hook to add attachment to a test case"""
