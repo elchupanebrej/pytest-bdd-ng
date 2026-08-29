@@ -61,9 +61,11 @@ class BaseParser:
 
 @define
 class ParserRegistry:
-    _parsers_by_key: dict[str, ParserProtocol | type[ParserProtocol]] = field(factory=dict)
+    _parsers_by_key: dict[str, ParserProtocol | type[ParserProtocol] | Callable[[], ParserProtocol]] = field(
+        factory=dict
+    )
 
-    def register(self, key: str, parser: ParserProtocol | type[ParserProtocol]) -> None:
+    def register(self, key: str, parser: ParserProtocol | type[ParserProtocol] | Callable[[], ParserProtocol]) -> None:
         self._parsers_by_key[key.lower()] = parser
 
     def get_parser(self, key: str) -> ParserProtocol | None:
@@ -71,6 +73,8 @@ class ParserRegistry:
         if entry is None:
             return None
         if isinstance(entry, type):
+            return entry()
+        if callable(entry):
             return entry()
         return entry
 
@@ -80,7 +84,7 @@ class ParserRegistry:
     def get_parser_for_path(self, path: Path | str) -> ParserProtocol | None:
         p = Path(path)
         name = p.name.lower()
-        for key in self._parsers_by_key:
+        for key in sorted(self._parsers_by_key, key=len, reverse=True):
             if key.startswith(".") and name.endswith(key):
                 return self.get_parser(key)
         suffix = p.suffix.lower()
@@ -170,6 +174,34 @@ default_parser_registry.register(".feature.md", MarkdownParser)
 default_parser_registry.register(".gherkin.md", MarkdownParser)
 default_parser_registry.register(".md", MarkdownParser)
 default_parser_registry.register("text/x-markdown", MarkdownParser)
+
+
+def _get_yaml_parser() -> ParserProtocol:
+    from pytest_bdd.struct_bdd.parser import yaml_parser
+
+    return yaml_parser
+
+
+def _get_toml_parser() -> ParserProtocol:
+    from pytest_bdd.struct_bdd.parser import toml_parser
+
+    return toml_parser
+
+
+def _get_json_parser() -> ParserProtocol:
+    from pytest_bdd.struct_bdd.parser import json_parser
+
+    return json_parser
+
+
+for _key in [".bdd.yaml", ".bdd.yml", ".yaml", ".yml", "application/x-yaml", "text/yaml"]:
+    default_parser_registry.register(_key, _get_yaml_parser)
+
+for _key in [".bdd.toml", ".toml", "application/toml"]:
+    default_parser_registry.register(_key, _get_toml_parser)
+
+for _key in [".bdd.json", ".json", "application/json"]:
+    default_parser_registry.register(_key, _get_json_parser)
 
 
 __all__ = [
