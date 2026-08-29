@@ -197,7 +197,7 @@ else:
 @pytest.hookimpl(tryfirst=True)
 def pytest_plugin_registered(plugin, manager):
     if hasattr(plugin, "__file__") and isinstance(plugin, type | ModuleType):
-        StepHandler.Registry.inject_registry_fixture_and_register_steps(plugin)
+        StepHandler.Registry.inject_registry_fixture(plugin)
 
 
 def _build_filter(filter_):

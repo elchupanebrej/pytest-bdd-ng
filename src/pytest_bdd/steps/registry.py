@@ -69,6 +69,8 @@ class Registry:
         )
         setdefaultattr(namespace, "step_registry", step_definition_registry.fixture)
 
+    inject_registry_fixture_and_register_steps = inject_registry_fixture
+
     @property
     def fixture(self) -> Callable[[Registry], Registry]:
         @pytest.fixture

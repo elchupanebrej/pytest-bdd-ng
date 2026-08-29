@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import inspect
+import sys
+from pathlib import Path
 
 import pytest_bdd
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 
 def test_public_api_exports() -> None:
@@ -44,3 +51,13 @@ def test_public_api_callables_and_types() -> None:
 
     assert isinstance(pytest_bdd.__version__, str)
     assert hasattr(pytest_bdd.parsers, "parse")
+
+
+def test_pytest11_entrypoint_registered() -> None:
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    pyproject_path = repo_root / "pyproject.toml"
+    with pyproject_path.open("rb") as f:
+        data = tomllib.load(f)
+
+    entry_points = data.get("project", {}).get("entry-points", {}).get("pytest11", {})
+    assert entry_points.get("pytest-bdd") == "pytest_bdd.plugin"

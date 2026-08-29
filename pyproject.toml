@@ -81,6 +81,10 @@ readme = {file = "README.rst", content-type = "text/x-rst"}
 requires-python = ">=3.10"
 version = "2.3.1"
 
+[project.entry-points.pytest11]
+pytest-bdd = "pytest_bdd.plugin"
+
+
 [project.optional-dependencies]
 lint = [
   "ruff>=0.4.0",
