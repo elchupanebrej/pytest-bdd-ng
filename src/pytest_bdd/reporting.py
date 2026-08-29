@@ -39,11 +39,22 @@ class StepReport:
 
         :return: Serialized step execution report.
         """
+        step_type = getattr(self.step, "type", None) or (
+            feature._get_step_prefix(self.step)
+            if hasattr(feature, "_get_step_prefix")
+            else getattr(self.step, "prefix", "")
+        )
+        step_kw = getattr(self.step, "keyword", "") or (
+            feature._get_step_keyword(self.step) if hasattr(feature, "_get_step_keyword") else ""
+        )
+        step_line = getattr(self.step, "line", 0) or (
+            feature._get_step_line_number(self.step) if hasattr(feature, "_get_step_line_number") else 0
+        )
         return {
-            "name": self.step.text,
-            "type": feature._get_step_prefix(self.step),
-            "keyword": feature._get_step_keyword(self.step),
-            "line_number": feature._get_step_line_number(self.step),
+            "name": getattr(self.step, "name", getattr(self.step, "text", "")),
+            "type": step_type,
+            "keyword": step_kw,
+            "line_number": step_line,
             "failed": self.failed,
             "duration": self.duration,
         }
@@ -89,19 +100,29 @@ class ScenarioReport:
         """Serialize scenario execution report in order to transfer reporting from nodes in the distributed mode."""
         pickle = self.scenario
         feature: Feature = self.feature
+        pickle_line = getattr(pickle, "line", 0) or (
+            feature._get_pickle_line_number(pickle) if hasattr(feature, "_get_pickle_line_number") else 0
+        )
+        pickle_tags = getattr(pickle, "tag_names", ()) or ()
+        feature_tags = getattr(feature, "tag_names", ()) or ()
+
+        feat_rel = getattr(feature, "rel_filename", None)
+        if not feat_rel:
+            uri = feature.uri or ""
+            feat_rel = uri[5:] if uri.startswith("file:") else (uri or feature.filename or "")
 
         return {
             "steps": [step_report.serialize(self.feature) for step_report in self.step_reports],
             "name": pickle.name,
-            "line_number": feature._get_pickle_line_number(pickle),
-            "tags": sorted(set(feature._get_pickle_tag_names(pickle)).difference(feature.tag_names)),
+            "line_number": pickle_line,
+            "tags": sorted(set(pickle_tags).difference(feature_tags)),
             "feature": {
                 "name": feature.name,
-                "filename": feature.filename,
-                "rel_filename": feature.rel_filename,
-                "line_number": feature.line_number,
-                "description": feature.description,
-                "tags": feature.tag_names,
+                "filename": feature.filename or feature.uri,
+                "rel_filename": feat_rel,
+                "line_number": getattr(feature, "line", getattr(feature, "line_number", 0)),
+                "description": getattr(feature, "description", ""),
+                "tags": feature_tags,
             },
         }
 

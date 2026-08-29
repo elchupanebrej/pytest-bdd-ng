@@ -142,7 +142,7 @@ def scenarios(
 
     decorator = compose(
         mark.pytest_bdd_scenario,
-        mark.usefixtures("feature", "scenario", "feature_source"),
+        mark.usefixtures("feature", "scenario"),
         mark.scenarios(
             *feature_paths,
             filter_=filter_,

@@ -31,5 +31,9 @@ class Step:
     def prefix(self) -> str:
         return self.keyword.strip().lower()
 
+    @property
+    def text(self) -> str:
+        return self.name
+
 
 __all__ = ["Step", "StepType"]

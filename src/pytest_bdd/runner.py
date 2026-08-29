@@ -43,7 +43,7 @@ class StepRunner:
             )
         except (Matcher.MatchNotFoundError, StepDefinitionManager.Matcher.MatchNotFoundError) as e:
             step_text = getattr(step, "name", getattr(step, "text", str(step)))
-            step_kw = getattr(step, "keyword", "")
+            step_kw = getattr(step, "keyword", "").strip()
             step_line = getattr(step, "line", getattr(step, "line_number", 0))
             scen_name = getattr(scenario, "name", "")
             feat_uri = getattr(feature, "uri", "")
@@ -103,6 +103,8 @@ class StepRunner:
             "scenario": scenario,
             "step": step,
             "previous_step": previous_step,
+            "step_func": None,
+            "step_func_args": {},
         }
 
         try:
@@ -167,6 +169,8 @@ class ScenarioRunner:
             self.request = item._request
             self.feature = self.request.getfixturevalue("feature")
             self.scenario = self.request.getfixturevalue("scenario")
+            if self.feature is None or self.scenario is None:
+                return
             self.plugin_manager = cast("PluginManager", self.request.config.hook)
             self.plugin_manager.pytest_bdd_before_scenario(  # type: ignore[attr-defined]
                 request=self.request, feature=self.feature, scenario=self.scenario
@@ -191,7 +195,13 @@ class ScenarioRunner:
         """Execute the scenario steps."""
         __tracebackhide__ = True
         steps: deque = request.getfixturevalue("steps_left")
-        steps.extend(scenario.steps)
+        bg_steps = (
+            scenario.background.steps
+            if getattr(scenario, "background", None)
+            else (feature.background.steps if (feature and getattr(feature, "background", None)) else ())
+        )
+        all_steps = tuple(bg_steps) + tuple(getattr(scenario, "steps", ()))
+        steps.extend(all_steps)
         step_dispatcher = request.config.hook.pytest_bdd_get_step_dispatcher(
             request=request, feature=feature, scenario=scenario
         )
