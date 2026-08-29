@@ -253,6 +253,7 @@ def make_test_step_started(
 def make_test_step_finished(
     test_case_started_id: str,
     test_step_id: str,
+    *,
     status: messages.Status | str = messages.Status.passed,
     duration: float = 0.0,
     message: str | None = None,
