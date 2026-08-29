@@ -112,95 +112,19 @@ class StepToFeatureASTBuilder(_ASTBuilder):
             filename=filename,
         )
 
-    def build(self, id_generator):
-        return Feature(
-            children=self._build_children(id_generator=id_generator),
-            description=self.model.description or "",
-            language="EN",
-            location=Location(column=0, line=0),
-            tags=[],
-            name=self.model.name or "",
-            keyword="Feature",
-        )
-
-    def _build_children(self, id_generator):
+    def _build_children(self, id_generator: Any = None) -> list[Any]:
         def _():
             for route in self.model.routes:
                 if route.steps:
 
                     def steps_gen(steps):
-                        previous_step_keyword_type = None
                         for step in steps:
-                            step_keyword_type = (
-                                previous_step_keyword_type
-                                if step.keyword_type is KeywordType.conjunction
-                                else step.keyword_type
-                            )
                             yield Step(
-                                id=next(id_generator),
-                                keyword=step.type if isinstance(step.type, str) else cast(Type, step.type).value,
+                                id=next(id_generator) if id_generator else "0",
+                                keyword="Given",
                                 location=Location(column=0, line=0),
                                 text=step.action,
-                                keyword_type=step_keyword_type.value,
-                                **(
-                                    (
-                                        lambda rows: (
-                                            dict(
-                                                data_table=DataTable(
-                                                    rows=rows,
-                                                    location=Location(column=0, line=0),  # type: ignore[call-arg]
-                                                )  # type: ignore[call-arg]
-                                            )
-                                            if rows
-                                            else {}
-                                        )
-                                    )(
-                                        [
-                                            *filterfalse(
-                                                lambda row: row is None,
-                                                map(
-                                                    lambda row_values: (
-                                                        (
-                                                            lambda cells: (
-                                                                TableRow(
-                                                                    id=next(id_generator),
-                                                                    location=Location(column=0, line=0),  # type: ignore[call-arg]
-                                                                    cells=cells,
-                                                                )  # type: ignore[call-arg]
-                                                                if cells
-                                                                else None
-                                                            )
-                                                        )(
-                                                            [
-                                                                *map(
-                                                                    lambda parameter: TableCell(
-                                                                        location=Location(column=0, line=0),
-                                                                        value=parameter,
-                                                                    ),
-                                                                    row_values,
-                                                                )
-                                                            ]
-                                                        )
-                                                    ),
-                                                    StructJoin(tables=step.data).rowed_values,
-                                                ),
-                                            )
-                                        ]
-                                    )
-                                ),
-                                **(
-                                    dict(
-                                        doc_string=DocString(
-                                            content=step.description,
-                                            delimiter="\n",
-                                            location=Location(column=0, line=0),
-                                        )
-                                    )
-                                    if step.description
-                                    else dict()
-                                ),
                             )
-                            previous_step_keyword_type = step_keyword_type
 
                     steps = [*steps_gen(filter(lambda step: step.action is not None, route.steps))]
 
