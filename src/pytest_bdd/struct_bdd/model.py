@@ -1,12 +1,12 @@
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from enum import Enum
 from functools import partial
 from inspect import getfile
 from itertools import chain, product, starmap
 from operator import attrgetter, eq, is_not
 from pathlib import Path
-from typing import Annotated, Any, Callable, Literal, NamedTuple, Optional, Union, cast
+from typing import Annotated, Any, Literal, NamedTuple, Union, cast
 
 from attr import attrib, attrs
 from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
@@ -15,11 +15,9 @@ from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
     BeforeValidator,
     ConfigDict,
     Field,
-    ValidationError,
     model_validator,
 )
 
-from messages import KeywordType, MediaType, Source  # type:ignore[attr-defined, import-untyped]
 from pytest_bdd.compatibility.typing import Self
 from pytest_bdd.mimetypes import Mimetype
 from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
@@ -42,7 +40,15 @@ class SubKeyword(Enum):
     Alternative = "Alternative"
 
 
-KEYWORD_TO_TYPE: Mapping[Union[Keyword, str, None], KeywordType] = defaultdict(
+class KeywordType(str, Enum):
+    context = "Context"
+    action = "Action"
+    outcome = "Outcome"
+    conjunction = "Conjunction"
+    unknown = "Unknown"
+
+
+KEYWORD_TO_TYPE: Mapping[Keyword | str | None, KeywordType] = defaultdict(
     lambda: KeywordType.unknown,
     [
         (Keyword.Given, KeywordType.context),
@@ -62,24 +68,24 @@ class Node(BaseModel):
         populate_by_name=True,
     )
 
-    tags: Optional[Sequence[str]] = Field(default_factory=cast(Callable, list), alias="Tags")
-    name: Optional[str] = Field(None, alias="Name")
-    description: Optional[str] = Field(None, alias="Description")
-    comments: Optional[Sequence[str]] = Field(default_factory=cast(Callable, list), alias="Comments")
+    tags: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Tags")
+    name: str | None = Field(None, alias="Name")
+    description: str | None = Field(None, alias="Description")
+    comments: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Comments")
 
 
 class Table(Node):
-    type: Optional[Literal["Rowed", "Columned"]] = Field("Rowed", alias="Type")
-    parameters: Optional[Sequence[str]] = Field(default_factory=cast(Callable, list), alias="Parameters")
-    values: Optional[Sequence[Sequence[Any]]] = Field(default_factory=cast(Callable, list), alias="Values")
+    type: Literal["Rowed", "Columned"] | None = Field("Rowed", alias="Type")
+    parameters: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Parameters")
+    values: Sequence[Sequence[Any]] | None = Field(default_factory=cast(Callable, list), alias="Values")
 
     @property
     def columned_values(self):
-        return self.values if self.type == "Columned" else list(zip(*self.values))
+        return self.values if self.type == "Columned" else list(zip(*self.values, strict=False))
 
     @property
     def rowed_values(self):
-        return self.values if self.type == "Rowed" else list(zip(*self.values))
+        return self.values if self.type == "Rowed" else list(zip(*self.values, strict=False))
 
 
 class SubTable(Node):
@@ -138,50 +144,46 @@ class Join(BaseModel):
             filled_tables = list(filter(attrgetter("parameters"), self.tables))
             if filled_tables:
                 filled_tables_parameters = list(chain.from_iterable(map(attrgetter("parameters"), self.tables)))
-                for filled_tables_values in map(
-                    lambda tables_values: list(chain.from_iterable(tables_values)),
-                    product(*map(attrgetter("rowed_values"), filled_tables)),
+                for filled_tables_values in (
+                    list(chain.from_iterable(tables_values))
+                    for tables_values in product(*map(attrgetter("rowed_values"), filled_tables))
                 ):
                     if all(
-                        [
-                            all(
-                                starmap(
-                                    eq,
-                                    product(
-                                        [
-                                            value
-                                            for _parameter, value in zip(filled_tables_parameters, filled_tables_values)
-                                            if parameter == _parameter
-                                        ],
-                                        repeat=2,
-                                    ),
-                                )
-                            )
-                            for parameter in self.parameters
-                        ]
+                        starmap(
+                            eq,
+                            product(
+                                [
+                                    value
+                                    for _parameter, value in zip(
+                                        filled_tables_parameters, filled_tables_values, strict=False
+                                    )
+                                    if parameter == _parameter
+                                ],
+                                repeat=2,
+                            ),
+                        )
+                        for parameter in self.parameters
                     ):
 
-                        def values_gen():
+                        def values_gen(current_values):
                             for parameter in self.parameters:
-                                for _parameter, value in zip(filled_tables_parameters, filled_tables_values):
+                                for _parameter, value in zip(filled_tables_parameters, current_values, strict=False):
                                     if parameter == _parameter:
                                         yield value
                                         break
 
-                        values = list(values_gen())
-                        yield values
+                        yield list(values_gen(filled_tables_values))
             else:
-                yield from map(
-                    lambda values_combination: list(chain.from_iterable(values_combination)),
-                    product(*map(attrgetter("rowed_values"), self.tables)),
+                yield from (
+                    list(chain.from_iterable(values_combination))
+                    for values_combination in product(*map(attrgetter("rowed_values"), self.tables))
                 )
 
-        _values = list(_())
-        return _values
+        return list(_())
 
     @property
     def columned_values(self):
-        return list(zip(*self.values))
+        return list(zip(*self.values, strict=False))
 
     @property
     def rowed_values(self):
@@ -192,10 +194,9 @@ class Join(BaseModel):
 def before_convert_to_step(value):
     if isinstance(value, str):
         return Step(action=value)
-    elif isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
+    if isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
         return Step(type=next(iter(value.keys())), action=next(iter(value.values())))
-    else:
-        return value
+    return value
 
 
 @AfterValidator
@@ -211,7 +212,7 @@ def after_convert_sub_steps_to_steps(value):
     return value.sub_step if isinstance(value, SubStep) else value
 
 
-StepKeywordType = Union[Keyword, Annotated[str, select_step_keyword_type]]
+StepKeywordType = Keyword | Annotated[str, select_step_keyword_type]
 
 
 class StepPrototype(Node):
@@ -222,17 +223,17 @@ class StepPrototype(Node):
         ]
     ] = Field(default_factory=list, alias="Steps")
 
-    type: Optional[StepKeywordType] = Field(default=Keyword.Star, alias="Type")
-    data: list[Annotated[Union[Table, Join, SubTable], convert_sub_tables_to_tables]] = Field(
+    type: StepKeywordType | None = Field(default=Keyword.Star, alias="Type")
+    data: list[Annotated[Table | Join | SubTable, convert_sub_tables_to_tables]] = Field(
         default_factory=list, alias="Data"
     )
-    examples: list[Annotated[Union[Table, Join, SubTable], convert_sub_tables_to_tables]] = Field(
+    examples: list[Annotated[Table | Join | SubTable, convert_sub_tables_to_tables]] = Field(
         default_factory=list, alias="Examples"
     )
-    keyword_type: Optional[KeywordType] = Field(KeywordType.unknown)
+    keyword_type: KeywordType | None = Field(KeywordType.unknown)
 
     class Route(NamedTuple):
-        tags: Optional[Sequence[str]]
+        tags: Sequence[str] | None
         steps: list["StepPrototype"]
         example_table: Union[Table, "Join", SubTable]
 
@@ -289,19 +290,7 @@ class StepPrototype(Node):
             feature = GherkinDocumentBuilder(self.step).build_feature(
                 filename=self.filename, uri=self.uri, id_generator=config.pytest_bdd_id_generator
             )
-
-            if isinstance(self.mimetype, MediaType):
-                media_type = self.mimetype
-            elif isinstance(self.mimetype, Mimetype):
-                media_type = self.mimetype.value
-            else:
-                media_type = str(self.mimetype)
-            try:
-                feature_source = Source(uri=self.uri, data=Path(self.filename).read_text(), media_type=media_type)
-                yield feature, feature_source
-            except ValidationError:
-                # Workaround because of https://github.com/cucumber/messages/issues/161
-                yield feature, None
+            yield feature, None
 
     def as_test(self, filename):
         from pytest_bdd.scenario import scenarios
@@ -351,8 +340,8 @@ class Alternative(Node):
 
 
 class Step(StepPrototype):
-    type: Optional[StepKeywordType] = Field(default=Keyword.Star, alias="Type")
-    action: Optional[str] = Field(None, alias="Action")
+    type: StepKeywordType | None = Field(default=Keyword.Star, alias="Type")
+    action: str | None = Field(None, alias="Action")
 
 
 class SubStep(BaseModel):
@@ -361,32 +350,32 @@ class SubStep(BaseModel):
 
 class StarStep(StepPrototype):
     type: StepKeywordType = Field(Keyword.Star, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.Star.value)
+    action: str | None = Field(alias=Keyword.Star.value)
 
 
 class GivenStep(StepPrototype):
     type: StepKeywordType = Field(Keyword.Given, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.Given.value)
+    action: str | None = Field(alias=Keyword.Given.value)
 
 
 class WhenStep(StepPrototype):
     type: StepKeywordType = Field(Keyword.When, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.When.value)
+    action: str | None = Field(alias=Keyword.When.value)
 
 
 class ThenStep(StepPrototype):
     type: StepKeywordType = Field(Keyword.Then, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.Then.value)
+    action: str | None = Field(alias=Keyword.Then.value)
 
 
 class AndStep(StepPrototype):
     type: StepKeywordType = Field(Keyword.And, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.And.value)
+    action: str | None = Field(alias=Keyword.And.value)
 
 
 class ButStep(StepPrototype):
     type: StepKeywordType = Field(Keyword.But, alias="Type")
-    action: Optional[str] = Field(alias=Keyword.But.value)
+    action: str | None = Field(alias=Keyword.But.value)
 
 
 Join.model_rebuild()  # type:ignore[attr-defined] # migration to pydantic 2
