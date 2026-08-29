@@ -68,16 +68,16 @@ class Node(BaseModel):
         populate_by_name=True,
     )
 
-    tags: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Tags")
+    tags: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Tags")
     name: str | None = Field(None, alias="Name")
     description: str | None = Field(None, alias="Description")
-    comments: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Comments")
+    comments: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Comments")
 
 
 class Table(Node):
     type: Literal["Rowed", "Columned"] | None = Field("Rowed", alias="Type")
-    parameters: Sequence[str] | None = Field(default_factory=cast(Callable, list), alias="Parameters")
-    values: Sequence[Sequence[Any]] | None = Field(default_factory=cast(Callable, list), alias="Values")
+    parameters: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Parameters")
+    values: Sequence[Sequence[Any]] | None = Field(default_factory=cast("Callable", list), alias="Values")
 
     @property
     def columned_values(self):

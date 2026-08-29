@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable  # noqa: TCH003
+from collections.abc import Callable
 from enum import Enum
 from functools import partial
 from typing import TYPE_CHECKING, Any

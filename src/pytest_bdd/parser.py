@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from attr import attrib, attrs
 from attrs import define, field
-
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser as CucumberIOBaseParser
 from gherkin.token_scanner import TokenScanner
+
 from pytest_bdd.exceptions import FeatureConcreteParseError
 from pytest_bdd.gherkin_builder import build_feature_from_dict
 from pytest_bdd.markdown_token_matcher import MarkdownTokenMatcher

@@ -99,7 +99,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
             html_data = pycmarkgfm.gfm_to_html((features_path / rel_path).read_text())
 
             rst_content = pypandoc.convert_text(
-                html_data, "rst", format="html", extra_args=[f"--shift-heading-level-by={offset+1}"]
+                html_data, "rst", format="html", extra_args=[f"--shift-heading-level-by={offset + 1}"]
             )
 
             abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8")
@@ -110,9 +110,9 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
                 # language=rst
                 f"""\
                     {stemmed_path}
-                    {SECTION_SYMBOLS[offset-1]*len(stemmed_path)}
+                    {SECTION_SYMBOLS[offset - 1] * len(stemmed_path)}
 
-                    .. include:: {(Path('features')/ path.relative_to(features_path)).with_suffix('.rst').as_posix()}
+                    .. include:: {(Path("features") / path.relative_to(features_path)).with_suffix(".rst").as_posix()}
 
                 """
             )
@@ -137,7 +137,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
                 # language=rst
                 f"""\
                     {rel_path.stem}
-                    {SECTION_SYMBOLS[len(rel_path.parts)-1]*len(rel_path.stem)}
+                    {SECTION_SYMBOLS[len(rel_path.parts) - 1] * len(rel_path.stem)}
 
                     .. include:: {(output_path_rel_to_features_path / path.relative_to(features_path)).as_posix()}
                        :code: yaml
