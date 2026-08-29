@@ -15,7 +15,9 @@ from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
 from pytest_bdd.compatibility.pytest import PYTEST81
 
 if TYPE_CHECKING:
-    from pytest_bdd.compatibility.pytest import Config
+    from pytest_bdd.compatibility.pytest import Config, FixtureRequest
+    from pytest_bdd.model import Feature, Step
+    from pytest_bdd.steps import Definition
 
 if ALLURE_INSTALLED:
     from allure_commons import hookimpl
@@ -104,13 +106,22 @@ class AllurePytestBDD:
             pluginmanager.unregister(name=self.pytest_plugin_name)
 
     @pytest.hookimpl
-    def pytest_bdd_before_step_call(self, request, feature, scenario, step, step_func, step_func_args, step_definition):
+    def pytest_bdd_before_step_call(
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Any,
+        step: Step,
+        step_func: Any,
+        step_func_args: dict[str, Any],
+        step_definition: Definition,
+    ) -> None:
         """Called before step function is set up."""
         if StepContext is not None:
             step_definition.func = StepContext(f"{step.keyword} {step.text}", step_func_args)(step_func)
 
     @pytest.hookimpl
-    def pytest_bdd_before_scenario(self, request, feature, scenario):
+    def pytest_bdd_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
         if TestStepResult is None or md5 is None or now is None:
             return
         scenario_result_uuid = self._cache.get(scenario)
@@ -137,7 +148,7 @@ class AllurePytestBDD:
         scenario_result.parameters = self.get_params(request.node)
 
     @pytest.hookimpl
-    def pytest_bdd_after_scenario(self, request, feature, scenario):
+    def pytest_bdd_after_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
         if now is None:
             return
         scenario_result_uuid = self._cache.get(scenario)
@@ -146,7 +157,9 @@ class AllurePytestBDD:
         self.allure_logger.stop_step(scenario_result_uuid)
 
     @pytest.hookimpl
-    def pytest_bdd_step_func_lookup_error(self, request, feature, scenario, step, exception):
+    def pytest_bdd_step_func_lookup_error(
+        self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, exception: Exception
+    ) -> None:
         if Status is None:
             return
         scenario_result_uuid = self._cache.get(scenario)
@@ -156,7 +169,7 @@ class AllurePytestBDD:
         self.allure_logger.stop_step(scenario_result_uuid)
 
     @staticmethod
-    def get_params(node):
+    def get_params(node: Any) -> list[Any] | None:
         if hasattr(node, "callspec"):
             params = node.callspec.params
             if Parameter is not None:
@@ -165,13 +178,13 @@ class AllurePytestBDD:
         return None
 
     @staticmethod
-    def get_name(node, scenario):
+    def get_name(node: Any, scenario: Any) -> str:
         if hasattr(node, "callspec"):
             parts = node.nodeid.rsplit("[")
             return f"{scenario.name} [{parts[-1]}"
         return scenario.name
 
     @staticmethod
-    def get_full_name(feature, scenario):
+    def get_full_name(feature: Feature, scenario: Any) -> str:
         feature_path = os.path.normpath(feature.rel_filename)
         return f"{feature_path}:{scenario.name}"
