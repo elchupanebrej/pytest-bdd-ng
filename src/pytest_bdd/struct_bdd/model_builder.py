@@ -79,6 +79,39 @@ class GherkinDocumentBuilder(_ASTBuilder):
 class StepToFeatureASTBuilder(_ASTBuilder):
     model: StructStep = attrib()
 
+    def build_feature(self, uri: str = "", filename: str | None = None) -> L2aFeature:
+        scenarios = []
+        for route in self.model.routes:
+            scenario_name = next(filter(bool, [s.name for s in reversed(route.steps)]), "") or self.model.name or ""
+            scenario_tags = tuple(L2aTag(name=t) for t in (route.tags or []))
+            steps = []
+            for s in route.steps:
+                if s.action is not None:
+                    kw = s.type.value if hasattr(s.type, "value") else str(s.type or "Given")
+                    ds = L2aDocString(content=s.description) if s.description else None
+                    dt = None
+                    if s.data:
+                        dt = _build_table(StructJoin(tables=s.data))
+                    steps.append(L2aStep(name=s.action, keyword=kw, doc_string=ds, data_table=dt))
+            examples = _build_examples(route.example_table)
+            scenarios.append(
+                L2aScenario(
+                    name=scenario_name,
+                    tags=scenario_tags,
+                    steps=tuple(steps),
+                    examples=examples,
+                )
+            )
+
+        return L2aFeature(
+            name=self.model.name or "",
+            description=self.model.description or "",
+            tags=tuple(L2aTag(name=t) for t in (self.model.tags or [])),
+            scenarios=tuple(scenarios),
+            uri=uri,
+            filename=filename,
+        )
+
     def build(self, id_generator):
         return Feature(
             children=self._build_children(id_generator=id_generator),
