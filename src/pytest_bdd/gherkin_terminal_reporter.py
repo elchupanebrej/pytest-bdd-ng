@@ -1,6 +1,11 @@
-from typing import Any
+from __future__ import annotations
 
-from pytest_bdd.compatibility.pytest import Config, Parser, TerminalReporter, TestReport
+from typing import TYPE_CHECKING, Any
+
+from pytest_bdd.compatibility.pytest import TerminalReporter
+
+if TYPE_CHECKING:
+    from pytest_bdd.compatibility.pytest import Config, Parser, TestReport
 
 
 def add_options(parser: Parser) -> None:
@@ -19,22 +24,22 @@ def configure(config: Config) -> None:
         # Get the standard terminal reporter plugin and replace it with our
         current_reporter = config.pluginmanager.getplugin("terminalreporter")
         if current_reporter.__class__ != TerminalReporter:
-            raise Exception(
+            msg = (
                 "gherkin-terminal-reporter is not compatible with any other terminal reporter."
                 "You can use only one terminal reporter."
-                "Currently '{0}' is used."
-                "Please decide to use one by deactivating {0} or gherkin-terminal-reporter.".format(
-                    current_reporter.__class__
-                )
+                f"Currently '{current_reporter.__class__}' is used."
+                f"Please decide to use one by deactivating {current_reporter.__class__} or gherkin-terminal-reporter."
             )
+            raise Exception(msg)
         gherkin_reporter = GherkinTerminalReporter(config)
         config.pluginmanager.unregister(current_reporter)
         config.pluginmanager.register(gherkin_reporter, "terminalreporter")
         if config.pluginmanager.getplugin("dsession"):
-            raise Exception("gherkin-terminal-reporter is not compatible with 'xdist' plugin.")
+            msg = "gherkin-terminal-reporter is not compatible with 'xdist' plugin."
+            raise Exception(msg)
 
 
-class GherkinTerminalReporter(TerminalReporter):  # type: ignore
+class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
     def __init__(self, config: Config) -> None:
         super().__init__(config)
 
@@ -45,17 +50,18 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore
 
         if not letter and not word:
             # probably passed setup/teardown
-            return
+            return None
 
         if isinstance(word, tuple):
             word, word_markup = word
+        elif rep.passed:
+            word_markup = {"green": True}
+        elif rep.failed:
+            word_markup = {"red": True}
+        elif rep.skipped:
+            word_markup = {"yellow": True}
         else:
-            if rep.passed:
-                word_markup = {"green": True}
-            elif rep.failed:
-                word_markup = {"red": True}
-            elif rep.skipped:
-                word_markup = {"yellow": True}
+            word_markup = {}
         scenario_markup = word_markup
 
         if self.verbosity <= 0 or not hasattr(report, "scenario"):
@@ -69,12 +75,16 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore
             self._tw.write("\n")
             has_already_failed = False
             for step in scenario["steps"]:
-                step_markup = {"red" if step["failed"] else "green": True}
+                step_markup = {"red" if step.get("failed") else "green": True}
                 # Highlight first failed step
-                if step["failed"] and not has_already_failed:
+                if step.get("failed") and not has_already_failed:
                     step_markup["bold"] = True
                     has_already_failed = True
-                step_status_text = "(FAILED)" if step["failed"] else "(PASSED)"
-                self._tw.write(f"        {step['keyword']} {step['name']} {step_status_text}\n", **step_markup)
+                step_status_text = "(FAILED)" if step.get("failed") else "(PASSED)"
+                self._tw.write(
+                    f"        {step.get('keyword', '')} {step.get('name', '')} {step_status_text}\n",
+                    **step_markup,
+                )
         self._tw.write(f"    {word}\n", **word_markup)
         self.stats.setdefault(cat, []).append(rep)
+        return None
