@@ -463,7 +463,7 @@ class MessagePlugin:
             message=Message(test_case=self.current_test_case),
         )
 
-    def pytest_bdd_before_scenario(self, request, feature, scenario):
+    def pytest_bdd_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
         if self.is_disabled:
             return
         config = request.config
@@ -471,7 +471,7 @@ class MessagePlugin:
 
         self.current_test_case_start = TestCaseStarted(
             attempt=getattr(request.node, "execution_count", 0),
-            id=cast(PytestBDDIdGeneratorHandler, config).pytest_bdd_id_generator.get_next_id(),
+            id=cast("PytestBDDIdGeneratorHandler", config).pytest_bdd_id_generator.get_next_id(),
             test_case_id=self.current_test_case.id,
             worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
             timestamp=self.get_timestamp(),
@@ -482,7 +482,7 @@ class MessagePlugin:
             message=Message(test_case_started=self.current_test_case_start),
         )
 
-    def pytest_bdd_after_scenario(self, request, feature, scenario):
+    def pytest_bdd_after_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
         if self.is_disabled:
             return
         config = request.config
@@ -495,20 +495,20 @@ class MessagePlugin:
                 test_case_finished=TestCaseFinished(
                     test_case_started_id=self.current_test_case_start.id,
                     timestamp=self.get_timestamp(),
-                    # TODO check usage
                     will_be_retried=False,
                 )
             ),
         )
         self.current_test_case = None
 
-    def pytest_bdd_before_step(self, request, feature, scenario, step, step_func):
+    def pytest_bdd_before_step(
+        self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any
+    ) -> None:
         if self.is_disabled:
             return
         config = request.config
         hook_handler = config.hook
 
-        # TODO check behaviour if missing
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
 
         self.current_test_case_step_start_timestamp = self.get_timestamp()
@@ -524,13 +524,14 @@ class MessagePlugin:
             ),
         )
 
-    def pytest_bdd_after_step(self, request, feature, scenario, step, step_func):
+    def pytest_bdd_after_step(
+        self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any
+    ) -> None:
         if self.is_disabled:
             return
         config = request.config
         hook_handler = config.hook
 
-        # TODO check behaviour if missing
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
         self.current_test_case_step_finish_timestamp = self.get_timestamp()
 
@@ -562,14 +563,21 @@ class MessagePlugin:
         )
 
     def pytest_bdd_step_error(
-        self, request, feature, scenario, step, step_func, step_func_args, exception, step_definition
-    ):
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Any,
+        step: Step,
+        step_func: Any,
+        step_func_args: dict[str, Any],
+        exception: Exception,
+        step_definition: Any,
+    ) -> None:
         if self.is_disabled:
             return
         config = request.config
         hook_handler = config.hook
 
-        # TODO check behaviour if missing
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
         self.current_test_case_step_finish_timestamp = self.get_timestamp()
 
@@ -600,16 +608,22 @@ class MessagePlugin:
             ),
         )
 
-    def pytest_bdd_attach(self, request, attachment, media_type, file_name):
+    def pytest_bdd_attach(
+        self,
+        request: FixtureRequest,
+        attachment: Any,
+        media_type: str | None,
+        file_name: str | None,
+    ) -> None:
         if self.is_disabled:
             return
         config = request.config
         hook_handler = config.hook
 
-        if isinstance(attachment, (str, TextIOBase)):
+        if isinstance(attachment, str | TextIOBase):
             content_encoding = ContentEncoding.identity
             _media_type = "text/plain;charset=UTF-8" if media_type is None else media_type
-        elif isinstance(attachment, (bytes, bytearray, BufferedIOBase)):
+        elif isinstance(attachment, bytes | bytearray | BufferedIOBase):
             content_encoding = ContentEncoding.base64
             _media_type = "application/octet-stream" if media_type is None else media_type
         else:
@@ -620,7 +634,7 @@ class MessagePlugin:
             body = attachment
         elif isinstance(attachment, TextIOBase):
             body = attachment.read()
-        elif isinstance(attachment, (bytes, bytearray, BufferedIOBase)):
+        elif isinstance(attachment, bytes | bytearray | BufferedIOBase):
             if isinstance(attachment, bytes):
                 body_bytes = attachment
             elif isinstance(attachment, bytearray):
@@ -640,19 +654,17 @@ class MessagePlugin:
                 attachment=Attachment(
                     test_step_id=self.current_test_case.id,
                     test_case_started_id=self.current_test_case.id,
-                    # TODO find a specification when it useful
-                    # source=,
                     media_type=_media_type,
-                    **(dict(file_name=str(file_name)) if file_name is not None else {}),
+                    **({"file_name": str(file_name)} if file_name is not None else {}),
                     content_encoding=content_encoding,
                     body=body,
                 )
             ),
         )
 
-    def check_npm_and_cucumber_packages(self):
+    def check_npm_and_cucumber_packages(self) -> None:
         if not check_npm():
-            pytest.exit(f"Npm wasn't found in the environment so unable generate html report")
+            pytest.exit("Npm wasn't found in the environment so unable generate html report")
 
         if not any(
             [
