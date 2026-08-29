@@ -6,8 +6,13 @@ from typing import TYPE_CHECKING, TypeAlias, cast
 
 from typing_extensions import Protocol
 
+from pytest_bdd.model.message_extension import StepDefinitionPatternType
+
 if TYPE_CHECKING:
     from types import FunctionType
+
+    from pytest_bdd.model.step import Step
+    from pytest_bdd.steps.definition import Definition
 
 
 class StepFunc(Protocol):
@@ -28,10 +33,30 @@ def _resolve_callable_source_location(func: StepFunc) -> tuple[str, int]:
     return getfile(typed_func), int(source_line)
 
 
+def _parser_specificity(step_definition: Definition) -> int:
+    pt = step_definition.parser.type
+    high = {
+        StepDefinitionPatternType.pytest_bdd_string_expression,
+        StepDefinitionPatternType.pytest_bdd_parse_expression,
+        StepDefinitionPatternType.pytest_bdd_cfparse_expression,
+        StepDefinitionPatternType.cucumber_expression,
+    }
+    if pt in high:
+        return 2
+    regexes = {StepDefinitionPatternType.regular_expression, StepDefinitionPatternType.pytest_bdd_regular_expression}
+    return 1 if pt in regexes else 0
+
+
+def _step_text(step: Step) -> str:
+    return getattr(step, "name", getattr(step, "text", str(step)))
+
+
 __all__ = [
     "ConverterT",
     "ParamsFixturesMapping",
     "StepDecorator",
     "StepFunc",
+    "_parser_specificity",
     "_resolve_callable_source_location",
+    "_step_text",
 ]
