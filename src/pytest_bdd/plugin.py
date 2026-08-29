@@ -268,7 +268,6 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
         features_base_dir=features_base_dir,
         mimetype=mark_arguments["features_mimetype"],
         parser_type=mark_arguments["parser_type"],
-        parse_args=mark_arguments["parse_args"],
     )
 
     locators_iterables.append([path_locator])
@@ -287,7 +286,6 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
         features_base_url=features_base_url,
         mimetype=mark_arguments["features_mimetype"],
         parser_type=mark_arguments["parser_type"],
-        parse_args=mark_arguments["parse_args"],
     )
 
     locators_iterables.append([url_locator])
