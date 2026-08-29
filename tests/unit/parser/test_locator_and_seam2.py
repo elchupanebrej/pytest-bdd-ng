@@ -75,3 +75,55 @@ def test_protocols_conformance() -> None:
     locator = FileScenarioLocator(feature_paths=["dummy.feature"])
     assert isinstance(locator, ScenarioLocatorFeatureResolver)
     assert isinstance(locator, ScenarioLocatorResolver)
+
+
+def test_url_scenario_locator_mocked() -> None:
+    from unittest.mock import MagicMock, patch
+
+    from pytest_bdd.scenario_locator import UrlScenarioLocator
+
+    mock_resp = MagicMock()
+    mock_resp.headers.get_content_type.return_value = "text/x-gherkin"
+    mock_resp.read.return_value = b"Feature: Remote Feature\n  Scenario: Remote S1\n    Given remote step\n"
+    mock_resp.__enter__.return_value = mock_resp
+    mock_resp.__exit__.return_value = False
+
+    with patch("pytest_bdd.scenario_locator.urlopen", return_value=mock_resp):
+        locator = UrlScenarioLocator(url_paths=["https://example.com/test.feature"])
+        features = list(locator.resolve_features())
+
+        assert len(features) == 1
+        assert features[0].name == "Remote Feature"
+        assert len(features[0].scenarios) == 1
+        assert features[0].scenarios[0].name == "Remote S1"
+
+
+def test_seam2_contract_all_formats(tmp_path: Path) -> None:
+    """Seam 2 Contract: All parsers & locators produce pure Layer L2a Feature model trees."""
+    from pytest_bdd.model import Scenario, Step
+
+    f_gherkin = tmp_path / "test.feature"
+    f_gherkin.write_text("Feature: Gherkin\n  Scenario: G\n    Given g1\n", encoding="utf-8")
+
+    f_md = tmp_path / "test.md"
+    f_md.write_text("# Feature: Markdown\n## Scenario: M\n* Given m1\n", encoding="utf-8")
+
+    f_yaml = tmp_path / "test.bdd.yaml"
+    f_yaml.write_text(
+        "Name: StructBDD\nSteps:\n  - Step:\n      Name: Y\n      Steps:\n        - Given: y1\n",
+        encoding="utf-8",
+    )
+
+    locator = FileScenarioLocator(feature_paths=[f_gherkin, f_md, f_yaml])
+    features = list(locator.resolve_features())
+    assert len(features) == 3
+
+    for feat in features:
+        assert isinstance(feat, Feature)
+        assert len(feat.scenarios) >= 1
+        for sc in feat.scenarios:
+            assert isinstance(sc, Scenario)
+            assert len(sc.steps) >= 1
+            for st in sc.steps:
+                assert isinstance(st, Step)
+                assert st.keyword.strip() in ("Given", "When", "Then", "And", "But", "*")
