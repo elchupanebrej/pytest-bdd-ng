@@ -97,60 +97,83 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                 continue
 
 
-@attrs
+@define
 class FileScenarioLocator(ScenarioLocatorFilterMixin):
-    feature_paths: list[Union[str, Path]] = attrib(default=Factory(list))
-    encoding = attrib(default="utf-8")
-    features_base_dir: Optional[Union[str, Path]] = attrib(default=None)
-    mimetype: Optional[str] = attrib(default=None)
-    parser_type: Optional[type[ParserProtocol]] = attrib(default=None)
-    parse_args: Args = attrib(default=Factory(lambda: Args((), {})))
+    feature_paths: list[str | Path] = field(factory=list)
+    encoding: str = "utf-8"
+    features_base_dir: str | Path | None = None
+    mimetype: str | None = None
+    parser_type: type[ParserProtocol] | None = None
+    parser: ParserProtocol | None = None
 
-    def _resolve_features_base_dir(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
-        try:
-            if self.features_base_dir is None:
-                features_base_dir = cast(Config, config).getini("bdd_features_base_dir")
-            else:
-                features_base_dir = self.features_base_dir
-        except (ValueError, KeyError):
-            features_base_dir = get_config_root_path(cast(Config, config))
-        else:
-            if callable(features_base_dir):
-                features_base_dir = features_base_dir(config)
+    def _resolve_features_base_dir(self, config: Any = None) -> Path:
+        if self.features_base_dir is not None:
+            base = self.features_base_dir
+            if callable(base):
+                base = base(config)
+            return Path(base).resolve()
 
-            features_base_dir = (get_config_root_path(cast(Config, config)) / Path(features_base_dir)).resolve()
+        if config is not None:
+            try:
+                ini_val = config.getini("bdd_features_base_dir")
+                if ini_val:
+                    return Path(ini_val).resolve()
+            except (AttributeError, ValueError, KeyError):
+                pass
+            root = getattr(config, "rootpath", getattr(config, "rootdir", None))
+            if root:
+                return Path(root).resolve()
 
-        return features_base_dir
+        return Path.cwd()
 
-    def _gen_feature_paths(self, features_base_dir):
+    def _gen_feature_paths(self, features_base_dir: Path) -> Iterable[Path]:
         for feature_pathlike in self.feature_paths:
             if isinstance(feature_pathlike, Path):
-                feature_path = features_base_dir / feature_pathlike
+                feature_path = (
+                    feature_pathlike if feature_pathlike.is_absolute() else features_base_dir / feature_pathlike
+                )
                 if feature_path.is_dir():
                     yield from filter(methodcaller("is_file"), feature_path.glob("**/*"))
-                else:
+                elif feature_path.is_file():
                     yield feature_path
             else:
-                try:
-                    yield from filter(methodcaller("is_file"), features_base_dir.glob(os.fspath(feature_pathlike)))
-                except IndexError if sys.version_info < (3, 13) else ValueError:
-                    yield from filter(methodcaller("is_file"), features_base_dir.glob("**/*"))
+                raw_str = str(feature_pathlike)
+                path_obj = Path(raw_str)
+                if path_obj.is_absolute():
+                    if path_obj.is_dir():
+                        yield from filter(methodcaller("is_file"), path_obj.glob("**/*"))
+                    elif path_obj.is_file():
+                        yield path_obj
+                    else:
+                        yield from filter(
+                            methodcaller("is_file"),
+                            path_obj.parent.glob(path_obj.name),
+                        )
+                else:
+                    found = list(filter(methodcaller("is_file"), features_base_dir.glob(raw_str)))
+                    if found:
+                        yield from found
+                    else:
+                        target = features_base_dir / path_obj
+                        if target.is_dir():
+                            yield from filter(methodcaller("is_file"), target.glob("**/*"))
+                        elif target.is_file():
+                            yield target
 
     @staticmethod
-    def _build_file_uri(features_base_dir: Path, feature_path: Path):
+    def _build_file_uri(features_base_dir: Path, feature_path: Path) -> str:
         if feature_path.is_absolute():
             try:
                 common_path = Path(commonpath([feature_path, features_base_dir]))
-            except ValueError:
-                rel_feature_path = feature_path
-            else:
                 sub_levels = len(features_base_dir.relative_to(common_path).parts)
                 sub_path = reduce(truediv, [".."] * sub_levels, Path())
                 rel_feature_path = sub_path / feature_path.relative_to(common_path)
+            except ValueError:
+                rel_feature_path = feature_path
         else:
             rel_feature_path = feature_path
 
-        return "file:" + str(rel_feature_path.as_posix())
+        return f"file:{rel_feature_path.as_posix()}"
 
     def resolve_features(self, config: Union[Config, PytestBDDIdGeneratorHandler]):
         features_base_dir = self._resolve_features_base_dir(config)
