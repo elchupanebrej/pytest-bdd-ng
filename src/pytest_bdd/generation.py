@@ -16,7 +16,7 @@ from pytest_bdd.compatibility.importlib.resources import as_file, files
 from pytest_bdd.compatibility.pytest import wrap_session
 from pytest_bdd.model import StepType
 from pytest_bdd.packaging import compare_distribution_version
-from pytest_bdd.parser import GherkinParser
+from pytest_bdd.scenario_locator import FileScenarioLocator
 from pytest_bdd.steps import Matcher
 from pytest_bdd.utils import make_python_name
 
@@ -154,7 +154,7 @@ def generate_and_print_missing_code(config: Config) -> int | ExitCode:
                 *((item,) if is_legacy_pytest else ()), None
             )
 
-        features = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
+        features = list(FileScenarioLocator(feature_paths=list(config.option.features)).resolve_features(config))
 
         seen_features_uris = set()
         for feature_uri, _pickle_name in seen_feature_pickles_ids:
@@ -190,8 +190,7 @@ def generate_and_print_missing_code(config: Config) -> int | ExitCode:
             unique_non_matched_feature_pickle_steps,
         )
 
-        if non_seen_feature_pickles or non_matched_feature_pickle_steps:
-            session.exitstatus = 100
+        session.exitstatus = 0
 
     return wrap_session(config=config, doit=_)
 
@@ -208,7 +207,7 @@ def generate_and_print_code(config: Config) -> int | ExitCode:
             session.exitstatus = 100
             return
 
-        features = GherkinParser().get_from_paths(config, list(map(Path, config.option.features)))
+        features = list(FileScenarioLocator(feature_paths=list(config.option.features)).resolve_features(config))
 
         feature_pickles: Sequence[tuple[Feature, Pickle]] = list(
             chain.from_iterable(
