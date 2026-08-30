@@ -11,7 +11,7 @@ from urllib.request import urlopen
 
 from attrs import define, field
 
-from pytest_bdd.model import Feature, Scenario, Step
+from pytest_bdd.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
 from pytest_bdd.parser import ParserRegistry, default_parser_registry
 from pytest_bdd.utils import is_local_url
 
@@ -55,13 +55,43 @@ class ScenarioLocatorFilterMixin:
                             expanded_name = step.name
                             for k, v in mapping.items():
                                 expanded_name = expanded_name.replace(f"<{k}>", v)
+
+                            expanded_doc_string = step.doc_string
+                            if expanded_doc_string is not None:
+                                ds_content = expanded_doc_string.content
+                                for k, v in mapping.items():
+                                    ds_content = ds_content.replace(f"<{k}>", v)
+                                expanded_doc_string = DocString(
+                                    content=ds_content,
+                                    media_type=expanded_doc_string.media_type,
+                                    line=expanded_doc_string.line,
+                                    id=expanded_doc_string.id,
+                                )
+
+                            expanded_data_table = step.data_table
+                            if expanded_data_table is not None:
+                                new_rows = []
+                                for r in expanded_data_table.rows:
+                                    new_cells = []
+                                    for cell in r.cells:
+                                        c_val = cell.value
+                                        for k, v in mapping.items():
+                                            c_val = c_val.replace(f"<{k}>", v)
+                                        new_cells.append(TableCell(value=c_val, line=cell.line, id=cell.id))
+                                    new_rows.append(TableRow(cells=tuple(new_cells), line=r.line, id=r.id))
+                                expanded_data_table = DataTable(
+                                    rows=tuple(new_rows),
+                                    line=expanded_data_table.line,
+                                    id=expanded_data_table.id,
+                                )
+
                             expanded_steps.append(
                                 Step(
                                     name=expanded_name,
                                     keyword=step.keyword,
                                     line=step.line,
-                                    doc_string=step.doc_string,
-                                    data_table=step.data_table,
+                                    doc_string=expanded_doc_string,
+                                    data_table=expanded_data_table,
                                     type=step.type,
                                     id=step.id,
                                 )

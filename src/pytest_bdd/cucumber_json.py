@@ -232,8 +232,11 @@ class LogBDDCucumberJSON:
             # skip reporting for non-bdd tests
             return
 
-        if not scenario.get("steps") or report.when != "call":
-            # skip if there isn't a result or scenario has no steps
+        if not scenario.get("steps"):
+            # skip if scenario has no steps
+            return
+
+        if report.when != "call" and not (report.skipped and report.when in ("setup", "call")):
             return
 
         def stepmap(step: dict[str, Any]) -> dict[str, Any]:

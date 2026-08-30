@@ -111,8 +111,31 @@ class ScenarioReport:
             uri = feature.uri or ""
             feat_rel = uri[5:] if uri.startswith("file:") else (uri or feature.filename or "")
 
+        steps_data = (
+            [step_report.serialize(self.feature) for step_report in self.step_reports]
+            if self.step_reports
+            else [
+                {
+                    "name": getattr(s, "name", getattr(s, "text", "")),
+                    "type": getattr(s, "type", None)
+                    or (
+                        feature._get_step_prefix(s)
+                        if hasattr(feature, "_get_step_prefix")
+                        else getattr(s, "prefix", "")
+                    ),
+                    "keyword": getattr(s, "keyword", "")
+                    or (feature._get_step_keyword(s) if hasattr(feature, "_get_step_keyword") else ""),
+                    "line_number": getattr(s, "line", 0)
+                    or (feature._get_step_line_number(s) if hasattr(feature, "_get_step_line_number") else 0),
+                    "failed": False,
+                    "duration": 0.0,
+                }
+                for s in getattr(pickle, "steps", ())
+            ]
+        )
+
         return {
-            "steps": [step_report.serialize(self.feature) for step_report in self.step_reports],
+            "steps": steps_data,
             "name": pickle.name,
             "line_number": pickle_line,
             "tags": sorted(set(pickle_tags).difference(feature_tags)),
@@ -145,12 +168,19 @@ class ScenarioReporterPlugin:
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: Item, call: CallInfo):
         outcome = yield
+        rep = outcome.get_result()
         if call.when != "setup":
-            rep = outcome.get_result()
             scenario_report: ScenarioReport | None = self.current_report
-
             if scenario_report is not None:
                 rep.scenario = scenario_report.serialize()
+                rep.item = {"name": item.name}
+        elif rep.skipped:
+            callspec = getattr(item, "callspec", None)
+            params = getattr(callspec, "params", {}) if callspec else {}
+            feature = params.get("feature") or getattr(item, "feature", None)
+            scenario = params.get("scenario") or getattr(item, "scenario", None)
+            if feature is not None and scenario is not None:
+                rep.scenario = ScenarioReport(feature=feature, scenario=scenario).serialize()
                 rep.item = {"name": item.name}
 
     @pytest.hookimpl(tryfirst=True)

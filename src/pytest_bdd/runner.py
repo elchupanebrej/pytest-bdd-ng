@@ -33,6 +33,7 @@ class StepRunner:
     """Handles execution of individual steps in a scenario."""
 
     def match_to_step(self, request: FixtureRequest, feature: Any, scenario: Any, step: Any, previous_step: Any):
+        __tracebackhide__ = True
         try:
             return request.config.hook.pytest_bdd_match_step_definition_to_step(
                 request=request,

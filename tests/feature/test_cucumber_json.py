@@ -228,3 +228,44 @@ def test_step_trace(testdir):
     ]
 
     assert jsonobject == expected
+
+
+def test_skipped_scenario_in_cucumber_json(testdir):
+    """Test that skipped scenarios appear in cucumber json report."""
+    testdir.makefile(
+        ".ini",
+        pytest="""
+        [pytest]
+        markers =
+            skip
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        test_skip="""
+        Feature: Skipped feature
+            @skip
+            Scenario: Skipped scenario
+                Given a step that is skipped
+        """,
+    )
+    testdir.makeconftest(
+        """
+        import pytest
+        from pytest_bdd import given
+
+        @given('a step that is skipped')
+        def a_step_that_is_skipped():
+            pass
+        """
+    )
+    result, jsonobject = runandparse(testdir)
+    result.assert_outcomes(skipped=1)
+
+    assert len(jsonobject) == 1
+    feature = jsonobject[0]
+    assert len(feature["elements"]) == 1
+    scenario = feature["elements"][0]
+    assert scenario["name"] == "Skipped scenario"
+    assert len(scenario["steps"]) == 1
+    assert scenario["steps"][0]["result"]["status"] == "skipped"
