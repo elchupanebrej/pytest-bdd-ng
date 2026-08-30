@@ -24,7 +24,7 @@
     |------------|-------------------|------------|
     | subprocess | true              |            |
 
-* Then File "out.ndjson" has "15" lines
+* Then File "out.ndjson" has "9" lines
 * Then Report "out.ndjson" parsable into messages
 
 ## Scenario: HTML report could be produced on the feature run

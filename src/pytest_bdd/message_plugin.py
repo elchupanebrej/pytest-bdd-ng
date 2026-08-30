@@ -196,22 +196,62 @@ class MessagePlugin:
     def generate_html_report(self) -> None:
         if self.is_disabled:
             return
-        script_path = Path(next(find_resource(self.npm_formatter_package, Path("dist") / "main.js")))
-        css_path = Path(next(find_resource(self.npm_formatter_package, Path("dist") / "main.css")))
-        template_path = Path(next(find_resource(self.npm_formatter_package, Path("src") / "index.mustache.html")))
 
-        template_raw = template_path.read_text(encoding="utf-8")
-        template = re.sub(r"\{\{", "{{&", template_raw)  # It is not completely in agreement with documentation
+        script_content = ""
+        for candidate in (Path("dist") / "main.js", Path("main.js"), Path("dist") / "cucumber-html.js"):
+            found = list(find_resource(self.npm_formatter_package, str(candidate)))
+            if found:
+                script_content = Path(found[0]).read_text(encoding="utf-8")
+                break
 
-        with self.messages_file_path.open(mode="r", encoding="utf-8") as f:
-            messages = ",".join(f.readlines())
+        css_content = ""
+        for candidate in (Path("dist") / "main.css", Path("main.css"), Path("dist") / "cucumber-html.css"):
+            found = list(find_resource(self.npm_formatter_package, str(candidate)))
+            if found:
+                css_content = Path(found[0]).read_text(encoding="utf-8")
+                break
 
-        Path(self.config.option.cucumber_html_path).write_text(
+        template = (
+            "<!DOCTYPE html>\n"
+            "<html>\n"
+            "<head>\n"
+            '    <meta charset="UTF-8">\n'
+            "    <style>{{&css}}</style>\n"
+            "</head>\n"
+            "<body>\n"
+            "    <script>{{&script}}</script>\n"
+            '    <div id="content"></div>\n'
+            "    <script>\n"
+            "        window.CUCUMBER_MESSAGES = [{{&messages}}];\n"
+            "    </script>\n"
+            "</body>\n"
+            "</html>\n"
+        )
+        for candidate in (
+            Path("src") / "index.mustache.html",
+            Path("index.mustache.html"),
+            Path("dist") / "index.mustache.html",
+            Path("templates") / "index.mustache.html",
+        ):
+            found = list(find_resource(self.npm_formatter_package, str(candidate)))
+            if found:
+                raw = Path(found[0]).read_text(encoding="utf-8")
+                template = re.sub(r"\{\{", "{{&", raw)
+                break
+
+        messages = ""
+        if self.messages_file_path and self.messages_file_path.exists():
+            with self.messages_file_path.open(mode="r", encoding="utf-8") as f:
+                messages = ",".join(f.readlines())
+
+        html_out_path = Path(self.config.option.cucumber_html_path)
+        html_out_path.parent.mkdir(parents=True, exist_ok=True)
+        html_out_path.write_text(
             chevron.render(
                 template,
                 {
-                    "css": css_path.read_text(encoding="utf-8"),
-                    "script": script_path.read_text(encoding="utf-8"),
+                    "css": css_content,
+                    "script": script_content,
                     "messages": messages,
                 },
             ),

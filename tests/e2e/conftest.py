@@ -13,9 +13,17 @@ try:
     import pytest_httpserver
 
     HTTPServer = pytest_httpserver.HTTPServer
+    pytest_plugins = ["pytest_httpserver.pytest_plugin"]
 except ImportError:
+    import pytest
+
     pytest_httpserver = None
     HTTPServer = None
+
+    @fixture
+    def httpserver():
+        pytest.skip("pytest_httpserver is not installed")
+
 
 from messages import Envelope  # type:ignore[attr-defined]
 from pytest_bdd import given, step, then
@@ -73,13 +81,29 @@ def _(testdir, step):
 
 
 @step("run pytest", target_fixture="pytest_result")
-def run_pytest(testdir: "Testdir", step):
-    options_dict = data_table_to_dicts(step.data_table)
-    testrunner = (
-        testdir.runpytest_inprocess if options_dict.get("subprocess", [False])[0] == "true" else testdir.runpytest
-    )
+def run_pytest(testdir: "Testdir", request, step):
+    import os
 
-    outcome = testrunner(*options_dict.get("cli_args", []))
+    options_dict = data_table_to_dicts(step.data_table)
+    is_sub = str(options_dict.get("subprocess", ["false"])[0]).lower() == "true"
+    root = getattr(request.config, "rootpath", getattr(request.config, "rootdir", Path.cwd()))
+    src_dir = str(Path(root) / "src")
+
+    orig_pp = os.environ.get("PYTHONPATH", "")
+    testdir.monkeypatch.setenv("PYTHONPATH", f"{src_dir}{os.pathsep}{orig_pp}" if orig_pp else src_dir)
+
+    cli_args = list(options_dict.get("cli_args", []))
+    if not is_sub:
+        import sys
+
+        for mod_name in list(sys.modules.keys()):
+            if mod_name.startswith("test_"):
+                sys.modules.pop(mod_name, None)
+        testrunner = testdir.runpytest_inprocess
+    else:
+        testrunner = testdir.runpytest_subprocess
+
+    outcome = testrunner(*cli_args)
 
     yield outcome
 
@@ -110,10 +134,18 @@ def check_pytest_stdout_lines(pytest_result, step):
     re.compile(r"Copy \"(?P<initial_path>(\w|\\|.)+)\" into \"(?P<final_path>(\w|\\|.)+)\""),
     converters={"initial_path": Path, "final_path": Path},
 )
-def copy_file(testdir, initial_path: Path, final_path: Path):
-    full_initial_path = Path(testdir.tmpdir) / initial_path
+@given(
+    re.compile(r"Copy path from \"(?P<initial_path>(\w|\\|.)+)\" to test path \"(?P<final_path>(\w|\\|.)+)\""),
+    converters={"initial_path": Path, "final_path": Path},
+)
+def copy_file(testdir, request, initial_path: Path, final_path: Path):
+    root = getattr(request.config, "rootpath", getattr(request.config, "rootdir", Path.cwd()))
+    full_initial_path = (
+        Path(root) / initial_path if (Path(root) / initial_path).exists() else Path(testdir.tmpdir) / initial_path
+    )
     full_final_path = Path(testdir.tmpdir) / final_path
     if full_initial_path.is_file():
+        full_final_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(full_initial_path, full_final_path)
     else:
         shutil.copytree(full_initial_path, full_final_path, dirs_exist_ok=True)

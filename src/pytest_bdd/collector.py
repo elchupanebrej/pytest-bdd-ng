@@ -3,6 +3,7 @@ from __future__ import annotations
 from configparser import ConfigParser
 from importlib.machinery import ModuleSpec
 from importlib.util import module_from_spec
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -18,7 +19,6 @@ from pytest_bdd.webloc import read as webloc_read
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-    from pathlib import Path
 
     from pytest_bdd.compatibility.pytest import Config
 
@@ -101,19 +101,35 @@ class FeatureFileModule(Module):
         return raw_path, path_type, working_dir
 
     @classmethod
-    def get_feature_pathlike_from_desktop_file(cls, path: Path) -> tuple[str | None, PathType, str | None]:
+    def get_feature_pathlike_from_desktop_file(cls, path: Path) -> tuple[str | None, PathType, Path | str | None]:
         config_parser = ConfigParser()
         config_parser.read(path)
 
         config_data = config_parser["Desktop Entry"]
         url = config_data["URL"] if config_data.get("Type") == "Link" else None
         raw_path, path_type = cls.detect_uri_pathtype(url)
-        return raw_path, path_type, None
+        base_dir = None
+        if raw_path is not None and path_type is not PathType.URL:
+            p = Path(raw_path)
+            if not p.is_absolute():
+                for parent in path.parents:
+                    if (parent / p).exists():
+                        base_dir = parent
+                        break
+        return raw_path, path_type, base_dir
 
     @classmethod
-    def get_feature_pathlike_from_weblock_file(cls, path: Path) -> tuple[str | None, PathType, str | None]:
+    def get_feature_pathlike_from_weblock_file(cls, path: Path) -> tuple[str | None, PathType, Path | str | None]:
         raw_path, path_type = cls.detect_uri_pathtype(cast("str", webloc_read(str(path))))
-        return raw_path, path_type, None
+        base_dir = None
+        if raw_path is not None and path_type is not PathType.URL:
+            p = Path(raw_path)
+            if not p.is_absolute():
+                for parent in path.parents:
+                    if (parent / p).exists():
+                        base_dir = parent
+                        break
+        return raw_path, path_type, base_dir
 
 
 FeatureFileCollector = FeatureFileModule

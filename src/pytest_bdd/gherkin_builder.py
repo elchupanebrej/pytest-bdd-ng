@@ -104,16 +104,20 @@ def _build_examples(ex_dict: dict[str, Any]) -> Examples:
     )
 
 
-def _build_scenario(sc_dict: dict[str, Any], background: Background | None = None) -> Scenario:
+def _build_scenario(
+    sc_dict: dict[str, Any],
+    background: Background | None = None,
+    parent_tags: tuple[Tag, ...] = (),
+) -> Scenario:
     steps = tuple(_build_step(s) for s in sc_dict.get("steps", []))
     examples = tuple(_build_examples(e) for e in sc_dict.get("examples", []))
     return Scenario(
         name=sc_dict.get("name", ""),
         keyword=sc_dict.get("keyword", "Scenario"),
-        description=sc_dict.get("description", ""),
+        description=(sc_dict.get("description") or "").strip(),
         line=sc_dict.get("location", {}).get("line", 0),
         id=sc_dict.get("id"),
-        tags=_build_tags(sc_dict.get("tags")),
+        tags=parent_tags + _build_tags(sc_dict.get("tags")),
         steps=steps,
         examples=examples,
         background=background,
@@ -123,6 +127,7 @@ def _build_scenario(sc_dict: dict[str, Any], background: Background | None = Non
 def _build_rule(rule_dict: dict[str, Any], parent_background: Background | None = None) -> Rule:
     rule_background = None
     rule_scenarios = []
+    rule_tags = _build_tags(rule_dict.get("tags"))
     for child in rule_dict.get("children", []):
         if "background" in child:
             rule_background = _build_background(child["background"])
@@ -131,15 +136,16 @@ def _build_rule(rule_dict: dict[str, Any], parent_background: Background | None 
                 _build_scenario(
                     child["scenario"],
                     background=rule_background or parent_background,
+                    parent_tags=rule_tags,
                 )
             )
     return Rule(
         name=rule_dict.get("name", ""),
         keyword=rule_dict.get("keyword", "Rule"),
-        description=rule_dict.get("description", ""),
+        description=(rule_dict.get("description") or "").strip(),
         line=rule_dict.get("location", {}).get("line", 0),
         id=rule_dict.get("id"),
-        tags=_build_tags(rule_dict.get("tags")),
+        tags=rule_tags,
         background=rule_background,
         scenarios=tuple(rule_scenarios),
     )
@@ -162,7 +168,7 @@ def build_feature_from_dict(raw_dict: dict[str, Any], uri: str = "", filename: s
         name=feature_dict.get("name", ""),
         line=feature_dict.get("location", {}).get("line", 0),
         tags=_build_tags(feature_dict.get("tags")),
-        description=feature_dict.get("description", ""),
+        description=(feature_dict.get("description") or "").strip(),
         background=background,
         scenarios=tuple(scenarios),
         rules=tuple(rules),

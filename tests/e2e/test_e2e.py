@@ -1,3 +1,3 @@
 from pytest_bdd import scenarios
 
-test = scenarios(".")
+test = scenarios("features")
