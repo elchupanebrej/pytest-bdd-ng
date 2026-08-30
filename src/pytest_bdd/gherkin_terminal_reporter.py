@@ -77,12 +77,19 @@ class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
             self._tw.write(f"    Scenario: {sc_name}\n", **scenario_markup)
             has_already_failed = False
             for step in scenario["steps"]:
-                step_markup = {"red" if step.get("failed") else "green": True}
-                # Highlight first failed step
-                if step.get("failed") and not has_already_failed:
-                    step_markup["bold"] = True
-                    has_already_failed = True
-                step_status_text = "(FAILED)" if step.get("failed") else "(PASSED)"
+                if rep.skipped or step.get("skipped"):
+                    step_markup = {"yellow": True}
+                    step_status_text = "(SKIPPED)"
+                elif step.get("failed"):
+                    step_markup = {"red": True}
+                    if not has_already_failed:
+                        step_markup["bold"] = True
+                        has_already_failed = True
+                    step_status_text = "(FAILED)"
+                else:
+                    step_markup = {"green": True}
+                    step_status_text = "(PASSED)"
+
                 step_kw = step.get("keyword", "").strip()
                 self._tw.write(
                     f"        {step_kw} {step.get('name', '')} {step_status_text}\n",

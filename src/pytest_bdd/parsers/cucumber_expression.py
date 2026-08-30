@@ -43,7 +43,8 @@ class _CucumberExpression(StepParser):
         self, request: FixtureRequest, name: str, anonymous_group_names: Iterable[str] | None = None
     ) -> dict[str, object] | None:
         expr = self.rebuild_expression_in_test_context(request)
-        return dict(zip(anonymous_group_names or [], map(attrgetter("value"), expr.match(name) or []), strict=False))
+        names = anonymous_group_names or getattr(self, "arguments", ())
+        return dict(zip(names, map(attrgetter("value"), expr.match(name) or []), strict=False))
 
     def __str__(self) -> str:
         return str(self.pattern)

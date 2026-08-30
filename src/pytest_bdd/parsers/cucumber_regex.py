@@ -13,6 +13,8 @@ from pytest_bdd.parsers.cucumber_expression import _CucumberExpression
 if TYPE_CHECKING:
     from collections.abc import Collection
 
+    from pytest_bdd.compatibility.pytest import FixtureRequest
+
 
 class cucumber_regular_expression(_CucumberExpression):
     type = StepDefinitionPatternType.regular_expression
@@ -42,6 +44,13 @@ class cucumber_regular_expression(_CucumberExpression):
     @property
     def arguments(self) -> Collection[str]:
         return [*re_compile(self.pattern).groupindex.keys()]
+
+    def rebuild_expression_in_test_context(self, request: FixtureRequest) -> CucumberRegularExpression:
+        import re
+
+        pat_str = self.pattern if isinstance(self.pattern, str) else self.pattern.pattern
+        cleaned = re.sub(r"\(\?P<[a-zA-Z_][a-zA-Z0-9_]*>", "(", pat_str)
+        return self.expression_type(re.compile(cleaned), self._get_parameter_type_registry(request))
 
 
 register_parser(lambda parserlike: isinstance(parserlike, CucumberRegularExpression), cucumber_regular_expression)
