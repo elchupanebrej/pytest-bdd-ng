@@ -39,6 +39,8 @@ Architecture score:
     #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
 """
 
+from __future__ import annotations
+
 import json
 import math
 import os
@@ -47,6 +49,8 @@ from pathlib import Path
 from typing import cast
 
 from pytest_bdd.compatibility.pytest import TerminalReporter, TestReport
+from pytest_bdd.model.message_extension import EventEnvelope
+from pytest_bdd.model.message_reporter import CucumberMessageReportStore
 from pytest_bdd.plugin.cucumber_json.model import Feature
 from pytest_bdd.types.json import JSONArray, JSONObject
 
@@ -136,6 +140,8 @@ class LogBDDCucumberJSON:
         """
         self.logfile = Path(os.path.expandvars(logfile)).expanduser().resolve()
         self.features: dict[str, JSONObject] = {}
+        self._message_store = CucumberMessageReportStore()
+        self._message_mode = False
 
     @staticmethod
     def _get_result(step: JSONObject, report: TestReport, *, error_message: bool = False) -> JSONObject:
@@ -242,6 +248,11 @@ class LogBDDCucumberJSON:
         line = int(line_number) if isinstance(line_number, (str, int, float)) else 1
         return cast("JSONArray", [{"name": str(tag), "line": line - 1} for tag in tags])
 
+    def pytest_bdd_message(self, config: object, message: EventEnvelope) -> None:  # noqa: ARG002
+        """Consume one Cucumber Messages Envelope for report generation."""
+        self._message_mode = True
+        self._message_store.consume(message)
+
     def pytest_runtest_logreport(self, report: TestReport) -> None:
         """
         Implement plugin module operations for pytest-bdd.
@@ -283,6 +294,8 @@ class LogBDDCucumberJSON:
             #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
+        if self._message_mode and hasattr(report, "scenario"):
+            return
         try:
             scenario = cast("JSONObject", report.scenario)
         except AttributeError:
@@ -469,9 +482,10 @@ class LogBDDCucumberJSON:
             #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
-        for feature in self.features.values():
+        features = self._message_store.render() if self._message_mode else list(self.features.values())
+        for feature in features:
             Feature.model_validate(feature)
-        Path(self.logfile).write_text(json.dumps(list(self.features.values())), encoding="utf-8")
+        Path(self.logfile).write_text(json.dumps(features), encoding="utf-8")
 
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         """
