@@ -361,7 +361,7 @@ class Registry:
         for attr in dir(self.namespace):
             try:
                 value = getattr(self.namespace, attr)
-            except Exception:
+            except Exception:  # noqa: BLE001, S112 -- descriptors may raise arbitrary user exceptions
                 continue
             if isinstance(value, StepProtocol) and hasattr(value, "__pytest_bdd_step_definitions__"):
                 step_containers.append(value)
@@ -370,11 +370,9 @@ class Registry:
         for step_container in step_containers:
             raw_definitions = getattr(step_container, "__pytest_bdd_step_definitions__", ())
             if isinstance(raw_definitions, (set, list, tuple, OrderedSet)):
-                for step_definition in raw_definitions:
-                    discovered_definitions.append(step_definition)
+                discovered_definitions.extend(raw_definitions)
 
         return OrderedSet(discovered_definitions)
-
 
     @classmethod
     def inject_registry_fixture(
@@ -603,10 +601,12 @@ class Registry:
 
         Responsibility:
             Explicitly registers a single Definition instance into the underlying OrderedSet registry.
+            This keeps programmatic registration on the same path as discovered step definitions.
 
         Reason for existence:
             Provides direct registration capabilities for programmatically added step definitions without requiring
             namespace introspection.
+            Callers can therefore extend a registry after construction without mutating its internal collection.
 
         Delegates:
             - self.registry.add(step_definition): Adds the definition to the OrderedSet.
@@ -643,9 +643,11 @@ class Registry:
         Responsibility:
             Iterates over a sequence of step-bearing functions and registers all attached step definitions into this
             registry.
+            Each definition is delegated to the single-definition registration boundary.
 
         Reason for existence:
             Enables batch registration of step definitions from multiple step functions.
+            This is useful when a plugin contributes a complete library of step containers at once.
 
         Delegates:
             - self.register_step_definition: Registers each individual Definition object.
@@ -678,4 +680,3 @@ class Registry:
             if isinstance(raw_definitions, (set, list, tuple, OrderedSet)):
                 for step_definition in raw_definitions:
                     self.register_step_definition(step_definition)
-
