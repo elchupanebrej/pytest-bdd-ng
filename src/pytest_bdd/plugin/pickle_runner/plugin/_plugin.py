@@ -685,7 +685,11 @@ class PickleRunner:
             gherkin_document = params.get("gherkin_document")
             pickle = params.get("pickle")
             feature_source = params.get("feature_source")
-            if gherkin_document is not None and pickle is not None and feature_source is not None:
+            if (
+                isinstance(gherkin_document, GherkinDocument)
+                and isinstance(pickle, Pickle)
+                and isinstance(feature_source, Source)
+            ):
                 return gherkin_document, pickle, feature_source
         return None, None, None
 

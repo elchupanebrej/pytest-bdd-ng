@@ -42,7 +42,9 @@ class ReporterServiceGraph:
     services: tuple[object, ...]
 
 
-def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:  # noqa: PLR0915  # initialization with many attributes
+def initialize_reporter_runtime(  # noqa: PLR0915 - initialization with many attributes
+    reporter: GherkinMessageReporter,
+) -> None:
     """Handle initialize reporter runtime."""
     reporter.parameter_type_registry = set()
     reporter.hook_registry = set()
@@ -106,7 +108,7 @@ def initialize_reporter_runtime(reporter: GherkinMessageReporter) -> None:  # no
     else:
         reporter.final_messages_file_path = reporter._resolve_output_path(reporter.config.option.messages_ndjson_path)
         reporter.final_messages_file_path.parent.mkdir(parents=True, exist_ok=True)
-        if not reporter.is_xdist_worker and not reporter.final_messages_file_path.exists():
+        if not reporter.is_xdist_worker:
             reporter.final_messages_file_path.write_text("", encoding="utf-8")
 
     reporter.messages_file_path = reporter.final_messages_file_path

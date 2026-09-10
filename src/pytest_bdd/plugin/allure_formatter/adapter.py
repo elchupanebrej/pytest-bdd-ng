@@ -39,24 +39,21 @@ logger = logging.getLogger(__name__)
 
 def to_ms(timestamp: Any) -> int | None:
     """Convert a timestamp to integer milliseconds."""
-    if timestamp is None:
-        return None
-    # 1. Check if it's a Cucumber messages/deserialized Timestamp object
+    result: int | None = None
     if hasattr(timestamp, "seconds") and hasattr(timestamp, "nanos"):
-        return int(timestamp.seconds * 1000 + timestamp.nanos / 1000000)
-    # 2. Check if it is a dictionary (e.g. JSON representation of Timestamp)
-    if isinstance(timestamp, dict):
+        result = int(timestamp.seconds * 1000 + timestamp.nanos / 1000000)
+    elif isinstance(timestamp, dict):
         seconds = timestamp.get("seconds", 0)
         nanos = timestamp.get("nanos", 0)
-        return int(seconds * 1000 + nanos / 1000000)
-    # 3. Check if it's already an int or float
-    if isinstance(timestamp, (int, float)):
+        result = int(seconds * 1000 + nanos / 1000000)
+    elif isinstance(timestamp, (int, float)):
         if timestamp == 0:
-            return 0
-        if timestamp > 1e11:
-            return int(timestamp)
-        return int(timestamp * 1000)
-    return None
+            result = 0
+        elif timestamp > 1e11:
+            result = int(timestamp)
+        else:
+            result = int(timestamp * 1000)
+    return result
 
 
 def convert_to_allure_commons(projections: Iterable[ExecutionProjection], output_dir: Path) -> None:

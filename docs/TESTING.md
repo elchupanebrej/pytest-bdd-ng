@@ -61,7 +61,7 @@ make test-platform-macos          # macOS tests
 
 Tests are organized under `tests/cases/` by type:
 
-```
+```text
 tests/cases/
 ├── unit/              # Unit tests (marker: unit)
 ├── integration/       # Integration tests (marker: integration)

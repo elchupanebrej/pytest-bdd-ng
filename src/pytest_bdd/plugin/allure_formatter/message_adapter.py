@@ -37,7 +37,7 @@ def _map_status(raw: str) -> str:
 _LARGE_TIMESTAMP_THRESHOLD = 1e11
 
 
-def _to_ms(timestamp: object) -> int | None:  # noqa: PLR0911  # comprehensive timestamp conversion
+def _to_ms(timestamp: object) -> int | None:  # noqa: PLR0911 - comprehensive timestamp conversion
     if timestamp is None:
         return None
     if hasattr(timestamp, "seconds") and hasattr(timestamp, "nanos"):
@@ -349,7 +349,7 @@ class CucumberEnvelopeAdapter:
     def _handle_test_run_finished(self, projection: ExecutionProjection) -> None:
         pass
 
-    def _resolve_case_name(self, projection: ExecutionProjection) -> str:  # noqa: PLR0911, PLR6301  # name resolution via registry
+    def _resolve_case_name(self, projection: ExecutionProjection) -> str:  # noqa: PLR0911, PLR6301 - name resolution via registry
         test_case_id = getattr(projection.payload, "test_case_id", None)
         if test_case_id is None:
             return ""
@@ -373,7 +373,7 @@ class CucumberEnvelopeAdapter:
             return ""
         return getattr(pickle_payload, "name", "") or ""
 
-    def _resolve_step_name(self, projection: ExecutionProjection) -> str:  # noqa: C901, PLR0911, PLR0912, PLR6301  # step naming logic
+    def _resolve_step_name(self, projection: ExecutionProjection) -> str:  # noqa: C901, PLR0911, PLR0912, PLR6301 - step naming logic
         test_step_id = getattr(projection.payload, "test_step_id", None)
         if test_step_id is None:
             return ""
@@ -414,7 +414,7 @@ class CucumberEnvelopeAdapter:
             return getattr(pickle_step, "text", "") or getattr(pickle_step, "name", "") or ""
         return ""
 
-    def _resolve_pickle_step(self, projection: ExecutionProjection) -> object | None:  # noqa: C901, PLR0911, PLR6301  # step resolution
+    def _resolve_pickle_step(self, projection: ExecutionProjection) -> object | None:  # noqa: C901, PLR0911, PLR6301 - step resolution
         test_step_id = getattr(projection.payload, "test_step_id", None)
         if test_step_id is None:
             return None
@@ -452,7 +452,7 @@ class CucumberEnvelopeAdapter:
                 continue
         return None
 
-    def _add_labels(self, projection: ExecutionProjection, test_result: Any) -> None:  # noqa: PLR6301  # method for context access
+    def _add_labels(self, projection: ExecutionProjection, test_result: Any) -> None:  # noqa: PLR6301 - method for context access
         test_case_id = getattr(projection.payload, "test_case_id", None)
         if test_case_id is None:
             return
@@ -481,7 +481,7 @@ class CucumberEnvelopeAdapter:
                 test_result.labels.append(Label(name="tag", value=str(tag_name)))
                 existing.add(("tag", str(tag_name)))
 
-    def _add_description(self, projection: ExecutionProjection, test_result: Any) -> None:  # noqa: C901, PLR0911, PLR0912, PLR6301  # description extraction
+    def _add_description(self, projection: ExecutionProjection, test_result: Any) -> None:  # noqa: C901, PLR0911, PLR0912, PLR6301 - description extraction
         test_case_id = getattr(projection.payload, "test_case_id", None)
         if test_case_id is None:
             return
@@ -538,7 +538,7 @@ class CucumberEnvelopeAdapter:
                     break
         test_result.description = "\n\n".join(descriptions)
 
-    def _add_parameters(self, projection: ExecutionProjection, test_result: Any) -> None:  # noqa: PLR6301  # method for context access
+    def _add_parameters(self, projection: ExecutionProjection, test_result: Any) -> None:  # noqa: PLR6301 - method for context access
         test_case_id = getattr(projection.payload, "test_case_id", None)
         if test_case_id is None:
             return
@@ -555,7 +555,7 @@ class CucumberEnvelopeAdapter:
 
             test_result.parameters.append(Parameter(name="pickleId", value=str(pickle_id)))
 
-    def _set_failure_details(self, projection: ExecutionProjection, test_result: Any) -> None:  # noqa: PLR6301  # method for context access
+    def _set_failure_details(self, projection: ExecutionProjection, test_result: Any) -> None:  # noqa: PLR6301 - method for context access
         case_result_payload = getattr(projection.payload, "test_case_result", None)
         if case_result_payload is None:
             return

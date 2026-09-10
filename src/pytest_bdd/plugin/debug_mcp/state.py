@@ -41,7 +41,7 @@ Architecture score:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, ClassVar
 from uuid import uuid4
 
@@ -150,7 +150,7 @@ class DebugMcpState(StashBound):
 
     options: DebugMcpOptions
     session_id: str = attrs.field(factory=lambda: uuid4().hex)
-    created_at: str = attrs.field(factory=lambda: datetime.now(UTC).isoformat())
+    created_at: str = attrs.field(factory=lambda: datetime.now(timezone.utc).isoformat())
     mcp_pdb_endpoint: Endpoint | None = None
     sidecar_endpoint: Endpoint | None = None
     queue: FailureQueue | None = None

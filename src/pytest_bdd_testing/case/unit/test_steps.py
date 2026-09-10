@@ -2567,6 +2567,274 @@ def test_step_docstring(testdir) -> None:
     result.assert_outcomes(passed=1)
 
 
+def test_background_step_multiline_docstring_triple_quotes(testdir) -> None:
+    """
+    Background step with triple-quoted multiline docstring attaches argument correctly.
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given the relevant preconditions are met, when Verify internal unit invariants and correct behavior of
+        individual code components., then the expected outcome is produced.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    testdir.makeconftest("""
+        from pytest_bdd import given, then
+
+        @given("a background step with docstring")
+        def background_step(step):
+            assert step.argument is not None
+            assert step.argument.doc_string is not None
+            assert step.argument.doc_string.content == "line 1\\nline 2"
+
+        @then("it should work")
+        def check():
+            assert True
+    """)
+    testdir.makefile(
+        ".feature",
+        steps='''\
+        Feature: Background Docstring Triple Quotes
+            Background:
+                Given a background step with docstring
+                    """
+                    line 1
+                    line 2
+                    """
+
+            Scenario: Test
+                Then it should work
+    ''',
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_background_step_multiline_docstring_triple_backticks(testdir) -> None:
+    """
+    Background step with backtick multiline docstring attaches argument correctly.
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given the relevant preconditions are met, when Verify internal unit invariants and correct behavior of
+        individual code components., then the expected outcome is produced.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    testdir.makeconftest("""
+        from pytest_bdd import given, then
+
+        @given("a background step with backticks")
+        def background_step(step):
+            assert step.argument is not None
+            assert step.argument.doc_string is not None
+            assert step.argument.doc_string.content == "line A\\nline B"
+
+        @then("it should work")
+        def check():
+            assert True
+    """)
+    testdir.makefile(
+        ".feature",
+        steps="""\
+        Feature: Background Docstring Backticks
+            Background:
+                Given a background step with backticks
+                    ```
+                    line A
+                    line B
+                    ```
+
+            Scenario: Test
+                Then it should work
+    """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_background_step_multiline_docstring_multiple_scenarios(testdir) -> None:
+    """
+    Background step with multiline docstring executes before each scenario.
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given the relevant preconditions are met, when Verify internal unit invariants and correct behavior of
+        individual code components., then the expected outcome is produced.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    testdir.makeconftest("""
+        from pytest_bdd import given, then
+
+        @given("a background step with docstring")
+        def background_step(step):
+            assert step.argument is not None
+            assert step.argument.doc_string is not None
+            assert step.argument.doc_string.content == "header\\ndetail 1\\ndetail 2"
+
+        @then("first check passes")
+        def check1():
+            assert True
+
+        @then("second check passes")
+        def check2():
+            assert True
+    """)
+    testdir.makefile(
+        ".feature",
+        steps='''\
+        Feature: Background Multi-Scenario
+            Background:
+                Given a background step with docstring
+                    """
+                    header
+                    detail 1
+                    detail 2
+                    """
+
+            Scenario: Scenario One
+                Then first check passes
+
+            Scenario: Scenario Two
+                Then second check passes
+    ''',
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=2)
+
+
+def test_background_step_multiline_docstring_markdown(testdir) -> None:
+    """
+    Background step with multiline docstring in Markdown feature file format.
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given the relevant preconditions are met, when Verify internal unit invariants and correct behavior of
+        individual code components., then the expected outcome is produced.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    testdir.makeconftest("""
+        from pytest_bdd import given, then
+
+        @given("a markdown background step with docstring")
+        def bg_step(step):
+            assert step.argument is not None
+            assert step.argument.doc_string is not None
+            assert step.argument.doc_string.content == "md line 1\\nmd line 2"
+
+        @then("markdown scenario passes")
+        def check():
+            assert True
+    """)
+    testdir.makefile(
+        ".feature.md",
+        steps="""\
+# Feature: Markdown Background Docstring
+## Background:
+* Given a markdown background step with docstring
+  ```
+  md line 1
+  md line 2
+  ```
+
+## Scenario: Test Markdown
+* Then markdown scenario passes
+    """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
 def test_step_data_table(testdir) -> None:
     """
     Steps work with data tables in feature files.
@@ -2802,6 +3070,161 @@ def test_step_with_tags(testdir) -> None:
             Scenario: Tagged test
                 Given a tagged step
                 Then it works
+    """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_unhashable_fixtures_in_conftest_and_module(testdir) -> None:
+    """
+    Fixtures returning unhashable types (dict, list, mock call, set) do not crash collection or execution.
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given conftest and test modules defining fixtures that return dict, list, unittest.mock.call,
+        when pytest collects and runs the suite,
+        then all tests pass without TypeError: unhashable type.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    testdir.makeconftest("""
+        import pytest
+        from unittest.mock import call
+        from pytest_bdd import given, when, then
+
+        @pytest.fixture
+        def dict_fixture():
+            return {"a": 1, "b": {"nested": "dict"}}
+
+        @pytest.fixture
+        def list_fixture():
+            return [1, 2, "item"]
+
+        @pytest.fixture
+        def mock_call_fixture():
+            return call(1, 2, kw="arg")
+
+        @pytest.fixture
+        def set_fixture():
+            return {1, 2, 3}
+
+        @given("I have a dict fixture")
+        def check_dict(dict_fixture):
+            assert dict_fixture["a"] == 1
+
+        @when("I have a list fixture")
+        def check_list(list_fixture):
+            assert len(list_fixture) == 3
+
+        @then("I have a mock call fixture")
+        def check_mock_call(mock_call_fixture):
+            assert mock_call_fixture == call(1, 2, kw="arg")
+    """)
+    testdir.makepyfile(
+        test_feature="""
+        import pytest
+        from pytest_bdd import scenario
+
+        def test_regular_unit_test(dict_fixture, list_fixture, mock_call_fixture, set_fixture):
+            assert isinstance(dict_fixture, dict)
+            assert isinstance(list_fixture, list)
+            assert isinstance(set_fixture, set)
+            assert mock_call_fixture[1] == (1, 2)
+
+        @scenario("unhashable.feature", "Scenario with unhashable fixtures")
+        def test_bdd_scenario():
+            pass
+    """,
+    )
+    testdir.makefile(
+        ".feature",
+        unhashable="""\
+        Feature: Unhashable fixtures
+            Scenario: Scenario with unhashable fixtures
+                Given I have a dict fixture
+                When I have a list fixture
+                Then I have a mock call fixture
+    """,
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=3)
+
+
+def test_step_definition_unhashable_param_defaults_and_converters(testdir) -> None:
+    """
+    Step definitions with unhashable param defaults and converters work cleanly.
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given step definitions configured with dict defaults and list converters,
+        when pytest runs,
+        then all step definitions match and execute without TypeError.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    testdir.makeconftest("""
+        from pytest_bdd import given, when, then
+
+        @given("a system with config", param_defaults={"config": {"mode": "test"}})
+        def with_config(config):
+            assert config["mode"] == "test"
+
+        @then("result is valid")
+        def result_valid():
+            assert True
+    """)
+    testdir.makefile(
+        ".feature",
+        defaults="""\
+        Feature: Unhashable defaults
+            Scenario: Test defaults
+                Given a system with config
+                Then result is valid
     """,
     )
     result = testdir.runpytest()

@@ -2065,3 +2065,131 @@ def test_feature_runtime_binding_rel_filename_non_file_rel_filename_with_http_ur
     doc = _make_gherkin_document(uri="http://example.com/test.feature")
     binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
     assert binding.rel_filename is None
+
+
+def test_feature_runtime_binding_background_step_multiline_docstring_quotes() -> None:
+    """
+    step_doc_string returns multiline doc_string from background AST step with triple quotes.
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given the relevant preconditions are met, when Verify internal unit invariants and correct behavior of
+        individual code components., then the expected outcome is produced.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    from cucumber_messages import DocString, Location, Step
+    from cucumber_messages import PickleStep as PickleStepMsg
+
+    run = _make_run()
+    doc = _make_gherkin_document()
+    binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+    doc_string_obj = DocString(
+        content="line 1\nline 2\nline 3",
+        delimiter='"""',
+        location=Location(line=4, column=7),
+    )
+    ast_step = Step(
+        id="bg-step-1",
+        keyword="Given ",
+        location=Location(line=3, column=5),
+        text="a background step with multiline docstring",
+        doc_string=doc_string_obj,
+    )
+    binding.ast_registry.index_tree(ast_step)
+    pickle_step = PickleStepMsg(
+        id="pickle-bg-1",
+        type=1,
+        text="a background step with multiline docstring",
+        ast_node_ids=["bg-step-1"],
+    )
+    result = binding.step_doc_string(pickle_step)
+    assert result is doc_string_obj
+    assert getattr(result, "content", None) == "line 1\nline 2\nline 3"
+    assert getattr(result, "delimiter", None) == '"""'
+
+
+def test_feature_runtime_binding_background_step_multiline_docstring_backticks() -> None:
+    """
+    step_doc_string returns multiline doc_string from background AST step with triple backticks.
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given the relevant preconditions are met, when Verify internal unit invariants and correct behavior of
+        individual code components., then the expected outcome is produced.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    from cucumber_messages import DocString, Location, Step
+    from cucumber_messages import PickleStep as PickleStepMsg
+
+    run = _make_run()
+    doc = _make_gherkin_document()
+    binding = FeatureRuntimeBinding.build(run=run, gherkin_document=doc)
+    doc_string_obj = DocString(
+        content="first line\nsecond line\nthird line",
+        delimiter="```",
+        location=Location(line=4, column=7),
+    )
+    ast_step = Step(
+        id="bg-step-2",
+        keyword="Given ",
+        location=Location(line=3, column=5),
+        text="a background step with backticks docstring",
+        doc_string=doc_string_obj,
+    )
+    binding.ast_registry.index_tree(ast_step)
+    pickle_step = PickleStepMsg(
+        id="pickle-bg-2",
+        type=1,
+        text="a background step with backticks docstring",
+        ast_node_ids=["bg-step-2"],
+    )
+    result = binding.step_doc_string(pickle_step)
+    assert result is doc_string_obj
+    assert getattr(result, "content", None) == "first line\nsecond line\nthird line"
+    assert getattr(result, "delimiter", None) == "```"

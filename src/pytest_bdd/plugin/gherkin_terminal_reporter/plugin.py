@@ -42,6 +42,8 @@ Architecture score:
 from typing import cast
 
 from pytest_bdd.compatibility.pytest import Config, TerminalReporter, TestReport
+from pytest_bdd.model.message_extension import EventEnvelope
+from pytest_bdd.model.message_reporter import CucumberMessageReportStore
 from pytest_bdd.model.scenario_report import ScenarioReportData, StepReportData, normalize_runtime_step_status
 
 
@@ -173,8 +175,56 @@ class GherkinTerminalReporter(TerminalReporter):  # mypy limitation with singled
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         super().__init__(config)
+        self._message_store = CucumberMessageReportStore()
+        self._message_mode = False
 
-    def pytest_runtest_logreport(self, report: TestReport) -> None:
+    def pytest_bdd_message(self, config: Config, message: EventEnvelope) -> None:  # noqa: ARG002
+        """Render completed Cucumber Messages scenarios through the terminal reporter."""
+        self._message_mode = True
+        projection = self._message_store.consume(message)
+        if projection is None:
+            return
+        feature = cast("dict[str, object]", projection["feature"])
+        scenario = cast("dict[str, object]", projection["scenario"])
+        steps = scenario.get("steps", [])
+        step_list = steps if isinstance(steps, list) else []
+        statuses = [
+            str(step.get("result", {}).get("status", "unknown"))
+            for step in step_list
+            if isinstance(step, dict) and isinstance(step.get("result"), dict)
+        ]
+        scenario_status = "failed" if "failed" in statuses else "skipped" if "skipped" in statuses else "passed"
+        markup = (
+            {"red": True}
+            if scenario_status == "failed"
+            else {"yellow": True}
+            if scenario_status == "skipped"
+            else {"green": True}
+        )
+        self.ensure_newline()
+        self._tw.write(f"Feature: {feature.get('name', '')}\n", blue=True)
+        self._tw.write(f"    Scenario: {scenario.get('name', '')}", **markup)
+        if self.verbosity > 1:
+            self._tw.write("\n")
+            has_already_failed = False
+            for step in step_list:
+                if not isinstance(step, dict):
+                    continue
+                step_result = step.get("result", {})
+                status = str(step_result.get("status", "unknown")) if isinstance(step_result, dict) else "unknown"
+                step_failed = status == "failed"
+                step_markup = {"red" if step_failed else "green": True}
+                if step_failed and not has_already_failed:
+                    step_markup["bold"] = True
+                    has_already_failed = True
+                step_status_text = f"({status.upper()})"
+                self._tw.write(
+                    f"        {step.get('keyword', '')} {step.get('name', '')} {step_status_text}\n",
+                    **step_markup,
+                )
+        self._tw.write(f"    {scenario_status.upper()}\n", **markup)
+
+    def pytest_runtest_logreport(self, report: TestReport) -> None:  # noqa: C901
         """
         Implement plugin module operations for pytest-bdd.
 
@@ -215,6 +265,8 @@ class GherkinTerminalReporter(TerminalReporter):  # mypy limitation with singled
             #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
+        if self._message_mode and hasattr(report, "scenario"):
+            return None
         cat, letter, word = self.config.hook.pytest_report_teststatus(report=report, config=self.config)
 
         if not letter and not word:

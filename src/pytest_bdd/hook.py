@@ -421,6 +421,7 @@ class _HookFunctionProtocol(Protocol):
     __pytest_bdd_hook_expression__: str
     __pytest_bdd_hook_kind__: str
     __pytest_bdd_hook_conjunction__: str
+    __pytest_bdd_hook_order__: int
 
 
 class _AroundHookCallable(Protocol):
@@ -855,6 +856,7 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) 
     def decorator_wrapper(
         expression: str | None = None,
         name: str | None = None,
+        order: int = 0,
     ) -> Callable[[object], Callable[[FixtureRequest], Generator[None, None, None]]]:
         """
         Serve as the outer decopatch layer that captures the optional expression and name parameters from the decorator call.
@@ -905,6 +907,7 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) 
             #arch-eval:locational_stability=4
         """
         expression_: str = expression if expression is not None else ""
+        order_: int = order
 
         def decorator(func: object) -> Callable[[FixtureRequest], Generator[None, None, None]]:
             """
@@ -970,7 +973,10 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) 
             func_sig = signature(cast("FunctionType", func))
 
             fixture_decorator = pytest.fixture(
-                name=f"{conjunction_.value}_{kind_.value}_expression_{expression_}_{next(expression_count_gen)}",
+                name=(
+                    f"{conjunction_.value}_{kind_.value}_order_{order_:+020d}"
+                    f"_expression_{expression_}_{next(expression_count_gen)}"
+                ),
                 autouse=True,
             )
 
@@ -1058,6 +1064,7 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) 
             hook.__pytest_bdd_hook_expression__ = expression_
             hook.__pytest_bdd_hook_kind__ = kind_.value
             hook.__pytest_bdd_hook_conjunction__ = conjunction_.value
+            hook.__pytest_bdd_hook_order__ = order_
 
             return cast("Callable[[FixtureRequest], Generator[None, None, None]]", fixture_decorator(hook))
 

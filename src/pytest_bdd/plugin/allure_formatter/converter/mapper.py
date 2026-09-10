@@ -41,7 +41,7 @@ class _MappingState:
 
 def _resolve_step_name(
     test_step_id: str,
-    structural: StructuralContext,
+    structural: StructuralContext,  # noqa: ARG001
 ) -> str:
     """
     Resolve step name from TestStepStarted via lookup chain.
@@ -541,7 +541,7 @@ def _handle_attachment(projection: ExecutionProjection, attachments: list[Allure
 def _handle_test_case_finished_event(
     projection: ExecutionProjection,
     state: _MappingState,
-    structural: StructuralContext,  # noqa: ARG001
+    structural: StructuralContext,
 ) -> None:
     """Handle test_case_finished event."""
     state.stop_time = getattr(projection.payload, "timestamp", 0)

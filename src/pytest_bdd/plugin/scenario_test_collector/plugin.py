@@ -85,6 +85,7 @@ from pytest_bdd.model.scenario_collection import (
     PYTEST_BDD_SCENARIOS_MARK,
     FeatureAutoLoad,
 )
+from pytest_bdd.model.scenario_preconditions import ScenarioPreconditionError, order_scenario_items
 from pytest_bdd.parser import (  # type: ignore[attr-defined]  # re-exported from compatibility module
     GherkinParser,
     MarkdownGherkinParser,
@@ -977,6 +978,10 @@ class ScenarioTestCollector(_ModernTestCollector):
             #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
+        try:
+            items[:] = order_scenario_items(items)
+        except ScenarioPreconditionError as exc:
+            raise pytest.UsageError(str(exc)) from exc
         _validate_zero_match_scenarios(config, items)
 
     @pytest.hookimpl(tryfirst=True)

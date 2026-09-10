@@ -42,7 +42,7 @@ repos:
       - id: markdownlint
         # Use a managed nodeenv so WSL does not pick up the Windows npm shim.
         language_version: 22.0.0
-        exclude: ^(specs/|AGENTS\.md$)
+        exclude: ^(specs/|AGENTS\.md$|docs/architecture/OBJECT_MAP\.md$)
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
     hooks:
@@ -53,7 +53,7 @@ repos:
       - id: validate-feature-headings
         name: validate-feature-headings
         entry: >-
-          uv run --python 3.14 python
+          uv run --isolated --python 3.14 python
           src/pytest_bdd/script/validate_feature_headings.py
           --root-path features
         language: python
@@ -62,7 +62,9 @@ repos:
         pass_filenames: false
       - id: mypy
         name: mypy
-        entry: uv run --python 3.14 mypy --config-file pyproject.toml
+        entry: >-
+          uv run --isolated --extra struct-bdd --python 3.14
+          mypy --config-file pyproject.toml
         language: python
         additional_dependencies: ["uv"]
         types: [python]
@@ -73,8 +75,7 @@ repos:
         # Pylint supplements Ruff here: it loads pytest-bdd custom checkers for
         # architecture and repository rules that Ruff cannot express.
         entry: >-
-          uv run --python 3.14 pylint
-          --ignore-patterns=cases
+          uv run --isolated --python 3.14 pylint
           src/pytest_bdd/
           src/pytest_bdd_testing/
         language: python

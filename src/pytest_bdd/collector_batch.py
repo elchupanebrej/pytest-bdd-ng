@@ -105,6 +105,7 @@ from returns.result import Result
 from pytest_bdd.model import message_converter  # pylint: disable=downward-import
 from pytest_bdd.model.stash_access import StashBound  # pylint: disable=downward-import
 from pytest_bdd.types.failure_reasons import CollectorFailure
+from pytest_bdd.util.external_examples import ExternalExamplesError, expand_external_examples
 
 logger = logging.getLogger(__name__)
 CollectorParseResult = Result[object, CollectorFailure]
@@ -578,6 +579,8 @@ class FeatureBatchParser(StashBound):
                 self._cache[p] = doc
             except OSError:
                 logger.warning("Failed to read feature file: %s", p, exc_info=True)
+            except ExternalExamplesError:
+                raise
             except Exception:
                 logger.exception("Failed to parse feature file: %s", p)
 
@@ -1070,7 +1073,7 @@ def _parse_feature_file(path: Path, content: bytes) -> tuple[Path, GherkinDocume
         #arch-eval:entity_fullness=4
         #arch-eval:locational_stability=5
     """
-    text = content.decode("utf-8")
+    text = expand_external_examples(content.decode("utf-8"), path)
     uri = "file:" + path.as_posix()
     is_markdown = _resolve_mimetype(path).endswith("+markdown")
 

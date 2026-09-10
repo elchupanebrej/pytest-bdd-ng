@@ -43,6 +43,11 @@ from collections.abc import Generator
 from typing import Protocol, cast
 
 import pytest
+from cucumber_messages import (
+    GherkinDocument,
+    Pickle,
+    Source,
+)
 from pluggy import Result
 
 from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item
@@ -331,6 +336,35 @@ class ScenarioReporter:
             raise RuntimeError(msg)
         return scenario_report
 
+    @staticmethod
+    def _build_fallback_scenario_report(item: Item) -> ScenarioReport | None:
+        callspec = getattr(item, "callspec", None)
+        if callspec is None:
+            return None
+        gherkin_document = callspec.params.get("gherkin_document")
+        pickle = callspec.params.get("pickle")
+        feature_source = callspec.params.get("feature_source")
+        if (
+            not isinstance(gherkin_document, GherkinDocument)
+            or not isinstance(pickle, Pickle)
+            or not isinstance(feature_source, Source)
+        ):
+            return None
+        run = Run.from_stash(item.config.stash)
+        feature_binding = run.ensure_feature_binding(
+            gherkin_document=gherkin_document,
+            source=feature_source,
+        )
+        scenario_report = ScenarioReport(
+            feature_binding=feature_binding,
+            pickle=pickle,
+        )
+        for step in pickle.steps:
+            step_report = StepReport(step=step)
+            step_report.finalize(failed=False)
+            scenario_report.add_step_report(step_report)
+        return scenario_report
+
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: Item, call: CallInfo) -> Generator[None, Result, None]:
         """
@@ -374,10 +408,9 @@ class ScenarioReporter:
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
         outcome = yield
+        rep = cast("_ScenarioReportTestReport", outcome.get_result())
+        scenario_report = self.current_report
         if call.when != "setup":
-            rep = cast("_ScenarioReportTestReport", outcome.get_result())
-            """Store item in the report object."""
-            scenario_report = self.current_report
             if scenario_report is not None:
                 rep.scenario = self._derive_scenario_report(scenario_report)
                 rep.item = {"name": item.name}
@@ -386,6 +419,14 @@ class ScenarioReporter:
                     msg = "Scenario report context snapshot is unavailable before report finalization."
                     raise RuntimeError(msg)
                 rep.execution_context_snapshot = context_snapshot.as_dict()
+        elif getattr(rep, "skipped", False) or getattr(rep, "failed", False):
+            if scenario_report is None:
+                scenario_report = self._build_fallback_scenario_report(item)
+            if scenario_report is not None:
+                rep.scenario = self._derive_scenario_report(scenario_report)
+                rep.item = {"name": item.name}
+                context_snapshot = scenario_report.context_snapshot
+                rep.execution_context_snapshot = context_snapshot.as_dict() if context_snapshot is not None else {}
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_before_scenario(

@@ -1,3 +1,5 @@
+# ruff: noqa: INP001 - testing helpers intentionally form a namespace package
+
 """
 Cucumber Compatibility Kit (CCK) download utility.
 
@@ -188,7 +190,7 @@ def download_all_cck_samples(
         try:
             path = download_cck_sample(name, cache_dir, tag)
             samples[name] = path
-        except RuntimeError:  # noqa: PERF203 — intentional per-sample error recovery
+        except RuntimeError:  # noqa: PERF203 - intentional per-sample error recovery
             logger.exception("Failed to download CCK sample '%s'", name)
     return samples
 

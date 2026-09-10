@@ -38,9 +38,9 @@
     test_report = scenarios("test.feature")
     ```
 
-* And Set pytest.toml content to:
+* And Set pytest.ini content to:
 
-    ```toml
+    ```ini
     [pytest]
     cucumber_json_path = out.json
     ```
@@ -107,3 +107,89 @@
 
 * And JSON file "out.json" jq query ".[0].elements | length" returns "2"
 * And JSON file "out.json" jq query ".[0].elements[1].steps[0].name" returns "type int and value 42"
+
+## Scenario: Generate cucumber JSON with skipped scenario via tag
+* Given File "test.feature" with content:
+
+    ```gherkin
+    Feature: Skipped scenario feature
+      @skip
+      Scenario: Skipped by tag
+        Given a passing step
+    ```
+
+* And File "conftest.py" with content:
+
+    ```python
+    from pytest_bdd import given
+
+
+    @given("a passing step")
+    def _pass():
+        return "pass"
+    ```
+
+* And File "test_report.py" with content:
+
+    ```python
+    from pytest_bdd import scenarios
+
+    test_report = scenarios("test.feature")
+    ```
+
+* When run pytest
+
+    | cli_args | -k | test_report.py | --cucumber-json=out.json | -s |
+    |----------|----|----------------|--------------------------|----|
+
+* Then pytest outcome must contain tests with statuses:
+
+    | skipped |
+    |---------|
+    | 1       |
+
+* And File "out.json" is not empty
+* And JSON file "out.json" jq query ".[0].elements[0].steps[0].result.status" returns "skipped"
+
+## Scenario: Generate cucumber JSON with dynamically skipped scenario
+* Given File "test.feature" with content:
+
+    ```gherkin
+    Feature: Dynamically skipped scenario feature
+      Scenario: Skipped in step
+        Given a step that skips
+    ```
+
+* And File "conftest.py" with content:
+
+    ```python
+    import pytest
+    from pytest_bdd import given
+
+
+    @given("a step that skips")
+    def _skip():
+        pytest.skip("skipping this step")
+    ```
+
+* And File "test_report.py" with content:
+
+    ```python
+    from pytest_bdd import scenarios
+
+    test_report = scenarios("test.feature")
+    ```
+
+* When run pytest
+
+    | cli_args | -k | test_report.py | --cucumber-json=out.json | -s |
+    |----------|----|----------------|--------------------------|----|
+
+* Then pytest outcome must contain tests with statuses:
+
+    | skipped |
+    |---------|
+    | 1       |
+
+* And File "out.json" is not empty
+* And JSON file "out.json" jq query ".[0].elements[0].steps[0].result.status" returns "skipped"

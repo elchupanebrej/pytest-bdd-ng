@@ -118,6 +118,7 @@ from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.model.feature_binding import FeatureRuntimeBinding  # pylint: disable=downward-import
 from pytest_bdd.types.exception import FeatureConcreteParseError
 from pytest_bdd.types.protocol import HasPytestStash
+from pytest_bdd.util.external_examples import expand_external_examples
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
     from pytest_bdd.plugin.struct_bdd.parser import StructBDDParser  # noqa: F401 # pylint: disable=downward-import
@@ -641,7 +642,7 @@ class GherkinParser(BaseParser):
         """
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
         encoding = cast("str", kwargs.pop("encoding", "utf-8"))
-        feature_file_data = path.read_text(encoding=encoding)
+        feature_file_data = expand_external_examples(path.read_text(encoding=encoding), path)
 
         try:
             gherkin_document_raw_dict = cast("dict[str, Any]", gherkin_parser.parse(feature_file_data))
@@ -808,7 +809,7 @@ class MarkdownGherkinParser(BaseParser):
         gherkin_parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
         matcher = GherkinInMarkdownTokenMatcher()
         encoding = cast("str", kwargs.pop("encoding", "utf-8"))
-        feature_file_data = path.read_text(encoding=encoding)
+        feature_file_data = expand_external_examples(path.read_text(encoding=encoding), path)
         token_scanner = TokenScanner(feature_file_data)
 
         try:

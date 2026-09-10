@@ -48,7 +48,7 @@ def _index_structural_message(
             structural["gherkin_document", str(uri)] = projection.payload
 
 
-def group_by_test_case(
+def group_by_test_case(  # noqa: C901
     projections: Iterable[ExecutionProjection],
 ) -> tuple[dict[str, list[ExecutionProjection]], StructuralContext]:
     """

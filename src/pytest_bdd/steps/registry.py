@@ -82,6 +82,7 @@ from __future__ import annotations
 
 from collections.abc import (  # noqa: TC003  -- needed at runtime for type narrowing in attrs validators
     Callable,
+    Iterable,
     Iterator,
 )
 from functools import cached_property
@@ -356,19 +357,22 @@ class Registry:
         if self.namespace is None:
             return OrderedSet()
 
-        step_containers: list[StepProtocol] = [
-            value
-            for value in [getattr(self.namespace, attr) for attr in dir(self.namespace)]
-            if isinstance(value, StepProtocol)
-        ]
+        step_containers: list[StepProtocol] = []
+        for attr in dir(self.namespace):
+            try:
+                value = getattr(self.namespace, attr)
+            except Exception:  # noqa: BLE001, S112 -- descriptors may raise arbitrary user exceptions
+                continue
+            if isinstance(value, StepProtocol) and hasattr(value, "__pytest_bdd_step_definitions__"):
+                step_containers.append(value)
 
-        return OrderedSet(
-            [
-                step_definition
-                for step_container in step_containers
-                for step_definition in step_container.__pytest_bdd_step_definitions__
-            ],
-        )
+        discovered_definitions: list[Definition] = []
+        for step_container in step_containers:
+            raw_definitions = getattr(step_container, "__pytest_bdd_step_definitions__", ())
+            if isinstance(raw_definitions, (set, list, tuple, OrderedSet)):
+                discovered_definitions.extend(raw_definitions)
+
+        return OrderedSet(discovered_definitions)
 
     @classmethod
     def inject_registry_fixture(
@@ -590,3 +594,89 @@ class Registry:
             #arch-eval:locational_stability=5
         """
         return iter(self.registry)
+
+    def register_step_definition(self, step_definition: Definition) -> None:
+        """
+        Register a single step definition into the registry.
+
+        Responsibility:
+            Explicitly registers a single Definition instance into the underlying OrderedSet registry.
+            This keeps programmatic registration on the same path as discovered step definitions.
+
+        Reason for existence:
+            Provides direct registration capabilities for programmatically added step definitions without requiring
+            namespace introspection.
+            Callers can therefore extend a registry after construction without mutating its internal collection.
+
+        Delegates:
+            - self.registry.add(step_definition): Adds the definition to the OrderedSet.
+
+        Cohesion:
+            Directly manages step definition storage within this container.
+
+        Separation:
+            - Registry.registry: Owns the discovery mechanism; this method provides explicit insertion.
+
+        Main consumers:
+            - Programmatic step registration utilities and backward compatibility adapters.
+
+        State and side effects:
+            Mutates self.registry by inserting step_definition.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
+        """
+        self.registry.add(step_definition)
+
+    def register_steps(self, step_funcs: Iterable[StepProtocol]) -> None:
+        """
+        Register step definitions from step functions into the registry.
+
+        Responsibility:
+            Iterates over a sequence of step-bearing functions and registers all attached step definitions into this
+            registry.
+            Each definition is delegated to the single-definition registration boundary.
+
+        Reason for existence:
+            Enables batch registration of step definitions from multiple step functions.
+            This is useful when a plugin contributes a complete library of step containers at once.
+
+        Delegates:
+            - self.register_step_definition: Registers each individual Definition object.
+
+        Cohesion:
+            Batch extension of definition registration.
+
+        Separation:
+            - register_step_definition: Single-definition registration; this is batch iteration.
+
+        Main consumers:
+            - Step registration helpers and batch registration workflows.
+
+        State and side effects:
+            Mutates self.registry by inserting discovered definitions.
+
+        Architecture score:
+            #arch-eval:reason_for_existence=4
+            #arch-eval:owned_responsibility=4
+            #arch-eval:delegation_boundary=3
+            #arch-eval:cohesion=5
+            #arch-eval:separation=4
+            #arch-eval:consumer_clarity=5
+            #arch-eval:state_invariants=4
+            #arch-eval:entity_fullness=3
+            #arch-eval:locational_stability=5
+        """
+        for step_func in step_funcs:
+            raw_definitions = getattr(step_func, "__pytest_bdd_step_definitions__", ())
+            if isinstance(raw_definitions, (set, list, tuple, OrderedSet)):
+                for step_definition in raw_definitions:
+                    self.register_step_definition(step_definition)

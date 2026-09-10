@@ -51,7 +51,7 @@ graph TD
 
 ## Directory Structure
 
-```
+```text
 src/pytest_bdd/
 ├── __init__.py              # Public API: scenario, scenarios, given, when, then, step
 ├── scenario.py              # scenario() and scenarios() implementation

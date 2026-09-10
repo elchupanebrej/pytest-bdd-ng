@@ -270,7 +270,7 @@ class TransportService(ReporterServiceBase):
             self.reporter._live_formatter_temp_dir = None
 
     @staticmethod
-    def process_messages(
+    def process_messages(  # noqa: C901 - transport loop keeps queue, file, and remote batch handling atomic
         queue: Queue[str],
         stop_event: Event,
         messages_file_path: str | Path,

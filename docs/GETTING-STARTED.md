@@ -67,7 +67,7 @@ npm install @cucumber/html-formatter
 
 Feature files go in `features/` (or any directory configured via `bdd_features_base_dir`). Step definitions are Python files imported via `conftest.py`:
 
-```
+```text
 features/
 ├── auth/
 │   └── login.feature

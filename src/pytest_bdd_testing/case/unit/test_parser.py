@@ -544,6 +544,174 @@ def test_markdown_parser_content_without_feature_heading(tmp_path: Path) -> None
         MarkdownGherkinParser(id_generator=IdGenerator()).parse(_config(), path, "file:nofeature.feature.md")
 
 
+def test_markdown_parser_scenario_outline_with_examples_table(tmp_path: Path) -> None:
+    """
+    MarkdownGherkinParser parses scenario outlines with examples tables in markdown.
+
+    Test target:
+        Enforce Gherkin specification compliance during parsing.
+    Test type:
+        Unit test
+    Test scenario:
+        Given a markdown feature with a scenario outline and markdown table examples, when parsed, then the scenario outline and examples are structured correctly.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    path = tmp_path / "outline.feature.md"
+    path.write_text(
+        "# Feature: Outline Support\n\n"
+        "## Scenario Outline: Eating cucumbers\n"
+        "* Given I have <count> cucumbers\n"
+        "* When I eat <eat> cucumbers\n"
+        "* Then I have <left> cucumbers\n\n"
+        "### Examples:\n"
+        "  | count | eat | left |\n"
+        "  |-------|-----|------|\n"
+        "  | 12    | 5   | 7    |\n"
+        "  | 20    | 5   | 15   |\n",
+        encoding="utf-8",
+    )
+
+    parsed = MarkdownGherkinParser(id_generator=IdGenerator()).parse(_config(), path, "file:outline.feature.md")
+
+    assert parsed.gherkin_document.feature.name == "Outline Support"
+    scenario = parsed.gherkin_document.feature.children[0].scenario
+    assert scenario.name == "Eating cucumbers"
+    assert len(scenario.steps) == 3
+    assert len(scenario.examples) == 1
+    assert len(scenario.examples[0].table_body) == 2
+
+
+def test_markdown_parser_data_table_and_docstring(tmp_path: Path) -> None:
+    """
+    MarkdownGherkinParser parses steps with data tables and doc strings.
+
+    Test target:
+        Enforce Gherkin specification compliance during parsing.
+    Test type:
+        Unit test
+    Test scenario:
+        Given a markdown feature with a data table and a doc string step, when parsed, then the step payload arguments are preserved.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    path = tmp_path / "datatable.feature.md"
+    path.write_text(
+        "# Feature: Data table and doc string\n\n"
+        "## Scenario: Users\n"
+        "* Given the following users:\n"
+        "  | name | email |\n"
+        "  |------|-------|\n"
+        "  | John | j@e.c |\n"
+        "* And a multiline note:\n"
+        "  ```\n"
+        "  hello world\n"
+        "  line 2\n"
+        "  ```\n"
+        "* Then done\n",
+        encoding="utf-8",
+    )
+
+    parsed = MarkdownGherkinParser(id_generator=IdGenerator()).parse(_config(), path, "file:datatable.feature.md")
+
+    scenario = parsed.gherkin_document.feature.children[0].scenario
+    assert scenario.steps[0].data_table is not None
+    assert len(scenario.steps[0].data_table.rows) == 2
+    assert scenario.steps[1].doc_string is not None
+    assert "hello world" in scenario.steps[1].doc_string.content
+
+
+def test_markdown_parser_background_and_rules(tmp_path: Path) -> None:
+    """
+    MarkdownGherkinParser parses background and rule sections in markdown.
+
+    Test target:
+        Enforce Gherkin specification compliance during parsing.
+    Test type:
+        Unit test
+    Test scenario:
+        Given a markdown feature containing a background and a rule section, when parsed, then the background and rule nodes are populated.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    path = tmp_path / "rules.feature.md"
+    path.write_text(
+        "# Feature: Rules and Background\n\n"
+        "## Background:\n"
+        "* Given background step\n\n"
+        "## Rule: Authentication rule\n"
+        "### Scenario: Successful auth\n"
+        "* When user logs in\n"
+        "* Then user is authenticated\n",
+        encoding="utf-8",
+    )
+
+    parsed = MarkdownGherkinParser(id_generator=IdGenerator()).parse(_config(), path, "file:rules.feature.md")
+
+    feature = parsed.gherkin_document.feature
+    assert feature.name == "Rules and Background"
+    assert feature.children[0].background is not None
+    assert feature.children[1].rule is not None
+    assert feature.children[1].rule.name == "Authentication rule"
+
+
 def test_emit_parse_error_with_no_hook_is_noop() -> None:
     """
     emit_parse_error with no hook handler does nothing.

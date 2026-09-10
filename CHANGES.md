@@ -51,6 +51,7 @@
 ## 2.4.0
 
 - Add python official gherkin parser for markdown documents
+- Fixup support of markdown feature parsing using official python gherkin parser (>=39) (#106)
 - Drop support for Python 3.9 and pytest\<6.2.5 (EOL)
 - Migrate code formatting and linting to Ruff
 - Refactor internal architecture:

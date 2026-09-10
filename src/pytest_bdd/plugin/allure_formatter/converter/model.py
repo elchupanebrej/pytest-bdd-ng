@@ -65,10 +65,10 @@ class AllureStepResult:
     name: str = ""
     uuid: str = field(factory=lambda: str(uuid4()))
     status: str = "unknown"
-    statusDetails: AllureStatusDetails = field(factory=AllureStatusDetails)
+    statusDetails: AllureStatusDetails = field(factory=AllureStatusDetails)  # noqa: N815 - Allure schema field
     stage: str = "finished"
     description: str = ""
-    descriptionHtml: str = ""
+    descriptionHtml: str = ""  # noqa: N815 - Allure schema field
     start: int = 0
     stop: int = 0
     steps: list[AllureStepResult] = field(factory=list)
@@ -82,14 +82,14 @@ class AllureTestResult:
 
     uuid: str = field(factory=lambda: str(uuid4()))
     name: str = ""
-    fullName: str = ""
-    historyId: str = ""
-    testCaseId: str = ""
+    fullName: str = ""  # noqa: N815 - Allure schema field
+    historyId: str = ""  # noqa: N815 - Allure schema field
+    testCaseId: str = ""  # noqa: N815 - Allure schema field
     status: str = "unknown"
-    statusDetails: AllureStatusDetails = field(factory=AllureStatusDetails)
+    statusDetails: AllureStatusDetails = field(factory=AllureStatusDetails)  # noqa: N815 - Allure schema field
     stage: str = "finished"
     description: str = ""
-    descriptionHtml: str = ""
+    descriptionHtml: str = ""  # noqa: N815 - Allure schema field
     labels: list[AllureLabel] = field(factory=list)
     links: list[AllureLink] = field(factory=list)
     steps: list[AllureStepResult] = field(factory=list)
@@ -106,12 +106,12 @@ class AllureFixtureResult:
     name: str = ""
     uuid: str = field(factory=lambda: str(uuid4()))
     type: str = "before"
-    testResults: list[str] = field(factory=list)
+    testResults: list[str] = field(factory=list)  # noqa: N815 - Allure schema field
     status: str = "unknown"
-    statusDetails: AllureStatusDetails = field(factory=AllureStatusDetails)
+    statusDetails: AllureStatusDetails = field(factory=AllureStatusDetails)  # noqa: N815 - Allure schema field
     stage: str = "finished"
     description: str = ""
-    descriptionHtml: str = ""
+    descriptionHtml: str = ""  # noqa: N815 - Allure schema field
     start: int = 0
     stop: int = 0
     steps: list[AllureStepResult] = field(factory=list)

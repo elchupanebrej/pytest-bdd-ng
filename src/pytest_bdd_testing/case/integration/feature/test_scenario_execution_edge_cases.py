@@ -334,6 +334,83 @@ def test_docstring_in_step(testdir):
     result.assert_outcomes(passed=1, skipped=1)
 
 
+def test_background_with_multiline_docstring_execution(testdir):
+    """
+    Background step with multiline docstring executes properly before scenarios.
+
+    Test target:
+        Validate component collaboration, integration contracts, and boundary conditions.
+    Test type:
+        Integration test
+    Test scenario:
+        Given the relevant preconditions are met, when Validate component collaboration, integration contracts, and
+        boundary conditions., then the expected outcome is produced.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    testdir.makeconftest(
+        """
+        from pytest_bdd import given, then
+
+        @given("a background step with multiline docstring")
+        def bg_docstring_step(step):
+            assert step.argument is not None
+            assert step.argument.doc_string is not None
+            assert step.argument.doc_string.content == "multiline\\ncontent\\nhere"
+
+        @then("the scenario passes")
+        def check_scenario():
+            pass
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        bg_docstring="""\
+            Feature: Background with multiline docstring
+                Background:
+                    Given a background step with multiline docstring
+                        \"\"\"
+                        multiline
+                        content
+                        here
+                        \"\"\"
+
+                Scenario: Scenario with background docstring
+                    Then the scenario passes
+        """,
+    )
+    testdir.makepyfile(
+        """
+        from pytest_bdd import scenario
+
+        @scenario("test.feature", "Scenario with background docstring")
+        def test_bg_docstring():
+            pass
+        """,
+    )
+    result = testdir.runpytest("-v")
+    result.assert_outcomes(passed=1, skipped=1)
+
+
 def test_scenario_outline_with_examples(testdir):
     """
     Scenario Outline with Examples table runs each row as separate scenario.

@@ -13,8 +13,10 @@ from pytest_bdd.plugin.allure_formatter.message_adapter import CucumberEnvelopeA
 
 if TYPE_CHECKING:
     from pytest_bdd.compatibility.pytest import Config
+    from pytest_bdd.model.execution_message_adapter import ExecutionProjection
     from pytest_bdd.model.message_extension import EventEnvelope
     from pytest_bdd.model.message_registry import IdentifiableObjectRegistry
+    from pytest_bdd.types.json import JSONObject
 
 logger = logging.getLogger(__name__)
 
@@ -78,49 +80,57 @@ class AllureFormatter:
 
     # --- Hook implementations (AllureFormatterHookSpec) ---
 
+    def _route_projection(self, projection: ExecutionProjection) -> None:
+        if projection.payload_kind == "gherkin_document":
+            uri = getattr(projection.payload, "uri", None)
+            if uri is not None:
+                cast("dict", self._registry.objects_by_id)["gherkin_document", str(uri)] = projection.payload
+        self.adapter.route_envelope(projection)
+
+    def _route_message(self, message: EventEnvelope) -> None:
+        from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
+
+        self._registry.index_tree(message)
+        projection = ExecutionMessageAdapter.deserialize(message, registry=self._registry)
+        self._route_projection(projection)
+
+    def _route_xdist_envelope(self, envelope_dict: JSONObject, worker_id: object) -> None:
+        from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
+
+        namespaced_envelope = (
+            ExecutionMessageAdapter.namespace_dict_ids(envelope_dict, namespace=str(worker_id))
+            if worker_id
+            else envelope_dict
+        )
+        projection = ExecutionMessageAdapter.deserialize_dict(namespaced_envelope, registry=self._registry)
+        self._registry.index_tree(projection.envelope)
+        self._route_projection(projection)
+
+    def _route_xdist_envelope_safely(self, envelope_dict: JSONObject, worker_id: object) -> None:
+        try:
+            self._route_xdist_envelope(envelope_dict, worker_id)
+        except Exception:
+            logger.exception("Failed to process xdist envelope: %s", envelope_dict)
+
     @pytest.hookimpl
     def pytest_bdd_message(self, config: Config, message: EventEnvelope) -> None:
         """Process a single Cucumber Message envelope in real-time."""
-        from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
-
         try:
-            self._registry.index_tree(message)
-            projection = ExecutionMessageAdapter.deserialize(message, registry=self._registry)
-            if projection.payload_kind == "gherkin_document":
-                uri = getattr(projection.payload, "uri", None)
-                if uri is not None:
-                    cast("dict", self._registry.objects_by_id)["gherkin_document", str(uri)] = projection.payload
-            self.adapter.route_envelope(projection)
+            self._route_message(message)
         except Exception:
             logger.exception("Failed to process envelope: %s", message)
 
     @pytest.hookimpl
     def pytest_bdd_xdist_message_batch(self, config: Config, node: object, batch: dict[str, object]) -> None:
         """Process messages forwarded from workers in real-time on the controller."""
-        from pytest_bdd.model.execution_message_adapter import ExecutionMessageAdapter
-
         worker_id = batch.get("worker_id")
         raw_envelopes = batch.get("envelopes", [])
         envelopes = raw_envelopes if isinstance(raw_envelopes, list) else []
         for envelope_dict in envelopes:
-            try:
-                if worker_id:
-                    envelope_dict = ExecutionMessageAdapter.namespace_dict_ids(
-                        envelope_dict,
-                        namespace=str(worker_id),
-                    )
-                projection = ExecutionMessageAdapter.deserialize_dict(envelope_dict, registry=self._registry)
-                self._registry.index_tree(projection.envelope)
-                if projection.payload_kind == "gherkin_document":
-                    uri = getattr(projection.payload, "uri", None)
-                    if uri is not None:
-                        cast("dict", self._registry.objects_by_id)["gherkin_document", str(uri)] = projection.payload
-                self.adapter.route_envelope(projection)
-            except Exception:
-                logger.exception("Failed to process xdist envelope: %s", envelope_dict)
+            self._route_xdist_envelope_safely(cast("JSONObject", envelope_dict), worker_id)
 
     @pytest.hookimpl
-    def pytest_bdd_consume_messages(self, config: Config) -> bool:
+    def pytest_bdd_consume_messages(self, config: Config) -> bool:  # noqa: PLR6301 - pluggy hook signature
         """Opt-in to consuming the NDJSON message stream."""
         return True
 

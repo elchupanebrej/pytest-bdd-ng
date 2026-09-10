@@ -48,6 +48,8 @@ import pytest
 from cucumber_messages import (
     Attachment,
     AttachmentContentEncoding,
+    GherkinDocument,
+    Pickle,
 )
 from cucumber_messages import Envelope as Message
 
@@ -212,7 +214,7 @@ class IdeBindingService(ReporterServiceBase):
             gherkin_document = params.get("gherkin_document")
             pickle = params.get("pickle")
             feature_source = params.get("feature_source")
-            if not gherkin_document or not pickle:
+            if not isinstance(gherkin_document, GherkinDocument) or not isinstance(pickle, Pickle):
                 continue
 
             binding = run.ensure_feature_binding(

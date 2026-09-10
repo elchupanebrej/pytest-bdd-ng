@@ -770,3 +770,111 @@ def test_registry_iteration():
 
     definitions = list(registry)
     assert mock_def in definitions
+
+
+def test_registry_handles_unhashable_payload_and_fixture_types():
+    """
+    Registry handles definitions with unhashable payload (dicts, lists, mock calls).
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given step definitions with unhashable param_defaults, converters, and fixture return types,
+        when they are added to or discovered by Registry,
+        then no TypeError is raised.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    from unittest.mock import call
+    from pytest_bdd.parsers import string as string_parser
+    from pytest_bdd.steps import StepDefinitionManager
+
+    parser = string_parser("step with unhashable data")
+    definition = StepDefinitionManager.Definition(
+        func=lambda: None,
+        type_="given",
+        parser=parser,
+        anonymous_group_names=["item"],
+        converters={"item": lambda x: x},
+        params_fixtures_mapping={"item": "dict_fixture"},
+        param_defaults={"dict_val": {"nested": "dict"}, "list_val": [1, 2, 3], "mock_call": call(1, 2, a="b")},
+        target_fixtures=["dict_fixture", "list_fixture"],
+        liberal=None,
+    )
+
+    registry = StepDefinitionManager.Registry()
+    registry.registry.add(definition)
+    definitions = list(registry)
+    assert definition in definitions
+
+
+def test_registry_discovery_with_unhashable_namespace_objects():
+    """
+    Registry discovery ignores unhashable non-step objects in namespace.
+
+    Test target:
+        Verify internal unit invariants and correct behavior of individual code components.
+    Test type:
+        Unit test
+    Test scenario:
+        Given a namespace with unhashable variables and fixtures (dict, list, mock call),
+        when Registry scans the namespace,
+        then discovery completes without TypeError.
+    BDD reference:
+        None
+    Fixtures:
+        - None
+    Mocks:
+        - None
+    Side effects:
+        None
+    Reduction:
+        Requires real component interaction that cannot be reproduced by mocking alone.
+    Escalation:
+        Testing at a higher level would not add coverage and would slow down the suite.
+    Atomicity:
+        All assertions share the same setup and verify a single coherent behavior.
+    Autonomy:
+        Covers a distinct code path not exercised by any sibling test.
+    Test quality score:
+        #test-eval:isolation=5
+        #test-eval:determinism=5
+        #test-eval:setup_complexity=1
+        #test-eval:assertions_clarity=5
+    """
+    from unittest.mock import call
+    from pytest_bdd.steps import StepDefinitionManager
+
+    class MockNamespace:
+        pass
+
+    ns = MockNamespace()
+    ns.__dict__["some_dict"] = {"key": "value"}
+    ns.__dict__["some_list"] = [1, 2, 3]
+    ns.__dict__["some_call"] = call("func", 42)
+    ns.__dict__["some_set"] = {1, 2, 3}
+
+    registry = StepDefinitionManager.Registry(namespace=ns)
+    defs = list(registry)
+    assert isinstance(defs, list)

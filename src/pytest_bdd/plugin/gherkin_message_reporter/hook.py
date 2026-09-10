@@ -45,6 +45,6 @@ class GherkinMessageReporterHookSpec:
         """Render formatter-specific runtime assets required by the live formatter bridge."""
 
     @pytest.hookspec(firstresult=True)
-    def pytest_bdd_enable_runtime_messages(self, config: Config) -> bool:
+    def pytest_bdd_enable_runtime_messages(self, config: Config) -> bool:  # noqa: PLR6301 - pluggy hook signature
         """Enable runtime messages hook spec."""
         return False
