@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, cast
 
+import pytest
 from cucumber_expressions.errors import UndefinedParameterTypeError
 from cucumber_messages import (
     Duration,
@@ -25,6 +26,8 @@ from cucumber_messages import Exception as CucumberException
 from pytest_bdd.model.run_access import require_step_object
 from pytest_bdd.plugin.gherkin_message_reporter.service_base import ReporterServiceBase
 from pytest_bdd.util.other import IdGenerator
+
+_SKIP_EXCEPTION = cast("type[BaseException]", pytest.skip.Exception)  # type: ignore[attr-defined]
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -189,6 +192,56 @@ class ScenarioService(ReporterServiceBase):
         )
         reporting_state.reset_scenario_scope()
 
+    def emit_skipped_scenario(
+        self,
+        request: FixtureRequest,
+        run: Run,
+        test_case: object,
+    ) -> None:
+        """Emit a complete skipped lifecycle for scenarios skipped during pytest setup."""
+        if self.reporter.is_disabled:
+            return
+        config = request.config
+        reporting_state = run.reporting_state
+        test_case_started = TestCaseStarted(
+            attempt=getattr(request.node, "execution_count", 0),
+            id=next(IdGenerator.from_stash(cast("Config", config).stash)),
+            test_case_id=str(getattr(test_case, "id", "")),
+            worker_id=self.transport_service._current_reporting_worker_id(cast("Config", config)),
+            timestamp=self.lifecycle_service.get_timestamp(),
+        )
+        reporting_state.active_test_case_started_id = test_case_started.id
+        self.lifecycle_service._emit_envelope(config, Message(test_case_started=test_case_started))
+        for test_step in getattr(test_case, "test_steps", ()):
+            test_step_id = str(getattr(test_step, "id", ""))
+            if not getattr(test_step, "pickle_step_id", None) or not test_step_id:
+                continue
+            self.lifecycle_service._emit_envelope(
+                config,
+                Message(
+                    test_step_finished=TestStepFinished(
+                        test_case_started_id=test_case_started.id,
+                        test_step_id=test_step_id,
+                        timestamp=self.lifecycle_service.get_timestamp(),
+                        test_step_result=TestStepResult(
+                            duration=Duration(seconds=0, nanos=0),
+                            status=TestStepResultStatus.skipped,
+                        ),
+                    ),
+                ),
+            )
+        self.lifecycle_service._emit_envelope(
+            config,
+            Message(
+                test_case_finished=TestCaseFinished(
+                    test_case_started_id=test_case_started.id,
+                    timestamp=self.lifecycle_service.get_timestamp(),
+                    will_be_retried=False,
+                ),
+            ),
+        )
+        reporting_state.reset_scenario_scope()
+
     @staticmethod
     def _duration_between(start_timestamp: Timestamp | None, finish_timestamp: Timestamp) -> Duration:
         if start_timestamp is None:
@@ -312,12 +365,22 @@ class ScenarioService(ReporterServiceBase):
                     test_step_id=test_step_id,
                     test_step_result=TestStepResult(
                         duration=step_duration,
-                        status=TestStepResultStatus.failed,
-                        message=str(exception),
-                        exception=CucumberException(
-                            type=type(exception).__name__,
-                            message=str(exception),
-                            stack_trace=repr(exception),
+                        status=(
+                            TestStepResultStatus.skipped
+                            if isinstance(exception, _SKIP_EXCEPTION)
+                            else TestStepResultStatus.failed
+                        ),
+                        **(
+                            {}
+                            if isinstance(exception, _SKIP_EXCEPTION)
+                            else {
+                                "message": str(exception),
+                                "exception": CucumberException(
+                                    type=type(exception).__name__,
+                                    message=str(exception),
+                                    stack_trace=repr(exception),
+                                ),
+                            }
                         ),
                     ),
                 ),

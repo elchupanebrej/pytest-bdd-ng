@@ -1013,7 +1013,9 @@ class PickleRunner:
         """
         __tracebackhide__ = True
         yield
-        Run.pop_scenario_run(item._request)  # noqa: SLF001  -- suppressed warning
+        request = getattr(item, "_request", None)  # noqa: SLF001  -- pytest request is the hook boundary
+        if request is not None:
+            Run.pop_scenario_run(cast("FixtureRequest", request))
 
     @staticmethod
     def _invoke_bdd_hook(  # noqa: PLR0913  -- suppressed warning

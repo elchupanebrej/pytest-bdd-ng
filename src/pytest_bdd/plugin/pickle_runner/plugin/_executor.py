@@ -71,6 +71,7 @@ if TYPE_CHECKING:
     from pytest_bdd.plugin.pickle_runner.plugin._plugin import _FixtureCaller, _StepCaller
 
 logger = logging.getLogger(__name__)
+_SKIP_EXCEPTION = cast("type[BaseException]", pytest.skip.Exception)  # type: ignore[attr-defined]
 
 
 def _run_step_body(  # noqa: PLR0913  # type: ignore[no-untyped-def]  # module-level self-pattern for method-like usage
@@ -183,6 +184,26 @@ def _run_step_body(  # noqa: PLR0913  # type: ignore[no-untyped-def]  # module-l
             step_definition=step_definition,
             step_params=step_params,
         )
+    except _SKIP_EXCEPTION as exception:
+        # pytest.skip raises a BaseException subclass, so it bypasses the
+        # regular Exception handler below.  Report it through the BDD hook
+        # before re-raising so message-based reporters can close the active
+        # step with a SKIPPED result instead of synthesizing UNKNOWN.
+        step_run.status = RunStatus.interrupted
+        self._invoke_bdd_hook(
+            hook_name="pytest_bdd_step_error",
+            request=request,
+            gherkin_document=gherkin_document,
+            pickle=pickle,
+            step=step,
+            previous_step=previous_step,
+            status=RunStatus.interrupted,
+            step_func=step_definition.func,
+            step_func_args=hook_kwargs["step_func_args"],
+            step_definition=step_definition,
+            exception=exception,
+        )
+        raise
     except Exception as exception:
         logger.warning("Step execution failed for %s", step.text, exc_info=True)
         step_run.status = RunStatus.failed

@@ -224,14 +224,14 @@ class StepCatalogService(ReporterServiceBase):
             #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
+        request = getattr(item, "_request", None)  # noqa: SLF001  -- pytest request is the hook boundary
         yield
-        if self.reporter.is_disabled:
+        if request is None or self.reporter.is_disabled:
             return
 
         session = item.session
         config: Config = session.config
         hook_handler = config.hook
-        request = item._request  # noqa: SLF001  -- suppressed warning
         run = Run.from_stash(request.config.stash)
         scenario_run = run.active_scenario_run
         if scenario_run is None:
@@ -245,6 +245,29 @@ class StepCatalogService(ReporterServiceBase):
             logger.warning("Execution context does not carry runtime feature/pickle during pytest_runtest_setup.")
             return
         runtime_pickle = cast("Pickle", pickle)
+
+        # Pytest marker skips abort the normal runtest call, so create the
+        # message test case and close it explicitly during setup teardown.
+        # This keeps skipped scenarios visible to Cucumber JSON consumers
+        # without resolving step fixtures that will never execute.
+        marker_names = {marker.name for marker in item.iter_markers()}
+        if marker_names.intersection({"skip", "skipif"}):
+            test_case_id = next(IdGenerator.from_stash(config.stash))
+            test_case = TestCase(
+                id=test_case_id,
+                pickle_id=runtime_pickle.id,
+                test_steps=[
+                    TestStep(
+                        id=next(IdGenerator.from_stash(config.stash)),
+                        pickle_step_id=step.id,
+                    )
+                    for step in runtime_pickle.steps
+                ],
+            )
+            run.reporting_state.active_test_case_id = test_case_id
+            self.lifecycle_service._emit_envelope(config, Message(test_case=test_case))  # noqa: SLF001
+            self.reporter.scenario_service.emit_skipped_scenario(request, run, test_case)
+            return
 
         self._report_step_definitions(config, request)
         self._register_parameter_types(config, request)

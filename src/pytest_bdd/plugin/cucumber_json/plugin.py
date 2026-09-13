@@ -294,8 +294,6 @@ class LogBDDCucumberJSON:
             #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
-        if self._message_mode and hasattr(report, "scenario"):
-            return
         try:
             scenario = cast("JSONObject", report.scenario)
         except AttributeError:
@@ -482,7 +480,20 @@ class LogBDDCucumberJSON:
             #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
             #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
         """
-        features = self._message_store.render() if self._message_mode else list(self.features.values())
+        legacy_features = list(self.features.values())
+        message_features = self._message_store.render() if self._message_mode else []
+
+        # Prefer the canonical message projection when it contains every
+        # scenario represented by the legacy pytest reports.  A run can emit
+        # only a partial lifecycle (for example when a step raises), in which
+        # case the compatibility projection is the complete and useful JSON
+        # report rather than an empty/partial document.
+        def scenario_count(features: list[JSONObject]) -> int:
+            return sum(len(elements) for feature in features if isinstance(elements := feature.get("elements"), list))
+
+        features = (
+            message_features if scenario_count(message_features) >= scenario_count(legacy_features) else legacy_features
+        )
         for feature in features:
             Feature.model_validate(feature)
         Path(self.logfile).write_text(json.dumps(features), encoding="utf-8")

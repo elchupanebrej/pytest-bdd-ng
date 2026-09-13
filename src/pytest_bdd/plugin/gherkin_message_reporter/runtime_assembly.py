@@ -87,6 +87,12 @@ def initialize_reporter_runtime(  # noqa: PLR0915 - initialization with many att
     runtime_messages_enabled = True
     if hook is not None:
         runtime_messages_enabled = hook.pytest_bdd_enable_runtime_messages(config=reporter.config)
+    # The terminal reporter is configured by a sibling plugin after this
+    # reporter's pytest_configure hook. Honor its CLI flag directly so the
+    # message lifecycle is initialized before the terminal plugin is swapped in.
+    runtime_messages_enabled = runtime_messages_enabled or bool(
+        getattr(reporter.config.option, "gherkin_terminal_reporter", False),
+    )
 
     reporter.is_disabled = all(
         [
