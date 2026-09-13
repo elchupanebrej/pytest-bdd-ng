@@ -67,6 +67,7 @@ class GherkinMessageReporter:
     AFTER_TEST_RUN_HOOK_ID: ClassVar[str] = "pytest-bdd-ng.after-test-run"
     plugin_name: ClassVar[str] = "pytest-bdd-internal-gherkin-message-reporter"
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
+    npm_formatter_package_pin: ClassVar[str] = "@cucumber/html-formatter@24.1.1"
 
     config: Config = field()
     parameter_type_registry: set[int]

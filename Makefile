@@ -414,7 +414,7 @@ tox: env-check-tox
 	$(TOX) $(TOX_ARGS)
 
 env-install-npm:
-	npm install --no-save @cucumber/html-formatter cucumber-html-reporter
+	npm install --no-save @cucumber/html-formatter@24.1.1 cucumber-html-reporter
 	npm list
 
 check-message-schemas: env-check

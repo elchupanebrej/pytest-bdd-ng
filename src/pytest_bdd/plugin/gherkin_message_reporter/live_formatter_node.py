@@ -425,6 +425,7 @@ class LiveFormatterNodeMixin:
         package_names: tuple[str, ...],
         *,
         purpose: str,
+        install_specs: Mapping[str, str] | None = None,
     ) -> NodePackageProvisionResult:
         """
         Implement plugin module operations for pytest-bdd.
@@ -547,6 +548,7 @@ class LiveFormatterNodeMixin:
                     f"Installing missing global npm package(s) for {purpose}: {', '.join(packages_to_install)}\n",
                 )
                 sys.stderr.flush()
+                install_specs = install_specs or {}
                 completed = subprocess.run(  # noqa: S603  -- suppressed warning
                     [
                         npm_executable,
@@ -556,7 +558,7 @@ class LiveFormatterNodeMixin:
                         "--ignore-scripts",
                         "--no-audit",
                         "--no-fund",
-                        *packages_to_install,
+                        *(install_specs.get(package_name, package_name) for package_name in packages_to_install),
                     ],
                     check=False,
                     capture_output=True,

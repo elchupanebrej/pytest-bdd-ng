@@ -826,6 +826,7 @@ class LiveFormatterRunnerMixin:
         provision_result = self._ensure_node_packages_available(
             (self.reporter.npm_formatter_package,),
             purpose="HTML report generation",
+            install_specs={self.reporter.npm_formatter_package: self.reporter.npm_formatter_package_pin},
         )
         if provision_result.missing_node:
             pytest.exit("Node.js wasn't found in the environment so unable generate html report")
