@@ -251,12 +251,16 @@ class DebugMcpPlugin:
         """
         if self._mcp_server_process is None:
             return
-        self._mcp_server_process.terminate()
+        process = self._mcp_server_process
+        process.terminate()
         try:
-            self._mcp_server_process.wait(timeout=2.0)
+            # ``communicate`` waits for termination and closes the stdout/
+            # stderr pipes.  Leaving those handles open produces unraisable
+            # ResourceWarnings during pytest teardown on Python 3.14.
+            process.communicate(timeout=2.0)
         except subprocess.TimeoutExpired:
-            self._mcp_server_process.kill()
-            self._mcp_server_process.wait()
+            process.kill()
+            process.communicate()
         self._mcp_server_process = None
         self._mcp_server_ready.clear()
 
