@@ -53,6 +53,7 @@ except ImportError:
     jq = None
 
 _CUCUMBER_FORMATTER_REPORT_FEATURE_URI = "file:07 Report/09 Cucumber formatter reports.feature.md"
+_CUCUMBER_JUNIT_FEATURE_URI = "file:12 Formatters/01 JUnit XML reporter.feature.md"
 _HTML_REPORT_FEATURE_URIS = (
     "file:07 Report/02 Gathering.feature.md",
     "file:07 Report/07 xdist HTML reporting.feature.md",
@@ -79,7 +80,7 @@ def ensure_fake_node_for_cucumber_formatter_report_docs(
     tmp_path: Path,
 ) -> None:
     nodeid = getattr(request.node, "nodeid", "")
-    if _CUCUMBER_FORMATTER_REPORT_FEATURE_URI in nodeid:
+    if _CUCUMBER_FORMATTER_REPORT_FEATURE_URI in nodeid or _CUCUMBER_JUNIT_FEATURE_URI in nodeid:
         install_fake_node(monkeypatch, tmp_path, preinstalled_packages=())
         return
     if any(feature_uri in nodeid for feature_uri in _HTML_REPORT_FEATURE_URIS):
@@ -182,11 +183,14 @@ def test_feature_load_by_http_with_base_url(endpoint, httpserver: HTTPServer, st
     yield
 
 
-@given(re.compile(r"Set pytest.ini content to:"))
-def _(testdir, step):
+@given(re.compile(r"Set pytest\.(?P<config_format>ini|toml) content to:"))
+def _(testdir, step, config_format):
     doc_string = getattr(step.argument, "doc_string", None) if getattr(step, "argument", None) else None
     content = doc_string.content if doc_string else ""
-    testdir.makeini(content)
+    if config_format == "ini":
+        testdir.makeini(content)
+    else:
+        testdir.makefile(".toml", pytest=content)
 
 
 @step("run pytest", target_fixture="pytest_result")
@@ -195,7 +199,11 @@ def run_pytest(testdir: "Testdir", step, attach):  # pylint: disable=E0102  # in
     options_dict = data_table_to_dicts(data_table)
     cli_args = list(options_dict.get("cli_args", []))
     run_mode = resolve_pytester_run_mode(options_dict)
-    if run_mode == "subprocess" and requests_terminal_formatter_output(*cli_args):
+    if run_mode == "subprocess" and (
+        requests_terminal_formatter_output(*cli_args)
+        or "--gherkin-terminal-reporter" in cli_args
+        or any(arg.startswith("--cucumber-junit") for arg in cli_args)
+    ):
         outcome = run_pytest_via_real_entrypoint(
             testdir,
             *cli_args,
@@ -327,6 +335,10 @@ def check_pytest_test_statuses(pytest_result, step):
         pytest_result.assert_outcomes(**outcome_result)
         return
     parsed_counts = _parse_outcome_counts(pytest_result)
+    if not parsed_counts and _coerce_pytest_return_code(pytest_result) == 0:
+        collected = re.search(r"collected\s+(\d+)\s+items?", combined_result_output(pytest_result))
+        if collected is not None:
+            parsed_counts["passed"] = int(collected.group(1))
     for outcome_name, expected_count in outcome_result.items():
         assert_that(
             parsed_counts.get(outcome_name, 0),
@@ -350,7 +362,7 @@ def check_pytest_stdout_lines(pytest_result, step):
         fnmatch_lines(lines)
         return
     for line in lines:
-        assert_that(re.search(re.escape(line).replace("\\*", ".*"), stdout_text), is_(True), stdout_text)
+        assert_that(re.search(re.escape(line).replace("\\*", ".*"), stdout_text), is_not(None), stdout_text)
 
 
 @when(parsers.parse("run `{command}`"), target_fixture="renderer_result")
