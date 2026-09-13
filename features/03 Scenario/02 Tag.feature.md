@@ -25,10 +25,7 @@
 
     ```toml
     [pytest]
-    markers =
-      passed
-      failed
-      both
+    markers = ["passed", "failed", "both"]
     ```
 
 * And File "conftest.py" with content:

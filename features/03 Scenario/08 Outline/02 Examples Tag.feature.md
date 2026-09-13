@@ -30,10 +30,7 @@
 
     ```toml
     [pytest]
-    markers =
-      passed
-      failed
-      both
+    markers = ["passed", "failed", "both"]
     ```
 
 * And File "conftest.py" with content:
@@ -145,9 +142,7 @@
 
     ```toml
     [pytest]
-    markers =
-      feature_tag
-      examples_tag
+    markers = ["feature_tag", "examples_tag"]
     ```
 
 * And File "conftest.py" with content:

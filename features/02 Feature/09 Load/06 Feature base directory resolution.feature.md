@@ -68,7 +68,7 @@
 
     ```toml
     [pytest]
-    bdd_features_base_dir=features
+    bdd_features_base_dir = "features"
     ```
 
 * When run pytest
@@ -87,7 +87,7 @@
 
     ```toml
     [pytest]
-    bdd_features_base_dir=/does/not/exist
+    bdd_features_base_dir = "/does/not/exist"
     ```
 
 * When run pytest

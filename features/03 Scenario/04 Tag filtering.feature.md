@@ -8,13 +8,14 @@
 
     ```toml
     [pytest]
-    markers =
-        feature_tag_1
-        feature_tag_2
-        scenario_tag_01
-        scenario_tag_02
-        scenario_tag_10
-        scenario_tag_20
+    markers = [
+        "feature_tag_1",
+        "feature_tag_2",
+        "scenario_tag_01",
+        "scenario_tag_02",
+        "scenario_tag_10",
+        "scenario_tag_20",
+    ]
     ```
 
 * And File "tags.feature" with content:
@@ -59,7 +60,7 @@
 
     ```toml
     [pytest]
-    markers = tag
+    markers = ["tag"]
     ```
 
 * And File "tags_after_background.feature" with content:

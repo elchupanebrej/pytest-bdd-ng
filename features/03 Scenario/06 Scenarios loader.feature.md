@@ -8,8 +8,8 @@
 
     ```toml
     [pytest]
-    console_output_style=classic
-    bdd_features_base_dir={tmp_path}
+    console_output_style = "classic"
+    bdd_features_base_dir = "{tmp_path}"
     ```
 
 * And File "test.feature" with content:

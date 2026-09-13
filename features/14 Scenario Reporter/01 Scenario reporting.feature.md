@@ -40,7 +40,7 @@
 * And File "pytest.toml" with content:
     ```toml
     [pytest]
-    bdd_features_base_dir = .
+    bdd_features_base_dir = "."
     ```
 
 ## Scenario: Scenario reporter records scenario name

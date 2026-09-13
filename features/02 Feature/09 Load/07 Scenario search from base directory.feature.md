@@ -47,7 +47,7 @@
 
     ```toml
     [pytest]
-    bdd_features_base_dir={tmp_path}
+    bdd_features_base_dir = "{tmp_path}"
     ```
 
 * When run pytest

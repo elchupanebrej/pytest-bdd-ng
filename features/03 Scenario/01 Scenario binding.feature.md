@@ -39,7 +39,7 @@
 
     ```toml
     [pytest]
-    bdd_features_base_dir=missing
+    bdd_features_base_dir = "missing"
     ```
 
 * When run pytest
@@ -75,7 +75,7 @@
 
     ```toml
     [pytest]
-    bdd_features_base_dir=missing
+    bdd_features_base_dir = "missing"
     ```
 
 * When run pytest

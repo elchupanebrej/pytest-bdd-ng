@@ -42,8 +42,8 @@
 ## Scenario: JUnit XML contains test case elements
 * When run pytest
 
- | cli_args | --cucumber-junit=report.xml |
- |----------|-----------------------------|
+    | cli_args | --cucumber-junit=report.xml |
+    |----------|-----------------------------|
 * Then JUnit XML report "report.xml" contains testcase for "passing scenario"
 
 ## Scenario: JUnit XML contains failure element on failed test

@@ -50,7 +50,7 @@
 
     ```toml
     [pytest]
-    bdd_features_base_url=http://localhost:{httpserver_port}/features
+    bdd_features_base_url = "http://localhost:{httpserver_port}/features"
     ```
 
 * When run pytest

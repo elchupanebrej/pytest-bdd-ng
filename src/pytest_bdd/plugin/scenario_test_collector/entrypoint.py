@@ -188,7 +188,7 @@ def pytest_addoption(parser: Parser) -> None:
     parser.addini("disable_batch_collection", default=False, type="bool", help=batch_disable_hlp)
 
     batch_threshold_hlp = "Minimum feature file count to enable parallel collection (auto: 50 Linux, 1000 Windows)"
-    parser.addini("batch_threshold", default="-1", help=batch_threshold_hlp)
+    parser.addini("batch_threshold", default=-1, type="int", help=batch_threshold_hlp)
 
     empty_scenarios_hlp = "Allow scenarios with no matching step definitions"
     group.addoption(
