@@ -10,7 +10,7 @@ dev = [
   "gitpython>=3.1.50",
   "hjson>=3.1.0",
   "json5>=0.14.0",
-  "mcp>=1.27.2",
+  "mcp>=1.27.2,<2",
   "mcp-pdb>=0.6.0",
   "mypy>=2.1.0",
   "pyhamcrest>=2.1",
@@ -209,7 +209,10 @@ testenv = [
 ]
 testtypes = [
   "GitPython",
+  "mcp>=1.27.2,<2",
+  "mcp-pdb>=0.6.0",
   "mypy",
+  "pylint>=3.3",
   "types-certifi",
   "types-chevron",
   "types-gunicorn",
@@ -726,7 +729,7 @@ stubs = [
 
 [tool.setuptools.packages.find]
 exclude = ["pytest_bdd_testing*"]
-namespaces = false
+namespaces = true
 where = [
   "src"
 ]

@@ -32,7 +32,7 @@ ifneq (,$(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)))
   endif
 endif
 
-UV_SYNC_EXTRAS := --extra test --extra testtypes --extra doc-gen --extra struct-bdd
+UV_SYNC_EXTRAS := --extra allure --extra test --extra testtypes --extra doc-gen --extra struct-bdd
 PYTHON_FACTOR ?= 314
 PYTEST_FACTOR ?= latest
 FEATURES_ROOT ?= features
