@@ -455,7 +455,12 @@ bdd_features_base_dir = "features/"
 filterwarnings = [
   "error",
   "ignore::DeprecationWarning",
-  "ignore::ImportWarning"
+  "ignore::ImportWarning",
+  # Temp-dir cleanup failures are environmental noise (stale root-owned
+  # pytest dirs from other sessions). They must not escalate to an error:
+  # the exception is raised inside pytest_sessionfinish teardown and kills
+  # the terminal summary, hiding the real test results.
+  "ignore:\\(rm_rf\\).*:pytest.PytestWarning"
 ]
 markers = [
   "deprecated: mark test testing deprecated API",
