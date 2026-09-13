@@ -219,7 +219,7 @@ class GherkinTerminalReporter(TerminalReporter):  # mypy limitation with singled
                     has_already_failed = True
                 step_status_text = f"({status.upper()})"
                 self._tw.write(
-                    f"        {step.get('keyword', '')} {step.get('name', '')} {step_status_text}\n",
+                    f"        {str(step.get('keyword', '')).rstrip()} {step.get('name', '')} {step_status_text}\n",
                     **step_markup,
                 )
         self._tw.write(f"    {scenario_status.upper()}\n", **markup)
@@ -354,3 +354,8 @@ class GherkinTerminalReporterPlugin(
         #arch-eval:entity_fullness=3  # Content richness vs empty shell (1-5)
         #arch-eval:locational_stability=4  # Resistance to hierarchical moves (1-5)
     """
+
+    @staticmethod
+    def pytest_bdd_enable_runtime_messages(config: Config) -> bool:
+        """Enable the message lifecycle while this reporter is active."""
+        return bool(getattr(config.option, "gherkin_terminal_reporter", False))

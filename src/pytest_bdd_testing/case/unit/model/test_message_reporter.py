@@ -126,4 +126,4 @@ def test_store_projects_finished_envelopes_to_cucumber_json(tmp_path) -> None:
         terminal_reporter.pytest_bdd_message(config=_config(), message=message)
 
     assert "Feature: F" in output.getvalue()
-    assert "Given  foo (PASSED)" in output.getvalue()
+    assert "Given foo (PASSED)" in output.getvalue()

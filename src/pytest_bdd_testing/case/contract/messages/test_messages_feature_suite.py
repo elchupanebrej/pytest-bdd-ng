@@ -542,19 +542,19 @@ def test_feature_driven_message_suite_html_report_renders_in_browser(
             lambda message: console_errors.append(message.text) if message.type == "error" else None,
         )
         page.goto(f"{base_url}/{html_report_path.name}", wait_until="load")
-        page.get_by_role("heading", name="Feature:message full-surface coverage", exact=True).wait_for(
+        page.get_by_role("heading", name="Feature: message full-surface coverage", exact=True).wait_for(
             state="visible",
             timeout=10000,
         )
-        page.get_by_role("heading", name="Scenario:pass path", exact=True).wait_for(
+        page.get_by_role("heading", name="Scenario: pass path", exact=True).wait_for(
             state="visible",
             timeout=10000,
         )
-        page.get_by_role("heading", name="Scenario:structured argument path", exact=True).wait_for(
+        page.get_by_role("heading", name="Scenario: structured argument path", exact=True).wait_for(
             state="visible",
             timeout=10000,
         )
-        page.get_by_role("heading", name="Scenario:fail path", exact=True).wait_for(
+        page.get_by_role("heading", name="Scenario: fail path", exact=True).wait_for(
             state="visible",
             timeout=10000,
         )
