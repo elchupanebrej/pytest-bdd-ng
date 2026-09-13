@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from hamcrest import assert_that, equal_to, is_
+from hamcrest import assert_that, equal_to, is_, is_not
 from pytest_bdd import given, parsers, then
 from pytest_bdd.mimetype import Mimetype, Suffix
 
@@ -28,7 +28,7 @@ def file_extension(testdir, ext):
 def mimetype_resolves_to(file_path, mimetype) -> None:
     ext = file_path.suffix
     matched = _SUFFIX_TO_MIMETYPE.get(Suffix(ext))
-    assert_that(matched, is_(True))
+    assert_that(matched, is_not(None))
     assert_that(matched.value, equal_to(mimetype))
 
 
@@ -36,7 +36,7 @@ def mimetype_resolves_to(file_path, mimetype) -> None:
 def suffix_resolves_to(file_path, suffix) -> None:
     ext = file_path.suffix
     matched = Suffix(ext)
-    assert_that(matched, is_(True))
+    assert_that(matched, is_not(None))
     assert_that(matched.value, equal_to(suffix))
 
 

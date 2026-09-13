@@ -3,7 +3,7 @@ import pathlib
 import re
 import xml.etree.ElementTree as ET  # noqa: S405 - parses trusted formatter output generated inside pytester.
 
-from hamcrest import assert_that, contains_string, equal_to, is_
+from hamcrest import assert_that, contains_string, equal_to, greater_than, has_length, is_, is_not
 from pytest_bdd import given, parsers, then
 from pytest_bdd_testing.tool.cucumber_formatter import install_fake_node
 
@@ -23,8 +23,8 @@ def progress_output_shows(pytest_result, state) -> None:
 def snippet_output_suggests(pytest_result, step_text) -> None:
     stdout = pytest_result.stdout
     assert_that(stdout, contains_string(step_text))
-    assert_that(re.search(r"@(given|when|then|step)\(", stdout), is_(True), stdout)
-    assert_that(re.search(r"def .+\(", stdout), is_(True), stdout)
+    assert_that(re.search(r"@(given|when|then|step)\(", stdout), is_not(None), stdout)
+    assert_that(re.search(r"def .+\(", stdout), is_not(None), stdout)
 
 
 @then(parsers.parse("Summary output contains {statistic}"))
@@ -38,7 +38,7 @@ def usage_output_shows(pytest_result, count) -> None:
     assert_that(stdout, contains_string("Usage"))
     # If using the fake node formatter, the output is static and doesn't dynamically reflect the count.
     if "Given a passing step x1" not in stdout:
-        assert_that(re.search(rf"\b{re.escape(count)}\b", stdout), is_(True), stdout)
+        assert_that(re.search(rf"\b{re.escape(count)}\b", stdout), is_not(None), stdout)
 
 
 @then("Usage JSON is valid")
@@ -47,7 +47,7 @@ def usage_json_is_valid(testdir) -> None:
     with pathlib.Path(str(usage_json_path)).open(encoding="utf-8") as f:
         data = json.load(f)
     assert_that(isinstance(data, dict), is_(True))
-    assert_that(data, is_(True), data)
+    assert_that(data, has_length(greater_than(0)), data)
 
 
 def _junit_root(testdir, file_path: str) -> ET.Element:
@@ -80,7 +80,7 @@ def junit_xml_report_contains_failure(testdir, file_path, scenario_name) -> None
         for testcase in root.iter("testcase")
         if testcase.attrib.get("name") == scenario_name and testcase.find("failure") is not None
     ]
-    assert_that(failures, is_(True))
+    assert_that(failures, has_length(greater_than(0)))
 
 
 @then(parsers.parse('JUnit XML report "{file_path}" is valid XML'))

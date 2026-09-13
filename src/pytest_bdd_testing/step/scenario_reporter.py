@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from hamcrest import assert_that, is_
+from hamcrest import assert_that, empty, is_not
 from pytest_bdd import given, parsers, step, then
 
 
@@ -21,8 +21,8 @@ def scenario_report_contains_scenario(testdir, scenario_name) -> None:
     report_path = Path(str(testdir.tmpdir.join("scenario-reports.jsonl")))
     reports = [json.loads(line) for line in report_path.read_text(encoding="utf-8").splitlines()]
     matching = [report for report in reports if report["name"] == scenario_name]
-    assert_that(matching, is_(True))
-    assert_that(matching[0]["feature"]["name"], is_(True))
+    assert_that(matching, is_not(empty()))
+    assert_that(matching[0]["feature"]["name"], is_not(None))
 
 
 @given("Scenario with attachment", target_fixture="feature_file")

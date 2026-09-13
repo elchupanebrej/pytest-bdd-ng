@@ -12,6 +12,7 @@ from hamcrest import (
     contains_string,
     empty,
     equal_to,
+    greater_than,
     has_length,
     is_,
     is_not,
@@ -381,13 +382,13 @@ def ide_bootstrap_messages_include_launch_and_bindings(testdir, ide_bootstrap_ca
 
     assert_that(launch_payloads, has_length(1))
     launch_payload = launch_payloads[0]
-    assert_that(launch_payload["nodeid"], is_(True))
-    assert_that(launch_payload["testCaseId"], is_(True))
-    assert_that(launch_payload["pickleId"], is_(True))
+    assert_that(launch_payload["nodeid"], is_not(None))
+    assert_that(launch_payload["testCaseId"], is_not(None))
+    assert_that(launch_payload["pickleId"], is_not(None))
     assert_that(isinstance(launch_payload["sourceIdentity"], dict), is_(True))
     assert_that(binding_payloads, has_length(1))
     assert_that(binding_payloads[0]["testCaseId"], equal_to(launch_payload["testCaseId"]))
-    assert_that(binding_payloads[0]["sourceReference"], is_(True))
+    assert_that(binding_payloads[0]["sourceReference"], is_not(None))
 
 
 @then("IDE bootstrap diagnostics include the missing step and scoped available definitions")
@@ -538,7 +539,7 @@ def generated_python_code_defines_functions(pytest_result, step) -> None:
 @then("Generated code is printed to stdout")
 def generated_code_is_printed(pytest_result) -> None:
     assert_that(pytest_result.ret, equal_to(0))
-    assert_that(_generated_python_module(pytest_result).body, is_(True))
+    assert_that(_generated_python_module(pytest_result).body, has_length(greater_than(0)))
 
 
 @then(parsers.parse("pytest exits with code {return_code:d}"))
@@ -567,7 +568,7 @@ def file_contains_text(testdir, file_path: str, step) -> None:
 @then(parsers.parse('NDJSON report "{file_path}" contains attachment media type "{media_type}"'))
 def ndjson_report_contains_attachment_media_type(testdir, file_path: str, media_type: str) -> None:
     payloads = _read_attachment_payloads(_testdir_path(testdir, file_path), media_type)
-    assert_that(payloads, is_(True))
+    assert_that(payloads, has_length(greater_than(0)))
 
 
 @then(parsers.parse('NDJSON report "{file_path}" contains diagnostic "{kind}" with fields:'))
@@ -577,7 +578,7 @@ def ndjson_report_contains_diagnostic_with_fields(testdir, file_path: str, kind:
         "application/vnd.pytest-bdd.diagnostic+json",
     )
     matching = [payload for payload in diagnostics if payload.get("kind") == kind]
-    assert_that(matching, is_(True))
+    assert_that(matching, has_length(greater_than(0)))
     rows = step.argument.data_table.rows[1:]
     missing: list[str] = []
     for row in rows:

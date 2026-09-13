@@ -563,7 +563,7 @@ def check_result_file_created(tmp_path):
     """Check that a result JSON file was created."""
     output_dir = tmp_path / "allure-results"
     result_files = list(output_dir.glob("*-result.json"))
-    assert_that(result_files, is_(greater_than(0)), f"No result files found in {output_dir}")
+    assert_that(result_files, has_length(greater_than(0)), f"No result files found in {output_dir}")
 
 
 @then("the result JSON validates against the Allure3 events schema")
@@ -617,12 +617,12 @@ def check_container_file(tmp_path):
     """Check that a container JSON file references both results."""
     output_dir = tmp_path / "allure-results"
     container_files = list(output_dir.glob("*-container.json"))
-    assert_that(container_files, is_(greater_than(0)), "No container files found")
+    assert_that(container_files, has_length(greater_than(0)), "No container files found")
 
     for container_file in container_files:
         with Path(container_file).open(encoding="utf-8") as f:
             data = json.load(f)
-        assert_that(data, contains_string("children"), "Container file missing children field")
+        assert_that("children" in data, is_(True), "Container file missing children field")
         assert_that(data["children"], has_length(2), f"Expected 2 children, got {len(data['children'])}")
 
 
@@ -848,7 +848,7 @@ def check_directory_has_results(testdir, dirname):
     output_dir = Path(testdir.tmpdir.strpath) / dirname
     assert_that(output_dir.exists(), is_(True), f"Directory does not exist: {output_dir}")
     result_files = list(output_dir.glob("*-result.json"))
-    assert_that(result_files, is_(greater_than(0)), f"No result files found in {output_dir}")
+    assert_that(result_files, has_length(greater_than(0)), f"No result files found in {output_dir}")
 
 
 @then(parsers.parse('Directory "{dirname}" contains "{expected_count:d}" Allure result JSON files'))
@@ -895,13 +895,13 @@ def check_directory_has_container(testdir, dirname):
     output_dir = Path(testdir.tmpdir.strpath) / dirname
     assert_that(output_dir.exists(), is_(True), f"Directory does not exist: {output_dir}")
     container_files = list(output_dir.glob("*-container.json"))
-    assert_that(container_files, is_(greater_than(0)), f"No container files found in {output_dir}")
+    assert_that(container_files, has_length(greater_than(0)), f"No container files found in {output_dir}")
 
     for container_file in container_files:
         with Path(container_file).open(encoding="utf-8") as f:
             data = json.load(f)
-        assert_that(data, contains_string("children"), "Container file missing children field")
-        assert_that(data["children"], is_(greater_than(0)), "Container has no children")
+        assert_that("children" in data, is_(True), "Container file missing children field")
+        assert_that(data["children"], has_length(greater_than(0)), "Container has no children")
 
 
 @then(parsers.parse("renderer command exits with code {return_code:d}"))
@@ -934,7 +934,7 @@ def check_allure_result_json_field_groups(testdir, dirname: str, step) -> None:
     """Assert generated Allure result files expose expected schema field groups."""
     output_dir = _testdir_path(testdir, dirname)
     payloads = _load_json_files(output_dir, "*-result.json")
-    assert_that(payloads, is_(True), f"No result files found in {output_dir}")
+    assert_that(payloads, has_length(greater_than(0)), f"No result files found in {output_dir}")
     _assert_json_field_groups(payloads, step)
 
 
@@ -945,7 +945,7 @@ def check_allure_container_files_validate_schema(testdir, dirname: str) -> None:
 
     output_dir = _testdir_path(testdir, dirname)
     payloads = _load_json_files(output_dir, "*-container.json")
-    assert_that(payloads, is_(True), f"No container files found in {output_dir}")
+    assert_that(payloads, has_length(greater_than(0)), f"No container files found in {output_dir}")
     schema = json.loads(_schema_path().read_text(encoding="utf-8"))
     for payload in payloads:
         jsonschema.validate(payload, schema)
@@ -956,7 +956,7 @@ def check_allure_container_json_field_groups(testdir, dirname: str, step) -> Non
     """Assert generated Allure container files expose expected schema field groups."""
     output_dir = _testdir_path(testdir, dirname)
     payloads = _load_json_files(output_dir, "*-container.json")
-    assert_that(payloads, is_(True), f"No container files found in {output_dir}")
+    assert_that(payloads, has_length(greater_than(0)), f"No container files found in {output_dir}")
     _assert_json_field_groups(payloads, step)
 
 
@@ -968,7 +968,7 @@ def check_allure_container_references_result_uuids(testdir, dirname: str) -> Non
     containers = _load_json_files(output_dir, "*-container.json")
     result_uuids = {str(result["uuid"]) for result in results}
     child_uuids = {str(child) for container in containers for child in container.get("children", [])}
-    assert_that(result_uuids, is_(True))
+    assert_that(result_uuids, has_length(greater_than(0)))
     assert_that(
         result_uuids.issubset(child_uuids),
         is_(True),
@@ -1164,7 +1164,7 @@ def check_directory_has_html_report(testdir, dirname):
     index_html = report_dir / "index.html"
     assert_that(index_html.exists(), is_(True), f"index.html not found in {report_dir}")
     content = index_html.read_text(encoding="utf-8")
-    assert_that(content, is_(greater_than(0)), "index.html is empty")
+    assert_that(content, has_length(greater_than(0)), "index.html is empty")
 
 
 @then(parsers.parse('Allure HTML report contains scenario name "{scenario_name}"'))
@@ -1172,7 +1172,7 @@ def check_html_report_contains_scenario(testdir, scenario_name):
     """Check that the Allure HTML report contains a specific scenario name."""
     testdir_path = Path(testdir.tmpdir.strpath)
     report_files = [*testdir_path.rglob("index.html"), *testdir_path.rglob("*.json")]
-    assert_that(report_files, is_(True), "No Allure report files found")
+    assert_that(report_files, has_length(greater_than(0)), "No Allure report files found")
 
     for report_file in report_files:
         content = report_file.read_text(encoding="utf-8")
@@ -1206,7 +1206,7 @@ def open_allure_report_in_browser(testdir):
         page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
         page.goto(f"{base_url}/index.html", wait_until="load")
         page.wait_for_timeout(2000)
-        assert_that(page.title(), is_(True))
+        assert_that(page.title(), has_length(greater_than(0)))
         results_by_name = page.evaluate(
             """async () => {
                 const indexResponse = await fetch("./widgets/search-index.json");
