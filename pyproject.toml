@@ -236,6 +236,7 @@ DEP003 = ["pluggy", "tomli"]
 mutate_only_covered_lines = true
 
 [tool.mypy]
+files = ["src/pytest_bdd"]
 python_version = "3.10"
 check_untyped_defs = true
 warn_unused_ignores = true
