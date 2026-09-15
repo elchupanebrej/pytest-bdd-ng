@@ -11,10 +11,24 @@ from pytest_bdd.model import (
     Rule,
     Scenario,
     Step,
+    StepType,
     TableCell,
     TableRow,
     Tag,
 )
+
+_KEYWORD_TYPE_TO_STEP_TYPE = {
+    "Context": StepType.context,
+    "Action": StepType.action,
+    "Outcome": StepType.outcome,
+    "Unknown": StepType.unknown,
+}
+
+_KEYWORD_TO_STEP_TYPE = {
+    "given": StepType.context,
+    "when": StepType.action,
+    "then": StepType.outcome,
+}
 
 
 def _build_tags(tag_dicts: list[dict[str, Any]] | None) -> tuple[Tag, ...]:
@@ -44,7 +58,7 @@ def _build_table_row(row_dict: dict[str, Any]) -> TableRow:
     )
 
 
-def _build_step(step_dict: dict[str, Any]) -> Step:
+def _build_step(step_dict: dict[str, Any], step_type: StepType) -> Step:
     doc_string = None
     ds = step_dict.get("docString")
     if ds:
@@ -65,17 +79,46 @@ def _build_step(step_dict: dict[str, Any]) -> Step:
         )
     return Step(
         name=step_dict.get("text", ""),
-        keyword=step_dict.get("keyword", ""),
+        keyword=step_dict.get("keyword", "").strip(),
         line=step_dict.get("location", {}).get("line", 0),
         id=step_dict.get("id"),
-        type=step_dict.get("keywordType"),
+        type=step_type,
         doc_string=doc_string,
         data_table=data_table,
     )
 
 
+def _resolve_step_type(step_dict: dict[str, Any], previous: StepType) -> StepType:
+    keyword_type = str(step_dict.get("keywordType") or "")
+    if keyword_type == "Conjunction":
+        return previous
+    if keyword_type:
+        return _KEYWORD_TYPE_TO_STEP_TYPE.get(keyword_type, StepType.unknown)
+    # The markdown token matcher does not emit keywordType: derive it from the keyword itself.
+    prefix = str(step_dict.get("keyword") or "").strip().lower()
+    if prefix in _KEYWORD_TO_STEP_TYPE:
+        return _KEYWORD_TO_STEP_TYPE[prefix]
+    if prefix in ("and", "but", "*"):
+        return previous
+    return StepType.unknown
+
+
+def _build_steps(step_dicts: list[dict[str, Any]], previous: StepType) -> tuple[tuple[Step, ...], StepType]:
+    steps: list[Step] = []
+    for step_dict in step_dicts:
+        previous = _resolve_step_type(step_dict, previous)
+        steps.append(_build_step(step_dict, previous))
+    return tuple(steps), previous
+
+
+def _trailing_step_type(background: Background | None) -> StepType:
+    if background is not None and background.steps and isinstance(background.steps[-1].type, StepType):
+        return background.steps[-1].type
+    return StepType.unknown
+
+
 def _build_background(bg_dict: dict[str, Any]) -> Background:
-    steps = tuple(_build_step(s) for s in bg_dict.get("steps", []))
+    steps, _ = _build_steps(bg_dict.get("steps", []), StepType.unknown)
     return Background(
         name=bg_dict.get("name", ""),
         keyword=bg_dict.get("keyword", "Background"),
@@ -109,7 +152,7 @@ def _build_scenario(
     background: Background | None = None,
     parent_tags: tuple[Tag, ...] = (),
 ) -> Scenario:
-    steps = tuple(_build_step(s) for s in sc_dict.get("steps", []))
+    steps, _ = _build_steps(sc_dict.get("steps", []), _trailing_step_type(background))
     examples = tuple(_build_examples(e) for e in sc_dict.get("examples", []))
     return Scenario(
         name=sc_dict.get("name", ""),

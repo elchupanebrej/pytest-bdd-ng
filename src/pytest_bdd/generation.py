@@ -98,6 +98,7 @@ def generate_code(
     """Generate test code for the given filenames."""
     with as_file(files("pytest_bdd.template").joinpath("test.py.mak")) as path:
         template = Template(filename=str(path))  # noqa: S702
+    step_type_to_method_name: dict[StepType | None, str] = {**STEP_TYPE_TO_STEP_METHOD_NAME, None: "step"}
     code = template.render(
         features=features,
         feature_pickles=feature_pickles,
@@ -105,7 +106,7 @@ def generate_code(
         make_python_name=make_python_name,
         make_python_docstring=make_python_docstring,
         make_string_literal=make_string_literal,
-        step_type_to_method_name=STEP_TYPE_TO_STEP_METHOD_NAME,
+        step_type_to_method_name=step_type_to_method_name,
     )
     return cast("str", code)
 

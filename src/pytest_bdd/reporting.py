@@ -7,6 +7,7 @@ that enriches the pytest test reporting.
 from __future__ import annotations
 
 import time
+from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -18,6 +19,22 @@ if TYPE_CHECKING:
     from messages import Pickle, PickleStep
     from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item
     from pytest_bdd.model import Feature
+
+
+def serialize_step_type(step: Any) -> str:
+    """Serialize a step type using the keyword-based vocabulary (e.g. ``given``, ``and``)."""
+    prefix = getattr(step, "prefix", "")
+    if prefix:
+        return str(prefix)
+    step_type = getattr(step, "type", None)
+    if isinstance(step_type, Enum):
+        step_type = step_type.name
+    return str(step_type or "")
+
+
+def serialize_step_keyword(step: Any) -> str:
+    """Serialize a step keyword without surrounding whitespace."""
+    return str(getattr(step, "keyword", "") or "").strip()
 
 
 class StepReport:
@@ -39,21 +56,14 @@ class StepReport:
 
         :return: Serialized step execution report.
         """
-        step_type = getattr(self.step, "type", None) or (
-            feature._get_step_prefix(self.step)
-            if hasattr(feature, "_get_step_prefix")
-            else getattr(self.step, "prefix", "")
-        )
-        step_kw = getattr(self.step, "keyword", "") or (
-            feature._get_step_keyword(self.step) if hasattr(feature, "_get_step_keyword") else ""
-        )
         step_line = getattr(self.step, "line", 0) or (
             feature._get_step_line_number(self.step) if hasattr(feature, "_get_step_line_number") else 0
         )
         return {
             "name": getattr(self.step, "name", getattr(self.step, "text", "")),
-            "type": step_type,
-            "keyword": step_kw,
+            "type": serialize_step_type(self.step),
+            "keyword": serialize_step_keyword(self.step)
+            or (feature._get_step_keyword(self.step) if hasattr(feature, "_get_step_keyword") else ""),
             "line_number": step_line,
             "failed": self.failed,
             "duration": self.duration,
@@ -104,7 +114,7 @@ class ScenarioReport:
             feature._get_pickle_line_number(pickle) if hasattr(feature, "_get_pickle_line_number") else 0
         )
         pickle_tags = getattr(pickle, "tag_names", ()) or ()
-        feature_tags = getattr(feature, "tag_names", ()) or ()
+        feature_tags = list(getattr(feature, "tag_names", ()) or ())
 
         feat_rel = getattr(feature, "rel_filename", None)
         if not feat_rel:
@@ -117,13 +127,8 @@ class ScenarioReport:
             else [
                 {
                     "name": getattr(s, "name", getattr(s, "text", "")),
-                    "type": getattr(s, "type", None)
-                    or (
-                        feature._get_step_prefix(s)
-                        if hasattr(feature, "_get_step_prefix")
-                        else getattr(s, "prefix", "")
-                    ),
-                    "keyword": getattr(s, "keyword", "")
+                    "type": serialize_step_type(s),
+                    "keyword": serialize_step_keyword(s)
                     or (feature._get_step_keyword(s) if hasattr(feature, "_get_step_keyword") else ""),
                     "line_number": getattr(s, "line", 0)
                     or (feature._get_step_line_number(s) if hasattr(feature, "_get_step_line_number") else 0),
@@ -136,7 +141,7 @@ class ScenarioReport:
 
         return {
             "steps": steps_data,
-            "name": pickle.name,
+            "name": str(pickle.name).split("[table_rows:")[0],
             "line_number": pickle_line,
             "tags": sorted(set(pickle_tags).difference(feature_tags)),
             "feature": {

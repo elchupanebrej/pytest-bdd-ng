@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from pytest_bdd.exceptions import FeatureConcreteParseError
+from pytest_bdd.model.step import StepType
 from pytest_bdd.parser import GherkinParser, default_parser_registry
 
 if TYPE_CHECKING:
@@ -42,6 +43,36 @@ def test_parse_basic_gherkin_feature() -> None:
     assert [t.name for t in sc.tags] == ["@scenario_tag"]
     assert len(sc.steps) == 3
     assert [s.name for s in sc.steps] == ["a step", "action occurs", "outcome expected"]
+
+
+def test_parse_normalizes_step_type_vocabulary() -> None:
+    text = """
+    Feature: Vocabulary Feature
+      Scenario: Conjunctions inherit the previous step type
+        Given a precondition
+        And another precondition
+        When an action occurs
+        But not this one
+        Then an outcome is expected
+
+      Scenario: Leading conjunction
+        And an orphaned step
+    """
+    parser = GherkinParser()
+    feature = parser.parse_text(text)
+
+    steps = feature.scenarios[0].steps
+    assert [s.keyword for s in steps] == ["Given", "And", "When", "But", "Then"]
+    assert [s.prefix for s in steps] == ["given", "and", "when", "but", "then"]
+    assert [s.type for s in steps] == [
+        StepType.context,
+        StepType.context,
+        StepType.action,
+        StepType.action,
+        StepType.outcome,
+    ]
+
+    assert feature.scenarios[1].steps[0].type is StepType.unknown
 
 
 def test_parse_docstrings_and_datatables() -> None:
