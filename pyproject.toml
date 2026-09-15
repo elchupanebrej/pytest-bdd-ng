@@ -99,7 +99,8 @@ typecheck = [
 ]
 test = [
   "pytest>=7.0.0",
-  "attrs>=22.2.0"
+  "attrs>=22.2.0",
+  "tomli_w"
 ]
 mutation = [
   "mutmut>=3.0.0"

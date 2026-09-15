@@ -4,6 +4,7 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
+import pytest
 from pytest import mark
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -12,7 +13,18 @@ if TYPE_CHECKING:  # pragma: no cover
 
 @mark.skipif(sys.version_info < (3, 12), reason="Verify only on the latest version")
 def test_doc_generation(testdir: "Testdir"):
-    from pytest_bdd.script.bdd_tree_to_rst import convert
+    try:
+        import pypandoc
+        from pytest_bdd.script.bdd_tree_to_rst import convert
+    except ModuleNotFoundError as err:
+        if err.name not in {"panflute", "pycmarkgfm", "pypandoc", "docopt"}:
+            raise
+        pytest.skip(f"doc-gen extra is not installed ({err.name}); install pytest-bdd-ng[doc-gen]")
+
+    try:
+        pypandoc.get_pandoc_path()
+    except OSError:
+        pytest.skip("pandoc binary is not found; CI installs it via r-lib/actions/setup-pandoc")
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
