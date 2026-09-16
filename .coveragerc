@@ -1,5 +1,3 @@
 [run]
 branch = true
-include =
-    pytest_bdd/*
-    tests/*
+source = pytest_bdd
