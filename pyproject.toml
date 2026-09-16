@@ -266,5 +266,6 @@ markers = [
   "integration: Integration tests",
   "contract: Contract tests",
   "e2e: End-to-end tests",
-  "external: External integration tests"
+  "external: External integration tests",
+  "slow: Runtime-cost marker curated in tests/slow-tests.txt (not a Test Group); use -m 'not slow' for the fast selection"
 ]

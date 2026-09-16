@@ -1,0 +1,61 @@
+# Curated slow-test list for pytest-bdd-ng.
+#
+# A test whose node id starts with any non-comment, non-empty line below is
+# marked `slow` at collection time by the pytest_collection_modifyitems hook in
+# tests/conftest.py. Prefixes (not full ids) are used where a whole generated
+# group is slow: parametrized pytester tests and e2e scenarios generated from
+# feature files.
+#
+# Use `pytest tests -m "not slow"` for the fast local selection and
+# `pytest tests -m slow` to run only the curated tail.
+#
+# Policy (curated from evidence, never an automatic time threshold):
+# - `slow` is a cost marker, not a Test Group. Entries overlap the group
+#   markers (integration/unit/e2e) intentionally; `-m e2e` still selects the
+#   full e2e group and is unaffected by this list.
+# - An entry is eligible only with a `--durations` line from a clean local run.
+# - Tier 1: measured >= 4 s call time.
+# - Tier 2: tests that drive an inner pytest session (pytester `runpytest*` or
+#   an e2e `When run pytest` scenario) measured >= 2 s. Their cost is structural
+#   (one or more nested pytest runs per test), so they stay marked even when a
+#   later run dips below 2 s on a faster machine.
+# - Excluded: in-process tests that only occasionally cross ~2 s (run-to-run
+#   noise), e.g. test_tags_selector 1.23 s, test_invalid_tags 1.59 s,
+#   test_wrongly_outlined_* 1.16-1.56 s, test_multiple_features_single_file
+#   1.70 s, unit test_layer_import_enforcement 1.28 s.
+# - Adding an entry: measure with `--durations`, cite the duration in the PR /
+#   commit, and append the prefix here. Removing an entry needs the same
+#   evidence; do not re-measure until something crosses the bar.
+#
+# Evidence: local run 2026-09-16 on rewrite-from-2.3.1 @ e1d3ede6 (Python
+# 3.13.15, pytest 9.1.1), commands with `-p no:cacheprovider`:
+#   pytest tests --ignore tests/unit -q --durations=40
+#     1 failed (env-only messages sample), 279 passed, 46 skipped, 1 xfailed,
+#     241.56 s
+#   pytest tests/unit -q --durations=15   -> 186 passed, 22.23 s
+#   pytest tests/e2e  -q --durations=20   -> 65 passed, 1 skipped, 58.75 s
+# Tier 1 seconds from the non-unit run: Report/Gathering 16.38 and 8.78;
+#   test_scenario.py 6.30-8.85 (x8); test_scenarios_none_found 7.15-7.64 (x4);
+#   test_at_in_scenario 8.10; test_local_both... 6.73. From the unit run:
+#   4.41 and 4.15.
+# Tier 2 seconds from the non-unit run: Tag-1 2.68; test_no_scenarios 2.48;
+#   test_step_hooks 2.43; test_step_trace 2.36; Autoload 2.06-2.20 (x3).
+
+# Tier 1 - pytester-subprocess import-mode repeats and the e2e report scenarios
+tests/e2e/test_e2e.py::test[file:features/Report/Gathering.feature.md--
+tests/feature/test_scenario.py::test_simple[
+tests/feature/test_scenario.py::test_scenario_not_found[
+tests/feature/test_scenarios.py::test_scenarios_none_found[
+tests/feature/test_tags.py::test_at_in_scenario
+tests/library/test_parent.py::test_local_both_target_fixture_and_target_fixtures
+
+# Tier 1 - unit bootstrap lifecycle tests (plugin registration path, >= 4 s)
+tests/unit/bootstrap/test_plugin.py::test_pytest_configure_lifecycle
+tests/unit/bootstrap/test_seam6_contract.py::test_seam6_plugin_lifecycle_and_stash_contract
+
+# Tier 2 - inner pytest sessions measured >= 2 s
+tests/e2e/test_e2e.py::test[file:features/Feature/Load/Autoload.feature.md-
+tests/e2e/test_e2e.py::test[file:features/Feature/Tag.feature.md-Features could be tagged-1]
+tests/feature/test_no_scenario.py::test_no_scenarios
+tests/feature/test_steps.py::test_step_hooks
+tests/feature/test_steps.py::test_step_trace
