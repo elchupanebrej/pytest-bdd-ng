@@ -7,7 +7,49 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
 
 jobs:
+  fast-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "*"
+      - name: Install pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+      - name: Install PyPi dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[struct-bdd,test,doc-gen]" pytest-xdist pre-commit mypy
+      - name: Install npm dependencies
+        run: |
+          npm install "@cucumber/gherkin"
+          npm install "@cucumber/html-formatter"
+          npm install cucumber-html-reporter
+          npm list
+      - name: Fast tests
+        run: |
+          python -m pytest -m "not e2e and not external and not slow" -n4 -q
+      # Advisory while the pre-existing lint/type debt is open (mypy waves: #216-#220).
+      - name: Lint
+        continue-on-error: true
+        run: |
+          pre-commit run --all-files
+      - name: Type checking
+        continue-on-error: true
+        run: |
+          python -m mypy
+
   test:
+    if: github.event_name != 'pull_request'
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -64,7 +106,7 @@ jobs:
           npm list
       - name: Test with tox
         run: |
-          tox
+          tox -- -m "not e2e"
       - name: Gather codecov
         if: matrix.python-version == '3.13'
         run: |
@@ -78,3 +120,35 @@ jobs:
           python -m pip install --upgrade build twine
           python -m build
           twine check dist/*
+
+  e2e:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "*"
+      - name: Install pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+      - name: Install PyPi dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[struct-bdd,test,doc-gen]" pytest-xdist
+      - name: Install npm dependencies
+        run: |
+          npm install "@cucumber/gherkin"
+          npm install "@cucumber/html-formatter"
+          npm install cucumber-html-reporter
+          npm list
+      - name: E2E tests
+        run: |
+          python -m pytest -m e2e -n4 -q
