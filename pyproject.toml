@@ -252,6 +252,8 @@ disallow_untyped_defs = true
 [tool.mypy-tests]
 disallow_untyped_defs = false
 
+# Single source of pytest configuration. Do not re-add a root pytest.ini:
+# it would shadow this section (see #221).
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = [
