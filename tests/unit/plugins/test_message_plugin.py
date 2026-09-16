@@ -7,6 +7,11 @@ from messages import Envelope as Message
 from messages import TestCase
 from pytest_bdd.message_plugin import MessagePlugin
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 TestCase.__test__ = False
 
 

@@ -8,6 +8,9 @@ from pytest_bdd.exceptions import FeatureConcreteParseError
 from pytest_bdd.model.step import StepType
 from pytest_bdd.parser import MarkdownGherkinParser, MarkdownParser, default_parser_registry
 
+pytestmark = pytest.mark.unit
+
+
 if TYPE_CHECKING:
     from pathlib import Path
 

@@ -21,6 +21,11 @@ from pytest_bdd.runner import ScenarioRunner
 from pytest_bdd.steps import Matcher, Registry
 from pytest_bdd.utils import IdGenerator
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_pytest_addhooks() -> None:
     pluginmanager = MagicMock()

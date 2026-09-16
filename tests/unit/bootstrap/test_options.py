@@ -5,6 +5,11 @@ from unittest.mock import MagicMock
 from pytest_bdd.plugin import add_bdd_ini, pytest_addoption
 from pytest_bdd.steps import add_options as steps_add_options
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_add_bdd_ini() -> None:
     parser = MagicMock()

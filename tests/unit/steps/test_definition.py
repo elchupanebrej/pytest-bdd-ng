@@ -7,6 +7,11 @@ from pytest_bdd.parsers.string_parser import string
 from pytest_bdd.steps.definition import Definition, _resolve_callable_source_location
 from pytest_bdd.utils import IdGenerator
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def dummy_step() -> None:
     pass

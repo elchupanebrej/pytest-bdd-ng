@@ -5,6 +5,11 @@ from pytest_bdd.model.examples import Example, Examples
 from pytest_bdd.model.table import DataTable, TableCell, TableRow
 from pytest_bdd.model.tag import Tag
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_leaf_models() -> None:
     t = Tag(name="@smoke", line=1, id="t1")

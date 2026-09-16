@@ -3,6 +3,11 @@ from __future__ import annotations
 from pytest_bdd.util.temp_root import prefer_posix_temp_root
 from pytest_bdd.util.toolz_extra import compose, flip
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_temp_root_and_toolz() -> None:
     assert isinstance(prefer_posix_temp_root(), bool)

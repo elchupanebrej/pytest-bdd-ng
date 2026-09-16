@@ -20,6 +20,9 @@ from pytest_bdd.generation import (
 )
 from pytest_bdd.model import StepType
 
+pytestmark = pytest.mark.unit
+
+
 
 def test_generation_helpers() -> None:
     assert make_python_docstring("simple") == '"""simple."""'

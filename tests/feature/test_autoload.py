@@ -1,6 +1,11 @@
 from pathlib import Path
 from textwrap import dedent
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 
 def test_autoload_disabled_with_conftest_on_same_level(testdir):
     testdir.makefile(

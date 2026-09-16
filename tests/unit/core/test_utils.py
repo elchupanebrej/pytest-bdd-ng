@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from pytest_bdd import utils
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_utils_pure_facade() -> None:
     funcs = [utils.get_args, utils.data_table_to_dicts, utils.is_local_url, utils.prefer_posix_temp_root, utils.compose]

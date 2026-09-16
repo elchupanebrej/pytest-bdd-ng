@@ -4,6 +4,11 @@ from textwrap import dedent
 
 from pytest_bdd.compatibility.pytest import assert_outcomes
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 
 def test_simple(testdir, pytest_params, tmp_path):
     """Test scenario decorator with a standard usage."""

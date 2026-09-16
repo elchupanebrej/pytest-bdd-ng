@@ -4,6 +4,11 @@ from pathlib import Path
 
 from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_parsed_feature_instantiation() -> None:
     feature = ParsedFeature(

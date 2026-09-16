@@ -2,6 +2,11 @@
 
 from textwrap import dedent
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 # language=gherkin
 FEATURE = '''\
 Feature: Background support

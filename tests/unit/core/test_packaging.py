@@ -7,6 +7,11 @@ from packaging.version import Version
 from pytest_bdd.npm_resource import check_npm, check_npm_package, find_resource, get_npm_root
 from pytest_bdd.packaging import compare_distribution_version, get_distribution_version, parse_version
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_packaging_versions() -> None:
     assert parse_version("1.2.3") == Version("1.2.3")

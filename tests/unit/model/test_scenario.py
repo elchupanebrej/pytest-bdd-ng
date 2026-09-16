@@ -6,6 +6,11 @@ from pytest_bdd.model.scenario import Scenario
 from pytest_bdd.model.step import Step
 from pytest_bdd.model.tag import Tag
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_scenario_and_rule() -> None:
     t = Tag(name="@smoke")

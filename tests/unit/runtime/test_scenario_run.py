@@ -3,6 +3,11 @@ from __future__ import annotations
 from pytest_bdd.model.scenario_run import ExecutionContext, ScenarioRun, StepRun
 from pytest_bdd.model.stash_access import SimpleStash
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_step_run_lifecycle_and_status() -> None:
     step_run = StepRun(id="step-1")

@@ -9,6 +9,9 @@ from pytest_bdd.compatibility.pytest import assert_outcomes
 from pytest_bdd.packaging import compare_distribution_version
 from pytest_bdd.utils import collect_dumped_objects
 
+pytestmark = mark.integration
+
+
 # language=python
 STEPS = """\
     from pytest_bdd import parsers, given, when, then

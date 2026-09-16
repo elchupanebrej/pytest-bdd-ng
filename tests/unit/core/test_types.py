@@ -11,6 +11,11 @@ from pytest_bdd.types import (
     StashFailure,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 @attr.frozen(slots=True)
 class DummyIdentifiable:

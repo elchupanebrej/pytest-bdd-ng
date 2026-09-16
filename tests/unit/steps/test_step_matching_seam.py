@@ -14,6 +14,9 @@ from pytest_bdd.steps.decorators import step as generic_step
 from pytest_bdd.steps.matcher import Matcher
 from pytest_bdd.steps.registry import Registry
 
+pytestmark = pytest.mark.unit
+
+
 
 def test_matcher_strict_and_unspecified() -> None:
     @given(parse("I have {count:d} cucumbers"))

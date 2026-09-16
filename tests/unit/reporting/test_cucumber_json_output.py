@@ -9,6 +9,11 @@ if TYPE_CHECKING:
 
 from pytest_bdd.cucumber_json import LogBDDCucumberJSON
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_log_bdd_cucumber_json_lifecycle_and_output(tmp_path: Path) -> None:
     out_file = tmp_path / "subdir" / "cucumber.json"

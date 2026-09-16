@@ -12,6 +12,11 @@ from pytest_bdd.model.step import Step, StepType
 from pytest_bdd.model.table import DataTable, TableCell, TableRow
 from pytest_bdd.model.tag import Tag
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_leaf_serialization_roundtrip() -> None:
     tag = Tag(name="@smoke", line=1, id="t1")

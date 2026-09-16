@@ -17,6 +17,9 @@ from pytest_bdd.model.stash_access import (
     StashKey,
 )
 
+pytestmark = pytest.mark.unit
+
+
 
 class DummyBound(StashBound):
     STASH_KEY = "dummy_bound_key"

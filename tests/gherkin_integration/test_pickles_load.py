@@ -5,6 +5,9 @@ from pytest import mark, param
 
 from messages import Pickle  # type:ignore[attr-defined]
 
+pytestmark = mark.integration
+
+
 test_data = Path(__file__).parent.parent.parent / "gherkin" / "testdata"
 
 

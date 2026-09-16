@@ -9,6 +9,11 @@ from pytest_bdd.scenario_locator import (
     ScenarioLocatorResolver,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 if TYPE_CHECKING:
     from pathlib import Path
 

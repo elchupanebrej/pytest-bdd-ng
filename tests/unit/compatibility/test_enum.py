@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from pytest_bdd.compatibility.enum import StrEnum
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_str_enum() -> None:
     class Color(StrEnum):

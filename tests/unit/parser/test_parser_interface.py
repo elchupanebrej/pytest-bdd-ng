@@ -5,6 +5,11 @@ from typing import TYPE_CHECKING
 from pytest_bdd.model.feature import Feature
 from pytest_bdd.parser import BaseParser, ParserProtocol, ParserRegistry
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 if TYPE_CHECKING:
     from pathlib import Path
 

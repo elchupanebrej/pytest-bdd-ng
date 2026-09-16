@@ -1,5 +1,10 @@
 """Test no scenarios defined in the feature file."""
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 
 def test_no_scenarios(testdir):
     """Test no scenarios defined in the feature file."""

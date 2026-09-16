@@ -14,6 +14,9 @@ from pytest_bdd.model.run_access import (
 from pytest_bdd.model.scenario_run import ScenarioRun
 from pytest_bdd.model.stash_access import ItemStash, SimpleStash
 
+pytestmark = pytest.mark.unit
+
+
 
 def test_run_access_with_simple_stash() -> None:
     stash = SimpleStash()

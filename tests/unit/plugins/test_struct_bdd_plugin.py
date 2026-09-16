@@ -7,6 +7,11 @@ from pytest_bdd.mimetypes import Mimetype
 from pytest_bdd.struct_bdd.parser import StructBDDParser
 from pytest_bdd.struct_bdd.plugin import StructBDDPlugin
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_struct_bdd_plugin_get_parser() -> None:
     plugin = StructBDDPlugin()

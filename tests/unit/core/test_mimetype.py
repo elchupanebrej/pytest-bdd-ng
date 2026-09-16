@@ -11,6 +11,11 @@ from pytest_bdd.mimetype import (
     struct_bdd_suffixes,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_mimetype_and_suffix_enums() -> None:
     assert Mimetype.gherkin_plain == "text/x.cucumber.gherkin+plain"

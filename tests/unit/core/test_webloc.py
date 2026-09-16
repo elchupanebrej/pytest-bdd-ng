@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from pytest_bdd.util.webloc import read, write
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_webloc_read_write(tmp_path) -> None:
     file_path = tmp_path / "test.webloc"

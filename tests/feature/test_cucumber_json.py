@@ -4,6 +4,11 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Optional
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import RunResult
 

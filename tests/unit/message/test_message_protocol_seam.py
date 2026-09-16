@@ -12,6 +12,11 @@ from pytest_bdd.model.message_stream_validation import validate_message_stream
 from pytest_bdd.model.scenario import Scenario
 from pytest_bdd.model.step import Step
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 if TYPE_CHECKING:
     import messages
 

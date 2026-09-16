@@ -1,5 +1,10 @@
 """StepHandler arguments tests."""
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 
 def test_heuristic_parser(
     testdir,

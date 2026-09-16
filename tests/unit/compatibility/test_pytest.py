@@ -14,6 +14,9 @@ from pytest_bdd.compatibility.pytest import (
     make_mark_decorator,
 )
 
+pytestmark = pytest.mark.unit
+
+
 
 def test_is_pytest_version_greater_or_equal() -> None:
     assert is_pytest_version_greater_or_equal("7.0") is True

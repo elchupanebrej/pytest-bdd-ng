@@ -4,6 +4,11 @@ from pytest_bdd.steps.definition import Definition
 from pytest_bdd.steps.registry import Registry
 from pytest_bdd.parsers.string_parser import string
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_definition_with_unhashable_defaults_is_hashable():
     def dummy_func():

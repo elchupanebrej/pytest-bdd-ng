@@ -1,5 +1,10 @@
 """Given tests."""
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 
 def test_given_injection(testdir):
     testdir.makefile(

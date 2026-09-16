@@ -14,6 +14,11 @@ from pytest_bdd.parsers.parse_parser import cfparse, parse
 from pytest_bdd.parsers.re_parser import re as bdd_re
 from pytest_bdd.parsers.string_parser import string
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_step_match_and_enums() -> None:
     match = StepMatch(parameters={"x": "1"}, span=(0, 5))

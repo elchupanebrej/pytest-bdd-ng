@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from pytest_bdd.const import ALPHA_REGEX, PYTHON_REPLACE_REGEX, TAG_PREFIX
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_consts() -> None:
     assert TAG_PREFIX == "@"

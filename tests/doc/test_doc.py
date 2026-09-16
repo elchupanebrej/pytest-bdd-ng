@@ -7,6 +7,9 @@ from typing import TYPE_CHECKING
 import pytest
 from pytest import mark
 
+pytestmark = mark.integration
+
+
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_bdd.compatibility.pytest import Testdir
 

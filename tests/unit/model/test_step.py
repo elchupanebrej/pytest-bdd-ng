@@ -5,6 +5,11 @@ from pytest_bdd.model.doc_string import DocString
 from pytest_bdd.model.step import Step
 from pytest_bdd.model.table import DataTable, TableCell, TableRow
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_step_and_background() -> None:
     doc = DocString(content="payload", line=2)

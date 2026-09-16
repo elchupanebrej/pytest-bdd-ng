@@ -5,6 +5,11 @@ from typing import TYPE_CHECKING
 from pytest_bdd.model import message_converter as mc
 from pytest_bdd.model.message_transport import MessageFanOutEmitter, MessageTransport
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 if TYPE_CHECKING:
     import messages
 

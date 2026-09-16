@@ -6,6 +6,11 @@ Check the parent givens are collected and overridden in the local conftest.
 import textwrap
 from textwrap import dedent
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 
 def test_parent(testdir, tmp_path):
     """Test parent given is collected.

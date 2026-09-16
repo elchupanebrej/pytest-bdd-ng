@@ -6,6 +6,11 @@ from unittest.mock import MagicMock
 import pytest_bdd.allure_logging as allure_mod
 from pytest_bdd.allure_logging import AllurePytestBDD
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 if TYPE_CHECKING:
     import pytest
 

@@ -4,6 +4,11 @@ import warnings
 
 from pytest_bdd.warning_types import PytestBDDStepDefinitionWarning
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_warning_hierarchy_and_emission() -> None:
     assert issubclass(PytestBDDStepDefinitionWarning, UserWarning)

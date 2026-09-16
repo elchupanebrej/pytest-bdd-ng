@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_shared_parameter_type_registry(testdir):
     testdir.makefile(

@@ -6,6 +6,11 @@ import textwrap
 from pytest_bdd.compatibility.pytest import assert_outcomes
 from pytest_bdd.scenario import get_python_name_generator
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 
 def test_python_name_generator():
     """Test python name generator function."""

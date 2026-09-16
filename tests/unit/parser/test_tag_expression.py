@@ -5,6 +5,9 @@ import pytest
 from pytest_bdd.model.tag import Tag
 from pytest_bdd.tag_expression import TagExpression, parse_tag_expression
 
+pytestmark = pytest.mark.unit
+
+
 
 def test_tag_expression_empty_and_whitespace() -> None:
     expr = parse_tag_expression("")

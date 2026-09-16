@@ -10,6 +10,9 @@ from pytest_bdd.model.scenario import Scenario
 from pytest_bdd.model.step import Step
 from pytest_bdd.runner import ScenarioRunner, StepRunner
 
+pytestmark = pytest.mark.unit
+
+
 
 def test_step_runner_inject_target_fixtures() -> None:
     runner = StepRunner()

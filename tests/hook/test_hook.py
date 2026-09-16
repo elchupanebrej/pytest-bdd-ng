@@ -1,3 +1,8 @@
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 def test_hook_execution_on_feature_tag_using_mark_hook(testdir):
     testdir.makefile(
         ".ini",

@@ -17,6 +17,11 @@ from pytest_bdd.compatibility.runtime_compat import (
     is_pair_compatible,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_matrix_bounds_and_constants() -> None:
     assert MIN_SUPPORTED_PYTHON == (3, 10)

@@ -12,7 +12,7 @@ else:  # pragma: no cover
 
     StructBDDParser = Mock()  # type: ignore[misc] # just a stub
 
-pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
+pytestmark = [mark.integration, mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
 
 
 @mark.parametrize(

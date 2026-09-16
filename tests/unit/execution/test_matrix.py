@@ -12,6 +12,11 @@ from pytest_bdd.util.matrix import (
     substitute_parameters,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_substitute_parameters() -> None:
     text = "Given <user> has <count> apples in <city>"

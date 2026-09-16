@@ -12,6 +12,11 @@ from pytest_bdd.collector import (
 )
 from pytest_bdd.scenario import FeaturePathType as PathType
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_collector_classes_and_aliases() -> None:
     assert FeatureFileCollector is FeatureFileModule

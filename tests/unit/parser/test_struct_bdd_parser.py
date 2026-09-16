@@ -5,6 +5,11 @@ from pathlib import Path  # noqa: TCH003
 
 from pytest_bdd.struct_bdd.parser import StructBDDParser
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_parse_yaml_struct_bdd_feature() -> None:
     yaml_text = """

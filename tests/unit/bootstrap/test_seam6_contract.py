@@ -16,6 +16,11 @@ from pytest_bdd.scenario_locator import FileScenarioLocator
 from pytest_bdd.steps import Matcher, Registry, given
 from pytest_bdd.utils import IdGenerator
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_seam6_liberal_steps_configuration_contract() -> None:
     config = MagicMock()

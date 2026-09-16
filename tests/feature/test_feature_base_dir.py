@@ -2,6 +2,9 @@
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
+
 NOT_EXISTING_FEATURE_PATHS = [".", "/does/not/exist/"]
 
 

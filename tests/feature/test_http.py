@@ -9,6 +9,9 @@ from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_bdd.mimetypes import Mimetype
 from pytest_bdd.webloc import write as webloc_write
 
+pytestmark = mark.integration
+
+
 pytest_httpserver = pytest.importorskip("pytest_httpserver")
 HTTPServer = pytest_httpserver.HTTPServer
 

@@ -8,6 +8,11 @@ from pytest_bdd.model.scenario_run import ExecutionContext, ScenarioRun, StepRun
 from pytest_bdd.model.stash_access import SimpleStash
 from pytest_bdd.model.step import Step
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_seam4_pure_state_access_contract() -> None:
     st1 = Step(name="setup state", keyword="Given ", line=2, id="st-1")

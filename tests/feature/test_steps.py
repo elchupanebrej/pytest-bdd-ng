@@ -4,6 +4,9 @@ import pytest
 
 from pytest_bdd.utils import collect_dumped_objects
 
+pytestmark = pytest.mark.integration
+
+
 
 def test_steps(testdir):
     testdir.makefile(

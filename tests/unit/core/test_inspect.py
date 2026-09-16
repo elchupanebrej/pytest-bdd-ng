@@ -7,6 +7,11 @@ from pytest_bdd.util.inspect_extra import (
     get_first_source_line,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def sample_func(a: int, b: str = "x") -> None:
     pass

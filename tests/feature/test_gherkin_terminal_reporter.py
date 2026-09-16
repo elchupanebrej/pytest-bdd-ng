@@ -2,6 +2,9 @@ from collections.abc import Sequence
 
 from pytest import mark
 
+pytestmark = mark.integration
+
+
 # language=gherkin
 FEATURE = """\
 Feature: Gherkin terminal output feature

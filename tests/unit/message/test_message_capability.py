@@ -17,6 +17,11 @@ from pytest_bdd.model.message_extension import (
     has_single_payload,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_message_capability_classification() -> None:
     cap_relevant = MessageCapability(

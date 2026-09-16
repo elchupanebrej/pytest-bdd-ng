@@ -15,7 +15,7 @@ if STRUCT_BDD_INSTALLED:  # pragma: no cover
     from pytest_bdd.struct_bdd.model import Alternative, Join, Keyword, Node, Step, StepPrototype, Table
     from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
 
-pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
+pytestmark = [mark.unit, mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
 
 
 def test_node_containing_data_load():

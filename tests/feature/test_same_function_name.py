@@ -1,3 +1,8 @@
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 def test_when_function_name_same_as_step_name(testdir):
     testdir.makefile(
         ".feature",

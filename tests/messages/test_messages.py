@@ -29,6 +29,9 @@ from messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-d
 from messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
 from pytest_bdd.utils import flip
 
+pytestmark = pytest.mark.integration
+
+
 if TYPE_CHECKING:  # pragma: nocover
     from pytest_bdd.compatibility.pytest import Testdir
 

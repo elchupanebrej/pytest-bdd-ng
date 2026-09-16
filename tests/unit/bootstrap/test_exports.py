@@ -6,6 +6,11 @@ from pathlib import Path
 
 import pytest_bdd
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 if sys.version_info >= (3, 11):
     import tomllib
 else:

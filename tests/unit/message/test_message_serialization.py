@@ -9,6 +9,9 @@ import messages
 from pytest_bdd.model import message_converter as mc
 from pytest_bdd.model import message_serialization as ms
 
+pytestmark = pytest.mark.unit
+
+
 if TYPE_CHECKING:
     from pathlib import Path
 

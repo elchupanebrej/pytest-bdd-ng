@@ -22,6 +22,11 @@ from pytest_bdd.hooks import (
     pytest_bdd_step_error,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_hook_enums_and_decorators() -> None:
     assert HookKind.mark.value == "mark"

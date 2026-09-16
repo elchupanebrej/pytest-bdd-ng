@@ -8,6 +8,11 @@ from pytest_bdd.compatibility.typing import (
     runtime_checkable,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_typing_exports() -> None:
     Alias: TypeAlias = int

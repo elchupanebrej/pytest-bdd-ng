@@ -1,5 +1,10 @@
 """Test feature background."""
 
+from pytest import mark
+
+pytestmark = mark.integration
+
+
 # language=gherkin
 FEATURE = '''\
     Feature: Some rules

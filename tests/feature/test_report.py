@@ -5,6 +5,9 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
+
 execnet = pytest.importorskip("execnet")
 execnet_gateway_base = execnet.gateway_base
 

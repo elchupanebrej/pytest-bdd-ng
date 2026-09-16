@@ -11,6 +11,11 @@ from pytest_bdd.steps.decorators import given, not_implemented, then, tolerant, 
 from pytest_bdd.steps.matcher import Matcher
 from pytest_bdd.steps.registry import Registry
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 if TYPE_CHECKING:
     from pytest_bdd.steps.definition import Definition
 

@@ -16,6 +16,11 @@ from pytest_bdd.cucumber_json import (
     Tag,
 )
 
+from pytest import mark
+
+pytestmark = mark.unit
+
+
 
 def test_cucumber_json_models_validation() -> None:
     arg = Argument(value="123", offset=4.0)

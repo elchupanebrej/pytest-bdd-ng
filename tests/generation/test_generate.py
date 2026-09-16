@@ -6,7 +6,7 @@ from textwrap import dedent
 
 from pytest import mark
 
-pytestmark = mark.skipif(sys.version_info < (3, 13), reason="Verify only on the latest version")
+pytestmark = [mark.integration, mark.skipif(sys.version_info < (3, 13), reason="Verify only on the latest version")]
 
 
 def test_generate(testdir):
