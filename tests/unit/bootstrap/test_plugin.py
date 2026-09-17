@@ -105,7 +105,9 @@ def test_pytestbdd_id_generator_without_stash_support() -> None:
 def test_build_filter_variants() -> None:
     assert _build_filter(None) is None
 
-    callable_filter = lambda config, feature, scenario: True
+    def callable_filter(config, feature, scenario):
+        return True
+
     assert _build_filter(callable_filter) is callable_filter
 
     by_name = _build_filter("my scenario")
@@ -141,8 +143,12 @@ def test_build_scenario_locators_defaults_from_ini_fallbacks() -> None:
 
 def test_build_scenario_locators_callable_base_dir_and_url() -> None:
     config = _config_with_ini({})
-    base_dir = lambda _config: Path("/from-callable")
-    base_url = lambda _config: "http://from-callable"
+
+    def base_dir(_config):
+        return Path("/from-callable")
+
+    def base_url(_config):
+        return "http://from-callable"
 
     file_locator, url_locator = list(
         _build_scenario_locators_from_mark(
