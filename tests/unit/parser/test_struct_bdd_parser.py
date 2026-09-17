@@ -3,12 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path  # noqa: TCH003
 
+from pytest_bdd.exceptions import FeatureConcreteParseError
 from pytest_bdd.struct_bdd.parser import StructBDDParser
 
-from pytest import mark
+from pytest import mark, raises
 
 pytestmark = mark.unit
-
 
 
 def test_parse_yaml_struct_bdd_feature() -> None:
@@ -120,3 +120,55 @@ def test_registry_lookup_struct_bdd() -> None:
     assert isinstance(p_yaml, StructBDDParser)
     assert isinstance(p_json, StructBDDParser)
     assert isinstance(p_toml, StructBDDParser)
+
+
+def test_parser_defaults_to_yaml_kind() -> None:
+    parser = StructBDDParser()
+    assert parser.kind == "yaml"
+
+    feature = parser.parse_text("Name: Default kind\nSteps:\n  - Given: step\n", uri="default.bdd.yaml")
+    assert feature.name == "Default kind"
+
+
+def test_parser_rejects_unsupported_kind() -> None:
+    with raises(ValueError, match="Unsupported struct BDD kind: bogus"):
+        StructBDDParser(kind="bogus")
+
+
+def test_parser_wraps_load_and_validation_errors() -> None:
+    parser = StructBDDParser(kind="yaml")
+    with raises(FeatureConcreteParseError, match=r"Failed to parse structured BDD \(yaml\)"):
+        parser.parse_text("Name: [unterminated", uri="broken.bdd.yaml")
+
+
+def test_parse_struct_bdd_feature_with_data_tables() -> None:
+    feature = StructBDDParser(kind="yaml").parse_text(
+        """
+        Name: Data tables
+        Action: with data
+        Data:
+          - Table:
+              Parameters: [ name, value ]
+              Values:
+                - [ a, 1 ]
+                - [ b, 2 ]
+        Steps:
+          - Given: plain step
+          - Step:
+              Action: with empty data
+              Data:
+                - Table:
+                    Parameters: [ unused ]
+        """,
+        uri="data.bdd.yaml",
+    )
+
+    steps = feature.scenarios[0].steps
+    assert [step.name for step in steps] == ["with data", "plain step", "with empty data"]
+
+    data_table = steps[0].data_table
+    assert data_table is not None
+    assert [[cell.value for cell in row.cells] for row in data_table.rows] == [["a", "1"], ["b", "2"]]
+
+    assert steps[1].data_table is None
+    assert steps[2].data_table is None

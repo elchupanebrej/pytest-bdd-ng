@@ -151,18 +151,20 @@ class Join(BaseModel):
                     for tables_values in product(*map(attrgetter("rowed_values"), filled_tables))
                 ):
                     if all(
-                        starmap(
-                            eq,
-                            product(
-                                [
-                                    value
-                                    for _parameter, value in zip(
-                                        filled_tables_parameters, filled_tables_values, strict=False
-                                    )
-                                    if parameter == _parameter
-                                ],
-                                repeat=2,
-                            ),
+                        all(
+                            starmap(
+                                eq,
+                                product(
+                                    [
+                                        value
+                                        for _parameter, value in zip(
+                                            filled_tables_parameters, filled_tables_values, strict=False
+                                        )
+                                        if parameter == _parameter
+                                    ],
+                                    repeat=2,
+                                ),
+                            )
                         )
                         for parameter in self.parameters
                     ):
@@ -299,11 +301,10 @@ class StepPrototype(Node):
         uri = attrib()
         mimetype = attrib()
 
-        def resolve_features(self, config):
+        def resolve_features(self, config, registry=None):
             from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
 
-            feature = GherkinDocumentBuilder(self.step).build_feature(filename=self.filename, uri=self.uri)
-            yield feature, None
+            yield GherkinDocumentBuilder(self.step).build_feature(filename=self.filename, uri=self.uri)
 
     def as_test(self, filename):
         from pytest_bdd.scenario import scenarios

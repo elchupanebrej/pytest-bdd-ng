@@ -276,9 +276,24 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     p = reg.get_parser_for_mimetype(self.mimetype)
                 else:
                     p = reg.get_parser_for_path(feature_path)
+                    if p is None:
+                        p = self._resolve_parser_from_hooks(feature_path, config)
 
             if p is not None:
                 yield p.parse(feature_path, uri=uri, encoding=self.encoding)
+
+    @staticmethod
+    def _resolve_parser_from_hooks(feature_path: Path, config: Any) -> ParserProtocol | None:
+        hook = getattr(config, "hook", None)
+        if hook is None:
+            return None
+        mimetype = hook.pytest_bdd_get_mimetype(config=config, path=feature_path)
+        if not mimetype:
+            return None
+        parser = hook.pytest_bdd_get_parser(config=config, mimetype=mimetype)
+        if callable(parser):
+            return parser()
+        return parser
 
 
 __all__ = [

@@ -2,17 +2,25 @@ from functools import partial
 from operator import contains
 from textwrap import dedent
 
-from gherkin.pickles.compiler import Compiler
 from pytest import mark
 from yaml import FullLoader
 from yaml import load as load_yaml
 
-from messages import KeywordType  # type:ignore[attr-defined]
 from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
-from pytest_bdd.utils import IdGenerator, doesnt_raise
+from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
+from pytest_bdd.utils import doesnt_raise
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
-    from pytest_bdd.struct_bdd.model import Alternative, Join, Keyword, Node, Step, StepPrototype, Table
+    from pytest_bdd.struct_bdd.model import (
+        Alternative,
+        Join,
+        Keyword,
+        KeywordType,
+        Node,
+        Step,
+        StepPrototype,
+        Table,
+    )
     from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
 
 pytestmark = [mark.unit, mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
@@ -152,6 +160,7 @@ def test_join_load():
         ("Value B11", "Value B12", "Value B11", "Value B12"),
         ("Value B21", "Value B22", "Value B21", "Value B22"),
     ]
+    assert join.type == "Rowed"
 
 
 def test_step_prototype_non_containing_data_load():
@@ -501,11 +510,9 @@ def test_tags_steps_examples_load():
     )
     assert len(route.example_table.values) == 4
 
-    document_ast = GherkinDocumentBuilder(step).build(id_generator=IdGenerator())
-    document_ast.uri = "uri"
-
-    pickles = Compiler().compile(document_ast.dict(by_alias=True, exclude_none=True))
-    assert len(pickles) == 4
+    feature = GherkinDocumentBuilder(step).build_feature(uri="uri")
+    expanded_scenarios = list(ScenarioLocatorFilterMixin().filter_scenarios(feature))
+    assert len(expanded_scenarios) == 4
 
 
 def test_tags_steps_examples_load_complex():

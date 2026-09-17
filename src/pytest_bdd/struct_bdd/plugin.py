@@ -57,11 +57,20 @@ class StructBDDPlugin:
 
     def _pytest_pycollect_makemodule(self) -> Any:
         outcome = yield
+        if outcome.excinfo is not None:
+            return
         res = outcome.get_result()
-        if isinstance(res, Module):
-            for member_name, member in getmembers(res.module):
-                if isinstance(member, StepPrototype) and member_name.startswith("test_"):
-                    setattr(res.module, member_name, member.as_test(res.module.__file__))
+        if not isinstance(res, Module):
+            return
+        try:
+            module = res.module
+        except (Exception, pytest.skip.Exception):
+            # Import errors and import-time skips are reported by pytest itself;
+            # raising here would abort collection of the whole directory (#222).
+            return
+        for member_name, member in getmembers(module):
+            if isinstance(member, StepPrototype) and member_name.startswith("test_"):
+                setattr(module, member_name, member.as_test(module.__file__))
 
     if PYTEST7:
 

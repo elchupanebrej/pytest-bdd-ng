@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-import importlib.util
+from importlib.util import find_spec
 
-STRUCT_BDD_INSTALLED: bool = False
+# Runtime modules provided by the [struct-bdd] extra (see pyproject.toml).
+STRUCT_BDD_REQUIRED_MODULES = ("hjson", "json5", "pyhocon", "yaml")
 
-try:
-    STRUCT_BDD_INSTALLED = (
-        importlib.util.find_spec("pytest_bdd.plugin.struct_bdd.parser") is not None
-        or importlib.util.find_spec("pytest_bdd.struct_bdd.parser") is not None
-    )
-except (ImportError, AttributeError):
-    STRUCT_BDD_INSTALLED = False
+STRUCT_BDD_INSTALLED: bool = all(find_spec(module) is not None for module in STRUCT_BDD_REQUIRED_MODULES)
 
 __all__ = ["STRUCT_BDD_INSTALLED"]
