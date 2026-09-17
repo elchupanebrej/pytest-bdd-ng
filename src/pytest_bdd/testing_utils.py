@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional
 from pytest_bdd.utils import compose
 
 if TYPE_CHECKING:  # pragma: no cover
-    from messages import DataTable  # type:ignore[attr-defined, import-untyped]
+    from messages import DataTable
 
 
 def data_table_to_dicts(data_table: Optional["DataTable"]):

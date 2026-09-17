@@ -8,7 +8,9 @@ from attrs import frozen
 from messages import Envelope
 from messages import ExpressionType as _BaseExpressionType
 
-StepDefinitionPatternType = Enum(
+# mypy cannot infer Enum members from an unpacked dict, but the members are created
+# correctly by the runtime functional API; revisit when messages ships type information (#200).
+StepDefinitionPatternType = Enum(  # type: ignore[misc]
     "StepDefinitionPatternType",
     {
         **{n: m.value for n, m in _BaseExpressionType.__members__.items()},

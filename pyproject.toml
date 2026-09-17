@@ -246,6 +246,14 @@ warn_redundant_casts = true
 no_implicit_optional = true
 show_error_codes = true
 
+# messages is a generated, untyped runtime dependency. The repo-root messages/
+# spec submodule has no __init__.py, so mypy namespace-package resolution picks
+# that empty directory over the installed package; skip import analysis instead
+# of chasing attribute errors from the vendored tree (#216).
+[[tool.mypy.overrides]]
+module = ["messages", "messages.*"]
+follow_imports = "skip"
+
 [tool.mypy-src]
 disallow_untyped_defs = true
 

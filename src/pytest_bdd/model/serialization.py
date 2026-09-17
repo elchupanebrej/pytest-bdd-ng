@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from enum import Enum
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import attrs
 
@@ -58,10 +58,10 @@ def to_json(inst: Any, **kwargs: Any) -> str:
 
 def from_dict(cls: type[T], data: dict[str, Any]) -> T:
     if not isinstance(data, dict):
-        return data  # type: ignore[return-value]
+        return data
     schema = _SCHEMA_MAPPING.get(cls, {})
     kwargs: dict[str, Any] = {}
-    field_names = {f.name for f in attrs.fields(cls)}
+    field_names = {f.name for f in attrs.fields(cast("type[attrs.AttrsInstance]", cls))}
     for key, val in data.items():
         if key not in field_names:
             continue
