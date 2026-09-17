@@ -60,8 +60,9 @@ from pytest_bdd.compatibility.pytest import (
     Parser,
     get_config_root_path,
     get_metafunc_call_arg,
-    is_set,
 )
+from pytest_bdd.mimetypes import Mimetype
+from pytest_bdd.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
 from pytest_bdd.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.packaging import get_distribution_version
 from pytest_bdd.steps import Matcher
@@ -73,7 +74,7 @@ if TYPE_CHECKING:
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
     from pytest import Item, Metafunc, Session
 
-    from pytest_bdd.model import Feature, Step
+    from pytest_bdd.model import Feature, Scenario, Step
 
 
 @attrs(eq=False)
@@ -258,6 +259,25 @@ class MessagePlugin:
             encoding="utf-8",
         )
 
+    @staticmethod
+    def build_source(feature: Feature) -> Source | None:
+        filename = feature.filename
+        if filename is None:
+            return None
+        path = Path(filename)
+        try:
+            data = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+        media_type = Mimetype.markdown.value if path.name.endswith(".md") else Mimetype.gherkin_plain.value
+        return Source(uri=feature.uri or path.as_posix(), data=data, media_type=media_type)
+
+    @staticmethod
+    def build_pickle_id(feature: Feature, scenario: Scenario) -> str:
+        uri = feature.uri or feature.filename or "feature"
+        scenario_ref = scenario.id or f"{scenario.name}-{scenario.line}"
+        return f"{uri}:{scenario_ref}"
+
     @hookimpl(hookwrapper=True)
     def pytest_generate_tests(self, metafunc: Metafunc):
         yield
@@ -268,7 +288,6 @@ class MessagePlugin:
             [
                 "feature" in metafunc.fixturenames,
                 "scenario" in metafunc.fixturenames,
-                "feature_source" in metafunc.fixturenames,
                 metafunc._calls,
             ]
         ):
@@ -279,19 +298,33 @@ class MessagePlugin:
             for call in metafunc._calls:
                 feature = get_metafunc_call_arg(call, "feature")
                 pickle = get_metafunc_call_arg(call, "scenario")
-                feature_source: Source = get_metafunc_call_arg(call, "feature_source")
 
-                if is_set(feature) and hasattr(feature_source, "uri") and feature_source.uri not in feature_registry:
-                    feature_registry.add(feature_source.uri)
-                    cast("Config", config).hook.pytest_bdd_message(
-                        config=config, message=Message(source=feature_source)
-                    )
+                if feature is not None:
+                    uri = feature.uri or feature.filename or ""
+                    if uri not in feature_registry:
+                        feature_registry.add(uri)
+                        source = self.build_source(feature)
+                        if source is not None:
+                            cast("Config", config).hook.pytest_bdd_message(
+                                config=config, message=Message(source=source)
+                            )
 
+                        cast("Config", config).hook.pytest_bdd_message(
+                            config=config,
+                            message=Message(gherkin_document=feature_to_gherkin_document(feature, uri=uri)),
+                        )
+                if pickle is not None and id(pickle) not in pickle_registry:
+                    pickle_registry.add(id(pickle))
                     cast("Config", config).hook.pytest_bdd_message(
-                        config=config, message=Message(gherkin_document=feature.gherkin_document)
+                        config=config,
+                        message=Message(
+                            pickle=scenario_to_pickle(
+                                pickle,
+                                uri=feature.uri if feature is not None else "",
+                                pickle_id=self.build_pickle_id(feature, pickle) if feature is not None else None,
+                            )
+                        ),
                     )
-                if is_set(pickle) and id(pickle) not in pickle_registry:
-                    cast("Config", config).hook.pytest_bdd_message(config=config, message=Message(pickle=pickle))
 
     def pytest_bdd_message(self, config: Config, message: Message) -> None:
         if self.is_disabled:
@@ -494,7 +527,7 @@ class MessagePlugin:
 
         self.current_test_case = TestCase(
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_bdd_id_generator.get_next_id(),
-            pickle_id=scenario.id,
+            pickle_id=self.build_pickle_id(feature, scenario),
             test_steps=test_steps,
         )
 

@@ -171,8 +171,13 @@ def step_to_pickle_step(step: Step, default_id: str = "") -> messages.PickleStep
     )
 
 
-def scenario_to_pickle(scenario: Scenario, uri: str = "", default_id: str = "") -> messages.Pickle:
-    sc_id = scenario.id or default_id or "pickle-1"
+def scenario_to_pickle(
+    scenario: Scenario,
+    uri: str = "",
+    default_id: str = "",
+    pickle_id: str | None = None,
+) -> messages.Pickle:
+    sc_id = pickle_id or scenario.id or default_id or "pickle-1"
     steps = [step_to_pickle_step(s, f"{sc_id}-step-{i}") for i, s in enumerate(scenario.all_steps)]
     tags = [messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in scenario.tags]
     return messages.Pickle(

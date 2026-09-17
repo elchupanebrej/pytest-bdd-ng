@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from collections import deque
 from contextlib import suppress
 from functools import partial
@@ -83,7 +84,7 @@ def trace() -> None:
     pytest.set_trace()
 
 
-__registry = StepHandler.Registry()
+__registry = StepHandler.Registry(namespace=sys.modules[__name__])
 
 
 @pytest.fixture
@@ -166,9 +167,8 @@ def pytest_configure(config: Config) -> None:
     config.pluginmanager.register(ScenarioRunner())
     config.pluginmanager.register(MessagePlugin(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
     config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
-    if hasattr(config, "stash"):
-        config.stash[IdGenerator.pytest_bdd_id_generator] = IdGenerator.from_stash(config.stash)
-    setdefaultattr(config, "pytest_bdd_id_generator", value_factory=IdGenerator)
+    id_generator = IdGenerator.from_stash(config.stash) if hasattr(config, "stash") else IdGenerator()
+    setdefaultattr(config, "pytest_bdd_id_generator", value=id_generator)
     if STRUCT_BDD_INSTALLED:
         config.pluginmanager.register(StructBDDPlugin())
 
