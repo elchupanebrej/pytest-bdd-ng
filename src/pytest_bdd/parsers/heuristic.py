@@ -4,7 +4,7 @@ import importlib
 from itertools import chain
 from operator import methodcaller
 from re import error as regex_error
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from cucumber_expressions.errors import CantEscape, UndefinedParameterTypeError
 
@@ -61,13 +61,12 @@ class heuristic(StepParser):
         m_cf = importlib.import_module("pytest_bdd.parsers.parse_parser").cfparse
         m_re = importlib.import_module("pytest_bdd.parsers.re_parser").re
         m_str = importlib.import_module("pytest_bdd.parsers.string_parser").string
-        self.string_parser = cast("StepParser | None", _build(lambda: m_str(self.format)))
-        self.cucumber_expression_parser = cast(
-            "StepParser | None",
-            _build(lambda: m_cuke(self.format, parameter_type_registry=self.parameter_type_registry)),
+        self.string_parser = _build(lambda: m_str(self.format))
+        self.cucumber_expression_parser = _build(
+            lambda: m_cuke(self.format, parameter_type_registry=self.parameter_type_registry)
         )
-        self.cfparse_parser = cast("StepParser | None", _build(lambda: m_cf(self.format)))
-        self.re_parser = cast("StepParser | None", _build(lambda: m_re(self.format)))
+        self.cfparse_parser = _build(lambda: m_cf(self.format))
+        self.re_parser = _build(lambda: m_re(self.format))
         self.parsers_are_built = True
         if not any(self.parser_by_priorities):
             raise ParserBuildValueError(self.format)

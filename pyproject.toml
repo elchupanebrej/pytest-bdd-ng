@@ -254,6 +254,21 @@ show_error_codes = true
 module = ["messages", "messages.*"]
 follow_imports = "skip"
 
+# gherkin-official, cucumber-expressions, and parse/parse_type ship no type
+# information (no py.typed marker), so mypy cannot analyze their imports.
+# Treat them as untyped dependencies until upstream types exist (#200).
+[[tool.mypy.overrides]]
+module = [
+  "gherkin",
+  "gherkin.*",
+  "cucumber_expressions",
+  "cucumber_expressions.*",
+  "parse",
+  "parse_type",
+  "parse_type.*",
+]
+ignore_missing_imports = true
+
 [tool.mypy-src]
 disallow_untyped_defs = true
 

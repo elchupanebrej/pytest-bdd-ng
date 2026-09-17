@@ -11,6 +11,9 @@ class MarkdownTokenMatcher(GherkinInMarkdownTokenMatcher):
     Fixes upstream comment matching bug and un-prefixed Markdown # header feature matching.
     """
 
+    # The untyped gherkin base class sets this in __init__; annotate for mypy.
+    matched_feature_line: bool
+
     def match_FeatureLine(self, token: Any) -> bool:
         if self.matched_feature_line:
             self._set_token_matched(token, None)

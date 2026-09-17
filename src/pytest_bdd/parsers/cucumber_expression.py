@@ -27,6 +27,7 @@ class _CucumberExpression(StepParser):
     parameter_type_registry_like: ParameterTypeRegistry | RegistryMode | str | None
     parameter_type_registry = ParameterTypeRegistry()
     last_undefined_parameter_type: tuple[str, str] | None = None
+    pattern: str
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
         self.last_undefined_parameter_type = None
@@ -43,7 +44,7 @@ class _CucumberExpression(StepParser):
         self, request: FixtureRequest, name: str, anonymous_group_names: Iterable[str] | None = None
     ) -> dict[str, object] | None:
         expr = self.rebuild_expression_in_test_context(request)
-        names = anonymous_group_names or getattr(self, "arguments", ())
+        names: Iterable[str] = anonymous_group_names or self.arguments
         return dict(zip(names, map(attrgetter("value"), expr.match(name) or []), strict=False))
 
     def __str__(self) -> str:
@@ -70,7 +71,9 @@ class cucumber_expression(_CucumberExpression):
     type = StepDefinitionPatternType.cucumber_expression
     expression_type = CucumberExpression
 
-    @singledispatchmethod
+    # mypy cannot check singledispatchmethod-decorated constructors; runtime dispatch
+    # is covered by parser tests. Revisit when mypy supports the pattern (#200).
+    @singledispatchmethod  # type: ignore[misc]
     def __init__(self, *args: object, **kwargs: object) -> None:
         raise NotImplementedError
 

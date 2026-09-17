@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import partial, singledispatchmethod
 from itertools import filterfalse
 from operator import contains
-from re import Match
+from re import Match, RegexFlag
 from re import Pattern as _RePattern
 from re import compile as re_compile
 from typing import TYPE_CHECKING, cast
@@ -21,17 +21,19 @@ if TYPE_CHECKING:
 class re(StepParser):
     type = StepDefinitionPatternType.pytest_bdd_regular_expression
 
-    @singledispatchmethod
+    # mypy cannot check singledispatchmethod-decorated constructors; runtime dispatch
+    # is covered by parser tests. Revisit when mypy supports the pattern (#200).
+    @singledispatchmethod  # type: ignore[misc]
     def __init__(self, *args: object, **kwargs: object) -> None:
         raise NotImplementedError
 
     @__init__.register
-    def _(self, pattern: str, *args: object, **kwargs: object) -> None:
+    def _(self, pattern: str, flags: int | RegexFlag = 0) -> None:
         self.pattern = pattern
-        self.regex = re_compile(self.pattern, *args, **kwargs)
+        self.regex = re_compile(self.pattern, flags)
 
     @__init__.register
-    def _(self, pattern: _RePattern) -> None:  # type: ignore[type-arg]
+    def _(self, pattern: _RePattern) -> None:
         self.pattern = pattern.pattern
         self.regex = pattern
 

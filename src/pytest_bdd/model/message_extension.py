@@ -1,27 +1,40 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Final, TypeAlias
+from typing import TYPE_CHECKING, Final, TypeAlias
 
 from attrs import frozen
 
 from messages import Envelope
 from messages import ExpressionType as _BaseExpressionType
 
-# mypy cannot infer Enum members from an unpacked dict, but the members are created
-# correctly by the runtime functional API; revisit when messages ships type information (#200).
-StepDefinitionPatternType = Enum(  # type: ignore[misc]
-    "StepDefinitionPatternType",
-    {
-        **{n: m.value for n, m in _BaseExpressionType.__members__.items()},
-        "pytest_bdd_heuristic_expression": "PYTEST_BDD_HEURISTIC_EXPRESSION",
-        "pytest_bdd_string_expression": "PYTEST_BDD_STRING_EXPRESSION",
-        "pytest_bdd_regular_expression": "PYTEST_BDD_REGULAR_EXPRESSION",
-        "pytest_bdd_parse_expression": "PYTEST_BDD_PARSE_EXPRESSION",
-        "pytest_bdd_cfparse_expression": "PYTEST_BDD_CFPARSE_EXPRESSION",
-        "pytest_bdd_other_expression": "PYTEST_BDD_OTHER_EXPRESSION",
-    },
-)
+if TYPE_CHECKING:
+    # Static shape for type checkers: mypy cannot infer Enum members from the unpacked
+    # dict built below, so the members are declared here and created by the functional
+    # API at runtime. Values must mirror the runtime mapping; revisit when the
+    # `messages` package ships type information (#200).
+    class StepDefinitionPatternType(Enum):
+        cucumber_expression = "CUCUMBER_EXPRESSION"
+        regular_expression = "REGULAR_EXPRESSION"
+        pytest_bdd_heuristic_expression = "PYTEST_BDD_HEURISTIC_EXPRESSION"
+        pytest_bdd_string_expression = "PYTEST_BDD_STRING_EXPRESSION"
+        pytest_bdd_regular_expression = "PYTEST_BDD_REGULAR_EXPRESSION"
+        pytest_bdd_parse_expression = "PYTEST_BDD_PARSE_EXPRESSION"
+        pytest_bdd_cfparse_expression = "PYTEST_BDD_CFPARSE_EXPRESSION"
+        pytest_bdd_other_expression = "PYTEST_BDD_OTHER_EXPRESSION"
+else:
+    StepDefinitionPatternType = Enum(
+        "StepDefinitionPatternType",
+        {
+            **{n: m.value for n, m in _BaseExpressionType.__members__.items()},
+            "pytest_bdd_heuristic_expression": "PYTEST_BDD_HEURISTIC_EXPRESSION",
+            "pytest_bdd_string_expression": "PYTEST_BDD_STRING_EXPRESSION",
+            "pytest_bdd_regular_expression": "PYTEST_BDD_REGULAR_EXPRESSION",
+            "pytest_bdd_parse_expression": "PYTEST_BDD_PARSE_EXPRESSION",
+            "pytest_bdd_cfparse_expression": "PYTEST_BDD_CFPARSE_EXPRESSION",
+            "pytest_bdd_other_expression": "PYTEST_BDD_OTHER_EXPRESSION",
+        },
+    )
 ExpressionType = StepDefinitionPatternType
 EventEnvelope: TypeAlias = Envelope
 PayloadKind: TypeAlias = str

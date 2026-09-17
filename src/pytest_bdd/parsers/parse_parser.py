@@ -22,7 +22,9 @@ _ParserBuilder: TypeAlias = Callable[..., base_parse.Parser]
 class parse(StepParser):
     type = StepDefinitionPatternType.pytest_bdd_parse_expression
 
-    @singledispatchmethod
+    # mypy cannot check singledispatchmethod-decorated constructors; runtime dispatch
+    # is covered by parser tests. Revisit when mypy supports the pattern (#200).
+    @singledispatchmethod  # type: ignore[misc]
     def __init__(self, format_: object, *args: object, **kwargs: object) -> None:
         if isinstance(format_, StringableProtocol | str | bytes):
             builder = cast("_ParserBuilder", kwargs.pop("builder", base_parse.compile))

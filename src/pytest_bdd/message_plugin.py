@@ -71,8 +71,7 @@ from pytest_bdd.utils import PytestBDDIdGeneratorHandler, deepattrgetter
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    # cucumber-expressions ships no type information for this submodule.
-    from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry  # type: ignore[import-untyped]
+    from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
     from pytest import Metafunc, Session
 
     from pytest_bdd.compatibility.pytest import Item

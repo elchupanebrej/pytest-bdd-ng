@@ -20,7 +20,9 @@ class cucumber_regular_expression(_CucumberExpression):
     type = StepDefinitionPatternType.regular_expression
     expression_type = CucumberRegularExpression
 
-    @singledispatchmethod
+    # mypy cannot check singledispatchmethod-decorated constructors; runtime dispatch
+    # is covered by parser tests. Revisit when mypy supports the pattern (#200).
+    @singledispatchmethod  # type: ignore[misc]
     def __init__(self, *args: object, **kwargs: object) -> None:
         raise NotImplementedError
 
