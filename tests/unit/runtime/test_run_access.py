@@ -52,3 +52,23 @@ def test_run_access_with_item_and_binding() -> None:
     assert get_scenario_run(item) is sc_run
     assert get_scenario_run(item_stash) is sc_run
     assert require_execution_context(item) is sc_run.context
+
+
+def test_run_access_prefers_raw_stash_and_supports_bare_objects() -> None:
+    class RawStashHolder:
+        def __init__(self) -> None:
+            self.raw_stash = SimpleStash()
+
+    holder = RawStashHolder()
+    sc_run = ScenarioRun(run_id="raw-run-1")
+    set_scenario_run(holder, sc_run)
+    assert get_scenario_run(holder) is sc_run
+    assert require_scenario_run(holder) is sc_run
+
+    class BareObject:
+        pass
+
+    bare = BareObject()
+    assert get_scenario_run(bare) is None
+    set_scenario_run(bare, sc_run)
+    assert get_scenario_run(bare) is sc_run

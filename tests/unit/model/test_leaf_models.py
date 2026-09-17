@@ -37,3 +37,29 @@ def test_example_models() -> None:
     ex = Example(values=("val1", "val2"), row=r1, line=11, tags=(tag,))
     assert ex.values == ("val1", "val2")
     assert ex.tags == (tag,)
+
+
+def test_table_and_examples_without_data_rows() -> None:
+    header_only = Examples(header=TableRow(cells=(TableCell("var1"),)))
+    assert header_only.as_dicts() == []
+    rows_only = Examples(rows=(TableRow(cells=(TableCell("val1"),)),))
+    assert rows_only.column_names == ()
+    assert rows_only.as_dicts() == []
+
+    assert DataTable().headings == ()
+    assert DataTable(rows=(TableRow(cells=(TableCell("only"),)),)).as_dicts() == []
+
+
+def test_legacy_model_module_shims_reexport_canonical_objects() -> None:
+    from pytest_bdd.model.document import GherkinDocument
+    from pytest_bdd.model.gherkin_document import GherkinDocument as LegacyGherkinDocument
+    from pytest_bdd.model.message_extension import ExpressionType, StepDefinitionPatternType
+    from pytest_bdd.model.messages_extension import (
+        ExpressionType as LegacyExpressionType,
+        StepDefinitionPatternType as LegacyStepDefinitionPatternType,
+    )
+
+    assert LegacyGherkinDocument is GherkinDocument
+    assert LegacyExpressionType is ExpressionType
+    assert LegacyStepDefinitionPatternType is StepDefinitionPatternType
+    assert LegacyStepDefinitionPatternType.pytest_bdd_string_expression.value == "PYTEST_BDD_STRING_EXPRESSION"

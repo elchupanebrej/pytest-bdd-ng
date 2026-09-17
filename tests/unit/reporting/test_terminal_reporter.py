@@ -67,6 +67,71 @@ def test_terminal_reporter_logreport_verbosity_low() -> None:
         super_mock.assert_called_once_with(report)
 
 
+def test_terminal_reporter_configure_rejects_xdist() -> None:
+    config = MagicMock()
+    config.option.gherkin_terminal_reporter = True
+    current_reporter = TerminalReporter(config)
+    dsession = MagicMock()
+    config.pluginmanager.getplugin.side_effect = lambda name: (
+        current_reporter if name == "terminalreporter" else dsession
+    )
+
+    with pytest.raises(Exception, match="not compatible with 'xdist' plugin"):
+        configure(config)
+
+
+@pytest.mark.parametrize(
+    ("word", "passed", "failed", "skipped", "expected_markup"),
+    [
+        (("PASSED", {"green": True}), True, False, False, {"green": True}),
+        ("FAILED", False, True, False, {"red": True}),
+        ("SKIPPED", False, False, True, {"yellow": True}),
+        ("XFAIL", False, False, False, {}),
+    ],
+)
+def test_terminal_reporter_verbosity_one_status_markup(word, passed, failed, skipped, expected_markup) -> None:
+    config = MagicMock()
+    config.option.verbose = 1
+    config.hook.pytest_report_teststatus.return_value = ("passed", ".", word)
+    reporter = GherkinTerminalReporter(config)
+    reporter._tw = MagicMock()
+    reporter.ensure_newline = MagicMock()
+
+    report = MagicMock()
+    report.passed = passed
+    report.failed = failed
+    report.skipped = skipped
+    report.scenario = {"name": "Scenario Title", "feature": {"name": "Feature Title"}}
+
+    reporter.pytest_runtest_logreport(report)
+    reporter.ensure_newline.assert_called_once()
+    assert reporter._tw.write.call_count == 2
+    assert reporter._tw.write.call_args_list[-1].kwargs == expected_markup
+
+
+def test_terminal_reporter_verbosity_two_marks_skipped_steps() -> None:
+    config = MagicMock()
+    config.option.verbose = 2
+    config.hook.pytest_report_teststatus.return_value = ("skipped", "s", "SKIPPED")
+    reporter = GherkinTerminalReporter(config)
+    reporter._tw = MagicMock()
+    reporter.ensure_newline = MagicMock()
+
+    report = MagicMock()
+    report.passed = False
+    report.failed = False
+    report.skipped = True
+    report.scenario = {
+        "name": "Scenario Title",
+        "feature": {"name": "Feature Title"},
+        "steps": [{"keyword": "Given", "name": "skipped step", "failed": False}],
+    }
+
+    reporter.pytest_runtest_logreport(report)
+    written = [call.args[0] for call in reporter._tw.write.call_args_list]
+    assert any("(SKIPPED)" in line for line in written)
+
+
 def test_terminal_reporter_logreport_verbosity_high() -> None:
     config = MagicMock()
     config.option.verbose = 2

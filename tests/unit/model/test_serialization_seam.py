@@ -46,6 +46,18 @@ def test_leaf_serialization_roundtrip() -> None:
     assert from_json(Examples, to_json(ex)) == ex
 
 
+def test_plain_python_values_and_unknown_key_tolerance() -> None:
+    assert as_dict({"tag": Tag(name="@smoke")}) == {"tag": {"name": "@smoke", "line": 0, "id": None}}
+    assert as_dict([Tag(name="@smoke")]) == [{"name": "@smoke", "line": 0, "id": None}]
+    assert as_dict((1, 2)) == [1, 2]
+    assert as_dict(StepType.context) == "Context"
+    assert as_dict(7) == 7
+
+    assert from_dict(Tag, "not-a-mapping") == "not-a-mapping"  # type: ignore[comparison-overlap]
+    restored = from_dict(Tag, {"name": "@smoke", "unexpected": "ignored"})
+    assert restored == Tag(name="@smoke")
+
+
 def test_composite_tree_seam2_roundtrip_contract() -> None:
     tag = Tag(name="@unit", line=1)
     doc_str = DocString(content="text", media_type="text/plain", line=5)

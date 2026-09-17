@@ -85,6 +85,40 @@ def test_scenario_to_pickle_and_test_case() -> None:
     mc.validate_envelope_shape(tc_env)
 
 
+def test_converter_datetime_rule_background_and_pickle_arguments() -> None:
+    from datetime import datetime, timezone
+
+    timestamp = mc.make_timestamp(datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
+    assert timestamp.seconds == 1704067200
+
+    rule = Rule(
+        name="R",
+        keyword="Rule",
+        line=10,
+        background=Background(name="BG", keyword="Background", line=11),
+        scenarios=(Scenario(name="S", keyword="Scenario", line=12),),
+    )
+    rule_message = mc.rule_to_message(rule, default_id="r-1")
+    assert rule_message.children[0].background is not None
+    assert rule_message.children[1].scenario is not None
+
+    doc_step = Step(name="with doc", keyword="Given ", doc_string=DocString(content="hello", media_type="text/plain"))
+    doc_pickle_step = mc.step_to_pickle_step(doc_step)
+    assert doc_pickle_step.argument is not None
+    assert doc_pickle_step.argument.doc_string is not None
+    assert doc_pickle_step.argument.doc_string.content == "hello"
+
+    table_step = Step(
+        name="with table",
+        keyword="Given ",
+        data_table=DataTable(rows=(TableRow(cells=(TableCell(value="cell"),)),)),
+    )
+    table_pickle_step = mc.step_to_pickle_step(table_step)
+    assert table_pickle_step.argument is not None
+    assert table_pickle_step.argument.data_table is not None
+    assert table_pickle_step.argument.data_table.rows[0].cells[0].value == "cell"
+
+
 def test_execution_message_helpers_and_dict_roundtrip() -> None:
     env_run_start = mc.make_test_run_started(100.0)
     assert env_run_start.test_run_started is not None

@@ -72,6 +72,7 @@ def test_message_extension_payload_helpers() -> None:
 
     assert get_payload_merge_class("source") == "structural_deduplicated"
     assert get_payload_merge_class("test_step_started") == "execution_preserved"
+    assert get_payload_merge_class("not_a_payload_kind") is None
     assert "meta" in CONTROLLER_SINGULAR_PAYLOAD_KINDS
     assert "gherkin_document" in STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS
     assert "test_step_finished" in EXECUTION_PRESERVED_PAYLOAD_KINDS

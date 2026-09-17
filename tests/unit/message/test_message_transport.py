@@ -36,3 +36,21 @@ def test_message_transport_buffering_and_sinks() -> None:
     unsub()
     emitter.emit(mc.make_test_run_started(101.0))
     assert len(calls) == 1
+
+
+def test_message_transport_deduplicates_sinks_and_clears_buffer() -> None:
+    transport = MessageTransport()
+    received: list[messages.Envelope] = []
+    transport.add_sink(received.append)
+    transport.add_sink(received.append)
+
+    transport.emit(mc.make_test_run_started(100.0))
+    assert len(received) == 1
+
+    transport.remove_sink(lambda envelope: None)
+    transport.emit(mc.make_test_run_started(101.0))
+    assert len(received) == 2
+
+    transport.clear()
+    assert transport.get_envelopes() == []
+    assert len(transport.drain()) == 0

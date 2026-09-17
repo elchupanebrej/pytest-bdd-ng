@@ -44,3 +44,16 @@ def test_dump_and_load_ndjson(tmp_path: Path) -> None:
     target = tmp_path / "test.ndjson"
     ms.dump_ndjson(envelopes, target)
     assert len(ms.load_ndjson(target)) == 4
+
+
+def test_load_ndjson_accepts_path_strings_and_inline_single_line_json(tmp_path: Path) -> None:
+    target = tmp_path / "single.ndjson"
+    target.write_text(ms.serialize_envelope(mc.make_test_run_started(100.0)), encoding="utf-8")
+
+    loaded = ms.load_ndjson(str(target))
+    assert len(loaded) == 1
+    assert loaded[0].test_run_started.timestamp.seconds == 100
+
+    inline = ms.load_ndjson(ms.serialize_envelope(mc.make_test_run_started(101.0)))
+    assert len(inline) == 1
+    assert inline[0].test_run_started.timestamp.seconds == 101

@@ -74,3 +74,32 @@ def test_seam3_stream_order_violation_detection() -> None:
     ]
     errors = validate_message_stream(bad_stream)
     assert len(errors) >= 2
+
+
+def test_seam3_stream_validation_reports_each_rule_violation() -> None:
+    run_started = mc.make_test_run_started(100.0)
+
+    duplicate_run = validate_message_stream([run_started, mc.make_test_run_started(101.0)])
+    assert any("Duplicate test_run_started" in error for error in duplicate_run)
+
+    case_started_after_finish = validate_message_stream(
+        [
+            run_started,
+            mc.make_test_case_started("tc-1", id="tcs-1", timestamp=101.0),
+            mc.make_test_case_finished("tcs-1", timestamp=102.0),
+            mc.make_test_run_finished(timestamp=103.0),
+            mc.make_test_case_started("tc-2", id="tcs-dup", timestamp=104.0),
+            mc.make_test_case_started("tc-2", id="tcs-dup", timestamp=105.0),
+        ]
+    )
+    assert sum("Invalid test_case_started" in error for error in case_started_after_finish) == 2
+
+    unknown_case_finished = validate_message_stream(
+        [run_started, mc.make_test_case_finished("tcs-unknown", timestamp=101.0)]
+    )
+    assert any("Invalid test_case_finished" in error for error in unknown_case_finished)
+
+    step_outside_case = validate_message_stream(
+        [run_started, mc.make_test_step_started("tcs-unknown", test_step_id="ts-1", timestamp=101.0)]
+    )
+    assert any("test_step_started outside active case" in error for error in step_outside_case)

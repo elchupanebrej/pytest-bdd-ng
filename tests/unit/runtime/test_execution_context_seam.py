@@ -64,6 +64,37 @@ def test_seam4_pure_state_access_contract() -> None:
     assert not any("pytest" in k.lower() or "_pytest" in k.lower() for k in report_dict)
 
 
+def test_seam4_scenario_report_failure_details_and_step_accumulation() -> None:
+    failing_step = Step(name="fails", keyword="Given ", line=2, id="st-1")
+    pending_step = Step(name="never runs", keyword="Then ", line=3, id="st-2")
+    scenario = Scenario(name="Failing scenario", keyword="Scenario", line=1, id="sc-1", steps=(failing_step, pending_step))
+
+    sc_run = ScenarioRun(scenario=scenario, run_id="run-fail-1")
+    step_run = StepRun(step=failing_step, id="sr-1")
+    step_run.fail(ValueError("boom"), duration=0.25)
+    sc_run.add_step_run(step_run)
+
+    report = ScenarioReport.from_scenario_run(sc_run)
+    assert report.failed is True
+    assert report.status == "failed"
+    assert report.error_message == "boom"
+    assert report.steps[0].serialize()["error_message"] == "boom"
+
+    report.add_step_report(StepReport(name="extra", failed=True, status="failed", error_message="late"))
+    assert report.error_message == "boom"
+
+    fresh = ScenarioReport()
+    returned = fresh.add_step_report(StepReport(name="only", failed=True, status="failed", error_message="first"))
+    assert returned.name == "only"
+    assert fresh.failed is True
+    assert fresh.status == "failed"
+    assert fresh.error_message == "first"
+
+    fresh.fail("final failure")
+    assert fresh.status == "failed"
+    assert fresh.error_message == "final failure"
+
+
 def test_seam4_execution_context_isolation() -> None:
     ctx1 = ExecutionContext()
     ctx1.set_param("shared_key", "value_1")

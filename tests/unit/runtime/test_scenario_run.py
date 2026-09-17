@@ -64,3 +64,17 @@ def test_execution_context_and_scenario_run() -> None:
     stash = SimpleStash()
     sc_run.set_in_stash(stash)
     assert ScenarioRun.find_in_stash(stash) is sc_run
+
+
+def test_scenario_run_failure_and_skip_finalization() -> None:
+    failed = ScenarioRun(run_id="run-fail")
+    err = ValueError("scenario boom")
+    failed.fail(exception=err, duration=3.5)
+    assert failed.status == "failed"
+    assert failed.exception is err
+    assert failed.duration == 3.5
+
+    skipped = ScenarioRun(run_id="run-skip")
+    skipped.skip(duration=1.0)
+    assert skipped.status == "skipped"
+    assert skipped.duration == 1.0

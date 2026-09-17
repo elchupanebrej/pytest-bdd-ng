@@ -35,6 +35,12 @@ def test_feature_model() -> None:
     assert feature.uri == "test.feature"
 
 
+def test_feature_rel_filename_from_uri_and_filename() -> None:
+    assert Feature(name="F", uri="file:features/from_uri.feature").rel_filename == "features/from_uri.feature"
+    assert Feature(name="F", uri="features/plain.feature").rel_filename == "features/plain.feature"
+    assert Feature(name="F", filename="features/relative.feature").rel_filename == "features/relative.feature"
+
+
 def test_gherkin_document_model() -> None:
     feat = Feature(name="F", uri="test.feature")
     doc = GherkinDocument(uri="test.feature", feature=feat, comments=("# a comment",), id="doc-1")

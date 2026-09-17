@@ -75,3 +75,51 @@ def test_proxy_stashes() -> None:
     sess_stash = SessionStash.from_session(session)
     sess_stash["k3"] = "v3"
     assert sess_stash.get("k3") == "v3"
+
+
+class PlainMapping:
+    def __init__(self, data: dict | None = None) -> None:
+        self._data = dict(data or {})
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._data
+
+    def __getitem__(self, key: object) -> object:
+        return self._data[key]
+
+    def __setitem__(self, key: object, value: object) -> None:
+        self._data[key] = value
+
+
+def test_stash_access_supports_mappings_without_get() -> None:
+    mapping = PlainMapping({"present": "value"})
+    assert StashAccess.get_optional(mapping, "present") == "value"
+    assert StashAccess.get_optional(mapping, "missing") is None
+    assert StashAccess.get_optional(object(), "anything") is None
+
+
+def test_stash_create_once_persists_fresh_instance() -> None:
+    stash = SimpleStash()
+    bound = DummyBound()
+    assert bound.initialize_in_stash(stash) is bound
+    assert DummyBound.find_in_stash(stash) is bound
+
+
+def test_proxy_get_falls_back_for_mappings_without_get() -> None:
+    proxy = ItemStash(PlainMapping({"present": "value"}))
+    assert proxy.get("present") == "value"
+    assert proxy.get("missing", "fallback") == "fallback"
+
+
+def test_proxy_from_item_config_session_reuses_existing_stash_objects() -> None:
+    class HasStash:
+        pass
+
+    item, config, session = HasStash(), HasStash(), HasStash()
+    item.stash = SimpleStash()
+    config.stash = SimpleStash()
+    session.stash = SimpleStash()
+
+    assert ItemStash.from_item(item)._stash is item.stash
+    assert ConfigStash.from_config(config)._stash is config.stash
+    assert SessionStash.from_session(session)._stash is session.stash
