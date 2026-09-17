@@ -53,8 +53,9 @@ class StructBDDParser(BaseParser):
         except Exception as err:
             raise FeatureConcreteParseError(
                 f"Failed to parse structured BDD ({self.kind or 'custom'}): {err}",
-                filename=filename,
-                uri=uri,
+                0,
+                "",
+                filename or uri or "",
             ) from err
 
     def build_loader(self) -> Callable[..., Any]:

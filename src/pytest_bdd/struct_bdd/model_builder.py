@@ -57,7 +57,7 @@ class StepToFeatureASTBuilder:
                     ds = DocString(content=s.description) if s.description else None
                     dt = None
                     if s.data:
-                        dt = _build_table(StructJoin(tables=s.data))
+                        dt = _build_table(StructJoin(Join=s.data))
                     steps.append(Step(name=s.action, keyword=kw, doc_string=ds, data_table=dt))
             examples = _build_examples(route.example_table)
             scenarios.append(

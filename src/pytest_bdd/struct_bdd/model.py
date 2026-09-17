@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal, NamedTuple, Union, cast
 
 from attr import attrib, attrs
-from pydantic import (  # type:ignore[attr-defined] # migration to pydantic 2
+from pydantic import (
     AfterValidator,
     BaseModel,
     BeforeValidator,
@@ -69,23 +69,25 @@ class Node(BaseModel):
     )
 
     tags: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Tags")
-    name: str | None = Field(None, alias="Name")
-    description: str | None = Field(None, alias="Description")
+    name: str | None = Field(default=None, alias="Name")
+    description: str | None = Field(default=None, alias="Description")
     comments: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Comments")
 
 
 class Table(Node):
-    type: Literal["Rowed", "Columned"] | None = Field("Rowed", alias="Type")
+    type: Literal["Rowed", "Columned"] | None = Field(default="Rowed", alias="Type")
     parameters: Sequence[str] | None = Field(default_factory=cast("Callable", list), alias="Parameters")
     values: Sequence[Sequence[Any]] | None = Field(default_factory=cast("Callable", list), alias="Values")
 
     @property
     def columned_values(self):
-        return self.values if self.type == "Columned" else list(zip(*self.values, strict=False))
+        values = self.values or []
+        return values if self.type == "Columned" else list(zip(*values, strict=False))
 
     @property
     def rowed_values(self):
-        return self.values if self.type == "Rowed" else list(zip(*self.values, strict=False))
+        values = self.values or []
+        return values if self.type == "Rowed" else list(zip(*values, strict=False))
 
 
 class SubTable(Node):
@@ -193,9 +195,9 @@ class Join(BaseModel):
 @BeforeValidator
 def before_convert_to_step(value):
     if isinstance(value, str):
-        return Step(action=value)
+        return Step(Action=value)
     if isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
-        return Step(type=next(iter(value.keys())), action=next(iter(value.values())))
+        return Step(Type=next(iter(value.keys())), Action=next(iter(value.values())))
     return value
 
 
@@ -230,32 +232,36 @@ class StepPrototype(Node):
     examples: list[Annotated[Table | Join | SubTable, convert_sub_tables_to_tables]] = Field(
         default_factory=list, alias="Examples"
     )
-    keyword_type: KeywordType | None = Field(KeywordType.unknown)
+    keyword_type: KeywordType | None = Field(default=KeywordType.unknown)
 
     class Route(NamedTuple):
         tags: Sequence[str] | None
         steps: list["StepPrototype"]
         example_table: Union[Table, "Join", SubTable]
 
-    @model_validator(mode="after")  # type: ignore[misc] # migration to pydantic 2
+    @model_validator(mode="after")
     def set_keyword_type(self) -> Self:
         self.keyword_type = KEYWORD_TO_TYPE[self.type]
-        return self  # type: ignore[return-value] # migration to pydantic 2
+        return self
 
     @property
     def routes(self):
         for routes in (
             product(*map(attrgetter("routes"), self.steps))
             if self.steps
-            else [[self.Route([], [], Table(parameters=[], values=[]))]]
+            else [[self.Route([], [], Table(Parameters=[], Values=[]))]]
         ):
             steps = [self, *chain.from_iterable(map(attrgetter("steps"), routes))]
 
             if self.examples:
                 for _example_table in self.examples:
-                    example_table = Join(tables=[*map(attrgetter("example_table"), routes), _example_table])
+                    example_table = Join(Join=[*map(attrgetter("example_table"), routes), _example_table])
                     tags = list(
-                        {*chain.from_iterable(map(attrgetter("tags"), routes)), *example_table.tags, *self.tags}
+                        {
+                            *chain.from_iterable(map(attrgetter("tags"), routes)),
+                            *example_table.tags,
+                            *(self.tags or ()),
+                        }
                     )
 
                     yield self.Route(
@@ -264,8 +270,14 @@ class StepPrototype(Node):
                         example_table,
                     )
             else:
-                example_table = Join(tables=[*map(attrgetter("example_table"), routes)])
-                tags = list({*chain.from_iterable(map(attrgetter("tags"), routes)), *example_table.tags, *self.tags})
+                example_table = Join(Join=[*map(attrgetter("example_table"), routes)])
+                tags = list(
+                    {
+                        *chain.from_iterable(map(attrgetter("tags"), routes)),
+                        *example_table.tags,
+                        *(self.tags or ()),
+                    }
+                )
 
                 yield self.Route(
                     tags,
@@ -275,7 +287,10 @@ class StepPrototype(Node):
 
     @classmethod
     def build_by_action(cls, action, *args, **kwargs):
-        return cls(*args, **kwargs, action=action)
+        # Each subclass declares its own alias for the action field, so the
+        # static signature mypy derives from Field(alias=...) cannot be used
+        # here; construct dynamically instead.
+        return cast("Callable[..., Any]", cls)(*args, **kwargs, action=action)
 
     @attrs
     class Locator(ScenarioLocatorFilterMixin):
@@ -287,9 +302,7 @@ class StepPrototype(Node):
         def resolve_features(self, config):
             from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
 
-            feature = GherkinDocumentBuilder(self.step).build_feature(
-                filename=self.filename, uri=self.uri, id_generator=config.pytest_bdd_id_generator
-            )
+            feature = GherkinDocumentBuilder(self.step).build_feature(filename=self.filename, uri=self.uri)
             yield feature, None
 
     def as_test(self, filename):
@@ -341,7 +354,7 @@ class Alternative(Node):
 
 class Step(StepPrototype):
     type: StepKeywordType | None = Field(default=Keyword.Star, alias="Type")
-    action: str | None = Field(None, alias="Action")
+    action: str | None = Field(default=None, alias="Action")
 
 
 class SubStep(BaseModel):
@@ -349,38 +362,38 @@ class SubStep(BaseModel):
 
 
 class StarStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.Star, alias="Type")
-    action: str | None = Field(alias=Keyword.Star.value)
+    type: StepKeywordType = Field(default=Keyword.Star, alias="Type")
+    action: str | None = Field(alias="*")
 
 
 class GivenStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.Given, alias="Type")
-    action: str | None = Field(alias=Keyword.Given.value)
+    type: StepKeywordType = Field(default=Keyword.Given, alias="Type")
+    action: str | None = Field(alias="Given")
 
 
 class WhenStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.When, alias="Type")
-    action: str | None = Field(alias=Keyword.When.value)
+    type: StepKeywordType = Field(default=Keyword.When, alias="Type")
+    action: str | None = Field(alias="When")
 
 
 class ThenStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.Then, alias="Type")
-    action: str | None = Field(alias=Keyword.Then.value)
+    type: StepKeywordType = Field(default=Keyword.Then, alias="Type")
+    action: str | None = Field(alias="Then")
 
 
 class AndStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.And, alias="Type")
-    action: str | None = Field(alias=Keyword.And.value)
+    type: StepKeywordType = Field(default=Keyword.And, alias="Type")
+    action: str | None = Field(alias="And")
 
 
 class ButStep(StepPrototype):
-    type: StepKeywordType = Field(Keyword.But, alias="Type")
-    action: str | None = Field(alias=Keyword.But.value)
+    type: StepKeywordType = Field(default=Keyword.But, alias="Type")
+    action: str | None = Field(alias="But")
 
 
-Join.model_rebuild()  # type:ignore[attr-defined] # migration to pydantic 2
-StepPrototype.model_rebuild()  # type:ignore[attr-defined] # migration to pydantic 2
-Alternative.model_rebuild()  # type:ignore[attr-defined] # migration to pydantic 2
+Join.model_rebuild()
+StepPrototype.model_rebuild()
+Alternative.model_rebuild()
 
 Given = GivenStep.build_by_action
 When = WhenStep.build_by_action

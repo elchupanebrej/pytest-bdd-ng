@@ -30,7 +30,7 @@ class StructBDDPlugin:
 
     def pytest_bdd_get_parser(self, config: Config, mimetype: str) -> Any:
         with suppress(KeyError):
-            return partial(  # type:ignore[call-arg]
+            return partial(
                 StructBDDParser,
                 kind={
                     Mimetype.struct_bdd_yaml.value: StructBDDParser.KIND.YAML.value,
@@ -70,7 +70,9 @@ class StructBDDPlugin:
             yield from self._pytest_pycollect_makemodule()
 
     else:
-
+        # pytest <7 calls this hook with (path, parent); mypy reports the
+        # deliberate version-gated redefinition of the PYTEST7 signature above
+        # as an error.
         @pytest.hookimpl(hookwrapper=True)
-        def pytest_pycollect_makemodule(self, path: Any, parent: Any) -> Any:
+        def pytest_pycollect_makemodule(self, path: Any, parent: Any) -> Any:  # type: ignore[misc]
             yield from self._pytest_pycollect_makemodule()
