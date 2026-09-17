@@ -95,3 +95,17 @@ def test_scenarios_none_found(testdir, pytest_params):
     )
     result = testdir.runpytest_subprocess(testpath, *pytest_params)
     assert_outcomes(result, skipped=1)
+
+
+def test_scenarios_none_found_inprocess(testdir):
+    """Test scenarios shortcut when no scenarios found, in the same process."""
+    testpath = testdir.makepyfile(
+        # language=python
+        """\
+        from pytest_bdd import scenarios
+
+        test_feature = scenarios('.')
+        """
+    )
+    result = testdir.runpytest(testpath)
+    assert_outcomes(result, skipped=1)

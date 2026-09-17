@@ -39,6 +39,12 @@ def test_detect_uri_pathtype() -> None:
     assert none_type == PathType.UNDEFINED
 
 
+def test_detect_uri_pathtype_unparsable_uri() -> None:
+    path, p_type = FeatureFileCollector.detect_uri_pathtype("http://[invalid-ipv6")
+    assert path == "http://[invalid-ipv6"
+    assert p_type == PathType.UNDEFINED
+
+
 def test_scenario_item_init_and_reportinfo() -> None:
     mock_parent = MagicMock()
     mock_feature = MagicMock(uri="features/login.feature")

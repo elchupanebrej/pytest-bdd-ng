@@ -14,3 +14,8 @@ def test_url_helpers() -> None:
     assert not is_local_url(123)
     assert is_url_parsable("https://example.com")
     assert not is_url_parsable("http://[invalid-ipv6")
+
+
+def test_is_local_url_handles_unparsable_and_bytes_input() -> None:
+    assert is_local_url("http://[invalid-ipv6") is False
+    assert is_local_url(b"features/test.feature") is True

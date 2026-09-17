@@ -17,6 +17,7 @@ from messages import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]
     ParameterType,
     Pickle,
     Source,
+    Status,
     StepDefinition,
 )
 from messages import Envelope as Message  # type:ignore[attr-defined]
@@ -595,3 +596,102 @@ def test_hook_type_messages(testdir, tmp_path):
 
     # after_tag hook
     assert any(message.tag_expression == "tag" and message.name == "around" for message in attachment_messages)
+
+
+def test_failed_step_messages(testdir, tmp_path):
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given
+
+        @given("a failing step")
+        def failing_step():
+            raise AssertionError("boom")
+        """
+    )
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        failing="""\
+            Feature: failing
+
+              Scenario: failing step
+                Given a failing step
+            """,
+    )
+
+    ndjson_path = tmp_path / "failing.feature.ndjson"
+    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(failed=1)
+
+    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
+
+    step_finished_messages = list_filter_by_type(_TestStepFinished, unfold_messages)
+    assert len(step_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+    assert Status(step_finished_messages[0].test_step_result.status) == Status.failed
+    assert len(list_filter_by_type(_TestCaseFinished, unfold_messages)) == 1
+
+
+def test_undefined_step_messages(testdir, tmp_path):
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        undefined="""\
+            Feature: undefined
+
+              Scenario: undefined step
+                Given an undefined step
+            """,
+    )
+
+    ndjson_path = tmp_path / "undefined.feature.ndjson"
+    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(failed=1)
+
+    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
+
+    test_case_messages = list_filter_by_type(_TestCase, unfold_messages)
+    assert len(test_case_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+    assert test_case_messages[0].test_steps == []
+
+
+def test_hook_message_is_emitted_once_per_hook_function(testdir, tmp_path):
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        tagged="""\
+            @tagged
+            Feature: tagged
+
+              Scenario: first scenario
+                Given a step
+
+              Scenario: second scenario
+                Given a step
+            """,
+    )
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given
+        from pytest_bdd.hook import before_tag
+
+        @given("a step")
+        def a_step():
+            pass
+
+        @before_tag("@tagged", name="once")
+        def hook_once(request):
+            pass
+        """
+    )
+
+    ndjson_path = tmp_path / "tagged.feature.ndjson"
+    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(passed=2)
+
+    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
+
+    hook_messages = list_filter_by_type(Hook, unfold_messages)
+    assert len(hook_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+    assert hook_messages[0].name == "once"
