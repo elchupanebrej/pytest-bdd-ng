@@ -19,10 +19,10 @@ from threading import Event, Thread
 from time import sleep, time_ns
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-import chevron
+import chevron  # type: ignore[import-untyped]  # chevron ships no type information
 import pytest
 from attr import attrib, attrs
-from ci_environment import detect_ci_environment
+from ci_environment import detect_ci_environment  # type: ignore[import-untyped]  # no type stubs
 from filelock import FileLock
 from pydantic import ValidationError
 from pytest import ExitCode, hookimpl
@@ -71,9 +71,11 @@ from pytest_bdd.utils import PytestBDDIdGeneratorHandler, deepattrgetter
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
-    from pytest import Item, Metafunc, Session
+    # cucumber-expressions ships no type information for this submodule.
+    from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry  # type: ignore[import-untyped]
+    from pytest import Metafunc, Session
 
+    from pytest_bdd.compatibility.pytest import Item
     from pytest_bdd.model import Feature, Scenario, Step
 
 
@@ -305,17 +307,15 @@ class MessagePlugin:
                         feature_registry.add(uri)
                         source = self.build_source(feature)
                         if source is not None:
-                            cast("Config", config).hook.pytest_bdd_message(
-                                config=config, message=Message(source=source)
-                            )
+                            config.hook.pytest_bdd_message(config=config, message=Message(source=source))
 
-                        cast("Config", config).hook.pytest_bdd_message(
+                        config.hook.pytest_bdd_message(
                             config=config,
                             message=Message(gherkin_document=feature_to_gherkin_document(feature, uri=uri)),
                         )
                 if pickle is not None and id(pickle) not in pickle_registry:
                     pickle_registry.add(id(pickle))
-                    cast("Config", config).hook.pytest_bdd_message(
+                    config.hook.pytest_bdd_message(
                         config=config,
                         message=Message(
                             pickle=scenario_to_pickle(
@@ -421,7 +421,7 @@ class MessagePlugin:
                         source_reference=SourceReference(
                             uri=relpath(
                                 getfile(func),
-                                str(get_config_root_path(cast("Config", config))),
+                                str(get_config_root_path(config)),
                             ),
                             location=Location(line=getsourcelines(func)[1]),
                         ),
@@ -439,9 +439,9 @@ class MessagePlugin:
             return
 
         session = item.session
-        config: Config | PytestBDDIdGeneratorHandler = session.config
+        config: Config = session.config
 
-        hook_handler = cast("Config", config).hook
+        hook_handler = config.hook
 
         request = item._request
         scenario = request.getfixturevalue("scenario")
@@ -495,7 +495,7 @@ class MessagePlugin:
                                 ),
                             ),
                         )
-                    self.parameter_type_registry |= not_yet_registered_parameter_types.keys()
+                    self.parameter_type_registry.update(not_yet_registered_parameter_types)
             step_registry = step_registry.parent
 
         test_steps = []
@@ -536,6 +536,10 @@ class MessagePlugin:
             message=Message(test_case=self.current_test_case),
         )
 
+    def _current_test_case(self) -> TestCase:
+        """Return the active test case; it is set by pytest_bdd_before_scenario before consumers read it."""
+        return cast("TestCase", self.current_test_case)
+
     def pytest_bdd_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
         if self.is_disabled:
             return
@@ -545,7 +549,7 @@ class MessagePlugin:
         self.current_test_case_start = TestCaseStarted(
             attempt=getattr(request.node, "execution_count", 0),
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_bdd_id_generator.get_next_id(),
-            test_case_id=self.current_test_case.id,
+            test_case_id=self._current_test_case().id,
             worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
             timestamp=self.get_timestamp(),
         )
@@ -590,7 +594,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_started=TestStepStarted(
-                    test_case_started_id=self.current_test_case.id,
+                    test_case_started_id=self._current_test_case().id,
                     timestamp=self.current_test_case_step_start_timestamp,
                     test_step_id=step_definition.id,
                 )
@@ -627,7 +631,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_finished=TestStepFinished(
-                    test_case_started_id=self.current_test_case.id,
+                    test_case_started_id=self._current_test_case().id,
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.passed),
@@ -673,7 +677,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_finished=TestStepFinished(
-                    test_case_started_id=self.current_test_case.id,
+                    test_case_started_id=self._current_test_case().id,
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.failed),
@@ -725,8 +729,8 @@ class MessagePlugin:
             config=config,
             message=Message(
                 attachment=Attachment(
-                    test_step_id=self.current_test_case.id,
-                    test_case_started_id=self.current_test_case.id,
+                    test_step_id=self._current_test_case().id,
+                    test_case_started_id=self._current_test_case().id,
                     media_type=_media_type,
                     **({"file_name": str(file_name)} if file_name is not None else {}),
                     content_encoding=content_encoding,

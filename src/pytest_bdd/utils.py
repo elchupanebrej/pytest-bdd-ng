@@ -139,7 +139,7 @@ def inject_fixture(request: Any, arg: str, value: Any) -> None:
         return
 
     try:
-        fd = FixtureDef(  # type: ignore[call-arg]
+        fd = FixtureDef(
             request.config,
             None,
             arg,
@@ -197,7 +197,7 @@ class DefaultMapping(defaultdict):
             intercessor = self[...]
             if intercessor is self.Skip:
                 raise KeyError(key)
-            if isinstance(intercessor, Callable):
+            if callable(intercessor):
                 value = intercessor(key)
             elif intercessor is ...:
                 value = key
@@ -220,7 +220,7 @@ class DefaultMapping(defaultdict):
             if not isinstance(bool_or_items, Mapping):
                 bool_or_items = zip(*tee(iter(bool_or_items)), strict=False)
         else:
-            bool_or_items = cast("dict", {...: ...} if bool_or_items else {...: DefaultMapping.Skip})
+            bool_or_items = {...: ...} if bool_or_items else {...: DefaultMapping.Skip}
         return cls(bool_or_items, warm_up_keys=warm_up_keys)
 
 

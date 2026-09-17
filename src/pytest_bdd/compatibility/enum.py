@@ -7,7 +7,8 @@ if sys.version_info >= (3, 11):
     from enum import StrEnum
 else:
     try:
-        from strenum import StrEnum
+        # strenum is an optional Python <3.11 backport and has no type stubs.
+        from strenum import StrEnum  # type: ignore[import-not-found]
     except ImportError:
 
         class StrEnum(str, Enum):  # type: ignore[no-redef]

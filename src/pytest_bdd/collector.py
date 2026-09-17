@@ -44,6 +44,8 @@ class PackageCollector(PytestPackage):
 class FeatureFileModule(Module):
     def _getobj(self):
         path: Path = self.get_path()
+        feature_pathlike: str | Path | None
+        base_dir: Path | str | None
         if path.suffixes and path.suffixes[-1] == ".url":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_url_file(path)
         elif path.suffixes and path.suffixes[-1] == ".desktop":
@@ -54,7 +56,7 @@ class FeatureFileModule(Module):
             feature_pathlike, features_path_type, base_dir = path, PathType.PATH, None
         return self._build_test_module(feature_pathlike, features_path_type, base_dir)
 
-    def _build_test_module(self, path: Path | None, features_path_type: PathType, base_dir: Path | None):
+    def _build_test_module(self, path: str | Path | None, features_path_type: PathType, base_dir: Path | str | None):
         module_name = convert_str_to_python_name(f"{path}_{uuid4()}")
 
         module_spec = ModuleSpec(module_name, None)
@@ -157,17 +159,10 @@ class ScenarioItem(PytestItem):
     def from_parent(
         cls,
         parent: Any,
-        *,
-        name: str,
-        feature: Any = None,
-        scenario: Any = None,
         **kwargs: Any,
     ) -> ScenarioItem:
         return super().from_parent(
             parent=parent,
-            name=name,
-            feature=feature,
-            scenario=scenario,
             **kwargs,
         )
 

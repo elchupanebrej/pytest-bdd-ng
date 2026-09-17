@@ -89,11 +89,13 @@ if PYTEST6:
     from _pytest.mark import MarkMatcher
 
     try:
-        from _pytest.mark.expression import Expression, ParseError
+        # ParseError only exists in some pytest 6 releases; the combined import
+        # is checked against the installed pytest, which has already removed it.
+        from _pytest.mark.expression import Expression, ParseError  # type: ignore[attr-defined]
     except ImportError:
-        from _pytest.mark.expression import Expression  # type: ignore[no-redef]
+        from _pytest.mark.expression import Expression
 
-        ParseError = Exception  # type: ignore[misc, assignment]
+        ParseError = Exception
 
     __all__ += [
         "Expression",
@@ -137,7 +139,8 @@ class Module(PytestModule):
                 parent, **(dict(path=Path(file_path)) if PYTEST7 else dict(fspath=py.path.local(file_path)))
             )
         else:
-            collector = cls(parent=parent, fspath=py.path.local(file_path))
+            # pytest <7 constructor API; this branch is unreachable on pytest >=7.
+            collector = cls(parent=parent, fspath=py.path.local(file_path))  # type: ignore[arg-type]
         return collector
 
     def get_path(self):
@@ -184,7 +187,7 @@ else:
 
 
 def get_config_root_path(config: Config) -> Path:
-    return Path(getattr(cast(Config, config), "rootpath" if PYTEST61 else "rootdir"))
+    return Path(getattr(config, "rootpath" if PYTEST61 else "rootdir"))
 
 
 def fail(reason, pytrace=True):
@@ -192,7 +195,8 @@ def fail(reason, pytrace=True):
     if PYTEST7:
         return _pytest_fail(reason, pytrace=pytrace)
     else:
-        return _pytest_fail(msg=reason, pytrace=pytrace)
+        # pytest <7 accepted msg=; the installed pytest signature no longer has it.
+        return _pytest_fail(msg=reason, pytrace=pytrace)  # type: ignore[call-arg]
 
 
 if PYTEST6:
@@ -239,7 +243,7 @@ def build_fixture_def(
     params: Sequence[object] | None,
 ) -> FixtureDef:
     if PYTEST81:
-        return FixtureDef(  # type: ignore[call-arg]
+        return FixtureDef(
             request.config,
             baseid,
             argname,
@@ -260,11 +264,11 @@ def make_mark(
 ) -> Mark:
     if kwargs is None:
         kwargs = {}
-    return Mark(name, args=args, kwargs=kwargs, _ispytest=True)  # type: ignore[call-arg]
+    return Mark(name, args=args, kwargs=kwargs, _ispytest=True)
 
 
 def make_mark_decorator(mark: Mark) -> MarkDecorator:
-    return MarkDecorator(mark, _ispytest=True)  # type: ignore[call-arg]
+    return MarkDecorator(mark, _ispytest=True)
 
 
 def inject_fixture(request: FixtureRequest, arg: str, value: object) -> None:

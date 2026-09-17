@@ -173,33 +173,35 @@ class ScenarioRunner:
             if self.feature is None or self.scenario is None:
                 return
             self.plugin_manager = cast("PluginManager", self.request.config.hook)
-            self.plugin_manager.pytest_bdd_before_scenario(  # type: ignore[attr-defined]
+            self.plugin_manager.pytest_bdd_before_scenario(
                 request=self.request, feature=self.feature, scenario=self.scenario
             )
             try:
-                self.plugin_manager.pytest_bdd_run_scenario(  # type: ignore[attr-defined]
+                self.plugin_manager.pytest_bdd_run_scenario(
                     request=self.request,
                     feature=self.feature,
                     scenario=self.scenario,
                 )
             finally:
-                self.plugin_manager.pytest_bdd_after_scenario(  # type: ignore[attr-defined]
+                self.plugin_manager.pytest_bdd_after_scenario(
                     request=self.request, feature=self.feature, scenario=self.scenario
                 )
 
             # Allow test function to use updated fixtures directly
             fixturenames = getattr(item, "fixturenames", [])
             for argname in fixturenames:
-                item.funcargs[argname] = item._request.getfixturevalue(argname)  # type: ignore[attr-defined]
+                item.funcargs[argname] = item._request.getfixturevalue(argname)
 
     def pytest_bdd_run_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario):
         """Execute the scenario steps."""
         __tracebackhide__ = True
         steps: deque = request.getfixturevalue("steps_left")
+        scenario_background = getattr(scenario, "background", None)
+        feature_background = getattr(feature, "background", None) if feature else None
         bg_steps = (
-            scenario.background.steps
-            if getattr(scenario, "background", None)
-            else (feature.background.steps if (feature and getattr(feature, "background", None)) else ())
+            scenario_background.steps
+            if scenario_background
+            else (feature_background.steps if feature_background else ())
         )
         all_steps = tuple(bg_steps) + tuple(getattr(scenario, "steps", ()))
         steps.extend(all_steps)
@@ -216,15 +218,16 @@ class ScenarioRunner:
         def dispatcher(left_steps):
             __tracebackhide__ = True
             previous_step = None
+            plugin_manager = cast("PluginManager", self.plugin_manager)
             while left_steps:
                 step = left_steps.popleft()
-                self.plugin_manager.pytest_bdd_run_step(
+                plugin_manager.pytest_bdd_run_step(  # type: ignore[attr-defined]  # dynamically registered hook
                     request=request,
                     feature=feature,
                     scenario=scenario,
                     step=step,
                     previous_step=previous_step,
-                )  # type: ignore[call-arg]
+                )
                 previous_step = step
 
         return dispatcher
@@ -243,7 +246,9 @@ class ScenarioRunner:
                     step.__dict__["line_number"] = feature._get_step_line_number(step)
             has_reg = hasattr(scenario, "__dict__") and hasattr(feature, "registry")
             if has_reg and getattr(scenario, "ast_node_ids", None):
-                scenario.__dict__["description"] = feature.registry[scenario.ast_node_ids[0]].description
+                # `registry` is an optional legacy attribute not declared on the model,
+                # guarded by the has_reg check above.
+                scenario.__dict__["description"] = feature.registry[scenario.ast_node_ids[0]].description  # type: ignore[attr-defined]
             yield
         finally:
             if hasattr(step, "__dict__"):

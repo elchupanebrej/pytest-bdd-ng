@@ -50,7 +50,7 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind):
                     HookKind.tag: GherkinTagExpression,
                 }[_kind]
 
-                parsed_expression: TagExpression = _expression_type.parse(_expression)  # type: ignore[attr-defined]
+                parsed_expression: TagExpression = _expression_type.parse(_expression)
 
                 def get_marks():
                     if _kind is HookKind.mark:

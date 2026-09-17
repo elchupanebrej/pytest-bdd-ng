@@ -10,7 +10,7 @@ from operator import attrgetter, contains, methodcaller
 from pathlib import Path
 from subprocess import CalledProcessError
 from types import ModuleType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -41,7 +41,7 @@ from pytest_bdd.runner import ScenarioRunner
 from pytest_bdd.scenario import FeaturePathType, scenarios
 from pytest_bdd.scenario import add_options as scenario_add_options
 from pytest_bdd.scenario_locator import FileScenarioLocator, UrlScenarioLocator
-from pytest_bdd.steps import StepHandler
+from pytest_bdd.steps import Definition, Matcher, Registry, StepHandler, StepRegistryProtocol
 from pytest_bdd.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
 
 if TYPE_CHECKING:
@@ -102,7 +102,7 @@ def pytestbdd_id_generator(pytestconfig: Config) -> IdGenerator:
 
 
 @pytest.fixture
-def step_registry() -> StepHandler.Registry:
+def step_registry() -> Registry:
     """Fixture containing registry of all user-defined steps"""
     return __registry
 
@@ -111,9 +111,9 @@ step_registry.__pytest_bdd_step_registry__ = __registry  # type: ignore[attr-def
 
 
 @pytest.fixture
-def step_matcher(pytestconfig: Config) -> StepHandler.Matcher:
+def step_matcher(pytestconfig: Config) -> Matcher:
     """Fixture containing matcher to help find step definition for selected step of scenario"""
-    return StepHandler.Matcher(pytestconfig)  # type: ignore[call-arg]
+    return Matcher(pytestconfig)
 
 
 @pytest.fixture
@@ -165,7 +165,7 @@ def pytest_configure(config: Config) -> None:
     gherkin_terminal_reporter.configure(config)
     config.pluginmanager.register(ScenarioReporterPlugin())
     config.pluginmanager.register(ScenarioRunner())
-    config.pluginmanager.register(MessagePlugin(config=config), name="pytest_bdd_messages")  # type: ignore[call-arg]
+    config.pluginmanager.register(MessagePlugin(config=config), name="pytest_bdd_messages")
     config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
     id_generator = IdGenerator.from_stash(config.stash) if hasattr(config, "stash") else IdGenerator()
     setdefaultattr(config, "pytest_bdd_id_generator", value=id_generator)
@@ -193,16 +193,17 @@ if PYTEST7:
         yield from _pytest_pycollect_makemodule()
 
 else:
-
+    # pytest <7 calls this hook with (path, parent); mypy reports the deliberate
+    # version-gated redefinition of the PYTEST7 signature above as an error.
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_pycollect_makemodule(path, parent):
+    def pytest_pycollect_makemodule(path, parent):  # type: ignore[misc]
         yield from _pytest_pycollect_makemodule()
 
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_plugin_registered(plugin, manager):
     if hasattr(plugin, "__file__") and isinstance(plugin, type | ModuleType):
-        StepHandler.Registry.inject_registry_fixture(plugin)
+        StepHandler.Registry.inject_registry_fixture(cast("StepRegistryProtocol", plugin))
 
 
 def _build_filter(filter_):
@@ -265,7 +266,7 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
     else:
         file_locator_feature_paths = []
 
-    path_locator = FileScenarioLocator(  # type: ignore[call-arg]
+    path_locator = FileScenarioLocator(
         feature_paths=file_locator_feature_paths,
         filter_=filter_,
         encoding=mark_arguments["encoding"],
@@ -283,7 +284,7 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
     else:
         url_locator_feature_paths = []
 
-    url_locator = UrlScenarioLocator(  # type: ignore[call-arg]
+    url_locator = UrlScenarioLocator(
         url_paths=url_locator_feature_paths,
         filter_=mark_arguments["filter_"],
         encoding=mark_arguments["encoding"],
@@ -377,9 +378,9 @@ def pytest_bdd_convert_tag_to_marks(feature, scenario, tag) -> Collection[Mark |
     return [getattr(pytest.mark, tag_clean)]
 
 
-def pytest_bdd_match_step_definition_to_step(request, feature, scenario, step, previous_step) -> StepHandler.Definition:
-    step_registry: StepHandler.Registry = request.getfixturevalue("step_registry")
-    step_matcher: StepHandler.Matcher = request.getfixturevalue("step_matcher")
+def pytest_bdd_match_step_definition_to_step(request, feature, scenario, step, previous_step) -> Definition:
+    step_registry: Registry = request.getfixturevalue("step_registry")
+    step_matcher: Matcher = request.getfixturevalue("step_matcher")
 
     return step_matcher(request, feature, scenario, step, previous_step, step_registry)
 
