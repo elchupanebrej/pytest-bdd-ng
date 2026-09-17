@@ -98,7 +98,7 @@ def generate_code(
     """Generate test code for the given filenames."""
     with as_file(files("pytest_bdd.template").joinpath("test.py.mak")) as path:
         template = Template(filename=str(path))  # noqa: S702
-    step_type_to_method_name: dict[StepType | None, str] = {**STEP_TYPE_TO_STEP_METHOD_NAME, None: "step"}
+    step_type_to_method_name: dict[StepType | None, str] = dict(STEP_TYPE_TO_STEP_METHOD_NAME) | {None: "step"}
     code = template.render(
         features=features,
         feature_pickles=feature_pickles,
@@ -175,8 +175,8 @@ def generate_and_print_missing_code(config: Config) -> int | ExitCode:
         unique_non_matched_feature_pickle_steps = [
             next(
                 filter(
-                    lambda feature_pickle_step, sid=step_def_id: (
-                        feature_pickle_step[1].type == sid[0] and feature_pickle_step[1].text == sid[1]
+                    lambda feature_pickle_step: (
+                        feature_pickle_step[1].type == step_def_id[0] and feature_pickle_step[1].text == step_def_id[1]
                     ),
                     non_matched_feature_pickle_steps,
                 )
@@ -186,7 +186,7 @@ def generate_and_print_missing_code(config: Config) -> int | ExitCode:
 
         print_missing_code(
             non_seen_features,
-            non_seen_feature_pickles,  # type: ignore[arg-type]
+            non_seen_feature_pickles,
             non_matched_feature_pickle_steps,
             unique_non_matched_feature_pickle_steps,
         )
@@ -235,7 +235,8 @@ def generate_and_print_code(config: Config) -> int | ExitCode:
             [
                 next(
                     filter(
-                        lambda s, sid=step_def_id: s[1].type == sid[0] and s[1].text == sid[1],
+                        lambda feature_pickle_step: feature_pickle_step[1].type == step_def_id[0]
+                        and feature_pickle_step[1].text == step_def_id[1],
                         feature_pickles_steps,
                     )
                 )

@@ -19,9 +19,9 @@ from shutil import copytree, rmtree
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 
-import panflute as pf  # type: ignore[import-not-found]
-import pycmarkgfm  # type: ignore[import-not-found]
-import pypandoc  # type: ignore[import-not-found]
+import panflute as pf
+import pycmarkgfm
+import pypandoc
 from docopt import docopt
 
 SECTION_SYMBOLS = "-#!\"$%&'()*+,./:;<=>?@[\\]^_`{|}~="

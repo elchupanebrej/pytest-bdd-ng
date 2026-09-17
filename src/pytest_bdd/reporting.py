@@ -191,7 +191,7 @@ class ScenarioReporterPlugin:
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Pickle) -> None:
         """Create scenario report for the item."""
-        self.current_report = ScenarioReport(feature=feature, scenario=scenario)  # type: ignore[call-arg]
+        self.current_report = ScenarioReport(feature=feature, scenario=scenario)
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_bdd_step_error(

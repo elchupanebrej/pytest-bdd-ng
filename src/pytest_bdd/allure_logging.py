@@ -91,7 +91,8 @@ class AllurePytestBDD:
             if value_serializer is None:
                 value_serializer = patched_value_serializer
 
-            return asdict(*args, value_serializer=patched_value_serializer, **kwargs)
+            kwargs["value_serializer"] = patched_value_serializer
+            return asdict(*args, **kwargs)
 
         with patch("allure_commons.logger.asdict", new=patched_asdict):
             yield

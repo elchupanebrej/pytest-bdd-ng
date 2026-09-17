@@ -4,10 +4,8 @@ import plistlib
 
 def read(path):
     """return webloc url"""
-    if hasattr(plistlib, "load"):
-        with open(path, "rb") as f:
-            return plistlib.load(f).get("URL")
-    return plistlib.readPlist(path).get("URL")
+    with open(path, "rb") as f:
+        return plistlib.load(f).get("URL")
 
 
 def write(path, url):
@@ -16,8 +14,5 @@ def write(path, url):
     dir = os.path.dirname(path)
     if not os.path.exists(dir):
         os.makedirs(dir)
-    if hasattr(plistlib, "dump"):
-        with open(path, "wb") as f:
-            plistlib.dump(data, f)
-    else:
-        plistlib.writePlist(data, path)
+    with open(path, "wb") as f:
+        plistlib.dump(data, f)

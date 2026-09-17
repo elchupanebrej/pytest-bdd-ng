@@ -254,7 +254,8 @@ show_error_codes = true
 module = ["messages", "messages.*"]
 follow_imports = "skip"
 
-# gherkin-official, cucumber-expressions, parse/parse_type, hjson, and pyhocon
+# gherkin-official, cucumber-expressions, cucumber-tag-expressions,
+# parse/parse_type, hjson, pyhocon, mako, panflute, pycmarkgfm, and pypandoc
 # ship no type information (no py.typed marker), so mypy cannot analyze their
 # imports. Treat them as untyped dependencies until upstream types exist (#200).
 [[tool.mypy.overrides]]
@@ -263,11 +264,29 @@ module = [
   "gherkin.*",
   "cucumber_expressions",
   "cucumber_expressions.*",
+  "cucumber_tag_expressions",
   "parse",
   "parse_type",
   "parse_type.*",
   "hjson",
   "pyhocon",
+  "mako",
+  "mako.*",
+  "panflute",
+  "pycmarkgfm",
+  "pypandoc",
+]
+ignore_missing_imports = true
+
+# allure-python-commons and allure-pytest back the optional [allure] extra and
+# are absent from the type-check environment; they also ship no type
+# information. Treat them as untyped optional dependencies (#200).
+[[tool.mypy.overrides]]
+module = [
+  "allure_commons",
+  "allure_commons.*",
+  "allure_pytest",
+  "allure_pytest.*",
 ]
 ignore_missing_imports = true
 
