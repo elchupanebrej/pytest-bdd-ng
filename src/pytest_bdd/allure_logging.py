@@ -81,7 +81,11 @@ class AllurePytestBDD:
                 if recurse:
                     try:
                         return patched_asdict(
-                            value, *args[1:], recurse=True, value_serializer=patched_value_serializer, **kwargs
+                            value,
+                            *args[1:],
+                            recurse=True,
+                            value_serializer=patched_value_serializer,
+                            **{k: v for k, v in kwargs.items() if k != "value_serializer"},
                         )
                     except NotAnAttrsClassError:
                         return value
