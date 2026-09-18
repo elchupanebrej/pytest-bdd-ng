@@ -21,21 +21,18 @@
 #
 # `git ls-files --others --exclude-standard` adds untracked files (unlike
 # `git status --porcelain`, it never quotes paths that contain spaces).
-# Requires bash >= 4 for the associative-array dedup.
+# Portable to macOS bash 3.2: de-duplication is done with awk, first-seen order.
 set -euo pipefail
 
 FULL=0
-declare -A SEEN=()
 
 emit() {
-  if [[ -z "${SEEN[$1]:-}" ]]; then
-    printf '%s\n' "$1"
-    SEEN[$1]=1
-  fi
+  printf '%s\n' "$1"
 }
 
 full() { FULL=1; }
 
+{
 while IFS= read -r path; do
   path="${path%$'\r'}"
   [[ -n "$path" ]] || continue
@@ -127,3 +124,4 @@ done
 if [[ "$FULL" -eq 1 ]]; then
   echo "FULL"
 fi
+} | awk '!seen[$0]++'
