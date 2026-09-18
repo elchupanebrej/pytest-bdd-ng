@@ -2,6 +2,12 @@
 branch = true
 source = pytest_bdd
 
+[paths]
+source =
+    src/pytest_bdd
+    .tox/*/lib/python*/site-packages/pytest_bdd
+    .tox/*/Lib/site-packages/pytest_bdd
+
 [report]
 fail_under = 85
 precision = 2
