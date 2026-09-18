@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import glob
 import os
+import shutil
 import subprocess
 from functools import wraps
 from itertools import chain
@@ -24,20 +25,24 @@ def _check_subprocess(func: Callable[..., Any]) -> Callable[..., bool]:
     return wrapper
 
 
+def _npm_command(*args: str) -> list[str]:
+    return [shutil.which("npm") or "npm", *args]
+
+
 def get_npm_root(global_install: bool = False) -> str:
-    cmd = ["npm", "root", "-g"] if global_install else ["npm", "root"]
+    cmd = _npm_command("root", "-g") if global_install else _npm_command("root")
     return subprocess.check_output(cmd).decode("utf-8").strip()  # noqa: S603
 
 
 @_check_subprocess
 def check_npm() -> str:
-    cmd = ["npm", "--version"]
+    cmd = _npm_command("--version")
     return subprocess.check_output(cmd).decode("utf-8").strip()  # noqa: S603
 
 
 @_check_subprocess
 def check_npm_package(package_name: str, global_install: bool = False) -> str:
-    cmd = ["npm", "list", "-g", package_name] if global_install else ["npm", "list", package_name]
+    cmd = _npm_command("list", "-g", package_name) if global_install else _npm_command("list", package_name)
     return subprocess.check_output(cmd).decode("utf-8").strip()  # noqa: S603
 
 

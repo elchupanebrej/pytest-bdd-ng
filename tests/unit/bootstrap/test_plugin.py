@@ -50,6 +50,8 @@ def test_pytest_configure_lifecycle() -> None:
     config.option = MagicMock()
     config.option.cucumber_json_path = None
     config.option.gherkin_terminal_reporter = None
+    config.option.messages_ndjson_path = None
+    config.option.cucumber_html_path = None
 
     pytest_configure(config)
 
