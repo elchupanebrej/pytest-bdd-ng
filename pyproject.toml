@@ -255,9 +255,11 @@ module = ["messages", "messages.*"]
 follow_imports = "skip"
 
 # gherkin-official, cucumber-expressions, cucumber-tag-expressions,
-# parse/parse_type, hjson, pyhocon, mako, panflute, pycmarkgfm, and pypandoc
-# ship no type information (no py.typed marker), so mypy cannot analyze their
-# imports. Treat them as untyped dependencies until upstream types exist (#200).
+# parse/parse_type, hjson, json5, pyhocon, PyYAML/types-PyYAML, mako,
+# panflute, pycmarkgfm, and pypandoc ship no type information (no py.typed
+# marker) or are not installed in the type-check environment, so mypy cannot
+# analyze their imports. Treat them as untyped optional dependencies until
+# upstream types exist (#200, #218, #227).
 [[tool.mypy.overrides]]
 module = [
   "gherkin",
@@ -269,7 +271,11 @@ module = [
   "parse_type",
   "parse_type.*",
   "hjson",
+  "json5",
+  "json5.*",
   "pyhocon",
+  "yaml",
+  "yaml.*",
   "mako",
   "mako.*",
   "panflute",
