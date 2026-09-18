@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from pytest_bdd.exceptions import FeatureConcreteParseError
+from pytest_bdd.gherkin_builder import build_feature_from_dict
 from pytest_bdd.model.step import StepType
 from pytest_bdd.parser import GherkinParser, default_parser_registry
 
@@ -195,3 +196,66 @@ def test_default_registry_has_gherkin_parser() -> None:
     assert isinstance(p1, GherkinParser)
     assert isinstance(p2, GherkinParser)
     assert isinstance(p3, GherkinParser)
+
+
+def test_build_feature_from_raw_dict_tolerates_variants() -> None:
+    raw = {
+        "feature": {
+            "name": "Raw Feature",
+            "keyword": "Feature",
+            "language": "en",
+            "location": {"line": 1},
+            "children": [
+                {"unknownChild": {}},
+                {
+                    "scenario": {
+                        "name": "Scenario",
+                        "keyword": "Scenario",
+                        "location": {"line": 2},
+                        "steps": [
+                            {
+                                "text": "mystery step",
+                                "keyword": "Mystery",
+                                "keywordType": "Weird",
+                                "location": {"line": 3},
+                            },
+                            {
+                                "text": "keywordless step",
+                                "keyword": "Mystery",
+                                "location": {"line": 4},
+                            },
+                        ],
+                        "examples": [
+                            {"name": "no header", "keyword": "Examples", "tableBody": [], "location": {"line": 5}}
+                        ],
+                    }
+                },
+                {
+                    "rule": {
+                        "name": "Rule",
+                        "keyword": "Rule",
+                        "location": {"line": 5},
+                        "children": [
+                            {"unknownChild": {}},
+                            {
+                                "scenario": {
+                                    "name": "Rule Scenario",
+                                    "keyword": "Scenario",
+                                    "location": {"line": 6},
+                                    "steps": [],
+                                }
+                            },
+                        ],
+                    }
+                },
+            ],
+        }
+    }
+
+    feature = build_feature_from_dict(raw, uri="raw.feature")
+
+    assert feature.name == "Raw Feature"
+    assert [scenario.name for scenario in feature.scenarios] == ["Scenario"]
+    assert [step.type for step in feature.scenarios[0].steps] == [StepType.unknown, StepType.unknown]
+    assert feature.scenarios[0].examples[0].header is None
+    assert [scenario.name for scenario in feature.rules[0].scenarios] == ["Rule Scenario"]

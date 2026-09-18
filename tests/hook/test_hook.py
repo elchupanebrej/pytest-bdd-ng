@@ -277,3 +277,48 @@ def test_hook_execution_on_feature_no_tag_using_mark_hook(testdir):
     )
     result = testdir.runpytest()
     result.assert_outcomes(passed=1)
+
+
+def test_tag_hook_with_unmatched_expression_is_not_called(testdir):
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd.hook import before_tag
+
+        @before_tag("never")
+        def should_not_run(request):
+            raise AssertionError("hook must not run for an unmatched tag")
+        """
+    )
+    testdir.makepyfile(
+        # language=python
+        """\
+        def test_plain():
+            assert True
+        """
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1)
+
+
+def test_around_hook_must_be_generator(testdir):
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd.hook import around_tag
+
+        @around_tag("never")
+        def not_a_generator(request):
+            return None
+        """
+    )
+    testdir.makepyfile(
+        # language=python
+        """\
+        def test_plain():
+            assert True
+        """
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(errors=1)
+    result.stdout.fnmatch_lines(["*ERROR*ValueError: _around*"])

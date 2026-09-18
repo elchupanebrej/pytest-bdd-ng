@@ -138,3 +138,12 @@ def test_generate_missing_with_step_parsers(testdir):
     assert "I use parsers.parse" not in output
     assert "I use parsers.re" not in output
     assert "I use parsers.cfparse" not in output
+
+
+def test_generation_requires_feature_option(testdir):
+    """Both generation commands report the missing --feature option."""
+    missing_result = testdir.runpytest("--generate-missing")
+    missing_result.stdout.fnmatch_lines(["The --feature parameter is required."])
+
+    generate_result = testdir.runpytest("--generate")
+    generate_result.stdout.fnmatch_lines(["The --feature parameter is required."])

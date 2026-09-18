@@ -23,6 +23,14 @@ def test_resolve_callable_source_location() -> None:
     assert line > 0
 
 
+def test_resolve_callable_source_location_falls_back_without_source() -> None:
+    namespace: dict[str, object] = {}
+    exec("def generated():\n    pass\n", namespace)
+    file_path, line = _resolve_callable_source_location(namespace["generated"])
+    assert file_path == "<string>"
+    assert line == 1
+
+
 def test_definition_get_parameters_and_fixtures_mapped() -> None:
     parser = string("I have apples")
     defn = Definition(

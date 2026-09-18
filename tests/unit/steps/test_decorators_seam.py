@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import pytest
 from ordered_set import OrderedSet
 
 from pytest_bdd.model.step import Step, StepType
@@ -10,6 +11,7 @@ from pytest_bdd.parsers.string_parser import string
 from pytest_bdd.steps.decorators import given, not_implemented, then, tolerant, when
 from pytest_bdd.steps.matcher import Matcher
 from pytest_bdd.steps.registry import Registry
+from pytest_bdd.warning_types import PytestBDDStepDefinitionWarning
 
 from pytest import mark
 
@@ -61,3 +63,38 @@ def test_matcher_liberal_mode() -> None:
     step_item = Step(name="I check state", keyword="Given", type=StepType.context)
     match_defn = matcher(None, None, None, step_item, None, reg)
     assert match_defn.func is then_check
+
+
+def test_target_fixture_with_target_fixtures_warns() -> None:
+    with pytest.warns(PytestBDDStepDefinitionWarning, match="Both target_fixture"):
+
+        @given(string("I have both target options"), target_fixture="one", target_fixtures=["two"])
+        def both_targets() -> None:
+            pass
+
+
+def test_registry_namespace_discovery_tolerates_odd_attributes() -> None:
+    @given(string("I have a discoverable step"))
+    def discoverable() -> None:
+        pass
+
+    definition = next(iter(discoverable.__pytest_bdd_step_definitions__))
+
+    class Container:
+        __pytest_bdd_step_definitions__ = OrderedSet([definition])
+
+    class GeneratorContainer:
+        __pytest_bdd_step_definitions__ = (d for d in [definition])
+
+    class Namespace:
+        good = Container()
+        generator = GeneratorContainer()
+
+        def __dir__(self):
+            return ["good", "generator", "broken"]
+
+        @property
+        def broken(self):
+            raise RuntimeError("broken attribute")
+
+    assert list(Registry(namespace=Namespace())) == [definition]

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re as std_re
 
 import parse as base_parse
+import pytest
 from cucumber_expressions.expression import CucumberExpression
 from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
@@ -112,3 +113,32 @@ def test_step_parser_build_factory() -> None:
 
     p_str = StepParser.build("hello world")
     assert isinstance(p_str, heuristic)
+
+
+def test_parse_cfparse_classmethod() -> None:
+    assert parse.cfparse("I have {count:d}").is_matching(None, "I have 3")
+
+
+def test_parser_constructors_reject_unsupported_input() -> None:
+    with pytest.raises(NotImplementedError):
+        cucumber_expression(123)
+    with pytest.raises(NotImplementedError):
+        cucumber_regular_expression(123)
+    with pytest.raises(NotImplementedError):
+        bdd_re(123)
+
+
+def test_cucumber_expression_uses_fresh_registry() -> None:
+    parser = cucumber_expression("I have {int} cucumbers", parameter_type_registry=RegistryMode.NEW)
+    assert parser.is_matching(None, "I have 5 cucumbers")
+
+
+def test_heuristic_skips_unbuildable_parsers_and_is_idempotent() -> None:
+    parser = heuristic("[")
+    assert parser.re_parser is None
+    assert parser.is_matching(None, "[")
+
+    parser.build_parsers()
+    assert parser.parsers_are_built is True
+
+    assert parser.parse_arguments(None, "no match") is None
