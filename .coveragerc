@@ -1,3 +1,7 @@
 [run]
 branch = true
 source = pytest_bdd
+
+[report]
+fail_under = 85
+precision = 2
