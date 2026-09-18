@@ -9,7 +9,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_tags_selector(testdir):
     """Test tests selection by tags."""
     testdir.makefile(

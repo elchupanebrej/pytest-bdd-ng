@@ -7,7 +7,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_url_helpers() -> None:
     assert is_local_url("features/test.feature")
     assert not is_local_url("https://example.com/test")

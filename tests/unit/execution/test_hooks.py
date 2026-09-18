@@ -27,7 +27,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_hook_enums_and_decorators() -> None:
     assert HookKind.mark.value == "mark"
     assert HookKind.tag.value == "tag"

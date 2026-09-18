@@ -9,7 +9,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_data_table_to_dicts() -> None:
     assert data_table_to_dicts(None) == {}
     row = Mock(cells=[Mock(value="col1"), Mock(value="val1")])

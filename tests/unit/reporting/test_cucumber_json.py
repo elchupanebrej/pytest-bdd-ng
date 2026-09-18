@@ -14,7 +14,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_add_options() -> None:
     parser = MagicMock()
     group = MagicMock()

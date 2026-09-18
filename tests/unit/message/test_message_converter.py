@@ -16,7 +16,6 @@ from pytest_bdd.model.tag import Tag
 pytestmark = pytest.mark.unit
 
 
-
 def test_feature_to_gherkin_document_conversion() -> None:
     step1 = Step(name="an item exists", keyword="Given ", line=5)
     doc_str = DocString(content="hello world", media_type="text/plain", line=8)

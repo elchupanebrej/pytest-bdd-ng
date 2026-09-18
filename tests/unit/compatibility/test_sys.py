@@ -7,7 +7,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_get_frame() -> None:
     frame = get_frame()
     assert frame is not None

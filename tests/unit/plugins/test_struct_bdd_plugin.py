@@ -12,7 +12,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_struct_bdd_plugin_get_parser() -> None:
     plugin = StructBDDPlugin()
     config = MagicMock()

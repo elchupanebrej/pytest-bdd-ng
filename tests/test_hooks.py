@@ -5,7 +5,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_hooks(testdir):
     subdir = testdir.mkpydir("subdir")
     subdir.join("conftest.py").write(

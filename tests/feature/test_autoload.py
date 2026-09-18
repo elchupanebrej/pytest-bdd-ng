@@ -24,7 +24,6 @@ Feature: linked
 """
 
 
-
 def test_autoload_disabled_with_conftest_on_same_level(testdir):
     testdir.makefile(
         ".feature",

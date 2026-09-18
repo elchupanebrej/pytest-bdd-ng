@@ -23,7 +23,6 @@ from pytest_bdd.model import StepType
 pytestmark = pytest.mark.unit
 
 
-
 def test_generation_helpers() -> None:
     assert make_python_docstring("simple") == '"""simple."""'
     assert make_python_docstring('with """ quotes') == '"""with \\"\\"\\" quotes."""'

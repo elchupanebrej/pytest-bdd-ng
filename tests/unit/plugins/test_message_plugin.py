@@ -143,9 +143,7 @@ def test_check_npm_and_cucumber_packages_exits_when_dependencies_missing(monkeyp
         plugin.check_npm_and_cucumber_packages()
 
     monkeypatch.setattr("pytest_bdd.message_plugin.check_npm", lambda: True)
-    monkeypatch.setattr(
-        "pytest_bdd.message_plugin.check_npm_package", lambda package, global_install=False: False
-    )
+    monkeypatch.setattr("pytest_bdd.message_plugin.check_npm_package", lambda package, global_install=False: False)
     with pytest.raises(Exit):
         plugin.check_npm_and_cucumber_packages()
 

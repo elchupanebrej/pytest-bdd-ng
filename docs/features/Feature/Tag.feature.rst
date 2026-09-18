@@ -12,7 +12,7 @@ Rule:
 '''''
 
 Background:
-           
+
 
 -  Given File "Passed.feature" with content:
 
@@ -70,7 +70,7 @@ Background:
         fail('Enforce fail')
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -90,7 +90,7 @@ Scenario:
 .. _scenario-1:
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -110,7 +110,7 @@ Scenario:
 .. _scenario-2:
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -130,7 +130,7 @@ Scenario:
 .. _scenario-3:
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -150,7 +150,7 @@ Scenario:
 .. _scenario-4:
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -170,7 +170,7 @@ Scenario:
 .. _scenario-5:
 
 Scenario:
-         
+
 
 -  When run pytest
 -  Then pytest outcome must contain tests with statuses:

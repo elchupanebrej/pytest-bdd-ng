@@ -5,7 +5,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_examples_interpolation_in_docstring_and_datatable(testdir):
     testdir.makefile(
         ".feature",

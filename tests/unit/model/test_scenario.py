@@ -11,7 +11,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_scenario_and_rule() -> None:
     t = Tag(name="@smoke")
     s = Step(name="step 1", keyword="Given ")

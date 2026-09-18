@@ -144,7 +144,7 @@ Rule: Steps could be executed by liberal step keyword decorator
    - so it could be bound to any kind of keyword
 
 Background:
-           
+
 
 -  Given File "steps.feature" with content:
 
@@ -177,7 +177,7 @@ Background:
           Then there are "16" passed liberal steps
 
 Scenario: Same step is used with different keywords
-                                                   
+
 
 -  Given File "conftest.py" with content:
 
@@ -214,7 +214,7 @@ Scenario: Same step is used with different keywords
    +--------+
 
 Scenario: Keyworded steps could be treated as liberal by pytest command line option
-                                                                                   
+
 
 -  Given File "conftest.py" with content:
 

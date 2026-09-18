@@ -5,7 +5,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_steps_in_feature_file_have_unicode(testdir):
     testdir.makefile(
         ".feature",

@@ -10,7 +10,6 @@ from pytest_bdd.utils import deepattrgetter, doesnt_raise, flip, setdefaultattr
 pytestmark = pytest.mark.integration
 
 
-
 def test_get_attribute():
     @attrs
     class Foo:

@@ -21,7 +21,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_seam6_liberal_steps_configuration_contract() -> None:
     config = MagicMock()
     config.option.liberal_steps = True

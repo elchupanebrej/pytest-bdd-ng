@@ -12,7 +12,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_packaging_versions() -> None:
     assert parse_version("1.2.3") == Version("1.2.3")
     with patch("pytest_bdd.packaging.version", return_value="2.3.1"):

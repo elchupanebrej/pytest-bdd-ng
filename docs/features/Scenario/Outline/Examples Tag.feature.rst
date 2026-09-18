@@ -2,10 +2,10 @@ Feature: Scenario Outline examples could be tagged
 ''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Rule:
-     
+
 
 Background:
-           
+
 
 -  Given File "steps.feature" with content:
 
@@ -58,7 +58,7 @@ Background:
         fail('Enforce fail')
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -78,7 +78,7 @@ Scenario:
 .. _scenario-1:
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -98,7 +98,7 @@ Scenario:
 .. _scenario-2:
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -118,7 +118,7 @@ Scenario:
 .. _scenario-3:
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -138,7 +138,7 @@ Scenario:
 .. _scenario-4:
 
 Scenario:
-         
+
 
 -  When run pytest
 
@@ -158,7 +158,7 @@ Scenario:
 .. _scenario-5:
 
 Scenario:
-         
+
 
 -  When run pytest
 -  Then pytest outcome must contain tests with statuses:
@@ -170,12 +170,12 @@ Scenario:
    ====== ======
 
 Rule: Mixing tags on feature & examples level
-                                             
+
 
 .. _background-1:
 
 Background:
-           
+
 
 -  Given File "steps.feature" with content:
 
@@ -220,7 +220,7 @@ Background:
         fail('Enforce fail')
 
 Example:
-        
+
 
 -  When run pytest
 
@@ -240,7 +240,7 @@ Example:
 .. _example-1:
 
 Example:
-        
+
 
 -  When run pytest
 
@@ -260,7 +260,7 @@ Example:
 .. _example-2:
 
 Example:
-        
+
 
 -  When run pytest
 
@@ -280,7 +280,7 @@ Example:
 .. _example-3:
 
 Example:
-        
+
 
 -  When run pytest
 
@@ -300,7 +300,7 @@ Example:
 .. _example-4:
 
 Example:
-        
+
 
 -  When run pytest
 
@@ -319,7 +319,7 @@ Example:
 .. _example-5:
 
 Example:
-        
+
 
 -  When run pytest
 
@@ -338,7 +338,7 @@ Example:
 .. _example-6:
 
 Example:
-        
+
 
 -  When run pytest
 
@@ -357,7 +357,7 @@ Example:
 .. _example-7:
 
 Example:
-        
+
 
 -  When run pytest
 

@@ -14,7 +14,6 @@ from pytest_bdd.exceptions import (
 pytestmark = pytest.mark.unit
 
 
-
 def test_exception_hierarchy() -> None:
     assert issubclass(ScenarioValidationError, PytestBDDError)
     assert issubclass(ScenarioNotFound, ScenarioValidationError)

@@ -12,7 +12,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def dummy_step() -> None:
     pass
 

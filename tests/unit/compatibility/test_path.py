@@ -12,7 +12,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_relpath(tmp_path: Path) -> None:
     sub = tmp_path / "sub" / "file.txt"
     assert relpath(str(sub), start=str(tmp_path)) == os.path.join("sub", "file.txt")

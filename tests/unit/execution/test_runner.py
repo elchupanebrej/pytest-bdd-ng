@@ -13,7 +13,6 @@ from pytest_bdd.runner import ScenarioRunner, StepRunner
 pytestmark = pytest.mark.unit
 
 
-
 def test_step_runner_inject_target_fixtures() -> None:
     runner = StepRunner()
     mock_request = MagicMock()

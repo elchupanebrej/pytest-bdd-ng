@@ -7,6 +7,5 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_struct_bdd_installed_flag() -> None:
     assert isinstance(STRUCT_BDD_INSTALLED, bool)

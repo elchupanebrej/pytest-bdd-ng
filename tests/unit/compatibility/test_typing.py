@@ -13,7 +13,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_typing_exports() -> None:
     Alias: TypeAlias = int
     assert Alias is int

@@ -8,7 +8,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_step_run_lifecycle_and_status() -> None:
     step_run = StepRun(id="step-1")
     assert step_run.status == "passed"

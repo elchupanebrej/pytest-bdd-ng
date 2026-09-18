@@ -14,7 +14,7 @@ inside of the fixture tree could be set/override in a ad-hoc way by just
 choosing the proper name for the step argument.
 
 Scenario: Step parameters are injected as fixtures by default
-                                                             
+
 
 -  Given File "conftest.py" with content:
 
@@ -84,7 +84,7 @@ Scenario: Step parameters are injected as fixtures by default
    +--------+
 
 Scenario: Step parameters injection as fixtures could be disabled
-                                                                 
+
 
 -  Given File "conftest.py" with content:
 
@@ -151,7 +151,7 @@ Scenario: Step parameters injection as fixtures could be disabled
    +--------+
 
 Scenario: Step parameters renaming on injection as fixtures
-                                                           
+
 
 -  Given File "conftest.py" with content:
 
@@ -218,7 +218,7 @@ Scenario: Step parameters renaming on injection as fixtures
    +--------+
 
 Scenario: Only allowed step parameters injection as fixtures
-                                                            
+
 
 -  Given File "conftest.py" with content:
 

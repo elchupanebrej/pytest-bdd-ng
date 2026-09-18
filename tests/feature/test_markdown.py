@@ -5,7 +5,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_markdown(testdir):
     testdir.makefile(
         ".feature.md",

@@ -5,7 +5,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_background_no_strict_gherkin(testdir):
     """Test background no strict gherkin."""
     testdir.makeconftest(

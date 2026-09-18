@@ -2,7 +2,7 @@ Feature: Gherkin features load by scenario and scenarios functions
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Background:
-           
+
 
 -  Given File "Passing.feature" in the temporary path with content:
 
@@ -23,7 +23,7 @@ Background:
         ...
 
 Scenario: "scenario" function is used as decorator
-                                                  
+
 
 -  And File "test_scenario_load.py" with fixture templated content:
 
@@ -38,7 +38,7 @@ Scenario: "scenario" function is used as decorator
         ...
 
 Scenario: "scenarios" function is used as decorator
-                                                   
+
 
 -  And File "test_scenario_load.py" with fixture templated content:
 
@@ -63,7 +63,7 @@ Scenario: "scenarios" function is used as decorator
    +--------+
 
 Scenario: "scenario" function is used to register feature as test
-                                                                 
+
 
 -  And File "test_scenario_load.py" with fixture templated content:
 
@@ -85,7 +85,7 @@ Scenario: "scenario" function is used to register feature as test
    +--------+
 
 Scenario: "scenarios" function is used to register feature as test
-                                                                  
+
 
 -  And File "test_scenario_load.py" with fixture templated content:
 

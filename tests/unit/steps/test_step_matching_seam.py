@@ -18,7 +18,6 @@ from pytest_bdd.steps.registry import Registry
 pytestmark = pytest.mark.unit
 
 
-
 def test_matcher_strict_and_unspecified() -> None:
     @given(parse("I have {count:d} cucumbers"))
     def given_cucumbers(count: int) -> None:

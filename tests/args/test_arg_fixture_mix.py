@@ -5,7 +5,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_arg_fixture_mix(testdir, tmp_path):
     subdir = testdir.mkpydir("arg_fixture_mix")
     subdir.join("test_a.py").write(

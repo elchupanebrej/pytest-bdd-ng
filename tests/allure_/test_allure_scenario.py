@@ -7,7 +7,6 @@ from pytest_bdd.compatibility.pytest import PYTEST81
 pytestmark = mark.integration
 
 
-
 @scenario("testdata/allure_//scenario.feature", "Simple passed scenario")
 @mark.skipif(not ALLURE_INSTALLED, reason="Allure is not installed")
 @mark.skipif(PYTEST81, reason="Allure uses deprecated APIs")

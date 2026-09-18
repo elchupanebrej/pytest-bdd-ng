@@ -13,7 +13,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_feature_model() -> None:
     tag = Tag(name="@core")
     bg = Background(name="BG", steps=(Step(name="init", keyword="Given "),))

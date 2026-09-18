@@ -35,7 +35,7 @@ Scenario: NDJson(JSONL) could be produced on the feature run
    ========== ================= ==========
    cli_args   --messages-ndjson out.ndjson
    ========== ================= ==========
-   subprocess true              
+   subprocess true
    ========== ================= ==========
 
 -  Then File "out.ndjson" has "15" lines
@@ -61,7 +61,7 @@ Scenario: HTML report could be produced on the feature run
    ========== =============== ========
    cli_args   --cucumber-html out.html
    ========== =============== ========
-   subprocess true            
+   subprocess true
    ========== =============== ========
 
 -  Then File "out.html" is not empty

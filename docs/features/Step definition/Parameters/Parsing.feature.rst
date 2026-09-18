@@ -8,10 +8,10 @@ arguments. There are an multiple step parameter parsers available for
 your use.
 
 Rule: Step definitions parameters parsing
-                                         
+
 
 Background:
-           
+
 
 -  Given File "Parametrized.feature" with content:
 
@@ -28,7 +28,7 @@ Background:
           And I should have 999999 Euro
 
 Example: Heuristic parser guesses a type and builds particular parser to be applied
-                                                                                   
+
 
 ::
 
@@ -94,7 +94,7 @@ Example: Heuristic parser guesses a type and builds particular parser to be appl
    +--------+
 
 Example: by "parse"
-                   
+
 
 ::
 
@@ -160,7 +160,7 @@ Example: by "parse"
    +--------+
 
 Example: by "cfparse"
-                     
+
 
 ::
 
@@ -226,7 +226,7 @@ Example: by "cfparse"
    +--------+
 
 Example: by "cucumber-expressions"
-                                  
+
 
 ::
 
@@ -300,7 +300,7 @@ Example: by "cucumber-expressions"
    +--------+
 
 Example: by "cucumber-regular-expressions"
-                                          
+
 
 ::
 
@@ -378,7 +378,7 @@ Example: by "cucumber-regular-expressions"
    +--------+
 
 Example: by "regular-expressions"
-                                 
+
 
 ::
 

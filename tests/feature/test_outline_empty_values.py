@@ -7,7 +7,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_scenario_with_empty_example_values(testdir):
     testdir.makefile(
         ".feature",

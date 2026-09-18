@@ -17,7 +17,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_leaf_serialization_roundtrip() -> None:
     tag = Tag(name="@smoke", line=1, id="t1")
     assert from_dict(Tag, as_dict(tag)) == tag

@@ -7,7 +7,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_consts() -> None:
     assert TAG_PREFIX == "@"
     assert PYTHON_REPLACE_REGEX.sub("_", "a-b.c") == "a_b_c"

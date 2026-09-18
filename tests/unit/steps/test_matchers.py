@@ -20,7 +20,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_step_match_and_enums() -> None:
     match = StepMatch(parameters={"x": "1"}, span=(0, 5))
     assert match.parameters == {"x": "1"} and match.span == (0, 5) and match.parser is None

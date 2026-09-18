@@ -5,7 +5,7 @@ There is possibility to pass argument converters which may be useful if
 you need to postprocess step arguments after the parser.
 
 Background:
-           
+
 
 -  Given File "Example.feature" with content:
 
@@ -16,7 +16,7 @@ Background:
           Given I have a cucumber
 
 Scenario: for non-anonymous groups
-                                  
+
 
 -  Given File "conftest.py" with content:
 
@@ -44,7 +44,7 @@ Scenario: for non-anonymous groups
    +--------+
 
 Rule: for anonymous groups
-                          
+
 
 ::
 
@@ -52,7 +52,7 @@ Rule: for anonymous groups
    we have to name them before conversion
 
 Scenario:
-         
+
 
 -  Given File "conftest.py" with content:
 
@@ -86,7 +86,7 @@ Scenario:
 .. _scenario-1:
 
 Scenario:
-         
+
 
 -  Given File "conftest.py" with content:
 

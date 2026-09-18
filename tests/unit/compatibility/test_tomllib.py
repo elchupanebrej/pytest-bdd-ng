@@ -9,7 +9,6 @@ from pytest_bdd.compatibility.tomllib import TOMLDecodeError, load, loads
 pytestmark = pytest.mark.unit
 
 
-
 def test_tomllib_loads() -> None:
     data = loads('title = "TOML Test"\n[table]\nkey = "value"')
     assert data == {"title": "TOML Test", "table": {"key": "value"}}

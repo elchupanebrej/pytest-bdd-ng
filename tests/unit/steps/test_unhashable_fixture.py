@@ -9,7 +9,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_definition_with_unhashable_defaults_is_hashable():
     def dummy_func():
         pass

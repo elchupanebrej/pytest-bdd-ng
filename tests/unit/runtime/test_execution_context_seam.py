@@ -13,7 +13,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_seam4_pure_state_access_contract() -> None:
     st1 = Step(name="setup state", keyword="Given ", line=2, id="st-1")
     st2 = Step(name="perform action", keyword="When ", line=3, id="st-2")
@@ -67,7 +66,9 @@ def test_seam4_pure_state_access_contract() -> None:
 def test_seam4_scenario_report_failure_details_and_step_accumulation() -> None:
     failing_step = Step(name="fails", keyword="Given ", line=2, id="st-1")
     pending_step = Step(name="never runs", keyword="Then ", line=3, id="st-2")
-    scenario = Scenario(name="Failing scenario", keyword="Scenario", line=1, id="sc-1", steps=(failing_step, pending_step))
+    scenario = Scenario(
+        name="Failing scenario", keyword="Scenario", line=1, id="sc-1", steps=(failing_step, pending_step)
+    )
 
     sc_run = ScenarioRun(scenario=scenario, run_id="run-fail-1")
     step_run = StepRun(step=failing_step, id="sr-1")

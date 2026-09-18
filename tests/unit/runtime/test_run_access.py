@@ -17,7 +17,6 @@ from pytest_bdd.model.stash_access import ItemStash, SimpleStash
 pytestmark = pytest.mark.unit
 
 
-
 def test_run_access_with_simple_stash() -> None:
     stash = SimpleStash()
     assert get_scenario_run(stash) is None

@@ -17,7 +17,6 @@ from pytest_bdd.compatibility.pytest import (
 pytestmark = pytest.mark.unit
 
 
-
 def test_is_pytest_version_greater_or_equal() -> None:
     assert is_pytest_version_greater_or_equal("7.0") is True
     assert is_pytest_version_greater_or_equal("999.0") is False

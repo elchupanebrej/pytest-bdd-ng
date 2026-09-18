@@ -6,10 +6,10 @@ tests if are placed in the tests hierarchy proposed by pytest. This
 behavior could be disabled
 
 Rule: Feature autoload
-                      
+
 
 Background:
-           
+
 
 -  Given File "Passing.feature" with content:
 
@@ -46,7 +46,7 @@ Background:
         ...
 
 Scenario: Feature is loaded by default
-                                      
+
 
 -  When run pytest
 -  Then pytest outcome must contain tests with statuses:
@@ -58,7 +58,7 @@ Scenario: Feature is loaded by default
    +--------+
 
 Scenario: Feature autoload could be disabled via command line
-                                                             
+
 
 -  When run pytest
 
@@ -76,7 +76,7 @@ Scenario: Feature autoload could be disabled via command line
    +--------+
 
 Scenario: Feature autoload could be disabled via pytest.ini
-                                                           
+
 
 -  Given Set pytest.ini content to:
 

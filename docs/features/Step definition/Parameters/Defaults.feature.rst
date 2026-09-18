@@ -2,7 +2,7 @@ Feature: Step definitions parameters could have default values
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Scenario:
-         
+
 
 -  Given File "Example.feature" with content:
 

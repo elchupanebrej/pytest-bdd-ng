@@ -1,10 +1,10 @@
 """
-    conftest.py is local per-directory plugin of pytest.
-    Its mission is to define fixtures, steps, and hooks which will be used
-    by tests gathered by pytest from directory structure below
+conftest.py is local per-directory plugin of pytest.
+Its mission is to define fixtures, steps, and hooks which will be used
+by tests gathered by pytest from directory structure below
 
-    https://docs.pytest.org/en/latest/how-to/writing_plugins.html#conftest-py-local-per-directory-plugins
-    https://docs.pytest.org/en/latest/explanation/goodpractices.html#test-discovery
+https://docs.pytest.org/en/latest/how-to/writing_plugins.html#conftest-py-local-per-directory-plugins
+https://docs.pytest.org/en/latest/explanation/goodpractices.html#test-discovery
 """
 
 from pytest import fixture

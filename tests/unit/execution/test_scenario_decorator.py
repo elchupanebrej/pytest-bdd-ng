@@ -15,7 +15,6 @@ from pytest_bdd.scenario import (
 pytestmark = pytest.mark.unit
 
 
-
 def test_feature_path_type_enum() -> None:
     assert FeaturePathType.PATH.value == "path"
     assert FeaturePathType.URL.value == "url"

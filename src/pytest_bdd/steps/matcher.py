@@ -46,10 +46,7 @@ class Matcher:
         self.request, self.feature, self.scenario = request, feature, scenario
         self.step, self.previous_step, self.step_registry = step, previous_step, step_registry
         step_type = self.step.type
-        if step_type is not None:
-            step_type_str = str(getattr(step_type, "value", step_type)).lower()
-        else:
-            step_type_str = ""
+        step_type_str = str(getattr(step_type, "value", step_type)).lower() if step_type is not None else ""
 
         if step_type_str in ("context", "given"):
             step_type = StepType.context

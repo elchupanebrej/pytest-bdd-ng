@@ -11,7 +11,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_python_name_generator():
     """Test python name generator function."""
     assert list(itertools.islice(get_python_name_generator("Some name"), 3)) == [

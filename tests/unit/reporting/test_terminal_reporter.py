@@ -14,7 +14,6 @@ from pytest_bdd.gherkin_terminal_reporter import (
 pytestmark = pytest.mark.unit
 
 
-
 def test_terminal_reporter_add_options() -> None:
     parser = MagicMock()
     group = MagicMock()

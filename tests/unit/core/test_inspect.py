@@ -14,7 +14,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def sample_func(a: int, b: str = "x") -> None:
     pass
 

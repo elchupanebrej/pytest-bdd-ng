@@ -17,7 +17,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_collector_classes_and_aliases() -> None:
     assert FeatureFileCollector is FeatureFileModule
     assert ModuleCollector is Module

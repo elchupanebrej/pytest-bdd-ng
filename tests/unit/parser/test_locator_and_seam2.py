@@ -280,9 +280,7 @@ def test_url_locator_falls_back_to_parser_type_and_path() -> None:
     body = b"Feature: Remote\n  Scenario: S\n    Given remote step\n"
 
     with patch("pytest_bdd.scenario_locator.urlopen", return_value=_http_response("", body)):
-        by_parser_type = UrlScenarioLocator(
-            url_paths=["https://example.com/no-extension"], parser_type=GherkinParser
-        )
+        by_parser_type = UrlScenarioLocator(url_paths=["https://example.com/no-extension"], parser_type=GherkinParser)
         assert [f.name for f in by_parser_type.resolve_features()] == ["Remote"]
 
     with patch("pytest_bdd.scenario_locator.urlopen", return_value=_http_response("", body)):

@@ -9,7 +9,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_parsed_feature_instantiation() -> None:
     feature = ParsedFeature(
         gherkin_document=None,  # type: ignore[arg-type]

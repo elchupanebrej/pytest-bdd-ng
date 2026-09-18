@@ -24,7 +24,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_matrix_bounds_and_constants() -> None:
     assert MIN_SUPPORTED_PYTHON == (3, 10)
     assert MIN_SUPPORTED_PYTEST == (7, 0, 0)

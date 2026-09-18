@@ -2,7 +2,7 @@ Feature: Step definitions parameters parsing by custom parser
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 Scenario:
-         
+
 
 -  Given File "Example.feature" with content:
 

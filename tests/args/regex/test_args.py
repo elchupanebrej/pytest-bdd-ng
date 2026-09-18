@@ -5,7 +5,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 @mark.parametrize(
     "parser_import_string",
     [

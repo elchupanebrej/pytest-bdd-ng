@@ -37,7 +37,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_pytest_addhooks() -> None:
     pluginmanager = MagicMock()
     pytest_addhooks(pluginmanager)
@@ -167,16 +166,12 @@ def test_build_scenario_locators_callable_base_dir_and_url() -> None:
 def test_build_scenario_locators_path_type_dispatch() -> None:
     config = _config_with_ini({})
 
-    url_mark = make_mark(
-        "scenarios", args=("features/a.feature",), kwargs={"features_path_type": FeaturePathType.URL}
-    )
+    url_mark = make_mark("scenarios", args=("features/a.feature",), kwargs={"features_path_type": FeaturePathType.URL})
     file_locator, url_locator = list(_build_scenario_locators_from_mark(url_mark, config))
     assert file_locator.feature_paths == []
     assert url_locator.url_paths == ["features/a.feature"]
 
-    string_mark = make_mark(
-        "scenarios", args=("features/a.feature",), kwargs={"features_path_type": "undefined"}
-    )
+    string_mark = make_mark("scenarios", args=("features/a.feature",), kwargs={"features_path_type": "undefined"})
     file_locator, url_locator = list(_build_scenario_locators_from_mark(string_mark, config))
     assert file_locator.feature_paths == ["features/a.feature"]
     assert url_locator.url_paths == ["features/a.feature"]

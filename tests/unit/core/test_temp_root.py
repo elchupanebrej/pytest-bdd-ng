@@ -14,7 +14,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_temp_root_and_toolz() -> None:
     assert isinstance(prefer_posix_temp_root(), bool)
     fn = compose(lambda x: x * 2, lambda x: x + 1)

@@ -7,7 +7,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_str_enum() -> None:
     class Color(StrEnum):
         RED = "red"

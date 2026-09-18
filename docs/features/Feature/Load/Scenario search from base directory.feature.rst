@@ -10,7 +10,7 @@ the pytest root directory. You can also override features base path on a
 per-scenario basis, in order to override the path for specific tests.
 
 Background:
-           
+
 
 -  Given File "Passing.feature" in the temporary path with content:
 
@@ -46,7 +46,7 @@ Background:
       test = scenarios('Passing.feature')
 
 Scenario:
-         
+
 
 -  Given File "pytest.ini" with fixture templated content:
 

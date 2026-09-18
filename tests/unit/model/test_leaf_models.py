@@ -10,7 +10,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_leaf_models() -> None:
     t = Tag(name="@smoke", line=1, id="t1")
     assert t.clean_name == "smoke" and t.line == 1 and t.id == "t1"

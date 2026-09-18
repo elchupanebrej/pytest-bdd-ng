@@ -10,7 +10,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_step_and_background() -> None:
     doc = DocString(content="payload", line=2)
     tbl = DataTable(rows=(TableRow(cells=(TableCell("x"),)),), line=3)

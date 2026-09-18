@@ -9,7 +9,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_simple(testdir, pytest_params, tmp_path):
     """Test scenario decorator with a standard usage."""
     (tmp_path / "simple.feature").write_text(

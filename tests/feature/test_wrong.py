@@ -9,7 +9,6 @@ from pytest import mark
 pytestmark = mark.integration
 
 
-
 def test_multiple_features_single_file(testdir):
     """Test validation error when multiple features are placed in a single file."""
     testdir.makefile(

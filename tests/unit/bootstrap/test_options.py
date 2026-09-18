@@ -10,7 +10,6 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-
 def test_add_bdd_ini() -> None:
     parser = MagicMock()
     add_bdd_ini(parser)
