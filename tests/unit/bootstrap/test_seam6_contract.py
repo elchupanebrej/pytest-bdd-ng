@@ -60,6 +60,9 @@ def test_seam6_plugin_lifecycle_and_stash_contract() -> None:
     config.pluginmanager = MagicMock()
     config.option.cucumber_json_path = None
     config.option.gherkin_terminal_reporter = None
+    config.option.messages_ndjson_path = None
+    config.option.cucumber_html_path = None
+    config.option.allure_report_dir = None
 
     pytest_configure(config)
 

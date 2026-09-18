@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
@@ -60,8 +60,11 @@ class AllurePytestBDD:
             allure_plugin_manager.get_plugins()
 
             listener = next(
-                filter(lambda plugin: isinstance(plugin, AllureListener), allure_plugin_manager.get_plugins())
+                (plugin for plugin in allure_plugin_manager.get_plugins() if isinstance(plugin, AllureListener)),
+                None,
             )
+            if listener is None:
+                return None
 
             bdd_listener = cls(listener.allure_logger, listener._cache)
             bdd_listener.allure_plugin_name = allure_plugin_manager.register(bdd_listener)
@@ -191,5 +194,5 @@ class AllurePytestBDD:
 
     @staticmethod
     def get_full_name(feature: Feature, scenario: Any) -> str:
-        feature_path = os.path.normpath(feature.rel_filename)
+        feature_path = Path(feature.rel_filename).as_posix()
         return f"{feature_path}:{scenario.name}"

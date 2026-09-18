@@ -284,6 +284,13 @@ module = [
 ]
 ignore_missing_imports = true
 
+# tomli is only imported on Python <3.11 (see compatibility/tomllib.py) and is
+# absent from the type-check environment on >=3.11; on <3.11 it ships its own
+# types, so a blanket missing-import ignore is correct on every version (#230).
+[[tool.mypy.overrides]]
+module = ["tomli"]
+ignore_missing_imports = true
+
 # allure-python-commons and allure-pytest back the optional [allure] extra and
 # are absent from the type-check environment; they also ship no type
 # information. Treat them as untyped optional dependencies (#200).

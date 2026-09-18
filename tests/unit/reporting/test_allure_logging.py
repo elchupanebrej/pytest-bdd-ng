@@ -124,6 +124,23 @@ def test_register_and_unregister_are_noops_without_allure(monkeypatch: pytest.Mo
     config.pluginmanager.unregister.assert_not_called()
 
 
+def test_register_returns_none_when_no_listener_is_registered(monkeypatch: pytest.MonkeyPatch) -> None:
+    class DummyListener:
+        pass
+
+    plugin_manager = MagicMock()
+    plugin_manager.get_plugins.return_value = []
+
+    monkeypatch.setattr(allure_mod, "ALLURE_INSTALLED", True)
+    monkeypatch.setattr(allure_mod, "AllureListener", DummyListener)
+    monkeypatch.setattr(allure_mod, "allure_plugin_manager", plugin_manager)
+    monkeypatch.setattr(allure_mod, "PYTEST81", False)
+
+    config = MagicMock()
+
+    assert AllurePytestBDD.register_if_allure_accessible(config) is None
+
+
 def test_lifecycle_guards_and_param_fallback_without_allure_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(allure_mod, "TestStepResult", None)
     monkeypatch.setattr(allure_mod, "md5", None)
