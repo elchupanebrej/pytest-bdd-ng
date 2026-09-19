@@ -87,6 +87,50 @@ def test_message_plugin_pytest_bdd_attach() -> None:
     config.hook.pytest_bdd_message.assert_called_once()
 
 
+def _hook_fixture(request):
+    pass
+
+
+_hook_fixture.__pytest_bdd_is_hook__ = True
+_hook_fixture.__pytest_bdd_hook_name__ = "once"
+_hook_fixture.__pytest_bdd_hook_expression__ = "@tagged"
+
+
+def _run_fixture_setup(plugin: MessagePlugin, func) -> None:
+    request = MagicMock()
+    request.config = plugin.config
+    hookwrapper = plugin.pytest_fixture_setup(SimpleNamespace(func=func), request)
+    next(hookwrapper)
+    with pytest.raises(StopIteration):
+        next(hookwrapper)
+
+
+def test_hook_message_registry_is_scoped_to_plugin_instance() -> None:
+    """One process may host several in-process pytest sessions (e.g. pytester, #232).
+
+    Each session has its own ``MessagePlugin`` instance and must emit the hook message for the
+    same hook function again; a process-global registry keyed by ``id(func)`` leaks across
+    sessions and can skip the message when a freed function's address is reused.
+    """
+    config = _enabled_config()
+    config.rootpath = Path(__file__).parent
+    config.pytest_bdd_id_generator.get_next_id.return_value = "hook-0"
+
+    first_session = MessagePlugin(config=config)
+    second_session = MessagePlugin(config=config)
+
+    for plugin in (first_session, second_session):
+        _run_fixture_setup(plugin, _hook_fixture)
+        _run_fixture_setup(plugin, _hook_fixture)
+
+    emitted = [
+        call.kwargs["message"].hook
+        for call in config.hook.pytest_bdd_message.call_args_list
+        if call.kwargs["message"].hook is not None
+    ]
+    assert [hook.name for hook in emitted] == ["once", "once"]
+
+
 def test_message_plugin_build_source_without_readable_file(tmp_path) -> None:
     assert MessagePlugin.build_source(SimpleNamespace(filename=None)) is None
     assert MessagePlugin.build_source(SimpleNamespace(filename=str(tmp_path / "missing.feature"))) is None

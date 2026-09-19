@@ -80,11 +80,15 @@ if TYPE_CHECKING:
 
 @attrs(eq=False)
 class MessagePlugin:
+    # These registries deduplicate messages emitted once per pytest session. They must not be
+    # ClassVars: in-process pytest runs (e.g. pytester) share one process, and a process-global
+    # id-keyed registry leaks across sessions. A freed hook function's address can be reused by
+    # the next session's function, so the "already emitted" check silently skips a message (#232).
     config: Config = attrib()
     current_test_case: TestCase | None = attrib(default=None)
     current_test_case_step_to_definition_mapping: dict[int, Any] | None = attrib(default=None)
-    parameter_type_registry: ClassVar[set[int]] = set()
-    hook_registry: ClassVar[set[int]] = set()
+    parameter_type_registry: set[int] = attrib(factory=set)
+    hook_registry: set[int] = attrib(factory=set)
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
 
     def __attrs_post_init__(self) -> None:
