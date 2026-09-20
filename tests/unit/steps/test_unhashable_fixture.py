@@ -61,3 +61,23 @@ Feature: Unhashable fixtures
     )
     result = testdir.runpytest_inprocess()
     result.assert_outcomes(passed=1)
+
+
+def test_module_importing_mock_call_collects_and_registry_is_iterable(testdir):
+    testdir.makepyfile(
+        test_registry_mock_call="""
+from unittest.mock import call
+
+
+class MockCallLikeContainer:
+    # `call` fabricates a `_Call` tuple subclass holding unhashable payloads
+    # for any requested attribute, including dunder ones (#115).
+    __pytest_bdd_step_definitions__ = ({"payload": call},)
+
+
+def test_registry_iteration(step_registry):
+    assert list(step_registry) == []
+"""
+    )
+    result = testdir.runpytest_inprocess()
+    result.assert_outcomes(passed=1)

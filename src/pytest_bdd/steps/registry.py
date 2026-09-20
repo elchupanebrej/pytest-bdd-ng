@@ -8,12 +8,11 @@ from attrs import define, field
 from ordered_set import OrderedSet
 from typing_extensions import Protocol
 
+from pytest_bdd.steps.definition import Definition
 from pytest_bdd.utils import setdefaultattr
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
-
-    from pytest_bdd.steps.definition import Definition
 
 
 @runtime_checkable
@@ -53,7 +52,7 @@ class Registry:
         for step_container in step_containers:
             raw_definitions = getattr(step_container, "__pytest_bdd_step_definitions__", ())
             if isinstance(raw_definitions, set | list | tuple | OrderedSet):
-                discovered_definitions.extend(raw_definitions)
+                discovered_definitions.extend(d for d in raw_definitions if isinstance(d, Definition))
 
         return OrderedSet(discovered_definitions)
 

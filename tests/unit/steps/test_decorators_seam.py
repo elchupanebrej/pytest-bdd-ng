@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 from ordered_set import OrderedSet
@@ -98,3 +98,33 @@ def test_registry_namespace_discovery_tolerates_odd_attributes() -> None:
             raise RuntimeError("broken attribute")
 
     assert list(Registry(namespace=Namespace())) == [definition]
+
+
+def test_registry_namespace_discovery_ignores_mock_call_and_foreign_payloads() -> None:
+    @given(string("I have a discoverable step"))
+    def discoverable() -> None:
+        pass
+
+    definition = next(iter(discoverable.__pytest_bdd_step_definitions__))
+
+    class Container:
+        __pytest_bdd_step_definitions__ = OrderedSet([definition])
+
+    class MockCallLikeContainer:
+        # `unittest.mock.call` fabricates a `_Call` (tuple subclass) for any
+        # requested attribute; its payload can hold unhashable objects (#115).
+        __pytest_bdd_step_definitions__ = ({"unhashable": "payload"},)
+
+    class Namespace:
+        good = Container()
+        foreign = MockCallLikeContainer()
+        mock_call = call
+
+    registry = Registry(namespace=Namespace())
+    assert list(registry) == [definition]
+
+    config = MagicMock()
+    config.option.liberal_steps = True
+    matcher = Matcher(config)
+    step_item = Step(name="I have a discoverable step", keyword="Given", type=StepType.context)
+    assert matcher(None, None, None, step_item, None, registry).func is discoverable
