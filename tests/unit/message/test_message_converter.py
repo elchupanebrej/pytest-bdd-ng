@@ -118,6 +118,39 @@ def test_converter_datetime_rule_background_and_pickle_arguments() -> None:
     assert table_pickle_step.argument.data_table.rows[0].cells[0].value == "cell"
 
 
+def test_rule_scenario_pickle_merges_feature_and_rule_backgrounds() -> None:
+    """Pickles must include feature background steps before rule background steps."""
+    from pytest_bdd.parser import GherkinParser
+
+    feature = GherkinParser().parse_text(
+        # language=gherkin
+        """\
+        Feature: Rule background merge
+          Background:
+            Given feature background step
+          Rule: A
+            Background:
+              Given rule background step
+            Example: Example A
+              Given scenario step
+        """
+    )
+    scenario = feature.rules[0].scenarios[0]
+
+    assert [s.name for s in scenario.all_steps] == [
+        "feature background step",
+        "rule background step",
+        "scenario step",
+    ]
+
+    pickle = mc.scenario_to_pickle(scenario, uri="rule-merge.feature")
+    assert [s.text for s in pickle.steps] == [
+        "feature background step",
+        "rule background step",
+        "scenario step",
+    ]
+
+
 def test_execution_message_helpers_and_dict_roundtrip() -> None:
     env_run_start = mc.make_test_run_started(100.0)
     assert env_run_start.test_run_started is not None

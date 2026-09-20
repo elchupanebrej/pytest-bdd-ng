@@ -129,6 +129,24 @@ def _build_background(bg_dict: dict[str, Any]) -> Background:
     )
 
 
+def _merge_backgrounds(parent: Background | None, background: Background | None) -> Background | None:
+    """Merge a parent (feature) background with a child (rule) background.
+
+    Cucumber semantics run the feature background first, then the rule background
+    (see gherkin/python/gherkin/pickles/compiler.py).
+    """
+    if parent is None or background is None:
+        return background or parent
+    return Background(
+        name=background.name,
+        keyword=background.keyword,
+        description=background.description,
+        line=background.line,
+        id=background.id,
+        steps=parent.steps + background.steps,
+    )
+
+
 def _build_examples(ex_dict: dict[str, Any]) -> Examples:
     header = None
     th = ex_dict.get("tableHeader")
@@ -178,7 +196,7 @@ def _build_rule(rule_dict: dict[str, Any], parent_background: Background | None 
             rule_scenarios.append(
                 _build_scenario(
                     child["scenario"],
-                    background=rule_background or parent_background,
+                    background=_merge_backgrounds(parent_background, rule_background),
                     parent_tags=rule_tags,
                 )
             )
