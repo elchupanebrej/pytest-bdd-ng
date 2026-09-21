@@ -632,6 +632,57 @@ def test_failed_step_messages(testdir, tmp_path):
     assert len(list_filter_by_type(_TestCaseFinished, unfold_messages)) == 1
 
 
+def test_skipped_scenario_messages(testdir, tmp_path):
+    testdir.makefile(
+        ".ini",
+        pytest="""
+        [pytest]
+        markers =
+            skip
+        """,
+    )
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        test_skip="""
+        Feature: Skipped feature
+            @skip
+            Scenario: Skipped scenario
+                Given a step that is skipped
+        """,
+    )
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_bdd import given
+
+        @given('a step that is skipped')
+        def a_step_that_is_skipped():
+            pass
+        """
+    )
+
+    ndjson_path = tmp_path / "skipped.feature.ndjson"
+    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(skipped=1)
+
+    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
+
+    test_case_messages = list_filter_by_type(_TestCase, unfold_messages)
+    assert len(test_case_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+    assert len(test_case_messages[0].test_steps) == 1
+
+    step_started_messages = list_filter_by_type(_TestStepStarted, unfold_messages)
+    assert len(step_started_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+
+    step_finished_messages = list_filter_by_type(_TestStepFinished, unfold_messages)
+    assert len(step_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+    assert Status(step_finished_messages[0].test_step_result.status) == Status.skipped
+
+    test_case_finished_messages = list_filter_by_type(_TestCaseFinished, unfold_messages)
+    assert len(test_case_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+
+
 def test_undefined_step_messages(testdir, tmp_path):
     testdir.makefile(
         ".feature",

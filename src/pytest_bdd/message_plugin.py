@@ -63,8 +63,10 @@ from pytest_bdd.compatibility.pytest import (
 )
 from pytest_bdd.mimetypes import Mimetype
 from pytest_bdd.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
+from pytest_bdd.model.scenario_run import ScenarioRun, StepRun
 from pytest_bdd.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.packaging import get_distribution_version
+from pytest_bdd.reporting import get_feature_and_scenario
 from pytest_bdd.steps import Matcher
 from pytest_bdd.utils import PytestBDDIdGeneratorHandler, deepattrgetter
 
@@ -437,8 +439,13 @@ class MessagePlugin:
 
     @hookimpl(hookwrapper=True)
     def pytest_runtest_setup(self, item: Item):
-        yield
+        outcome = yield
         if self.is_disabled:
+            return
+
+        if outcome.excinfo is not None:
+            if isinstance(outcome.excinfo[1], pytest.skip.Exception):
+                self.emit_skipped_test_case(item)
             return
 
         session = item.session
@@ -537,6 +544,84 @@ class MessagePlugin:
         hook_handler.pytest_bdd_message(
             config=config,
             message=Message(test_case=self.current_test_case),
+        )
+
+    def emit_skipped_test_case(self, item: Item) -> None:
+        """Emit the test case lifecycle for a scenario skipped before its steps could run."""
+        feature_and_scenario = get_feature_and_scenario(item)
+        if feature_and_scenario is None:
+            return
+        feature, scenario = feature_and_scenario
+
+        config: Config = item.session.config
+        hook_handler = config.hook
+        id_generator = cast("PytestBDDIdGeneratorHandler", config).pytest_bdd_id_generator
+
+        scenario_run = ScenarioRun(scenario=scenario)
+        test_steps = []
+        for step in scenario.steps:
+            step_run = scenario_run.add_step_run(StepRun(step=step, id=id_generator.get_next_id()))
+            step_run.skip()
+            test_steps.append(TestStep(id=step_run.id, pickle_step_id=step.id))
+        scenario_run.skip()
+
+        test_case = TestCase(
+            id=id_generator.get_next_id(),
+            pickle_id=self.build_pickle_id(feature, scenario),
+            test_steps=test_steps,
+        )
+        hook_handler.pytest_bdd_message(
+            config=config,
+            message=Message(test_case=test_case),
+        )
+
+        test_case_started = TestCaseStarted(
+            attempt=getattr(item, "execution_count", 0),
+            id=id_generator.get_next_id(),
+            test_case_id=test_case.id,
+            worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
+            timestamp=self.get_timestamp(),
+        )
+        hook_handler.pytest_bdd_message(
+            config=config,
+            message=Message(test_case_started=test_case_started),
+        )
+
+        for step_run, test_step in zip(scenario_run.steps, test_steps, strict=True):
+            hook_handler.pytest_bdd_message(
+                config=config,
+                message=Message(
+                    test_step_started=TestStepStarted(
+                        test_case_started_id=test_case_started.id,
+                        timestamp=self.get_timestamp(),
+                        test_step_id=test_step.id,
+                    )
+                ),
+            )
+            hook_handler.pytest_bdd_message(
+                config=config,
+                message=Message(
+                    test_step_finished=TestStepFinished(
+                        test_case_started_id=test_case_started.id,
+                        timestamp=self.get_timestamp(),
+                        test_step_id=test_step.id,
+                        test_step_result=TestStepResult(
+                            duration=Duration(seconds=0, nanos=0),
+                            status=Status(step_run.status.upper()),
+                        ),
+                    )
+                ),
+            )
+
+        hook_handler.pytest_bdd_message(
+            config=config,
+            message=Message(
+                test_case_finished=TestCaseFinished(
+                    test_case_started_id=test_case_started.id,
+                    timestamp=self.get_timestamp(),
+                    will_be_retried=False,
+                )
+            ),
         )
 
     def _current_test_case(self) -> TestCase:

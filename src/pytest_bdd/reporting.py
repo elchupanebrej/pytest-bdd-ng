@@ -166,6 +166,21 @@ class ScenarioReport:
             self.add_step_report(report)
 
 
+def get_feature_and_scenario(item: Item) -> tuple[Feature, Pickle] | None:
+    """Resolve the feature/scenario pair of an item without setting up fixtures.
+
+    Items skipped in setup never request their fixtures, so the scenario metadata has to come
+    from the parametrization. Used to report runs that did not reach the test call phase.
+    """
+    callspec = getattr(item, "callspec", None)
+    params = getattr(callspec, "params", {}) if callspec else {}
+    feature = params.get("feature") or getattr(item, "feature", None)
+    scenario = params.get("scenario") or getattr(item, "scenario", None)
+    if feature is None or scenario is None:
+        return None
+    return feature, scenario
+
+
 class ScenarioReporterPlugin:
     def __init__(self) -> None:
         self.current_report: ScenarioReport | None = None
@@ -180,11 +195,9 @@ class ScenarioReporterPlugin:
                 rep.scenario = scenario_report.serialize()
                 rep.item = {"name": item.name}
         elif rep.skipped:
-            callspec = getattr(item, "callspec", None)
-            params = getattr(callspec, "params", {}) if callspec else {}
-            feature = params.get("feature") or getattr(item, "feature", None)
-            scenario = params.get("scenario") or getattr(item, "scenario", None)
-            if feature is not None and scenario is not None:
+            feature_and_scenario = get_feature_and_scenario(item)
+            if feature_and_scenario is not None:
+                feature, scenario = feature_and_scenario
                 rep.scenario = ScenarioReport(feature=feature, scenario=scenario).serialize()
                 rep.item = {"name": item.name}
 
