@@ -1,7 +1,7 @@
 import re
 from typing import List, Literal
 
-from messages import DataTable, Step  # type:ignore[attr-defined]
+from cucumber_messages import DataTable, Step
 from pytest_bdd import given, step, then, when
 
 from ...src.catalog import Book, Catalog

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING
 
 from pytest_bdd.model import message_converter as mc
@@ -18,7 +17,7 @@ pytestmark = mark.unit
 
 
 if TYPE_CHECKING:
-    import messages
+    import cucumber_messages
 
 
 def test_seam3_execution_event_protocol_contract() -> None:
@@ -32,7 +31,7 @@ def test_seam3_execution_event_protocol_contract() -> None:
     tc = mc.scenario_to_test_case(sc, pickle_id=pickle.id, default_id="tc-1")
     tc_env = mc.test_case_to_envelope(tc)
 
-    envelopes: list[messages.Envelope] = [
+    envelopes: list[cucumber_messages.Envelope] = [
         doc_env,
         pickle_env,
         tc_env,
@@ -48,7 +47,7 @@ def test_seam3_execution_event_protocol_contract() -> None:
 
     for env in envelopes:
         mc.validate_envelope_shape(env)
-        json_obj = json.loads(env.model_dump_json(exclude_none=True, by_alias=True))
+        json_obj = mc.envelope_to_dict(env)
         assert not any("pytest" in k.lower() or "_pytest" in k.lower() for k in json_obj)
 
     assert validate_message_stream(envelopes) == []

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-import messages
+import cucumber_messages
 from pytest_bdd.model import message_converter as mc
 from pytest_bdd.model.background import Background
 from pytest_bdd.model.doc_string import DocString
@@ -53,7 +53,7 @@ def test_feature_to_gherkin_document_conversion() -> None:
 
 
 def test_validate_envelope_shape_error() -> None:
-    empty_env = messages.Envelope()
+    empty_env = cucumber_messages.Envelope()
     with pytest.raises(TypeError, match="exactly one payload"):
         mc.validate_envelope_shape(empty_env)
 
@@ -167,7 +167,7 @@ def test_execution_message_helpers_and_dict_roundtrip() -> None:
         test_case_started_id="tcs-1", test_step_id="ts-1", status="passed", duration=0.5, timestamp=102.5
     )
     assert env_ts_finish.test_step_finished is not None
-    assert env_ts_finish.test_step_finished.test_step_result.status == messages.Status.passed
+    assert env_ts_finish.test_step_finished.test_step_result.status == cucumber_messages.TestStepResultStatus.passed
 
     env_tc_finish = mc.make_test_case_finished(test_case_started_id="tcs-1", timestamp=103.0)
     assert env_tc_finish.test_case_finished is not None

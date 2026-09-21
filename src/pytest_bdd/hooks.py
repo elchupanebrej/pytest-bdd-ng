@@ -9,8 +9,9 @@ if TYPE_CHECKING:
     from io import BufferedIOBase, TextIOBase
     from pathlib import Path
 
-    from messages import Envelope as Message
-    from messages import Pickle
+    from cucumber_messages import Envelope as Message
+    from cucumber_messages import Pickle
+
     from pytest_bdd.compatibility.pytest import Config, FixtureRequest, Mark
     from pytest_bdd.model import Feature
 

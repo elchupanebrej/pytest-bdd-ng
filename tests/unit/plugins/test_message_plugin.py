@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from base64 import b64encode
 from pathlib import Path
 from queue import Queue
@@ -9,9 +10,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from messages import ContentEncoding, Envelope as Message, TestCase
+from cucumber_messages import AttachmentContentEncoding, Envelope as Message, TestCase
 from pytest_bdd.compatibility.pytest import Exit
 from pytest_bdd.message_plugin import MessagePlugin
+from pytest_bdd.model.message_converter import envelope_to_dict
 
 from pytest import mark
 
@@ -173,10 +175,10 @@ def test_message_plugin_pytest_bdd_attach_bytearray_and_plain_object() -> None:
 
     attachments = [call.kwargs["message"].attachment for call in config.hook.pytest_bdd_message.call_args_list]
     assert attachments[0].body == b64encode(b"hello").decode("ascii")
-    assert ContentEncoding(attachments[0].content_encoding) == ContentEncoding.base64
+    assert AttachmentContentEncoding(attachments[0].content_encoding) == AttachmentContentEncoding.base64
     assert attachments[1].body == "12345"
     assert attachments[1].media_type == "text/plain;charset=UTF-8"
-    assert ContentEncoding(attachments[1].content_encoding) == ContentEncoding.identity
+    assert AttachmentContentEncoding(attachments[1].content_encoding) == AttachmentContentEncoding.identity
 
 
 def test_check_npm_and_cucumber_packages_exits_when_dependencies_missing(monkeypatch) -> None:
@@ -195,8 +197,9 @@ def test_check_npm_and_cucumber_packages_exits_when_dependencies_missing(monkeyp
 def test_process_messages_writes_valid_and_drops_invalid(tmp_path, caplog) -> None:
     messages_file = tmp_path / "messages.ndjson"
     queue: Queue[str] = Queue()
-    valid = Message(test_case=TestCase(id="tc-1", pickle_id="p-1", test_steps=[])).model_dump_json(
-        exclude_none=True, by_alias=True
+    valid = json.dumps(
+        envelope_to_dict(Message(test_case=TestCase(id="tc-1", pickle_id="p-1", test_steps=[]))),
+        separators=(",", ":"),
     )
     queue.put_nowait(valid)
     queue.put_nowait('{"source": 1}')

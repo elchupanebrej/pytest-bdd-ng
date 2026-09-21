@@ -102,8 +102,6 @@ while IFS= read -r path; do
     # Vendored submodules with a known consumer.
     gherkin|gherkin/*)
       emit "tests/gherkin_integration" ;;
-    messages|messages/*)
-      emit "tests/messages"; emit "tests/unit/message" ;;
     compatibility-kit|compatibility-kit/*)
       emit "tests/messages" ;;
 

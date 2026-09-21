@@ -49,9 +49,8 @@ dependencies = [
   "certifi",
   "chevron",
   "ci-environment",
-  # This is needed until messages become regular PyPi package https://github.com/cucumber/messages/pull/165
-  "cuke-messages==0.1.0",
   "cucumber-expressions",
+  "cucumber-messages",
   "decopatch",
   "docopt-ng",
   "filelock",
@@ -197,8 +196,8 @@ known_first_party = ["pytest_bdd"]
 [tool.deptry.package_module_name_map]
 allure-python-commons = "allure_commons"
 allure-pytest = "allure_pytest"
-cuke-messages = "messages"
 cucumber-expressions = "cucumber_expressions"
+cucumber-messages = "cucumber_messages"
 cucumber-tag-expressions = "cucumber_tag_expressions"
 gherkin-official = "gherkin"
 PyYAML = "yaml"
@@ -246,13 +245,11 @@ warn_redundant_casts = true
 no_implicit_optional = true
 show_error_codes = true
 
-# messages is a generated, untyped runtime dependency. The repo-root messages/
-# spec submodule has no __init__.py, so mypy namespace-package resolution picks
-# that empty directory over the installed package; skip import analysis instead
-# of chasing attribute errors from the vendored tree (#216).
+# cucumber-messages is a generated, untyped runtime dependency (dataclasses +
+# json converter, no py.typed marker), so mypy cannot analyze its imports (#200).
 [[tool.mypy.overrides]]
-module = ["messages", "messages.*"]
-follow_imports = "skip"
+module = ["cucumber_messages", "cucumber_messages.*"]
+ignore_missing_imports = true
 
 # gherkin-official, cucumber-expressions, cucumber-tag-expressions,
 # parse/parse_type, hjson, json5, pyhocon, PyYAML/types-PyYAML, mako,

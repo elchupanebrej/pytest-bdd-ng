@@ -25,10 +25,10 @@ except ImportError:
         pytest.skip("pytest_httpserver is not installed")
 
 
-from messages import Envelope  # type:ignore[attr-defined]
 from pytest_bdd import given, step, then
 from pytest_bdd.compatibility.pytest import assert_outcomes
 from pytest_bdd.mimetypes import Mimetype
+from pytest_bdd.model.message_converter import envelope_from_dict
 from pytest_bdd.testing_utils import data_table_to_dicts
 from pytest_bdd.utils import compose
 
@@ -174,6 +174,6 @@ def _(file_path: Path):
     with file_path.open(mode="r") as ast_file:
         try:
             for raw_datum in ast_file:
-                Envelope.model_validate(json.loads(raw_datum))
+                envelope_from_dict(json.loads(raw_datum))
         except Exception as e:
             raise AssertionError from e

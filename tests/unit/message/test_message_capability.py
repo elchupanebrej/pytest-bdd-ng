@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import messages
+import cucumber_messages
 from pytest_bdd.model.message_capability import (
     MessageCapability,
     capability_is_relevant,
@@ -57,13 +57,13 @@ def test_message_capability_classification() -> None:
 
 
 def test_message_extension_payload_helpers() -> None:
-    env_empty = messages.Envelope()
+    env_empty = cucumber_messages.Envelope()
     assert get_payload_kind(env_empty) is None
     assert has_single_payload(env_empty) is False
     assert get_payload_merge_class(None) is None
 
-    ts = messages.Timestamp(seconds=1, nanos=0)
-    env_started = messages.Envelope(test_run_started=messages.TestRunStarted(timestamp=ts))
+    ts = cucumber_messages.Timestamp(seconds=1, nanos=0)
+    env_started = cucumber_messages.Envelope(test_run_started=cucumber_messages.TestRunStarted(timestamp=ts))
     kind = get_payload_kind(env_started)
     assert kind == "test_run_started"
     assert has_single_payload(env_started) is True

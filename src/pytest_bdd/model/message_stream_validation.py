@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    import messages
+    import cucumber_messages
 
 
-def validate_message_stream(envelopes: Iterable[messages.Envelope]) -> list[str]:
+def validate_message_stream(envelopes: Iterable[cucumber_messages.Envelope]) -> list[str]:
     errors: list[str] = []
     run_started = run_finished = False
     active_cases: set[str] = set()

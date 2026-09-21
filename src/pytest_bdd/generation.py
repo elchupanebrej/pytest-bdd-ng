@@ -23,7 +23,8 @@ from pytest_bdd.utils import make_python_name
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
 
-    from messages import Pickle, PickleStep
+    from cucumber_messages import Pickle, PickleStep
+
     from pytest_bdd.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Parser, Session
     from pytest_bdd.model import Feature
 

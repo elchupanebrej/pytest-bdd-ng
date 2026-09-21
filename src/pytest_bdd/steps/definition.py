@@ -4,9 +4,9 @@ from collections.abc import Collection, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeAlias
 
+import cucumber_messages
 from attrs import define, field
 
-import messages
 from pytest_bdd.compatibility.path import resolvepath
 from pytest_bdd.model.message_extension import StepDefinitionPatternType
 from pytest_bdd.steps.types import (
@@ -40,7 +40,7 @@ class Definition:
     not_implemented: bool = False
     tolerant: bool = False
     id: str = field(init=False)
-    __cache: dict[int, messages.StepDefinition] = field(factory=dict)
+    __cache: dict[int, cucumber_messages.StepDefinition] = field(factory=dict)
 
     @property
     def fixtures_mapped_from_step_definition(self) -> set[str]:
@@ -61,7 +61,7 @@ class Definition:
             fixtures.update(known.difference(conv))
         return fixtures
 
-    def as_message(self, config: Config | HasPytestStash) -> messages.StepDefinition:
+    def as_message(self, config: Config | HasPytestStash) -> cucumber_messages.StepDefinition:
         id_gen = IdGenerator.from_stash(config.stash)
         if id(id_gen) in self.__cache:
             return self.__cache[id(id_gen)]
@@ -70,23 +70,23 @@ class Definition:
         expr_type = pet if isinstance(pet, StepDefinitionPatternType) else StepDefinitionPatternType(str(pet))
         src_file, src_line = _resolve_callable_source_location(self.func)
         fn = str(self.func.__name__)
-        msg = self.__cache[id(id_gen)] = messages.StepDefinition(
+        msg = self.__cache[id(id_gen)] = cucumber_messages.StepDefinition(
             id=self.id,
-            pattern=messages.StepDefinitionPattern(source=str(self.parser), type=expr_type),
-            source_reference=messages.SourceReference(
+            pattern=cucumber_messages.StepDefinitionPattern(source=str(self.parser), type=expr_type),
+            source_reference=cucumber_messages.SourceReference(
                 uri=Path(resolvepath(src_file, getattr(config, "rootpath", Path.cwd()))).as_uri(),
-                location=messages.Location(line=src_line, column=1),
-                java_method=messages.JavaMethod(
+                location=cucumber_messages.Location(line=src_line, column=1),
+                java_method=cucumber_messages.JavaMethod(
                     class_name="pytest_bdd.steps.StepDefinition", method_name=fn, method_parameter_types=[]
                 ),
-                java_stack_trace_element=messages.JavaStackTraceElement(
+                java_stack_trace_element=cucumber_messages.JavaStackTraceElement(
                     class_name="pytest_bdd.steps.StepDefinition", file_name=Path(src_file).name, method_name=fn
                 ),
             ),
         )
         return msg
 
-    def get_parameters(self, request: FixtureRequest, step: Step | messages.PickleStep) -> dict[str, object]:
+    def get_parameters(self, request: FixtureRequest, step: Step | cucumber_messages.PickleStep) -> dict[str, object]:
         step_text = getattr(step, "text", getattr(step, "name", ""))
         parsed = self.parser.parse_arguments(request, step_text, anonymous_group_names=self.anonymous_group_names) or {}
         return {**self.param_defaults, **{k: self.converters.get(k, lambda v: v)(v) for k, v in parsed.items()}}

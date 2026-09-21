@@ -7,15 +7,15 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    import messages
+    import cucumber_messages
 
-MessageReceiver = Callable[["messages.Envelope"], None]
+MessageReceiver = Callable[["cucumber_messages.Envelope"], None]
 
 
 class MessageTransport:
     def __init__(self) -> None:
         self._lock = Lock()
-        self._envelopes: list[messages.Envelope] = []
+        self._envelopes: list[cucumber_messages.Envelope] = []
         self._sinks: list[MessageReceiver] = []
 
     def add_sink(self, sink: MessageReceiver) -> None:
@@ -28,23 +28,23 @@ class MessageTransport:
             if sink in self._sinks:
                 self._sinks.remove(sink)
 
-    def emit(self, envelope: messages.Envelope) -> None:
+    def emit(self, envelope: cucumber_messages.Envelope) -> None:
         with self._lock:
             self._envelopes.append(envelope)
             sinks = list(self._sinks)
         for sink in sinks:
             sink(envelope)
 
-    def emit_all(self, envelopes: Iterable[messages.Envelope]) -> None:
+    def emit_all(self, envelopes: Iterable[cucumber_messages.Envelope]) -> None:
         for env in envelopes:
             self.emit(env)
 
-    def drain(self) -> list[messages.Envelope]:
+    def drain(self) -> list[cucumber_messages.Envelope]:
         with self._lock:
             drained, self._envelopes = self._envelopes, []
             return drained
 
-    def get_envelopes(self) -> list[messages.Envelope]:
+    def get_envelopes(self) -> list[cucumber_messages.Envelope]:
         with self._lock:
             return list(self._envelopes)
 

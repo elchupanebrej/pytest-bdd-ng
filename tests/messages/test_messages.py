@@ -6,28 +6,28 @@ from pprint import pformat
 from typing import TYPE_CHECKING, cast
 
 import pytest
-from pydantic import ValidationError
 
-from messages import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]
+from cucumber_messages import (
     Attachment,
-    ContentEncoding,
+    AttachmentContentEncoding,
     GherkinDocument,
     Hook,
     Meta,
     ParameterType,
     Pickle,
     Source,
-    Status,
     StepDefinition,
 )
-from messages import Envelope as Message  # type:ignore[attr-defined]
-from messages import TestCase as _TestCase  # type:ignore[attr-defined]
-from messages import TestCaseFinished as _TestCaseFinished  # type:ignore[attr-defined]
-from messages import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
-from messages import TestRunFinished as _TestRunFinished  # type:ignore[attr-defined]
-from messages import TestRunStarted as _TestRunStarted  # type:ignore[attr-defined]
-from messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
-from messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
+from cucumber_messages import Envelope as Message
+from cucumber_messages import TestCase as _TestCase
+from cucumber_messages import TestCaseFinished as _TestCaseFinished
+from cucumber_messages import TestCaseStarted as _TestCaseStarted
+from cucumber_messages import TestRunFinished as _TestRunFinished
+from cucumber_messages import TestRunStarted as _TestRunStarted
+from cucumber_messages import TestStepFinished as _TestStepFinished
+from cucumber_messages import TestStepResultStatus as _TestStepResultStatus
+from cucumber_messages import TestStepStarted as _TestStepStarted
+from pytest_bdd.model.message_converter import envelope_from_dict
 from pytest_bdd.utils import flip
 
 pytestmark = pytest.mark.integration
@@ -78,8 +78,8 @@ def parse_and_unflold_messages(lines):
     parsed_messages = []
     for line in lines:
         try:
-            parsed_messages.append(Message.model_validate(json.loads(line)))
-        except ValidationError as e:  # pragma: nocover
+            parsed_messages.append(envelope_from_dict(json.loads(line)))
+        except (TypeError, ValueError) as e:  # pragma: nocover
             errors.append(e)
         if errors:  # pragma: nocover
             raise ParseError(f"Could not parse messages: {errors}")
@@ -321,7 +321,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "Hello world!"
     assert attachment_message.media_type == "text/plain;charset=UTF-8"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.identity
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.identity
 
 
 def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Testdir", tmp_path):
@@ -363,7 +363,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "http://https://example.com/"
     assert attachment_message.media_type == "text/uri-list"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.identity
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.identity
 
 
 def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
@@ -404,7 +404,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
 
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "SGVsbG8gd29ybGQh"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.base64
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.base64
 
 
 def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
@@ -450,7 +450,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
 
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "Hello world!"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.identity
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.identity
 
 
 def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path):
@@ -496,7 +496,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
 
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "SGVsbG8gd29ybGQh"
-    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.base64
+    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.base64
     assert attachment_message.media_type == "application/octet-stream"
     assert Path(cast(str, attachment_message.file_name)).name == "file.txt"
 
@@ -628,7 +628,7 @@ def test_failed_step_messages(testdir, tmp_path):
 
     step_finished_messages = list_filter_by_type(_TestStepFinished, unfold_messages)
     assert len(step_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-    assert Status(step_finished_messages[0].test_step_result.status) == Status.failed
+    assert _TestStepResultStatus(step_finished_messages[0].test_step_result.status) == _TestStepResultStatus.failed
     assert len(list_filter_by_type(_TestCaseFinished, unfold_messages)) == 1
 
 
@@ -677,7 +677,7 @@ def test_skipped_scenario_messages(testdir, tmp_path):
 
     step_finished_messages = list_filter_by_type(_TestStepFinished, unfold_messages)
     assert len(step_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-    assert Status(step_finished_messages[0].test_step_result.status) == Status.skipped
+    assert _TestStepResultStatus(step_finished_messages[0].test_step_result.status) == _TestStepResultStatus.skipped
 
     test_case_finished_messages = list_filter_by_type(_TestCaseFinished, unfold_messages)
     assert len(test_case_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"

@@ -19,7 +19,7 @@ Scenario:
    .. code:: python
 
       from pytest_bdd import given
-      from messages import Step
+      from cucumber_messages import Step
 
       def get_datatable_row_values(row):
         return list(map(lambda cell: cell.value, row.cells))

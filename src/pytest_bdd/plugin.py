@@ -48,8 +48,8 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Sequence
 
     from _pytest.nodes import Collector
+    from cucumber_messages import PickleStep as Step
 
-    from messages import PickleStep as Step
     from pytest_bdd.model import Feature, Scenario
 
 if STRUCT_BDD_INSTALLED:

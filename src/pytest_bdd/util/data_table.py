@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from messages import DataTable
+    from cucumber_messages import DataTable
 
 
 def data_table_to_dicts(data_table: DataTable | None) -> dict[str, list[str]]:

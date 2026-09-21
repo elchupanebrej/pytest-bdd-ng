@@ -23,14 +23,10 @@ import chevron  # type: ignore[import-untyped]  # chevron ships no type informat
 import pytest
 from attr import attrib, attrs
 from ci_environment import detect_ci_environment  # type: ignore[import-untyped]  # no type stubs
-from filelock import FileLock
-from pydantic import ValidationError
-from pytest import ExitCode, hookimpl
-
-from messages import (
+from cucumber_messages import (
     Attachment,
+    AttachmentContentEncoding,
     Ci,
-    ContentEncoding,
     Duration,
     Hook,
     Location,
@@ -39,7 +35,6 @@ from messages import (
     Product,
     Source,
     SourceReference,
-    Status,
     TestCase,
     TestCaseFinished,
     TestCaseStarted,
@@ -48,10 +43,14 @@ from messages import (
     TestStep,
     TestStepFinished,
     TestStepResult,
+    TestStepResultStatus,
     TestStepStarted,
     Timestamp,
 )
-from messages import Envelope as Message
+from cucumber_messages import Envelope as Message
+from filelock import FileLock
+from pytest import ExitCode, hookimpl
+
 from pytest_bdd.compatibility.path import relpath
 from pytest_bdd.compatibility.pytest import (
     Config,
@@ -62,7 +61,15 @@ from pytest_bdd.compatibility.pytest import (
     get_metafunc_call_arg,
 )
 from pytest_bdd.mimetypes import Mimetype
-from pytest_bdd.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
+from pytest_bdd.model.message_converter import (
+    envelope_from_dict,
+    envelope_to_dict,
+    feature_to_gherkin_document,
+    scenario_to_pickle,
+)
+from pytest_bdd.model.message_converter import (
+    message_converter as messages_converter,
+)
 from pytest_bdd.model.scenario_run import ScenarioRun, StepRun
 from pytest_bdd.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_bdd.packaging import get_distribution_version
@@ -157,8 +164,8 @@ class MessagePlugin:
                             continue
 
                         try:
-                            Message.model_validate(json.loads(message_json))
-                        except ValidationError:
+                            envelope_from_dict(json.loads(message_json))
+                        except (TypeError, ValueError):
                             logging.exception("Failed to parse:\n%s\n", pformat(message_json), exc_info=True)
                         else:
                             lines.append(f"{message_json}\n")
@@ -334,7 +341,7 @@ class MessagePlugin:
     def pytest_bdd_message(self, config: Config, message: Message) -> None:
         if self.is_disabled:
             return
-        message_json = message.model_dump_json(exclude_none=True, by_alias=True)
+        message_json = json.dumps(envelope_to_dict(message), separators=(",", ":"), ensure_ascii=False)
         self.process_messages_io_queue.put_nowait(message_json)
 
     def pytest_runtestloop(self, session: Session) -> None:
@@ -368,7 +375,9 @@ class MessagePlugin:
                     runtime=Product(name="Python", version=sys.version),
                     os=Product(name=system(), version=version()),
                     cpu=Product(name=machine(), version=processor()),
-                    ci=Ci.model_validate(obj) if (obj := detect_ci_environment(os.environ)) is not None else None,
+                    ci=messages_converter.from_dict(obj, Ci)
+                    if (obj := detect_ci_environment(os.environ)) is not None
+                    else None,
                 ),
             ),
         )
@@ -607,7 +616,7 @@ class MessagePlugin:
                         test_step_id=test_step.id,
                         test_step_result=TestStepResult(
                             duration=Duration(seconds=0, nanos=0),
-                            status=Status(step_run.status.upper()),
+                            status=TestStepResultStatus(step_run.status.upper()),
                         ),
                     )
                 ),
@@ -722,7 +731,9 @@ class MessagePlugin:
                     test_case_started_id=self._current_test_case().id,
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
-                    test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.passed),
+                    test_step_result=TestStepResult(
+                        duration=current_test_case_step_duration, status=TestStepResultStatus.passed
+                    ),
                 )
             ),
         )
@@ -768,7 +779,9 @@ class MessagePlugin:
                     test_case_started_id=self._current_test_case().id,
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
-                    test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.failed),
+                    test_step_result=TestStepResult(
+                        duration=current_test_case_step_duration, status=TestStepResultStatus.failed
+                    ),
                 )
             ),
         )
@@ -786,13 +799,13 @@ class MessagePlugin:
         hook_handler = config.hook
 
         if isinstance(attachment, str | TextIOBase):
-            content_encoding = ContentEncoding.identity
+            content_encoding = AttachmentContentEncoding.identity
             _media_type = "text/plain;charset=UTF-8" if media_type is None else media_type
         elif isinstance(attachment, bytes | bytearray | BufferedIOBase):
-            content_encoding = ContentEncoding.base64
+            content_encoding = AttachmentContentEncoding.base64
             _media_type = "application/octet-stream" if media_type is None else media_type
         else:
-            content_encoding = ContentEncoding.identity
+            content_encoding = AttachmentContentEncoding.identity
             _media_type = "text/plain;charset=UTF-8" if media_type is None else media_type
 
         if isinstance(attachment, str):

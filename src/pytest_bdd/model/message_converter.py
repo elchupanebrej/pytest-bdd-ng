@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import time
+from dataclasses import is_dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-import messages
-from pytest_bdd.model.message_extension import has_single_payload
+import cucumber_messages
+from cucumber_messages import json_converter
+
+from pytest_bdd.model import message_extension
+from pytest_bdd.model.message_extension import get_payload_kind
 
 if TYPE_CHECKING:
     from pytest_bdd.model.background import Background
@@ -18,62 +22,67 @@ if TYPE_CHECKING:
     from pytest_bdd.model.tag import Tag
 
 
-def make_location(line: int = 0, column: int | None = None) -> messages.Location:
-    return messages.Location(line=line, column=column)
+message_converter: json_converter.JsonDataclassConverter = json_converter.JsonDataclassConverter(
+    module_scope=message_extension,
+)
 
 
-def make_timestamp(dt_or_seconds: float | int | datetime | None = None) -> messages.Timestamp:
+def make_location(line: int = 0, column: int | None = None) -> cucumber_messages.Location:
+    return cucumber_messages.Location(line=line, column=column)
+
+
+def make_timestamp(dt_or_seconds: float | int | datetime | None = None) -> cucumber_messages.Timestamp:
     if dt_or_seconds is None:
         dt_or_seconds = time.time()
     if isinstance(dt_or_seconds, datetime):
         dt_or_seconds = dt_or_seconds.timestamp()
     sec = int(dt_or_seconds)
     nanos = int((dt_or_seconds - sec) * 1e9)
-    return messages.Timestamp(seconds=sec, nanos=nanos)
+    return cucumber_messages.Timestamp(seconds=sec, nanos=nanos)
 
 
-def make_duration(seconds_float: float = 0.0) -> messages.Duration:
+def make_duration(seconds_float: float = 0.0) -> cucumber_messages.Duration:
     sec = int(seconds_float)
     nanos = int((seconds_float - sec) * 1e9)
-    return messages.Duration(seconds=sec, nanos=nanos)
+    return cucumber_messages.Duration(seconds=sec, nanos=nanos)
 
 
-def tag_to_message(tag: Tag, default_id: str = "") -> messages.Tag:
-    return messages.Tag(id=tag.id or default_id, name=tag.name, location=make_location(tag.line))
+def tag_to_message(tag: Tag, default_id: str = "") -> cucumber_messages.Tag:
+    return cucumber_messages.Tag(id=tag.id or default_id, name=tag.name, location=make_location(tag.line))
 
 
-def doc_string_to_message(doc: DocString, default_id: str = "") -> messages.DocString:
-    return messages.DocString(
+def doc_string_to_message(doc: DocString, default_id: str = "") -> cucumber_messages.DocString:
+    return cucumber_messages.DocString(
         content=doc.content, delimiter='"""', media_type=doc.media_type, location=make_location(doc.line)
     )
 
 
-def data_table_to_message(table: DataTable, default_id: str = "") -> messages.DataTable:
+def data_table_to_message(table: DataTable, default_id: str = "") -> cucumber_messages.DataTable:
     rows = [
-        messages.TableRow(
+        cucumber_messages.TableRow(
             id=r.id or f"{default_id}-row-{i}",
             location=make_location(r.line),
-            cells=[messages.TableCell(value=c.value, location=make_location(c.line)) for c in r.cells],
+            cells=[cucumber_messages.TableCell(value=c.value, location=make_location(c.line)) for c in r.cells],
         )
         for i, r in enumerate(table.rows)
     ]
-    return messages.DataTable(location=make_location(table.line), rows=rows)
+    return cucumber_messages.DataTable(location=make_location(table.line), rows=rows)
 
 
-def step_to_message(step: Step, default_id: str = "") -> messages.Step:
+def step_to_message(step: Step, default_id: str = "") -> cucumber_messages.Step:
     st_id = step.id or default_id
     ds = doc_string_to_message(step.doc_string, f"{st_id}-ds") if step.doc_string else None
     dt = data_table_to_message(step.data_table, f"{st_id}-dt") if step.data_table else None
-    return messages.Step(
+    return cucumber_messages.Step(
         id=st_id, keyword=step.keyword, text=step.name, location=make_location(step.line), doc_string=ds, data_table=dt
     )
 
 
-def scenario_to_message(scenario: Scenario, default_id: str = "") -> messages.Scenario:
+def scenario_to_message(scenario: Scenario, default_id: str = "") -> cucumber_messages.Scenario:
     sc_id = scenario.id or default_id
     tags = [tag_to_message(t, f"{sc_id}-tag-{i}") for i, t in enumerate(scenario.tags)]
     steps = [step_to_message(s, f"{sc_id}-step-{i}") for i, s in enumerate(scenario.steps)]
-    return messages.Scenario(
+    return cucumber_messages.Scenario(
         id=sc_id,
         name=scenario.name,
         description=scenario.description,
@@ -85,10 +94,10 @@ def scenario_to_message(scenario: Scenario, default_id: str = "") -> messages.Sc
     )
 
 
-def background_to_message(bg: Background, default_id: str = "") -> messages.Background:
+def background_to_message(bg: Background, default_id: str = "") -> cucumber_messages.Background:
     bg_id = bg.id or default_id
     steps = [step_to_message(s, f"{bg_id}-step-{i}") for i, s in enumerate(bg.steps)]
-    return messages.Background(
+    return cucumber_messages.Background(
         id=bg_id,
         name=bg.name,
         description=bg.description,
@@ -98,15 +107,15 @@ def background_to_message(bg: Background, default_id: str = "") -> messages.Back
     )
 
 
-def rule_to_message(rule: Rule, default_id: str = "") -> messages.Rule:
+def rule_to_message(rule: Rule, default_id: str = "") -> cucumber_messages.Rule:
     r_id = rule.id or default_id
     tags = [tag_to_message(t, f"{r_id}-tag-{i}") for i, t in enumerate(rule.tags)]
-    children: list[messages.RuleChild] = []
+    children: list[cucumber_messages.RuleChild] = []
     if rule.background:
-        children.append(messages.RuleChild(background=background_to_message(rule.background, f"{r_id}-bg")))
+        children.append(cucumber_messages.RuleChild(background=background_to_message(rule.background, f"{r_id}-bg")))
     for i, sc in enumerate(rule.scenarios):
-        children.append(messages.RuleChild(scenario=scenario_to_message(sc, f"{r_id}-sc-{i}")))
-    return messages.Rule(
+        children.append(cucumber_messages.RuleChild(scenario=scenario_to_message(sc, f"{r_id}-sc-{i}")))
+    return cucumber_messages.Rule(
         id=r_id,
         name=rule.name,
         description=rule.description,
@@ -117,18 +126,20 @@ def rule_to_message(rule: Rule, default_id: str = "") -> messages.Rule:
     )
 
 
-def feature_to_gherkin_document(feature: Feature, uri: str = "") -> messages.GherkinDocument:
+def feature_to_gherkin_document(feature: Feature, uri: str = "") -> cucumber_messages.GherkinDocument:
     f_id = feature.id or "feature-1"
     tags = [tag_to_message(t, f"{f_id}-tag-{i}") for i, t in enumerate(feature.tags)]
-    children: list[messages.FeatureChild] = []
+    children: list[cucumber_messages.FeatureChild] = []
     if feature.background:
-        children.append(messages.FeatureChild(background=background_to_message(feature.background, f"{f_id}-bg")))
+        children.append(
+            cucumber_messages.FeatureChild(background=background_to_message(feature.background, f"{f_id}-bg"))
+        )
     for i, sc in enumerate(feature.scenarios):
-        children.append(messages.FeatureChild(scenario=scenario_to_message(sc, f"{f_id}-sc-{i}")))
+        children.append(cucumber_messages.FeatureChild(scenario=scenario_to_message(sc, f"{f_id}-sc-{i}")))
     for i, rl in enumerate(feature.rules):
-        children.append(messages.FeatureChild(rule=rule_to_message(rl, f"{f_id}-rl-{i}")))
+        children.append(cucumber_messages.FeatureChild(rule=rule_to_message(rl, f"{f_id}-rl-{i}")))
 
-    msg_feat = messages.Feature(
+    msg_feat = cucumber_messages.Feature(
         name=feature.name,
         description=feature.description,
         keyword=feature.keyword,
@@ -137,33 +148,35 @@ def feature_to_gherkin_document(feature: Feature, uri: str = "") -> messages.Ghe
         tags=tags,
         children=children,
     )
-    return messages.GherkinDocument(uri=uri or feature.uri or "", feature=msg_feat, comments=[])
+    return cucumber_messages.GherkinDocument(uri=uri or feature.uri or "", feature=msg_feat, comments=[])
 
 
-def feature_to_envelope(feature: Feature, uri: str = "") -> messages.Envelope:
-    return messages.Envelope(gherkin_document=feature_to_gherkin_document(feature, uri=uri))
+def feature_to_envelope(feature: Feature, uri: str = "") -> cucumber_messages.Envelope:
+    return cucumber_messages.Envelope(gherkin_document=feature_to_gherkin_document(feature, uri=uri))
 
 
-def step_to_pickle_step(step: Step, default_id: str = "") -> messages.PickleStep:
+def step_to_pickle_step(step: Step, default_id: str = "") -> cucumber_messages.PickleStep:
     st_id = step.id or default_id
-    arg: messages.PickleStepArgument | None = None
+    arg: cucumber_messages.PickleStepArgument | None = None
     if step.doc_string:
-        arg = messages.PickleStepArgument(
-            doc_string=messages.PickleDocString(
+        arg = cucumber_messages.PickleStepArgument(
+            doc_string=cucumber_messages.PickleDocString(
                 content=step.doc_string.content,
                 media_type=step.doc_string.media_type,
             )
         )
     elif step.data_table:
-        arg = messages.PickleStepArgument(
-            data_table=messages.PickleTable(
+        arg = cucumber_messages.PickleStepArgument(
+            data_table=cucumber_messages.PickleTable(
                 rows=[
-                    messages.PickleTableRow(cells=[messages.PickleTableCell(value=c.value) for c in r.cells])
+                    cucumber_messages.PickleTableRow(
+                        cells=[cucumber_messages.PickleTableCell(value=c.value) for c in r.cells]
+                    )
                     for r in step.data_table.rows
                 ]
             )
         )
-    return messages.PickleStep(
+    return cucumber_messages.PickleStep(
         id=st_id,
         text=step.name,
         ast_node_ids=[step.id] if step.id else [],
@@ -176,11 +189,11 @@ def scenario_to_pickle(
     uri: str = "",
     default_id: str = "",
     pickle_id: str | None = None,
-) -> messages.Pickle:
+) -> cucumber_messages.Pickle:
     sc_id = pickle_id or scenario.id or default_id or "pickle-1"
     steps = [step_to_pickle_step(s, f"{sc_id}-step-{i}") for i, s in enumerate(scenario.all_steps)]
-    tags = [messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in scenario.tags]
-    return messages.Pickle(
+    tags = [cucumber_messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in scenario.tags]
+    return cucumber_messages.Pickle(
         id=sc_id,
         uri=uri,
         name=scenario.name,
@@ -191,33 +204,37 @@ def scenario_to_pickle(
     )
 
 
-def pickle_to_envelope(pickle: messages.Pickle) -> messages.Envelope:
-    return messages.Envelope(pickle=pickle)
+def pickle_to_envelope(pickle: cucumber_messages.Pickle) -> cucumber_messages.Envelope:
+    return cucumber_messages.Envelope(pickle=pickle)
 
 
-def scenario_to_test_case(scenario: Scenario, pickle_id: str | None = None, default_id: str = "") -> messages.TestCase:
+def scenario_to_test_case(
+    scenario: Scenario, pickle_id: str | None = None, default_id: str = ""
+) -> cucumber_messages.TestCase:
     tc_id = scenario.id or default_id or "test-case-1"
     p_id = pickle_id or scenario.id or "pickle-1"
     test_steps = [
-        messages.TestStep(id=f"{tc_id}-step-{i}", pickle_step_id=s.id or f"{p_id}-step-{i}")
+        cucumber_messages.TestStep(id=f"{tc_id}-step-{i}", pickle_step_id=s.id or f"{p_id}-step-{i}")
         for i, s in enumerate(scenario.all_steps)
     ]
-    return messages.TestCase(id=tc_id, pickle_id=p_id, test_steps=test_steps)
+    return cucumber_messages.TestCase(id=tc_id, pickle_id=p_id, test_steps=test_steps)
 
 
-def test_case_to_envelope(test_case: messages.TestCase) -> messages.Envelope:
-    return messages.Envelope(test_case=test_case)
+def test_case_to_envelope(test_case: cucumber_messages.TestCase) -> cucumber_messages.Envelope:
+    return cucumber_messages.Envelope(test_case=test_case)
 
 
-def make_test_run_started(timestamp: float | int | datetime | None = None) -> messages.Envelope:
-    return messages.Envelope(test_run_started=messages.TestRunStarted(timestamp=make_timestamp(timestamp)))
+def make_test_run_started(timestamp: float | int | datetime | None = None) -> cucumber_messages.Envelope:
+    return cucumber_messages.Envelope(
+        test_run_started=cucumber_messages.TestRunStarted(timestamp=make_timestamp(timestamp))
+    )
 
 
 def make_test_run_finished(
     timestamp: float | int | datetime | None = None, success: bool = True, message: str | None = None
-) -> messages.Envelope:
-    payload = messages.TestRunFinished(timestamp=make_timestamp(timestamp), success=success, message=message)
-    return messages.Envelope(test_run_finished=payload)
+) -> cucumber_messages.Envelope:
+    payload = cucumber_messages.TestRunFinished(timestamp=make_timestamp(timestamp), success=success, message=message)
+    return cucumber_messages.Envelope(test_run_finished=payload)
 
 
 def make_test_case_started(
@@ -226,74 +243,78 @@ def make_test_case_started(
     attempt: int = 0,
     timestamp: float | int | datetime | None = None,
     worker_id: str | None = None,
-) -> messages.Envelope:
-    payload = messages.TestCaseStarted(
+) -> cucumber_messages.Envelope:
+    payload = cucumber_messages.TestCaseStarted(
         id=id or f"tcs-{test_case_id}",
         test_case_id=test_case_id,
         attempt=attempt,
         timestamp=make_timestamp(timestamp),
         worker_id=worker_id,
     )
-    return messages.Envelope(test_case_started=payload)
+    return cucumber_messages.Envelope(test_case_started=payload)
 
 
 def make_test_case_finished(
     test_case_started_id: str, timestamp: float | int | datetime | None = None, will_be_retried: bool = False
-) -> messages.Envelope:
-    payload = messages.TestCaseFinished(
+) -> cucumber_messages.Envelope:
+    payload = cucumber_messages.TestCaseFinished(
         test_case_started_id=test_case_started_id, timestamp=make_timestamp(timestamp), will_be_retried=will_be_retried
     )
-    return messages.Envelope(test_case_finished=payload)
+    return cucumber_messages.Envelope(test_case_finished=payload)
 
 
 def make_test_step_started(
     test_case_started_id: str, test_step_id: str, timestamp: float | int | datetime | None = None
-) -> messages.Envelope:
-    payload = messages.TestStepStarted(
+) -> cucumber_messages.Envelope:
+    payload = cucumber_messages.TestStepStarted(
         test_case_started_id=test_case_started_id, test_step_id=test_step_id, timestamp=make_timestamp(timestamp)
     )
-    return messages.Envelope(test_step_started=payload)
+    return cucumber_messages.Envelope(test_step_started=payload)
 
 
 def make_test_step_finished(
     test_case_started_id: str,
     test_step_id: str,
     *,
-    status: messages.Status | str = messages.Status.passed,
+    status: cucumber_messages.TestStepResultStatus | str = cucumber_messages.TestStepResultStatus.passed,
     duration: float = 0.0,
     message: str | None = None,
     timestamp: float | int | datetime | None = None,
-) -> messages.Envelope:
+) -> cucumber_messages.Envelope:
     if isinstance(status, str):
         status = (
-            messages.Status[status.lower()]
-            if status.lower() in messages.Status.__members__
-            else messages.Status(status.upper())
+            cucumber_messages.TestStepResultStatus[status.lower()]
+            if status.lower() in cucumber_messages.TestStepResultStatus.__members__
+            else cucumber_messages.TestStepResultStatus(status.upper())
         )
-    result = messages.TestStepResult(status=status, duration=make_duration(duration), message=message)
-    payload = messages.TestStepFinished(
+    result = cucumber_messages.TestStepResult(status=status, duration=make_duration(duration), message=message)
+    payload = cucumber_messages.TestStepFinished(
         test_case_started_id=test_case_started_id,
         test_step_id=test_step_id,
         test_step_result=result,
         timestamp=make_timestamp(timestamp),
     )
-    return messages.Envelope(test_step_finished=payload)
+    return cucumber_messages.Envelope(test_step_finished=payload)
 
 
-def envelope_to_dict(message: messages.Envelope) -> dict:
+def envelope_to_dict(message: cucumber_messages.Envelope) -> dict:
     validate_envelope_shape(message)
-    return message.model_dump(mode="json", exclude_none=True, by_alias=True)
+    return message_converter.to_dict(message)
 
 
-def envelope_from_dict(payload: dict) -> messages.Envelope:
-    env = messages.Envelope.model_validate(payload)
+def envelope_from_dict(payload: dict) -> cucumber_messages.Envelope:
+    env = message_converter.from_dict(payload, cucumber_messages.Envelope)
     validate_envelope_shape(env)
     return env
 
 
-def validate_envelope_shape(envelope: messages.Envelope) -> None:
-    if not has_single_payload(envelope):
+def validate_envelope_shape(envelope: cucumber_messages.Envelope) -> None:
+    payload_kind = get_payload_kind(envelope)
+    if payload_kind is None:
         msg = "Envelope must include exactly one payload field"
+        raise TypeError(msg)
+    if not is_dataclass(getattr(envelope, payload_kind)):
+        msg = f"Envelope payload '{payload_kind}' must be a message payload"
         raise TypeError(msg)
 
 

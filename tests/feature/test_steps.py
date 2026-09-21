@@ -1158,7 +1158,7 @@ def test_extend_steps_from_step(testdir):
         """\
         from collections import deque
 
-        from messages import PickleStep, Type
+        from cucumber_messages import PickleStep, PickleStepType
         from pytest_bdd import given, when, then
 
         @when("I inject step \\"{keyword}\\" \\"{step_text}\\"")
@@ -1166,7 +1166,7 @@ def test_extend_steps_from_step(testdir):
             steps_left.appendleft(PickleStep(
                 id='MyStep',
                 ast_node_ids=[''],
-                type=Type.context,
+                type=PickleStepType.context,
                 text=step_text,
             ))
 

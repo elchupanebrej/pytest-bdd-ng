@@ -10,7 +10,7 @@ from pytest_bdd.types.protocol import HasPytestStash
 from pytest_bdd.utils import IdGenerator
 
 if TYPE_CHECKING:
-    from messages import GherkinDocument
+    from cucumber_messages import GherkinDocument
 
 
 @define

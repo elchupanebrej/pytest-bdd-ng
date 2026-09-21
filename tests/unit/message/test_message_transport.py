@@ -11,12 +11,12 @@ pytestmark = mark.unit
 
 
 if TYPE_CHECKING:
-    import messages
+    import cucumber_messages
 
 
 def test_message_transport_buffering_and_sinks() -> None:
     transport = MessageTransport()
-    received: list[messages.Envelope] = []
+    received: list[cucumber_messages.Envelope] = []
     transport.add_sink(received.append)
     transport.emit_all([mc.make_test_run_started(100.0), mc.make_test_run_finished(timestamp=101.0)])
     assert len(received) == 2
@@ -29,7 +29,7 @@ def test_message_transport_buffering_and_sinks() -> None:
     assert transport.get_envelopes() == []
 
     emitter = MessageFanOutEmitter()
-    calls: list[messages.Envelope] = []
+    calls: list[cucumber_messages.Envelope] = []
     unsub = emitter.subscribe(calls.append)
     emitter.emit(mc.make_test_run_started(100.0))
     assert len(calls) == 1
@@ -40,7 +40,7 @@ def test_message_transport_buffering_and_sinks() -> None:
 
 def test_message_transport_deduplicates_sinks_and_clears_buffer() -> None:
     transport = MessageTransport()
-    received: list[messages.Envelope] = []
+    received: list[cucumber_messages.Envelope] = []
     transport.add_sink(received.append)
     transport.add_sink(received.append)
 

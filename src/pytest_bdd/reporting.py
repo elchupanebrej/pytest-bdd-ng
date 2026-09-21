@@ -16,7 +16,8 @@ from attr import Factory, attrib, attrs
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from messages import Pickle, PickleStep
+    from cucumber_messages import Pickle, PickleStep
+
     from pytest_bdd.compatibility.pytest import CallInfo, FixtureRequest, Item
     from pytest_bdd.model import Feature
 

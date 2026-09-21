@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import messages
+import cucumber_messages
 from pytest_bdd.model import message_converter as mc
 from pytest_bdd.model import message_serialization as ms
 
@@ -23,7 +23,7 @@ def test_serialize_and_deserialize_envelope() -> None:
     assert ms.deserialize_envelope(json_str).test_run_started.timestamp.seconds == 100
     assert ms.deserialize_envelope(mc.envelope_to_dict(env)) == env
     with pytest.raises(TypeError, match="exactly one payload"):
-        ms.serialize_envelope(messages.Envelope())
+        ms.serialize_envelope(cucumber_messages.Envelope())
 
 
 def test_dump_and_load_ndjson(tmp_path: Path) -> None:

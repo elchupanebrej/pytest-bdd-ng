@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    import messages
+    import cucumber_messages
 
 
 def iter_object_graph(root: Any) -> Iterator[Any]:
@@ -28,10 +28,10 @@ def iter_object_graph(root: Any) -> Iterator[Any]:
 
 class EnvelopeRegistry:
     def __init__(self) -> None:
-        self.envelopes: list[messages.Envelope] = []
+        self.envelopes: list[cucumber_messages.Envelope] = []
         self.objects_by_id: dict[str, Any] = {}
 
-    def add_envelope(self, envelope: messages.Envelope) -> None:
+    def add_envelope(self, envelope: cucumber_messages.Envelope) -> None:
         self.envelopes.append(envelope)
         for node in iter_object_graph(envelope):
             node_id = getattr(node, "id", None)

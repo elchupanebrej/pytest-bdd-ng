@@ -5,14 +5,19 @@ from typing import TYPE_CHECKING, Final, TypeAlias
 
 from attrs import frozen
 
-from messages import Envelope
-from messages import ExpressionType as _BaseExpressionType
+# The star import mirrors the canonical cucumber_messages namespace so the
+# JsonDataclassConverter can resolve every payload type through this module,
+# while the extended StepDefinitionPatternType below overrides the canonical
+# enum for pytest-bdd-specific expression types.
+from cucumber_messages import *  # noqa: F403
+from cucumber_messages import Envelope
+from cucumber_messages import StepDefinitionPatternType as _BaseStepDefinitionPatternType
 
 if TYPE_CHECKING:
     # Static shape for type checkers: mypy cannot infer Enum members from the unpacked
     # dict built below, so the members are declared here and created by the functional
     # API at runtime. Values must mirror the runtime mapping; revisit when the
-    # `messages` package ships type information (#200).
+    # `cucumber-messages` package ships type information (#200).
     class StepDefinitionPatternType(Enum):
         cucumber_expression = "CUCUMBER_EXPRESSION"
         regular_expression = "REGULAR_EXPRESSION"
@@ -26,7 +31,7 @@ else:
     StepDefinitionPatternType = Enum(
         "StepDefinitionPatternType",
         {
-            **{n: m.value for n, m in _BaseExpressionType.__members__.items()},
+            **{n: m.value for n, m in _BaseStepDefinitionPatternType.__members__.items()},
             "pytest_bdd_heuristic_expression": "PYTEST_BDD_HEURISTIC_EXPRESSION",
             "pytest_bdd_string_expression": "PYTEST_BDD_STRING_EXPRESSION",
             "pytest_bdd_regular_expression": "PYTEST_BDD_REGULAR_EXPRESSION",
@@ -38,7 +43,7 @@ else:
 ExpressionType = StepDefinitionPatternType
 EventEnvelope: TypeAlias = Envelope
 PayloadKind: TypeAlias = str
-PAYLOAD_KINDS: Final[tuple[str, ...]] = tuple(Envelope.model_fields.keys())
+PAYLOAD_KINDS: Final[tuple[str, ...]] = tuple(Envelope.__annotations__.keys())
 
 CONTROLLER_SINGULAR_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = ("meta", "test_run_started", "test_run_finished")
 STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (
