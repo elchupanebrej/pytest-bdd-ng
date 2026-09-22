@@ -28,6 +28,8 @@ from cucumber_messages import TestStepFinished as _TestStepFinished
 from cucumber_messages import TestStepResultStatus as _TestStepResultStatus
 from cucumber_messages import TestStepStarted as _TestStepStarted
 from pytest_bdd.model.message_converter import envelope_from_dict
+from pytest_bdd.model.message_serialization import load_ndjson
+from pytest_bdd.model.message_stream_validation import validate_message_stream
 from pytest_bdd.utils import flip
 
 pytestmark = pytest.mark.integration
@@ -745,6 +747,134 @@ def test_step_that_calls_pytest_skip_messages(testdir, tmp_path):
 
     test_case_finished_messages = list_filter_by_type(_TestCaseFinished, unfold_messages)
     assert len(test_case_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+
+
+@pytest.mark.parametrize(
+    ("feature", "conftest_source", "expected_outcomes"),
+    [
+        pytest.param(
+            # language=gherkin
+            """\
+            Feature: passing
+
+              Scenario: passing step
+                Given a passing step
+            """,
+            # language=python
+            """\
+            from pytest_bdd import given
+
+            @given("a passing step")
+            def a_passing_step():
+                pass
+            """,
+            {"passed": 1},
+            id="passed",
+        ),
+        pytest.param(
+            # language=gherkin
+            """\
+            Feature: failing
+
+              Scenario: failing step
+                Given a failing step
+            """,
+            # language=python
+            """\
+            from pytest_bdd import given
+
+            @given("a failing step")
+            def a_failing_step():
+                raise AssertionError("boom")
+            """,
+            {"failed": 1},
+            id="failed",
+        ),
+        pytest.param(
+            # language=gherkin
+            """\
+            Feature: skipped step
+
+              Scenario: a step calls pytest.skip
+                Given a passing step
+                When a step calls pytest.skip
+                Then a step that never runs
+            """,
+            # language=python
+            """\
+            import pytest
+
+            from pytest_bdd import given, then, when
+
+            @given("a passing step")
+            def a_passing_step():
+                pass
+
+            @when("a step calls pytest.skip")
+            def a_step_that_calls_pytest_skip():
+                pytest.skip("skipping inside the step")
+
+            @then("a step that never runs")
+            def a_step_that_never_runs():
+                raise AssertionError("this step must not run")
+            """,
+            {"skipped": 1},
+            id="step-skip",
+        ),
+        pytest.param(
+            # language=gherkin
+            """\
+            @skip
+            Feature: skipped scenario
+
+              Scenario: skipped scenario
+                Given a passing step
+            """,
+            # language=python
+            """\
+            from pytest_bdd import given
+
+            @given("a passing step")
+            def a_passing_step():
+                pass
+            """,
+            {"skipped": 1},
+            id="scenario-skip",
+        ),
+    ],
+)
+def test_step_events_reference_the_active_test_case_started(
+    testdir, tmp_path, feature: str, conftest_source: str, expected_outcomes: dict[str, int]
+) -> None:
+    testdir.makefile(".ini", pytest="[pytest]\nmarkers =\n    skip\n")
+    testdir.makefile(".feature", regression=feature)
+    testdir.makeconftest(conftest_source)
+
+    ndjson_path = tmp_path / "regression.feature.ndjson"
+    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(**expected_outcomes)
+
+    envelopes = load_ndjson(ndjson_path)
+
+    assert validate_message_stream(envelopes) == [], f"Messages: {pformat(envelopes)}"
+
+    test_case_started_ids = [
+        envelope.test_case_started.id for envelope in envelopes if envelope.test_case_started is not None
+    ]
+    assert len(test_case_started_ids) == 1, f"Messages: {pformat(envelopes)}"
+
+    step_events = []
+    for envelope in envelopes:
+        step_event = (
+            envelope.test_step_started if envelope.test_step_started is not None else envelope.test_step_finished
+        )
+        if step_event is not None:
+            step_events.append(step_event)
+
+    assert step_events, f"Messages: {pformat(envelopes)}"
+    assert [step_event.test_case_started_id for step_event in step_events] == [test_case_started_ids[0]] * len(
+        step_events
+    ), f"Messages: {pformat(envelopes)}"
 
 
 def test_undefined_step_messages(testdir, tmp_path):

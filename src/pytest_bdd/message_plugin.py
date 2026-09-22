@@ -699,7 +699,7 @@ class MessagePlugin:
                     config=config,
                     message=Message(
                         test_step_started=TestStepStarted(
-                            test_case_started_id=test_case.id,
+                            test_case_started_id=self.current_test_case_start.id,
                             timestamp=self.get_timestamp(),
                             test_step_id=test_step.id,
                         )
@@ -709,7 +709,7 @@ class MessagePlugin:
                 config=config,
                 message=Message(
                     test_step_finished=TestStepFinished(
-                        test_case_started_id=test_case.id,
+                        test_case_started_id=self.current_test_case_start.id,
                         timestamp=self.get_timestamp(),
                         test_step_id=test_step.id,
                         test_step_result=TestStepResult(
@@ -735,7 +735,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_started=TestStepStarted(
-                    test_case_started_id=self._current_test_case().id,
+                    test_case_started_id=self.current_test_case_start.id,
                     timestamp=self.current_test_case_step_start_timestamp,
                     test_step_id=step_definition.id,
                 )
@@ -773,7 +773,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_finished=TestStepFinished(
-                    test_case_started_id=self._current_test_case().id,
+                    test_case_started_id=self.current_test_case_start.id,
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(
@@ -822,7 +822,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_finished=TestStepFinished(
-                    test_case_started_id=self._current_test_case().id,
+                    test_case_started_id=self.current_test_case_start.id,
                     timestamp=self.current_test_case_step_finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(
