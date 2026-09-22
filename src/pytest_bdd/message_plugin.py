@@ -96,6 +96,8 @@ class MessagePlugin:
     config: Config = attrib()
     current_test_case: TestCase | None = attrib(default=None)
     current_test_case_step_to_definition_mapping: dict[int, Any] | None = attrib(default=None)
+    current_test_case_started_step_ids: set[str] = attrib(factory=set)
+    current_test_case_finished_step_ids: set[str] = attrib(factory=set)
     parameter_type_registry: set[int] = attrib(factory=set)
     hook_registry: set[int] = attrib(factory=set)
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
@@ -521,6 +523,8 @@ class MessagePlugin:
         previous_step = None
 
         self.current_test_case_step_id_to_step_mapping = {}
+        self.current_test_case_started_step_ids = set()
+        self.current_test_case_finished_step_ids = set()
 
         for step in scenario.steps:
             try:
@@ -663,6 +667,8 @@ class MessagePlugin:
 
         hook_handler = config.hook
 
+        self.emit_skipped_unfinished_steps(config)
+
         hook_handler.pytest_bdd_message(
             config=config,
             message=Message(
@@ -674,6 +680,44 @@ class MessagePlugin:
             ),
         )
         self.current_test_case = None
+
+    def emit_skipped_unfinished_steps(self, config: Config) -> None:
+        """Emit skipped results for a step that raised pytest.skip and for the steps that never ran."""
+        test_case = self._current_test_case()
+        unfinished_test_steps = [
+            test_step
+            for test_step in test_case.test_steps
+            if test_step.id not in self.current_test_case_finished_step_ids
+        ]
+        if not any(test_step.id in self.current_test_case_started_step_ids for test_step in unfinished_test_steps):
+            return
+
+        hook_handler = config.hook
+        for test_step in unfinished_test_steps:
+            if test_step.id not in self.current_test_case_started_step_ids:
+                hook_handler.pytest_bdd_message(
+                    config=config,
+                    message=Message(
+                        test_step_started=TestStepStarted(
+                            test_case_started_id=test_case.id,
+                            timestamp=self.get_timestamp(),
+                            test_step_id=test_step.id,
+                        )
+                    ),
+                )
+            hook_handler.pytest_bdd_message(
+                config=config,
+                message=Message(
+                    test_step_finished=TestStepFinished(
+                        test_case_started_id=test_case.id,
+                        timestamp=self.get_timestamp(),
+                        test_step_id=test_step.id,
+                        test_step_result=TestStepResult(
+                            duration=Duration(seconds=0, nanos=0), status=TestStepResultStatus.skipped
+                        ),
+                    )
+                ),
+            )
 
     def pytest_bdd_before_step(
         self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any
@@ -697,6 +741,7 @@ class MessagePlugin:
                 )
             ),
         )
+        self.current_test_case_started_step_ids.add(step_definition.id)
 
     def pytest_bdd_after_step(
         self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any
@@ -737,6 +782,7 @@ class MessagePlugin:
                 )
             ),
         )
+        self.current_test_case_finished_step_ids.add(step_definition.id)
 
     def pytest_bdd_step_error(
         self,
@@ -785,6 +831,7 @@ class MessagePlugin:
                 )
             ),
         )
+        self.current_test_case_finished_step_ids.add(step_definition.id)
 
     def pytest_bdd_attach(
         self,

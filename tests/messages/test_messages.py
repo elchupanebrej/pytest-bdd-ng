@@ -683,6 +683,70 @@ def test_skipped_scenario_messages(testdir, tmp_path):
     assert len(test_case_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
 
 
+def test_step_that_calls_pytest_skip_messages(testdir, tmp_path):
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        test_skip="""
+        Feature: Skipped step
+            Scenario: a step calls pytest.skip
+                Given a passing step
+                When a step calls pytest.skip
+                Then a step that never runs
+        """,
+    )
+    testdir.makeconftest(
+        # language=python
+        """\
+        import pytest
+
+        from pytest_bdd import given, then, when
+
+        @given('a passing step')
+        def a_passing_step():
+            pass
+
+        @when('a step calls pytest.skip')
+        def a_step_that_calls_pytest_skip():
+            pytest.skip('skipping inside the step')
+
+        @then('a step that never runs')
+        def a_step_that_never_runs():
+            raise AssertionError('this step must not run')
+        """
+    )
+
+    ndjson_path = tmp_path / "step_skip.feature.ndjson"
+    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result.assert_outcomes(skipped=1)
+
+    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
+
+    test_case_messages = list_filter_by_type(_TestCase, unfold_messages)
+    assert len(test_case_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+    test_steps = test_case_messages[0].test_steps
+    assert len(test_steps) == 3
+
+    step_started_messages = list_filter_by_type(_TestStepStarted, unfold_messages)
+    step_finished_messages = list_filter_by_type(_TestStepFinished, unfold_messages)
+    assert sorted(message.test_step_id for message in step_started_messages) == sorted(
+        message.test_step_id for message in step_finished_messages
+    ), f"No TestStepStarted may be left dangling. Messages: {pformat(unfold_messages)}"
+
+    status_by_step_id = {
+        message.test_step_id: _TestStepResultStatus(message.test_step_result.status)
+        for message in step_finished_messages
+    }
+    assert [status_by_step_id[step.id] for step in test_steps] == [
+        _TestStepResultStatus.passed,
+        _TestStepResultStatus.skipped,
+        _TestStepResultStatus.skipped,
+    ], f"Messages: {pformat(unfold_messages)}"
+
+    test_case_finished_messages = list_filter_by_type(_TestCaseFinished, unfold_messages)
+    assert len(test_case_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
+
+
 def test_undefined_step_messages(testdir, tmp_path):
     testdir.makefile(
         ".feature",
