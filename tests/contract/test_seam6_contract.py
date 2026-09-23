@@ -18,7 +18,7 @@ from pytest_bdd.utils import IdGenerator
 
 from pytest import mark
 
-pytestmark = mark.unit
+pytestmark = mark.contract
 
 
 def test_seam6_liberal_steps_configuration_contract() -> None:
