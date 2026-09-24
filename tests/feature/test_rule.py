@@ -69,7 +69,7 @@ STEPS = """\
 """
 
 # language=gherkin
-MERGE_FEATURE = '''\
+MERGE_FEATURE = """\
 Feature: Rule background merge
 
   Background:
@@ -81,7 +81,7 @@ Feature: Rule background merge
 
     Example: Example A
       Given scenario step
-'''
+"""
 
 # language=python
 MERGE_STEPS = """\
