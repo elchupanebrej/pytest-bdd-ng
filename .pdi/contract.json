@@ -25,7 +25,7 @@
     {
       "name": "workspace.describe",
       "command": [
-        "/home/linuxbrew/.linuxbrew/opt/python@3.14/bin/python3.14",
+        "python3",
         "-c",
         "import json, subprocess, sys\nr_root = subprocess.run([\"git\", \"rev-parse\", \"--show-toplevel\"], capture_output=True, text=True, cwd=\".\")\nr_status = subprocess.run([\"git\", \"status\", \"--porcelain\"], capture_output=True, text=True, cwd=\".\")\nprint(json.dumps({\"root\": r_root.stdout.strip(), \"clean\": r_status.stdout.strip() == \"\"}))\n"
       ],
