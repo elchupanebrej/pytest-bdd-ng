@@ -62,7 +62,7 @@ dependencies = [
   "ordered_set",
   "packaging",
   "parse",
-  "parse_type>=0.6.0",
+  "parse_type>=0.6.6",
   "pathvalidate",
   "py",
   # pydantic 2.13+ pulls pydantic-core>=2.46, which has no PyPy 3.10 wheels (PyO3 dropped pp310) - see #204
