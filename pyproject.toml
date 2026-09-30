@@ -92,7 +92,7 @@ lint = [
   "vulture>=2.16",
   "deptry>=0.16.0",
   "bandit>=1.7.8",
-  "pip-audit>=2.7.0"
+  "pip-audit>=2.10.1"
 ]
 typecheck = [
   "pyright>=1.1.350",
