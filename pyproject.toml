@@ -89,7 +89,7 @@ pytest-bdd = "pytest_bdd.plugin"
 [project.optional-dependencies]
 lint = [
   "ruff>=0.4.0",
-  "vulture>=2.11",
+  "vulture>=2.16",
   "deptry>=0.16.0",
   "bandit>=1.7.8",
   "pip-audit>=2.7.0"
