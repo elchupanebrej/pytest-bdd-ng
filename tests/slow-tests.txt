@@ -49,9 +49,9 @@ tests/feature/test_scenarios.py::test_scenarios_none_found[
 tests/feature/test_tags.py::test_at_in_scenario
 tests/library/test_parent.py::test_local_both_target_fixture_and_target_fixtures
 
-# Tier 1 - unit bootstrap lifecycle tests (plugin registration path, >= 4 s)
+# Tier 1 - bootstrap lifecycle tests (plugin registration path, >= 4 s)
 tests/unit/bootstrap/test_plugin.py::test_pytest_configure_lifecycle
-tests/unit/bootstrap/test_seam6_contract.py::test_seam6_plugin_lifecycle_and_stash_contract
+tests/contract/test_seam6_contract.py::test_seam6_plugin_lifecycle_and_stash_contract
 
 # Tier 2 - inner pytest sessions measured >= 2 s
 tests/e2e/test_e2e.py::test[file:features/Feature/Load/Autoload.feature.md-

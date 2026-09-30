@@ -51,7 +51,7 @@ while IFS= read -r path; do
     src/pytest_bdd/model/*)
       emit "tests/unit/model"; emit "tests/unit/parser"; emit "tests/feature" ;;
     src/pytest_bdd/plugin.py|src/pytest_bdd/collector.py)
-      emit "tests/unit/bootstrap"; emit "tests/unit/execution"; emit "tests/feature"; emit "tests/e2e" ;;
+      emit "tests/unit/bootstrap"; emit "tests/unit/execution"; emit "tests/contract"; emit "tests/feature"; emit "tests/e2e" ;;
     src/pytest_bdd/runner.py|src/pytest_bdd/scenario.py)
       emit "tests/unit/execution"; emit "tests/feature"; emit "tests/e2e"; emit "tests/generation" ;;
     src/pytest_bdd/compatibility/*)

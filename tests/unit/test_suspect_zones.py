@@ -112,6 +112,11 @@ def test_is_wsl_bash_detects_system32_launcher(monkeypatch) -> None:
             id="message",
         ),
         param(
+            "src/pytest_bdd/plugin.py",
+            ["tests/unit/bootstrap", "tests/unit/execution", "tests/contract", "tests/feature", "tests/e2e"],
+            id="plugin",
+        ),
+        param(
             "src/pytest_bdd/struct_bdd/parser.py",
             ["tests/struct_bdd", "tests/unit/plugins", "tests/unit/parser", "tests/unit/compatibility"],
             id="struct-bdd",
