@@ -91,7 +91,7 @@ lint = [
   "ruff>=0.4.0",
   "vulture>=2.16",
   "deptry>=0.25.1",
-  "bandit>=1.7.8",
+  "bandit>=1.9.4",
   "pip-audit>=2.10.1"
 ]
 typecheck = [
