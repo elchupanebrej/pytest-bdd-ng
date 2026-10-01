@@ -56,3 +56,12 @@ nosetests.xml
 /include
 /share
 /local
+
+# Keep the Graphify deliverables while ignoring rebuild caches and local run state.
+/graphify-out/cache/
+/graphify-out/????-??-??/
+/graphify-out/.graphify_*
+!/graphify-out/.graphify_labels.json
+!/graphify-out/.graphify_labels.json.sig
+/graphify-out/cost.json
+/graphify-out/reflections/
