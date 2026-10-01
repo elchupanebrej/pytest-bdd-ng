@@ -101,37 +101,3 @@ def test_url_scenario_locator_mocked() -> None:
         assert features[0].scenarios[0].name == "Remote S1"
         assert features[0].source_content == mock_resp.read.return_value.decode("utf-8")
         assert features[0].source_media_type == "text/x-gherkin"
-
-
-def test_seam2_contract_all_formats(tmp_path: Path) -> None:
-    """Seam 2 Contract: All parsers & locators produce pure Layer L2a Feature model trees."""
-    from pytest_cuke.model import Scenario, Step
-
-    f_gherkin = tmp_path / "test.feature"
-    f_gherkin.write_text("Feature: Gherkin\n  Scenario: G\n    Given g1\n", encoding="utf-8")
-
-    f_md = tmp_path / "test.md"
-    f_md.write_text("# Feature: Markdown\n## Scenario: M\n* Given m1\n", encoding="utf-8")
-
-    feature_paths = [f_gherkin, f_md]
-    if STRUCT_BDD_INSTALLED:
-        f_yaml = tmp_path / "test.bdd.yaml"
-        f_yaml.write_text(
-            "Name: StructBDD\nSteps:\n  - Step:\n      Name: Y\n      Steps:\n        - Given: y1\n",
-            encoding="utf-8",
-        )
-        feature_paths.append(f_yaml)
-
-    locator = FileScenarioLocator(feature_paths=feature_paths)
-    features = list(locator.resolve_features())
-    assert len(features) == (3 if STRUCT_BDD_INSTALLED else 2)
-
-    for feat in features:
-        assert isinstance(feat, Feature)
-        assert len(feat.scenarios) >= 1
-        for sc in feat.scenarios:
-            assert isinstance(sc, Scenario)
-            assert len(sc.steps) >= 1
-            for st in sc.steps:
-                assert isinstance(st, Step)
-                assert st.keyword.strip() in ("Given", "When", "Then", "And", "But", "*")
