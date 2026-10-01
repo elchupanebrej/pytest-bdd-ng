@@ -74,6 +74,24 @@ def test_file_scenario_locator_filtering(tmp_path: Path) -> None:
     assert sc.name == "Keep Me"
 
 
+def test_file_scenario_locator_tracks_outline_substitution_spans(tmp_path: Path) -> None:
+    feature_file = tmp_path / "outline.feature"
+    feature_file.write_text(
+        "Feature: Outline\n"
+        "  Scenario Outline: Values\n"
+        "    Given <first><second>|<first>|<missing>\n"
+        "    Examples:\n"
+        "      | first | second |\n"
+        "      | foo   | bar    |\n",
+        encoding="utf-8",
+    )
+
+    _, scenario = next(iter(FileScenarioLocator(feature_paths=[feature_file]).resolve()))
+
+    assert scenario.steps[0].name == "foobar|foo|<missing>"
+    assert scenario.steps[0].substituted_spans == ((0, 6), (7, 10))
+
+
 def test_protocols_conformance() -> None:
     locator = FileScenarioLocator(feature_paths=["dummy.feature"])
     assert isinstance(locator, ScenarioLocatorFeatureResolver)

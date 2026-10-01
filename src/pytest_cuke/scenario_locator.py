@@ -30,6 +30,7 @@ from pytest_cuke.parser_backend import resolve_parser_backend
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+    from pytest_cuke.model.step import TextSpan
     from pytest_cuke.parser import ParserProtocol
 
 
@@ -43,6 +44,38 @@ class ScenarioLocatorResolver(Protocol):
     def resolve(
         self, config: Any = None, registry: ParserRegistry | None = None
     ) -> Iterable[tuple[Feature, Scenario]]: ...
+
+
+def _substitute_step_name(text: str, parameters: dict[str, str]) -> tuple[str, tuple[TextSpan, ...]]:
+    """Substitute outline values and retain the output spans they produced."""
+    substituted = [False] * len(text)
+    for name, value in parameters.items():
+        placeholder = f"<{name}>"
+        output: list[str] = []
+        output_substituted: list[bool] = []
+        cursor = 0
+        while (start := text.find(placeholder, cursor)) >= 0:
+            output.append(text[cursor:start])
+            output_substituted.extend(substituted[cursor:start])
+            output.append(value)
+            output_substituted.extend([True] * len(value))
+            cursor = start + len(placeholder)
+        if cursor == 0:
+            continue
+        output.append(text[cursor:])
+        output_substituted.extend(substituted[cursor:])
+        text = "".join(output)
+        substituted = output_substituted
+
+    spans: list[TextSpan] = []
+    span_start: int | None = None
+    for position, is_substituted in enumerate((*substituted, False)):
+        if is_substituted and span_start is None:
+            span_start = position
+        elif not is_substituted and span_start is not None:
+            spans.append((span_start, position))
+            span_start = None
+    return text, tuple(spans)
 
 
 @define
@@ -64,9 +97,7 @@ class ScenarioLocatorFilterMixin:
                         }
                         expanded_steps = []
                         for step in scenario.steps:
-                            expanded_name = step.name
-                            for k, v in mapping.items():
-                                expanded_name = expanded_name.replace(f"<{k}>", v)
+                            expanded_name, substituted_spans = _substitute_step_name(step.name, mapping)
 
                             expanded_doc_string = step.doc_string
                             if expanded_doc_string is not None:
@@ -102,6 +133,7 @@ class ScenarioLocatorFilterMixin:
                                     name=expanded_name,
                                     keyword=step.keyword,
                                     line=step.line,
+                                    substituted_spans=substituted_spans,
                                     doc_string=expanded_doc_string,
                                     data_table=expanded_data_table,
                                     type=step.type,

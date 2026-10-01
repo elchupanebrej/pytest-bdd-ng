@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 from attrs import frozen
 
@@ -17,6 +17,9 @@ class StepType(str, Enum):
     outcome = "Outcome"
 
 
+TextSpan: TypeAlias = tuple[int, int]
+
+
 @frozen
 class Step:
     name: str
@@ -26,6 +29,7 @@ class Step:
     data_table: DataTable | None = None
     type: str | StepType | None = None
     id: str | None = None
+    substituted_spans: tuple[TextSpan, ...] = ()
 
     @property
     def prefix(self) -> str:
