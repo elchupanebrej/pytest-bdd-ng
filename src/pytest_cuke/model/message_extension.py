@@ -6,20 +6,19 @@ from typing import Final, TypeAlias
 from attrs import frozen
 
 from messages import Envelope
-from messages import ExpressionType as _BaseExpressionType
 
-StepDefinitionPatternType = Enum(
-    "StepDefinitionPatternType",
-    {
-        **{n: m.value for n, m in _BaseExpressionType.__members__.items()},
-        "pytest_cuke_heuristic_expression": "PYTEST_BDD_HEURISTIC_EXPRESSION",
-        "pytest_cuke_string_expression": "PYTEST_BDD_STRING_EXPRESSION",
-        "pytest_cuke_regular_expression": "PYTEST_BDD_REGULAR_EXPRESSION",
-        "pytest_cuke_parse_expression": "PYTEST_BDD_PARSE_EXPRESSION",
-        "pytest_cuke_cfparse_expression": "PYTEST_BDD_CFPARSE_EXPRESSION",
-        "pytest_cuke_other_expression": "PYTEST_BDD_OTHER_EXPRESSION",
-    },
-)
+
+class StepDefinitionPatternType(Enum):
+    cucumber_expression = "CUCUMBER_EXPRESSION"
+    regular_expression = "REGULAR_EXPRESSION"
+    pytest_cuke_heuristic_expression = "PYTEST_BDD_HEURISTIC_EXPRESSION"
+    pytest_cuke_string_expression = "PYTEST_BDD_STRING_EXPRESSION"
+    pytest_cuke_regular_expression = "PYTEST_BDD_REGULAR_EXPRESSION"
+    pytest_cuke_parse_expression = "PYTEST_BDD_PARSE_EXPRESSION"
+    pytest_cuke_cfparse_expression = "PYTEST_BDD_CFPARSE_EXPRESSION"
+    pytest_cuke_other_expression = "PYTEST_BDD_OTHER_EXPRESSION"
+
+
 ExpressionType = StepDefinitionPatternType
 EventEnvelope: TypeAlias = Envelope
 PayloadKind: TypeAlias = str

@@ -8,7 +8,9 @@ import shlex
 import shutil
 import subprocess
 import string
+import sys
 import tarfile
+import venv
 import zipfile
 from dataclasses import dataclass
 from functools import reduce
@@ -545,3 +547,68 @@ def _(file_path: Path):
                 Envelope.model_validate(json.loads(raw_datum))
         except Exception as e:
             raise AssertionError from e
+
+
+@given(re.compile(r'runtime source probe "(?P<name>[a-z][a-z0-9_]*)" contains:'))
+def create_runtime_source_type_probe(name: str, request, step) -> None:
+    project_root = Path(request.config.rootpath)
+    source_root = project_root / "src" / "pytest_cuke"
+    probe_path = source_root / f"_mypy_probe_{name}.py"
+    if probe_path.exists():
+        raise AssertionError(f"temporary runtime probe already exists: {probe_path}")
+    probe_path.write_text(step.doc_string.content, encoding="utf-8")
+    request.addfinalizer(lambda: probe_path.unlink(missing_ok=True))
+
+
+@when("I run the authoritative runtime Mypy gate", target_fixture="typecheck_result")
+def run_authoritative_runtime_mypy_gate(request):
+    project_root = Path(request.config.rootpath)
+    return subprocess.run(
+        [sys.executable, str(project_root / "scripts" / "check_types.py")],
+        cwd=project_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+@when("I run the type-check adapter without Mypy installed", target_fixture="typecheck_result")
+def run_typecheck_adapter_without_mypy(request, tmp_path):
+    project_root = Path(request.config.rootpath)
+    environment = tmp_path / "without-mypy"
+    venv.EnvBuilder(with_pip=False).create(environment)
+    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    return subprocess.run(
+        [str(python), str(project_root / "scripts" / "check_types.py")],
+        cwd=project_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+@then(re.compile(r"the runtime type gate should fail with diagnostic \"(?P<code>[a-z-]+)\""))
+def runtime_type_gate_has_expected_error(code: str, typecheck_result: subprocess.CompletedProcess[str]) -> None:
+    output = f"{typecheck_result.stdout}\n{typecheck_result.stderr}"
+    assert typecheck_result.returncode != 0, output
+    assert f"[{code}]" in output, output
+
+
+@then("the runtime type gate should pass with visible policy identity")
+def runtime_type_gate_passes_with_policy_identity(typecheck_result: subprocess.CompletedProcess[str]) -> None:
+    output = f"{typecheck_result.stdout}\n{typecheck_result.stderr}"
+    assert typecheck_result.returncode == 0, output
+    assert "MYPY_VERSION=2.3.1" in output, output
+    assert "MYPY_CONFIG=" in output, output
+    assert "MYPY_CONFIG_SHA256=" in output, output
+    assert "MYPY_SCOPE=src/pytest_cuke" in output, output
+    assert "MYPY_SCOPE_PY_FILES=" in output, output
+    assert "MYPY_SCOPE_SHA256=" in output, output
+
+
+@then("the type-check adapter should explain that Mypy is missing")
+def typecheck_adapter_explains_missing_mypy(typecheck_result: subprocess.CompletedProcess[str]) -> None:
+    output = f"{typecheck_result.stdout}\n{typecheck_result.stderr}"
+    assert typecheck_result.returncode == 2, output
+    assert "Mypy is not installed for this Python interpreter" in output, output
+    assert "testtypes extra" in output, output

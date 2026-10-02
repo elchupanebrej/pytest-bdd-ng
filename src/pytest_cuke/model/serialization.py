@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from enum import Enum
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import attrs
 
@@ -17,7 +17,7 @@ from pytest_cuke.model.step import Step, StepType
 from pytest_cuke.model.table import DataTable, TableCell, TableRow
 from pytest_cuke.model.tag import Tag
 
-T = TypeVar("T")
+T = TypeVar("T", bound=attrs.AttrsInstance)
 
 _SCHEMA_MAPPING: dict[type, dict[str, Any]] = {
     Tag: {},
@@ -36,12 +36,12 @@ _SCHEMA_MAPPING: dict[type, dict[str, Any]] = {
 }
 
 
-def as_dict(inst: Any) -> dict[str, Any]:
+def as_dict(inst: Any) -> Any:
     if not attrs.has(type(inst)):
         if isinstance(inst, dict):
             return {k: as_dict(v) for k, v in inst.items()}
         if isinstance(inst, list | tuple):
-            return [as_dict(v) for v in inst]  # type: ignore[return-value]
+            return [as_dict(v) for v in inst]
         if isinstance(inst, Enum):
             return inst.value
         return inst
@@ -58,7 +58,7 @@ def to_json(inst: Any, **kwargs: Any) -> str:
 
 def from_dict(cls: type[T], data: dict[str, Any]) -> T:
     if not isinstance(data, dict):
-        return data  # type: ignore[return-value]
+        return cast("T", data)
     schema = _SCHEMA_MAPPING.get(cls, {})
     kwargs: dict[str, Any] = {}
     field_names = {f.name for f in attrs.fields(cls)}

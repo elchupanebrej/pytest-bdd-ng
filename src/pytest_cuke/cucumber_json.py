@@ -20,7 +20,7 @@ if TYPE_CHECKING:  # pragma: no cover
     class LogBDDCucumberJSONProtocol(Protocol):
         _bddcucumberjson: LogBDDCucumberJSON
 
-    class Config(BaseConfig, LogBDDCucumberJSONProtocol):  # type: ignore[misc]
+    class Config(BaseConfig, LogBDDCucumberJSONProtocol):  # type: ignore[misc]  # The type-only adapter adds the optional reporter protocol to pytest Config.
         pass
 
 

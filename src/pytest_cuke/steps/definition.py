@@ -89,7 +89,8 @@ class Definition:
     def get_parameters(self, request: FixtureRequest, step: Step | messages.PickleStep) -> dict[str, object]:
         step_text = getattr(step, "text", getattr(step, "name", ""))
         parsed = self.parser.parse_arguments(request, step_text, anonymous_group_names=self.anonymous_group_names) or {}
-        return {**self.param_defaults, **{k: self.converters.get(k, lambda v: v)(v) for k, v in parsed.items()}}
+        converted = {k: self.converters[k](value) if k in self.converters else value for k, value in parsed.items()}
+        return {**self.param_defaults, **converted}
 
 
 StepDefinitionAlias: TypeAlias = Definition

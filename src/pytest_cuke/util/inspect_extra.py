@@ -14,7 +14,7 @@ def get_args(func: Callable[..., Any]) -> Sequence[str]:
 
 def get_first_source_line(obj: object) -> int:
     try:
-        return getsourcelines(obj)[1]  # type: ignore[arg-type]
+        return getsourcelines(obj)[1]  # type: ignore[arg-type]  # inspect supports source-bearing objects beyond its narrower stub type.
     except (OSError, TypeError):
         code = getattr(obj, "__code__", None)
         return int(code.co_firstlineno) if code else 1

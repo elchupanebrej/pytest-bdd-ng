@@ -10,10 +10,7 @@ from pytest_cuke.types.protocol import HasPytestStash
 from pytest_cuke.utils import IdGenerator
 
 if TYPE_CHECKING:
-    try:
-        from cucumber_messages import GherkinDocument
-    except ImportError:
-        from messages import GherkinDocument  # type: ignore[no-redef]
+    from messages import GherkinDocument
 
 
 @define

@@ -50,8 +50,9 @@ class Feature:
             return self.uri[5:]
         return self.uri
 
-    def _get_pickle_line_number(self, pickle: Scenario) -> int:
-        return pickle.line
+    def _get_pickle_line_number(self, pickle: object) -> int:
+        line = getattr(pickle, "line", 0)
+        return line if isinstance(line, int) else 0
 
     def _get_step_line_number(self, step: Any) -> int:
         return getattr(step, "line", 0)

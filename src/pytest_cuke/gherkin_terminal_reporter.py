@@ -43,7 +43,7 @@ def configure(config: Config) -> None:
             raise Exception(msg)
 
 
-class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]
+class GherkinTerminalReporter(TerminalReporter):  # type: ignore[misc]  # Pytest's private reporter exposes incompatible typing metadata.
     def __init__(self, config: Config) -> None:
         super().__init__(config)
 

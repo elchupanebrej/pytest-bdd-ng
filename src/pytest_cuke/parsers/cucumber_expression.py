@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from functools import singledispatchmethod
 from operator import attrgetter
 from re import compile as re_compile
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from cucumber_expressions.errors import CantEscape, UndefinedParameterTypeError
 from cucumber_expressions.expression import CucumberExpression
@@ -13,7 +12,7 @@ from pytest_cuke.model.message_extension import StepDefinitionPatternType
 from pytest_cuke.parsers.base import RegistryMode, StepParser, register_parser
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import Callable, Collection, Iterable
 
     from cucumber_expressions.regular_expression import RegularExpression as CucumberRegularExpression
 
@@ -22,10 +21,16 @@ if TYPE_CHECKING:
 UNDEFINED_PARAM_PATTERN = re_compile(r"Undefined parameter type ['{]?(?P<name>[^'}.\n]+)['}]?\.?")
 
 
+def _new_parameter_type_registry() -> ParameterTypeRegistry:
+    registry_factory = cast("Callable[[], ParameterTypeRegistry]", ParameterTypeRegistry)
+    return registry_factory()
+
+
 class _CucumberExpression(StepParser):
     expression_type: type[CucumberExpression | CucumberRegularExpression]
     parameter_type_registry_like: ParameterTypeRegistry | RegistryMode | str | None
-    parameter_type_registry = ParameterTypeRegistry()
+    pattern: str
+    parameter_type_registry: ParameterTypeRegistry = _new_parameter_type_registry()
     last_undefined_parameter_type: tuple[str, str] | None = None
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
@@ -43,8 +48,9 @@ class _CucumberExpression(StepParser):
         self, request: FixtureRequest, name: str, anonymous_group_names: Iterable[str] | None = None
     ) -> dict[str, object] | None:
         expr = self.rebuild_expression_in_test_context(request)
-        names = anonymous_group_names or getattr(self, "arguments", ())
-        return dict(zip(names, map(attrgetter("value"), expr.match(name) or []), strict=False))
+        names: Iterable[str] = anonymous_group_names if anonymous_group_names is not None else self.arguments
+        matched_arguments = cast("Iterable[Any]", expr.match(name) or ())
+        return dict(zip(names, map(attrgetter("value"), matched_arguments), strict=False))
 
     def __str__(self) -> str:
         return str(self.pattern)
@@ -52,14 +58,16 @@ class _CucumberExpression(StepParser):
     def rebuild_expression_in_test_context(
         self, request: FixtureRequest
     ) -> CucumberExpression | CucumberRegularExpression:
-        return self.expression_type(self.pattern, self._get_parameter_type_registry(request))
+        expression_factory = cast("Callable[..., Any]", self.expression_type)
+        expression = expression_factory(self.pattern, self._get_parameter_type_registry(request))
+        return cast("CucumberExpression | CucumberRegularExpression", expression)
 
     def _get_parameter_type_registry(self, request: FixtureRequest) -> ParameterTypeRegistry:
         reg = self.parameter_type_registry_like
         if isinstance(reg, str | RegistryMode) or reg is None:
             mode = RegistryMode(reg)
             if mode == RegistryMode.NEW:
-                return ParameterTypeRegistry()
+                return _new_parameter_type_registry()
             if mode == RegistryMode.FIXTURE and request is not None:
                 return cast("ParameterTypeRegistry", request.getfixturevalue("parameter_type_registry"))
             return self.parameter_type_registry
@@ -70,21 +78,17 @@ class cucumber_expression(_CucumberExpression):
     type = StepDefinitionPatternType.cucumber_expression
     expression_type = CucumberExpression
 
-    @singledispatchmethod
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        raise NotImplementedError
-
-    @__init__.register
-    def _(
+    def __init__(
         self,
-        expression: str,
+        expression: object,
         parameter_type_registry: ParameterTypeRegistry | RegistryMode | str | None = RegistryMode.FIXTURE,
     ) -> None:
-        self.pattern, self.parameter_type_registry_like = expression, parameter_type_registry
-
-    @__init__.register
-    def _(self, expression: CucumberExpression) -> None:
-        self.pattern, self.parameter_type_registry_like = expression.expression, expression.parameter_type_registry
+        if isinstance(expression, str):
+            self.pattern, self.parameter_type_registry_like = expression, parameter_type_registry
+        elif isinstance(expression, CucumberExpression):
+            self.pattern, self.parameter_type_registry_like = expression.expression, expression.parameter_type_registry
+        else:
+            raise NotImplementedError
 
     @property
     def arguments(self) -> Collection[str]:

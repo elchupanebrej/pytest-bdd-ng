@@ -5,7 +5,7 @@ from itertools import filterfalse
 from operator import methodcaller, truediv
 from os.path import commonpath
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 from urllib.parse import urljoin
 from urllib.request import urlopen
 
@@ -114,7 +114,8 @@ class ScenarioLocatorFilterMixin:
                 yield feature, scenario
 
     def resolve(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[tuple[Feature, Scenario]]:
-        for feature in self.resolve_features(config, registry=registry):  # type: ignore[attr-defined]
+        feature_resolver = cast("ScenarioLocatorFeatureResolver", self)
+        for feature in feature_resolver.resolve_features(config, registry=registry):
             yield from self.filter_scenarios(feature, config)
 
 
@@ -127,7 +128,10 @@ def _parser_from_config_hook(config: Any, path: Path, mimetype: str | None) -> P
     if resolved_mimetype is None:
         return None
 
-    parser_factory = hook.pytest_cuke_get_parser(config=config, mimetype=resolved_mimetype)
+    parser_factory = cast(
+        "ParserProtocol | Callable[[], ParserProtocol] | None",
+        hook.pytest_cuke_get_parser(config=config, mimetype=resolved_mimetype),
+    )
     if parser_factory is None:
         return None
     return parser_factory() if callable(parser_factory) else parser_factory
