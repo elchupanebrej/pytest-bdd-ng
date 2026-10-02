@@ -28,6 +28,9 @@ The adapter verifies these exact framework and stub versions before checking.
 The pre-commit hook, ``tox -e typecheck``, and the blocking CI job use the same
 configuration and runtime-source scope. Their adapter prints the resolved
 checker, config hash, and source-scope identity before checking.
+The tox environment also runs a focused Messages check over the extension,
+converter, stream-validation, and reporter modules with that same Mypy
+configuration.
 
 Keep suppressions attached to the specific diagnostic and explain them in
 English. Do not disable errors for a whole module tree or move runtime files
