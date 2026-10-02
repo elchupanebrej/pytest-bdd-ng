@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 
 from pytest import mark
-from tests.testing_utils import run_pytester_isolated
+from tests.support.testing_utils import run_pytester_isolated
 
 # language=gherkin
 FEATURE = """\

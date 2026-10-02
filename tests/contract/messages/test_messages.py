@@ -32,7 +32,7 @@ from pytest_cuke.utils import flip
 if TYPE_CHECKING:  # pragma: nocover
     from pytest_cuke.compatibility.pytest import Testdir
 
-samples_path = Path(__file__).parent.parent.parent / "compatibility-kit/devkit/samples"
+samples_path = Path(__file__).parent.parent.parent.parent / "compatibility-kit/devkit/samples"
 
 
 def unfold_message(message: Message):
