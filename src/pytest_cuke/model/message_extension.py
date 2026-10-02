@@ -5,26 +5,20 @@ from typing import TYPE_CHECKING, Final, TypeAlias
 
 from attrs import frozen
 
-# The star import mirrors the canonical cucumber_messages namespace so the
-# JsonDataclassConverter can resolve every payload type through this module,
-# while the extended StepDefinitionPatternType below overrides the canonical
-# enum for pytest-bdd-specific expression types.
-from cucumber_messages import *  # noqa: F403
-from cucumber_messages import Envelope
-from cucumber_messages import StepDefinitionPatternType as _BaseStepDefinitionPatternType
+from messages import Envelope
 
-StepDefinitionPatternType = Enum(
-    "StepDefinitionPatternType",
-    {
-        **{n: m.value for n, m in _BaseExpressionType.__members__.items()},
-        "pytest_cuke_heuristic_expression": "PYTEST_BDD_HEURISTIC_EXPRESSION",
-        "pytest_cuke_string_expression": "PYTEST_BDD_STRING_EXPRESSION",
-        "pytest_cuke_regular_expression": "PYTEST_BDD_REGULAR_EXPRESSION",
-        "pytest_cuke_parse_expression": "PYTEST_BDD_PARSE_EXPRESSION",
-        "pytest_cuke_cfparse_expression": "PYTEST_BDD_CFPARSE_EXPRESSION",
-        "pytest_cuke_other_expression": "PYTEST_BDD_OTHER_EXPRESSION",
-    },
-)
+
+class StepDefinitionPatternType(Enum):
+    cucumber_expression = "CUCUMBER_EXPRESSION"
+    regular_expression = "REGULAR_EXPRESSION"
+    pytest_cuke_heuristic_expression = "PYTEST_BDD_HEURISTIC_EXPRESSION"
+    pytest_cuke_string_expression = "PYTEST_BDD_STRING_EXPRESSION"
+    pytest_cuke_regular_expression = "PYTEST_BDD_REGULAR_EXPRESSION"
+    pytest_cuke_parse_expression = "PYTEST_BDD_PARSE_EXPRESSION"
+    pytest_cuke_cfparse_expression = "PYTEST_BDD_CFPARSE_EXPRESSION"
+    pytest_cuke_other_expression = "PYTEST_BDD_OTHER_EXPRESSION"
+
+
 ExpressionType = StepDefinitionPatternType
 EventEnvelope: TypeAlias = Envelope
 PayloadKind: TypeAlias = str

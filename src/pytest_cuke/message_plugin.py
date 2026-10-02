@@ -63,11 +63,12 @@ from pytest_cuke.steps import Matcher
 from pytest_cuke.utils import PytestBDDIdGeneratorHandler, deepattrgetter
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
-    from pytest import Metafunc, Session
+    from pytest import Session
 
+    from pytest_cuke.compatibility.pytest import Item, Metafunc
     from pytest_cuke.model import Feature, Step
 
 
@@ -79,18 +80,20 @@ class MessagePlugin:
     # the next session's function, so the "already emitted" check silently skips a message (#232).
     config: Config = attrib()
     current_test_case: TestCase | None = attrib(default=None)
-    current_test_case_step_to_definition_mapping: dict[int, Any] | None = attrib(default=None)
-    current_test_case_started_step_ids: set[str] = attrib(factory=set)
-    current_test_case_finished_step_ids: set[str] = attrib(factory=set)
-    parameter_type_registry: set[int] = attrib(factory=set)
-    hook_registry: set[int] = attrib(factory=set)
+    current_test_case_step_id_to_step_mapping: dict[int, TestStep] = attrib(factory=dict)
+    current_test_case_start: TestCaseStarted | None = attrib(default=None)
+    current_test_case_step_start_timestamp: Timestamp | None = attrib(default=None)
+    current_test_case_step_finish_timestamp: Timestamp | None = attrib(default=None)
+    parameter_type_registry: ClassVar[set[int]] = set()
+    hook_registry: ClassVar[set[int]] = set()
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
 
     def _configured_output(self, name: str) -> str | None:
         value = getattr(self.config.option, name, None)
-        if value is not None:
+        if isinstance(value, str):
             return value
-        return self.config.getini(name) or None
+        ini_value = self.config.getini(name)
+        return ini_value if isinstance(ini_value, str) and ini_value else None
 
     def __attrs_post_init__(self) -> None:
         messages_path = self._configured_output("cuke_messages_ndjson")
@@ -111,6 +114,8 @@ class MessagePlugin:
             os.close(handle)
             self.messages_file_path = Path(messages_file_path_raw)
         else:
+            if messages_path is None:
+                raise RuntimeError("A configured Messages output path is missing.")
             self.messages_file_path = Path(messages_path)
 
         if html_path is not None:
@@ -293,7 +298,7 @@ class MessagePlugin:
         return f"{uri}:{scenario_ref}"
 
     @hookimpl(hookwrapper=True)
-    def pytest_generate_tests(self, metafunc: Metafunc):
+    def pytest_generate_tests(self, metafunc: Metafunc) -> Generator[None, None, None]:
         yield
         if self.is_disabled:
             return
@@ -307,29 +312,47 @@ class MessagePlugin:
         ):
             config = metafunc.config
 
-            feature_registry = set()
-            pickle_registry = set()
+            feature_registry: set[str] = set()
+            pickle_registry: set[int] = set()
             for call in metafunc._calls:
                 feature = get_metafunc_call_arg(call, "feature")
                 pickle = get_metafunc_call_arg(call, "scenario")
 
                 if is_set(feature) and hasattr(feature_source, "uri") and feature_source.uri not in feature_registry:
                     feature_registry.add(feature_source.uri)
-                    cast("Config", config).hook.pytest_cuke_message(
-                        config=config, message=Message(source=feature_source)
-                    )
+                    config.hook.pytest_cuke_message(config=config, message=Message(source=feature_source))
 
-                    cast("Config", config).hook.pytest_cuke_message(
+                    config.hook.pytest_cuke_message(
                         config=config, message=Message(gherkin_document=feature.gherkin_document)
                     )
                 if is_set(pickle) and id(pickle) not in pickle_registry:
-                    cast("Config", config).hook.pytest_cuke_message(config=config, message=Message(pickle=pickle))
+                    config.hook.pytest_cuke_message(config=config, message=Message(pickle=pickle))
 
     def pytest_cuke_message(self, config: Config, message: Message) -> None:
         if self.is_disabled:
             return
         message_json = json.dumps(envelope_to_dict(message), separators=(",", ":"), ensure_ascii=False)
         self.process_messages_io_queue.put_nowait(message_json)
+
+    def _get_current_test_case(self) -> TestCase:
+        if self.current_test_case is None:
+            raise RuntimeError("There is no active pytest-cuke test case.")
+        return self.current_test_case
+
+    def _get_current_test_case_start(self) -> TestCaseStarted:
+        if self.current_test_case_start is None:
+            raise RuntimeError("There is no active pytest-cuke test case start event.")
+        return self.current_test_case_start
+
+    def _get_current_step_start_timestamp(self) -> Timestamp:
+        if self.current_test_case_step_start_timestamp is None:
+            raise RuntimeError("There is no active pytest-cuke step start event.")
+        return self.current_test_case_step_start_timestamp
+
+    def _get_current_step_finish_timestamp(self) -> Timestamp:
+        if self.current_test_case_step_finish_timestamp is None:
+            raise RuntimeError("There is no active pytest-cuke step finish event.")
+        return self.current_test_case_step_finish_timestamp
 
     def pytest_runtestloop(self, session: Session) -> None:
         if self.is_disabled:
@@ -391,7 +414,7 @@ class MessagePlugin:
             os.unlink(self.messages_file_path)
 
     @hookimpl(hookwrapper=True)
-    def pytest_fixture_setup(self, fixturedef: FixtureDef, request: FixtureRequest):
+    def pytest_fixture_setup(self, fixturedef: FixtureDef[Any], request: FixtureRequest) -> Generator[None, None, None]:
         if self.is_disabled:
             yield
             return
@@ -432,16 +455,13 @@ class MessagePlugin:
         yield
 
     @hookimpl(hookwrapper=True)
-    def pytest_runtest_setup(self, item: Item):
-        outcome = yield
+    def pytest_runtest_setup(self, item: Item) -> Generator[None, None, None]:
+        yield
         if self.is_disabled:
             return
 
-        if not {"feature", "scenario"}.issubset(item.fixturenames):
+        if not {"feature", "scenario"}.issubset(getattr(item, "fixturenames", ())):
             return
-
-        session = item.session
-        config: Config | PytestBDDIdGeneratorHandler = session.config
 
         session = item.session
         config: Config = session.config
@@ -458,7 +478,7 @@ class MessagePlugin:
             for step_definition in step_registry:
                 if id(step_definition) not in seen_steps:
                     seen_steps.add(id(step_definition))
-                    config.hook.pytest_cuke_message(
+                    hook_handler.pytest_cuke_message(
                         config=config, message=Message(step_definition=step_definition.as_message(config=config))
                     )
             step_registry = step_registry.parent
@@ -500,7 +520,7 @@ class MessagePlugin:
                                 ),
                             ),
                         )
-                    self.parameter_type_registry.update(not_yet_registered_parameter_types)
+            type(self).parameter_type_registry.update(not_yet_registered_parameter_types)
             step_registry = step_registry.parent
 
         test_steps = []
@@ -532,15 +552,16 @@ class MessagePlugin:
             finally:
                 previous_step = step
 
-        self.current_test_case = TestCase(
+        current_test_case = TestCase(
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
             pickle_id=scenario.id,
             test_steps=test_steps,
         )
+        self.current_test_case = current_test_case
 
         hook_handler.pytest_cuke_message(
             config=config,
-            message=Message(test_case=self.current_test_case),
+            message=Message(test_case=current_test_case),
         )
 
     def pytest_cuke_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
@@ -548,11 +569,12 @@ class MessagePlugin:
             return
         config = request.config
         hook_handler = config.hook
+        current_test_case = self._get_current_test_case()
 
         self.current_test_case_start = TestCaseStarted(
             attempt=getattr(request.node, "execution_count", 0),
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
-            test_case_id=self.current_test_case.id,
+            test_case_id=current_test_case.id,
             worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
             timestamp=self.get_timestamp(),
         )
@@ -568,12 +590,13 @@ class MessagePlugin:
         config = request.config
 
         hook_handler = config.hook
+        current_test_case_start = self._get_current_test_case_start()
 
         hook_handler.pytest_cuke_message(
             config=config,
             message=Message(
                 test_case_finished=TestCaseFinished(
-                    test_case_started_id=self.current_test_case_start.id,
+                    test_case_started_id=current_test_case_start.id,
                     timestamp=self.get_timestamp(),
                     will_be_retried=False,
                 )
@@ -588,17 +611,19 @@ class MessagePlugin:
             return
         config = request.config
         hook_handler = config.hook
+        current_test_case = self._get_current_test_case()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
 
-        self.current_test_case_step_start_timestamp = self.get_timestamp()
+        start_timestamp = self.get_timestamp()
+        self.current_test_case_step_start_timestamp = start_timestamp
 
         hook_handler.pytest_cuke_message(
             config=config,
             message=Message(
                 test_step_started=TestStepStarted(
-                    test_case_started_id=self.current_test_case_start.id,
-                    timestamp=self.current_test_case_step_start_timestamp,
+                    test_case_started_id=current_test_case.id,
+                    timestamp=start_timestamp,
                     test_step_id=step_definition.id,
                 )
             ),
@@ -612,16 +637,15 @@ class MessagePlugin:
             return
         config = request.config
         hook_handler = config.hook
+        current_test_case = self._get_current_test_case()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
-        self.current_test_case_step_finish_timestamp = self.get_timestamp()
+        finish_timestamp = self.get_timestamp()
+        self.current_test_case_step_finish_timestamp = finish_timestamp
+        start_timestamp = self._get_current_step_start_timestamp()
 
-        current_test_case_step_duration_total_nanos = (
-            self.current_test_case_step_finish_timestamp.seconds * 10**9
-            + self.current_test_case_step_finish_timestamp.nanos
-        ) - (
-            self.current_test_case_step_start_timestamp.seconds * 10**9
-            + self.current_test_case_step_start_timestamp.nanos
+        current_test_case_step_duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
+            start_timestamp.seconds * 10**9 + start_timestamp.nanos
         )
         current_test_case_step_duration_seconds = current_test_case_step_duration_total_nanos // 10**9
         current_test_case_step_duration_nanos = (
@@ -635,8 +659,8 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_finished=TestStepFinished(
-                    test_case_started_id=self.current_test_case_start.id,
-                    timestamp=self.current_test_case_step_finish_timestamp,
+                    test_case_started_id=current_test_case.id,
+                    timestamp=finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(
                         duration=current_test_case_step_duration, status=TestStepResultStatus.passed
@@ -661,16 +685,15 @@ class MessagePlugin:
             return
         config = request.config
         hook_handler = config.hook
+        current_test_case = self._get_current_test_case()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
-        self.current_test_case_step_finish_timestamp = self.get_timestamp()
+        finish_timestamp = self.get_timestamp()
+        self.current_test_case_step_finish_timestamp = finish_timestamp
+        start_timestamp = self._get_current_step_start_timestamp()
 
-        current_test_case_step_duration_total_nanos = (
-            self.current_test_case_step_finish_timestamp.seconds * 10**9
-            + self.current_test_case_step_finish_timestamp.nanos
-        ) - (
-            self.current_test_case_step_start_timestamp.seconds * 10**9
-            + self.current_test_case_step_start_timestamp.nanos
+        current_test_case_step_duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
+            start_timestamp.seconds * 10**9 + start_timestamp.nanos
         )
         current_test_case_step_duration_seconds = current_test_case_step_duration_total_nanos // 10**9
         current_test_case_step_duration_nanos = (
@@ -684,8 +707,8 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_finished=TestStepFinished(
-                    test_case_started_id=self.current_test_case_start.id,
-                    timestamp=self.current_test_case_step_finish_timestamp,
+                    test_case_started_id=current_test_case.id,
+                    timestamp=finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(
                         duration=current_test_case_step_duration, status=TestStepResultStatus.failed
@@ -706,6 +729,7 @@ class MessagePlugin:
             return
         config = request.config
         hook_handler = config.hook
+        current_test_case = self._get_current_test_case()
 
         if isinstance(attachment, str | TextIOBase):
             content_encoding = AttachmentContentEncoding.identity
@@ -739,8 +763,8 @@ class MessagePlugin:
             config=config,
             message=Message(
                 attachment=Attachment(
-                    test_step_id=self._current_test_case().id,
-                    test_case_started_id=self._current_test_case().id,
+                    test_step_id=current_test_case.id,
+                    test_case_started_id=current_test_case.id,
                     media_type=_media_type,
                     **({"file_name": str(file_name)} if file_name is not None else {}),
                     content_encoding=content_encoding,

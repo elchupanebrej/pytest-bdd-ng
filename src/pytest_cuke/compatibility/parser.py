@@ -10,7 +10,7 @@ from pytest_cuke.types.protocol import HasPytestStash
 from pytest_cuke.utils import IdGenerator
 
 if TYPE_CHECKING:
-    from cucumber_messages import GherkinDocument
+    from messages import GherkinDocument
 
 
 @define

@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-from functools import partial, singledispatchmethod
+from functools import partial
 from itertools import filterfalse
 from operator import contains
 from re import Match, RegexFlag
 from re import Pattern as _RePattern
 from re import compile as re_compile
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from pytest_cuke.model.message_extension import StepDefinitionPatternType
 from pytest_cuke.parsers.base import StepParser, register_parser
 from pytest_cuke.utils import stringify
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import Callable, Collection, Iterable
 
     from pytest_cuke.compatibility.pytest import FixtureRequest
 
@@ -21,21 +21,18 @@ if TYPE_CHECKING:
 class re(StepParser):
     type = StepDefinitionPatternType.pytest_cuke_regular_expression
 
-    # mypy cannot check singledispatchmethod-decorated constructors; runtime dispatch
-    # is covered by parser tests. Revisit when mypy supports the pattern (#200).
-    @singledispatchmethod  # type: ignore[misc]
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        raise NotImplementedError
-
-    @__init__.register
-    def _(self, pattern: str, flags: int | RegexFlag = 0) -> None:
-        self.pattern = pattern
-        self.regex = re_compile(self.pattern, flags)
-
-    @__init__.register
-    def _(self, pattern: _RePattern) -> None:
-        self.pattern = pattern.pattern
-        self.regex = pattern
+    def __init__(self, pattern: object, *args: object, **kwargs: object) -> None:
+        if isinstance(pattern, str):
+            self.pattern = pattern
+            compile_pattern = cast("Callable[..., _RePattern[Any]]", re_compile)
+            self.regex = compile_pattern(pattern, *args, **kwargs)
+        elif isinstance(pattern, _RePattern):
+            if args or kwargs:
+                raise TypeError("compiled regular expressions do not accept additional arguments")
+            self.pattern = pattern.pattern
+            self.regex = pattern
+        else:
+            raise NotImplementedError
 
     def parse_arguments(
         self,
@@ -43,7 +40,8 @@ class re(StepParser):
         name: str,
         anonymous_group_names: Iterable[str] | None = None,
     ) -> dict[str, object]:
-        match = cast("Match[str]", self.regex.fullmatch(name))
+        regex = cast("_RePattern[str]", self.regex)
+        match = cast("Match[str]", regex.fullmatch(name))
         group_dict = match.groupdict()
         if anonymous_group_names is not None:
             named_spans = [*map(match.span, group_dict.keys())]
@@ -56,7 +54,8 @@ class re(StepParser):
         return [*self.regex.groupindex.keys()]
 
     def is_matching(self, request: FixtureRequest, name: str) -> bool:
-        return bool(self.regex.fullmatch(name))
+        regex = cast("_RePattern[str]", self.regex)
+        return bool(regex.fullmatch(name))
 
     def __str__(self) -> str:
         return stringify(self.pattern)

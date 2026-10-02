@@ -14,3 +14,11 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
       - id: check-toml
+  - repo: local
+    hooks:
+      - id: mypy-runtime-source
+        name: mypy (complete runtime source)
+        entry: python scripts/check_types.py
+        language: system
+        pass_filenames: false
+        always_run: true

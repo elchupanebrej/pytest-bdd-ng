@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from attrs import define
 
@@ -52,13 +52,14 @@ class StepToFeatureASTBuilder:
             scenario_tags = tuple(Tag(name=t) for t in (route.tags or []))
             steps = []
             for s in route.steps:
-                if s.action is not None:
-                    kw = s.type.value if hasattr(s.type, "value") else str(s.type or "Given")
+                action = cast(Any, s).action
+                if action is not None:
+                    kw = cast(Any, s.type).value if hasattr(s.type, "value") else str(s.type or "Given")
                     ds = DocString(content=s.description) if s.description else None
                     dt = None
                     if s.data:
-                        dt = _build_table(StructJoin(Join=s.data))
-                    steps.append(Step(name=s.action, keyword=kw, doc_string=ds, data_table=dt))
+                        dt = _build_table(StructJoin(tables=s.data))
+                    steps.append(Step(name=action, keyword=kw, doc_string=ds, data_table=dt))
             examples = _build_examples(route.example_table)
             scenarios.append(
                 Scenario(

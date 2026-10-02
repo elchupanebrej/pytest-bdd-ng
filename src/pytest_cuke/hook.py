@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from enum import Enum
 from inspect import isfunction, isgeneratorfunction, signature
 from itertools import count, product, starmap
+from typing import TYPE_CHECKING, Any
 
 from _pytest.mark import Mark
 from decopatch import function_decorator
@@ -12,6 +13,9 @@ from pytest import fixture
 
 from pytest_cuke.compatibility.pytest import PYTEST7, FixtureRequest
 from pytest_cuke.tag_expression import GherkinTagExpression, MarksTagExpression, TagExpression
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
 
 expression_count_gen = count()
 
@@ -27,15 +31,17 @@ class HookConjunction(Enum):
     around = "around"
 
 
-def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind):
+def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind) -> Any:
     _conjunction = HookConjunction(conjunction) if isinstance(conjunction, str) else conjunction
     _kind = HookKind(kind) if isinstance(kind, str) else kind
 
     @function_decorator
-    def decorator_wrapper(expression: str | None = None, name: str | None = None):
+    def decorator_wrapper(
+        expression: str | None = None, name: str | None = None
+    ) -> Callable[[Callable[..., Any]], Any]:
         _expression: str = expression if expression is not None else ""
 
-        def decorator(func):
+        def decorator(func: Any) -> Any:
             func_sig = signature(func)
 
             fixture_decorator = fixture(
@@ -43,8 +49,8 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind):
                 autouse=True,
             )
 
-            @wraps(func, prepend_args="request", remove_args="request")
-            def hook(request: FixtureRequest, *args, **kwargs):
+            @wraps(func, prepend_args="request", remove_args="request")  # type: ignore[untyped-decorator]  # makefun creates the dynamic pytest fixture signature.
+            def hook(request: FixtureRequest, *args: Any, **kwargs: Any) -> Generator[Any, None, None]:
                 _expression_type = {
                     HookKind.mark: MarksTagExpression,
                     HookKind.tag: GherkinTagExpression,
@@ -52,7 +58,7 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind):
 
                 parsed_expression: TagExpression = _expression_type.parse(_expression)
 
-                def get_marks():
+                def get_marks() -> list[Mark]:
                     if _kind is HookKind.mark:
                         return list(request.node.iter_markers())
                     feature = request.getfixturevalue("feature") if "feature" in request.fixturenames else None
@@ -65,7 +71,7 @@ def decorator_builder(conjunction: str | HookConjunction, kind: str | HookKind):
                             tag.name,
                             args=(),
                             kwargs={},
-                            **({"_ispytest": True} if PYTEST7 else {}),  # type: ignore[arg-type]
+                            **({"_ispytest": True} if PYTEST7 else {}),  # type: ignore[arg-type]  # Pytest 7+ accepts this private Mark constructor keyword.
                         )
                         for tag in all_tags
                     ]
@@ -122,24 +128,33 @@ before_mark, before_tag, after_mark, after_tag, around_mark, around_tag = starma
 class HookCaller:
     """Dispatches pytest-bdd lifecycle hooks via pytest hook relay."""
 
-    def __init__(self, hook_relay) -> None:
+    def __init__(self, hook_relay: Any) -> None:
         self.hook = hook_relay
 
-    def before_scenario(self, request, feature, scenario) -> None:
+    def before_scenario(self, request: FixtureRequest, feature: Any, scenario: Any) -> None:
         if hasattr(self.hook, "pytest_cuke_before_scenario"):
             self.hook.pytest_cuke_before_scenario(request=request, feature=feature, scenario=scenario)
 
-    def after_scenario(self, request, feature, scenario) -> None:
+    def after_scenario(self, request: FixtureRequest, feature: Any, scenario: Any) -> None:
         if hasattr(self.hook, "pytest_cuke_after_scenario"):
             self.hook.pytest_cuke_after_scenario(request=request, feature=feature, scenario=scenario)
 
-    def before_step(self, request, feature, scenario, step, step_func) -> None:
+    def before_step(self, request: FixtureRequest, feature: Any, scenario: Any, step: Any, step_func: Any) -> None:
         if hasattr(self.hook, "pytest_cuke_before_step"):
             self.hook.pytest_cuke_before_step(
                 request=request, feature=feature, scenario=scenario, step=step, step_func=step_func
             )
 
-    def after_step(self, request, feature, scenario, step, step_func, step_func_args, step_definition) -> None:
+    def after_step(
+        self,
+        request: FixtureRequest,
+        feature: Any,
+        scenario: Any,
+        step: Any,
+        step_func: Any,
+        step_func_args: tuple[Any, ...],
+        step_definition: Any,
+    ) -> None:
         if hasattr(self.hook, "pytest_cuke_after_step"):
             self.hook.pytest_cuke_after_step(
                 request=request,
@@ -152,7 +167,15 @@ class HookCaller:
             )
 
     def step_error(
-        self, request, feature, scenario, step, step_func, step_func_args, exception, step_definition
+        self,
+        request: FixtureRequest,
+        feature: Any,
+        scenario: Any,
+        step: Any,
+        step_func: Any,
+        step_func_args: tuple[Any, ...],
+        exception: Exception,
+        step_definition: Any,
     ) -> None:
         if hasattr(self.hook, "pytest_cuke_step_error"):
             self.hook.pytest_cuke_step_error(

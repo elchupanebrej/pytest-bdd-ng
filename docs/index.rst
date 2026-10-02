@@ -5,3 +5,4 @@ Welcome to pytest-cuke's documentation!
 
    include.rst
    cli.rst
+   type-checking.rst

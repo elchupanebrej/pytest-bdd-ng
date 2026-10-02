@@ -18,32 +18,33 @@ from pathlib import Path
 from shutil import copytree, rmtree
 from tempfile import TemporaryDirectory
 from textwrap import dedent
+from typing import Any
 
-import panflute as pf
-import pycmarkgfm
-import pypandoc
+import panflute as pf  # type: ignore[import-not-found]  # The optional doc-gen extra provides this executable-only dependency.
+import pycmarkgfm  # type: ignore[import-not-found]  # The optional doc-gen extra provides this executable-only dependency.
+import pypandoc  # type: ignore[import-not-found]  # The optional doc-gen extra provides this executable-only dependency.
 from docopt import docopt
 
 SECTION_SYMBOLS = "-#!\"$%&'()*+,./:;<=>?@[\\]^_`{|}~="
 
 
-def diff_folders(dcmp):
+def diff_folders(dcmp: dircmp[Any]) -> list[Any]:
     if any(diff := [dcmp.diff_files, dcmp.left_only, dcmp.right_only]):
         dcmp.report()
         return diff
     if any(diff := list(map(diff_folders, dcmp.subdirs.values()))):
         return diff
-    pass
+    return []
 
 
-def adjust_heading_level(elem, doc, *, level):
+def adjust_heading_level(elem: Any, doc: Any, *, level: int) -> Any:
     if isinstance(elem, pf.Header):
         new_level = elem.level + level
         return pf.Header(*elem.content, level=new_level)
     return elem
 
 
-def convert(features_path: Path, output_path: Path, temp_path: Path):
+def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
     base_output_common_path = Path(commonpath([str(features_path), str(output_path)]))
     features_path_rel_to_common_path = features_path.relative_to(base_output_common_path)
     output_path_rel_to_common_path = output_path.parent.relative_to(base_output_common_path)
@@ -150,7 +151,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path):
     index_file.write_text(content.rstrip("\n") + "\n")
 
 
-def main():  # pragma: no cover
+def main() -> None:  # pragma: no cover
     arguments = docopt(__doc__)
     features_dir = Path(arguments["<features_dir>"]).resolve()
     if not features_dir.exists() or not features_dir.is_dir():

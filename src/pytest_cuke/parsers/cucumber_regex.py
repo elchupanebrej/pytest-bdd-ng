@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-from functools import singledispatchmethod
 from typing import TYPE_CHECKING, Any
 
 from cucumber_expressions.regular_expression import RegularExpression as CucumberRegularExpression
@@ -20,28 +19,19 @@ class cucumber_regular_expression(_CucumberExpression):
     type = StepDefinitionPatternType.regular_expression
     expression_type = CucumberRegularExpression
 
-    # mypy cannot check singledispatchmethod-decorated constructors; runtime dispatch
-    # is covered by parser tests. Revisit when mypy supports the pattern (#200).
-    @singledispatchmethod  # type: ignore[misc]
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        raise NotImplementedError
-
-    @__init__.register
-    def _(
+    def __init__(
         self,
-        expression: str,
+        expression: object,
         parameter_type_registry: Any = RegistryMode.FIXTURE,
     ) -> None:
-        self.pattern = expression
-        self.parameter_type_registry_like = parameter_type_registry
-
-    @__init__.register
-    def _(
-        self,
-        expression: CucumberRegularExpression,
-    ) -> None:
-        self.pattern = expression.expression_regexp.pattern
-        self.parameter_type_registry_like = expression.parameter_type_registry
+        if isinstance(expression, str):
+            self.pattern = expression
+            self.parameter_type_registry_like = parameter_type_registry
+        elif isinstance(expression, CucumberRegularExpression):
+            self.pattern = expression.expression_regexp.pattern
+            self.parameter_type_registry_like = expression.parameter_type_registry
+        else:
+            raise NotImplementedError
 
     @property
     def arguments(self) -> Collection[str]:

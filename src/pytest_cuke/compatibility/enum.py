@@ -7,11 +7,10 @@ if sys.version_info >= (3, 11):
     from enum import StrEnum
 else:
     try:
-        # strenum is an optional Python <3.11 backport and has no type stubs.
-        from strenum import StrEnum  # type: ignore[import-not-found]
+        from strenum import StrEnum  # type: ignore[import-not-found]  # Optional backport is not a runtime dependency.
     except ImportError:
 
-        class StrEnum(str, Enum):  # type: ignore[no-redef]
+        class StrEnum(str, Enum):  # type: ignore[no-redef]  # This fallback defines the name only when the runtime lacks StrEnum.
             def __str__(self) -> str:
                 return str(self.value)
 

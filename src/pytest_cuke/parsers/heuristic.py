@@ -61,10 +61,9 @@ class heuristic(StepParser):
         m_cf = importlib.import_module("pytest_cuke.parsers.parse_parser").cfparse
         m_re = importlib.import_module("pytest_cuke.parsers.re_parser").re
         m_str = importlib.import_module("pytest_cuke.parsers.string_parser").string
-        self.string_parser = cast("StepParser | None", _build(lambda: m_str(self.format)))
-        self.cucumber_expression_parser = cast(
-            "StepParser | None",
-            _build(lambda: m_cuke(self.format, parameter_type_registry=self.parameter_type_registry)),
+        self.string_parser = _build(lambda: m_str(self.format))
+        self.cucumber_expression_parser = _build(
+            lambda: m_cuke(self.format, parameter_type_registry=self.parameter_type_registry)
         )
         self.cfparse_parser = _build(lambda: m_cf(self.format))
         self.re_parser = _build(lambda: m_re(self.format))

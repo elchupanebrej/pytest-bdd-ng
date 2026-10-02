@@ -7,7 +7,7 @@ import os.path
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import py
 from mako.template import Template
@@ -21,11 +21,16 @@ from pytest_cuke.steps import Matcher
 from pytest_cuke.utils import make_python_name
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Callable, Iterable, Sequence
 
-    from messages import Pickle, PickleStep
     from pytest_cuke.compatibility.pytest import Config, ExitCode, FixtureRequest, Item, Parser, Session
-    from pytest_cuke.model import Feature
+    from pytest_cuke.model import Feature, Pickle
+    from pytest_cuke.model import Step as PickleStep
+
+
+class _TemplateProtocol(Protocol):
+    def render(self, **data: Any) -> str: ...
+
 
 STEP_TYPE_TO_STEP_PREFIX = {
     StepType.unknown: "*",
@@ -114,9 +119,9 @@ def generate_code(
 ) -> str:
     """Generate test code for the given filenames."""
     with as_file(files("pytest_cuke.template").joinpath("test.py.mak")) as path:
-        template = Template(filename=str(path))  # noqa: S702
-    step_type_to_method_name: dict[StepType | None, str] = dict(STEP_TYPE_TO_STEP_METHOD_NAME) | {None: "step"}
-    code = template.render(
+        template_factory = cast("Callable[..., _TemplateProtocol]", Template)
+        template = template_factory(filename=str(path))
+    return template.render(
         features=features,
         feature_pickles=feature_pickles,
         feature_pickle_steps=feature_pickle_steps,
@@ -125,7 +130,6 @@ def generate_code(
         make_string_literal=make_string_literal,
         step_type_to_method_name=step_type_to_method_name,
     )
-    return cast("str", code)
 
 
 def generate_and_print_missing_code(config: Config) -> int | ExitCode:
@@ -169,7 +173,7 @@ def generate_and_print_missing_code(config: Config) -> int | ExitCode:
                 finally:
                     previous_step = step
 
-            item.session._setupstate.teardown_exact(  # type: ignore[call-arg]
+            item.session._setupstate.teardown_exact(  # type: ignore[call-arg]  # Pytest's private teardown signature varies by supported version.
                 *((item,) if is_legacy_pytest else ()), None
             )
 
@@ -182,25 +186,23 @@ def generate_and_print_missing_code(config: Config) -> int | ExitCode:
 
         non_seen_features = list(filterfalse(lambda feature: feature.uri in seen_features_uris, features))
 
-        non_seen_feature_pickles = list(
-            filter(
-                lambda feature_pickle: (feature_pickle[0].uri, feature_pickle[1].name) not in seen_feature_pickles_ids,
-                chain.from_iterable(zip_longest((), feature.pickles, fillvalue=feature) for feature in features),
-            )
-        )
+        non_seen_feature_pickles = [
+            (feature, pickle)
+            for feature in features
+            for pickle in feature.pickles
+            if (feature.uri, pickle.name) not in seen_feature_pickles_ids
+        ]
 
         unique_step_defs_ids = {(step.type, step.text) for _, step in non_matched_feature_pickle_steps}
-        unique_non_matched_feature_pickle_steps = [
-            next(
-                filter(
-                    lambda feature_pickle_step: (
-                        feature_pickle_step[1].type == step_def_id[0] and feature_pickle_step[1].text == step_def_id[1]
-                    ),
-                    non_matched_feature_pickle_steps,
+        unique_non_matched_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]] = []
+        for step_def_id in unique_step_defs_ids:
+            unique_non_matched_feature_pickle_steps.append(
+                next(
+                    feature_pickle_step
+                    for feature_pickle_step in non_matched_feature_pickle_steps
+                    if feature_pickle_step[1].type == step_def_id[0] and feature_pickle_step[1].text == step_def_id[1]
                 )
             )
-            for step_def_id in unique_step_defs_ids
-        ]
 
         print_missing_code(
             non_seen_features,
@@ -250,18 +252,16 @@ def generate_and_print_code(config: Config) -> int | ExitCode:
         )
 
         unique_step_defs_ids = {(step.type, step.text) for (feature, pickle), step in feature_pickles_steps}
-        unique_feature_pickle_steps = sorted(
+        unique_feature_pickle_steps: list[tuple[tuple[Feature, Pickle], PickleStep]] = sorted(
             [
                 next(
-                    filter(
-                        lambda feature_pickle_step: feature_pickle_step[1].type == step_def_id[0]
-                        and feature_pickle_step[1].text == step_def_id[1],
-                        feature_pickles_steps,
-                    )
+                    pair
+                    for pair in feature_pickles_steps
+                    if pair[1].type == step_def_id[0] and pair[1].text == step_def_id[1]
                 )
                 for step_def_id in unique_step_defs_ids
             ],
-            key=lambda feature_pickle_step: cast("str", feature_pickle_step[1].text),
+            key=lambda feature_pickle_step: feature_pickle_step[1].text,
         )
 
         code = generate_code(features, feature_pickles, unique_feature_pickle_steps)
@@ -300,7 +300,7 @@ def print_missing_code(
 
     for (feature, pickle), step in feature_pickle_steps:
         tw.line()
-        step_type = STEP_TYPE_TO_STEP_PREFIX[step.type if step.type is not None else StepType.unknown]
+        step_type = STEP_TYPE_TO_STEP_PREFIX[cast("StepType", step.type) if step.type is not None else StepType.unknown]
         tw.line(
             f'StepHandler {step_type} "{step.text}" is not defined in the scenario "{pickle.name}" in the feature'
             f' "{feature.name}" in the file {feature.filename}:{feature._get_step_line_number(step)}',

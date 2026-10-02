@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from operator import ge
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Protocol, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, Protocol, Sequence, cast
 
 import pytest
 from _pytest.config import Config, PytestPluginManager
@@ -63,7 +63,7 @@ __all__ = [
 
 
 # region pytest version dependent imports
-def is_pytest_version_greater_or_equal(version: str):
+def is_pytest_version_greater_or_equal(version: str) -> bool:
     return compare_distribution_version("pytest", version, ge)
 
 
@@ -89,9 +89,10 @@ if PYTEST6:
     from _pytest.mark import MarkMatcher
 
     try:
-        # ParseError only exists in some pytest 6 releases; the combined import
-        # is checked against the installed pytest, which has already removed it.
-        from _pytest.mark.expression import Expression, ParseError  # type: ignore[attr-defined]
+        from _pytest.mark.expression import (  # type: ignore[attr-defined]  # Older pytest versions expose ParseError here.
+            Expression,
+            ParseError,
+        )
     except ImportError:
         from _pytest.mark.expression import Expression
 
@@ -103,16 +104,14 @@ if PYTEST6:
         "ParseError",
     ]
 else:
-    ExitCode: TypeAlias = int  # type:ignore[no-redef]
+    ExitCode: TypeAlias = int  # type: ignore[no-redef]  # Older pytest versions expose ExitCode only from _pytest.config.
 
-if PYTEST7:
-    if TYPE_CHECKING:
-        from pytest import Testdir
-else:
+if not PYTEST7:
     import py
 
-    if TYPE_CHECKING:
-        from _pytest.pytester import Testdir  # type: ignore[no-redef, attr-defined]
+if TYPE_CHECKING:
+    # Pytest's Testdir is a test fixture helper, not a stable runtime API.
+    Testdir: TypeAlias = Any
 
 if PYTEST62:
     from pytest import FixtureRequest
@@ -133,17 +132,16 @@ else:
 
 class Module(PytestModule):
     @classmethod
-    def build(cls, parent, file_path):
+    def build(cls, parent: Any, file_path: Path | str) -> Module:
         if hasattr(cls, "from_parent"):
             collector = cls.from_parent(
                 parent, **(dict(path=Path(file_path)) if PYTEST7 else dict(fspath=py.path.local(file_path)))
             )
         else:
-            # pytest <7 constructor API; this branch is unreachable on pytest >=7.
-            collector = cls(parent=parent, fspath=py.path.local(file_path))  # type: ignore[arg-type]
+            collector = cls(parent=parent, fspath=py.path.local(file_path))  # type: ignore[arg-type]  # Pytest before 7 accepts py.path.local as fspath.
         return collector
 
-    def get_path(self):
+    def get_path(self) -> Path:
         return getattr(self, "path", Path(self.fspath))
 
 
@@ -175,8 +173,7 @@ else:
         xfailed: int = 0,
     ) -> None:
         """Compatibility function for result.assert_outcomes"""
-        result.assert_outcomes(  # type: ignore[call-arg]
-            #  Pytest < 6 uses the singular form
+        result.assert_outcomes(  # type: ignore[call-arg]  # Pytest < 6 names this outcome parameter `error`.
             error=errors,
             passed=passed,
             skipped=skipped,
@@ -190,27 +187,27 @@ def get_config_root_path(config: Config) -> Path:
     return Path(getattr(config, "rootpath" if PYTEST61 else "rootdir"))
 
 
-def fail(reason, pytrace=True):
+def fail(reason: str, pytrace: bool = True) -> NoReturn:
     __tracebackhide__ = True
     if PYTEST7:
-        return _pytest_fail(reason, pytrace=pytrace)
+        _pytest_fail(reason, pytrace=pytrace)
     else:
-        # pytest <7 accepted msg=; the installed pytest signature no longer has it.
-        return _pytest_fail(msg=reason, pytrace=pytrace)  # type: ignore[call-arg]
+        cast(Callable[..., NoReturn], _pytest_fail)(msg=reason, pytrace=pytrace)
 
 
 if PYTEST6:
 
-    def is_set(obj):
+    def is_set(obj: object) -> bool:
         return not isinstance(obj, NotSetType)
 
 else:
 
-    def is_set(obj):
+    def is_set(obj: object) -> bool:
         return type(obj) is not object
 
 
-def get_metafunc_call_arg(call, arg):
+def get_metafunc_call_arg(call: Any, arg: str) -> Any:
+    """Read a parametrized-call value across pytest's private call representations."""
     return call.params[arg] if PYTEST8 else call.funcargs[arg]
 
 
@@ -230,7 +227,7 @@ class _LegacyFixtureDefFactory(Protocol):
         ids: tuple[object | None, ...] | Callable[[object], object | None] | None = None,
         *,
         _ispytest: bool = False,
-    ) -> FixtureDef: ...
+    ) -> FixtureDef[Any]: ...
 
 
 def build_fixture_def(
@@ -241,14 +238,14 @@ def build_fixture_def(
     func: Callable[[], object],
     scope: object,
     params: Sequence[object] | None,
-) -> FixtureDef:
+) -> FixtureDef[Any]:
     if PYTEST81:
         return FixtureDef(
             request.config,
             baseid,
             argname,
             func,
-            scope,  # type: ignore[arg-type]
+            cast(Any, scope),
             params,
             None,
             _ispytest=PYTEST8,
@@ -283,7 +280,7 @@ def inject_fixture(request: FixtureRequest, arg: str, value: object) -> None:
     fd.cached_result = (value, 0, None)
 
     cached_defs = getattr(request, "_fixture_defs", {}) if hasattr(request, "_fixture_defs") else {}
-    old_fd: FixtureDef | None = cached_defs.get(arg)
+    old_fd: FixtureDef[Any] | None = cached_defs.get(arg)
     fixturenames = getattr(request, "fixturenames", [])
     add_fixturename = arg not in fixturenames
 

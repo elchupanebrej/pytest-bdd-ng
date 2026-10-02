@@ -14,7 +14,7 @@ import pytest
 from attr import Factory, attrib, attrs
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Generator
 
     from messages import Pickle, PickleStep
     from pytest_cuke.compatibility.pytest import CallInfo, FixtureRequest, Item, Parser, TerminalReporter
@@ -186,7 +186,7 @@ class ScenarioReporterPlugin:
         self.current_report: ScenarioReport | None = None
 
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_runtest_makereport(self, item: Item, call: CallInfo):
+    def pytest_runtest_makereport(self, item: Item, call: CallInfo[Any]) -> Generator[Any, Any, None]:
         outcome = yield
         rep = outcome.get_result()
         if call.when != "setup":
@@ -213,8 +213,8 @@ class ScenarioReporterPlugin:
         feature: Feature,
         scenario: Pickle,
         step: PickleStep,
-        step_func: Callable,
-        step_func_args: dict,
+        step_func: Callable[..., Any],
+        step_func_args: dict[str, Any],
         exception: Exception,
     ) -> None:
         """Finalize the step report as failed."""
@@ -223,7 +223,12 @@ class ScenarioReporterPlugin:
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_cuke_before_step(
-        self, request: FixtureRequest, feature: Feature, scenario: Pickle, step: PickleStep, step_func: Callable
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Pickle,
+        step: PickleStep,
+        step_func: Callable[..., Any],
     ) -> None:
         """Store step start time."""
         if self.current_report is not None:
@@ -236,8 +241,8 @@ class ScenarioReporterPlugin:
         feature: Feature,
         scenario: Pickle,
         step: PickleStep,
-        step_func: Callable,
-        step_func_args: dict,
+        step_func: Callable[..., Any],
+        step_func_args: dict[str, Any],
     ) -> None:
         """Finalize the step report as successful."""
         if self.current_report is not None:

@@ -4,7 +4,7 @@ import base64
 import pickle
 import re
 from collections import defaultdict
-from collections.abc import Callable, Collection, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager, nullcontext, suppress
 from enum import Enum
 from functools import reduce
@@ -12,7 +12,7 @@ from inspect import getframeinfo, signature
 from itertools import tee
 from operator import attrgetter, getitem, itemgetter
 from sys import _getframe
-from typing import Any, Literal, Protocol, Union, cast, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 from urllib.parse import urlparse
 
 import pytest
@@ -50,10 +50,10 @@ __all__ = [
 
 @runtime_checkable
 class PytestBDDIdGeneratorHandler(Protocol):
-    pytest_cuke_id_generator: Union["IdGenerator", Any]
+    pytest_cuke_id_generator: "IdGenerator"
 
 
-def get_args(func: Callable) -> Sequence[str]:
+def get_args(func: Callable[..., Any]) -> Sequence[str]:
     """Get a list of argument names for a function.
 
     :param func: The function to inspect.
@@ -117,7 +117,7 @@ def doesnt_raise(
     *,
     match: str | re.Pattern[str] | None = None,
     suppress_not_matched: bool = True,
-):
+) -> Iterator[None]:
     """Context manager asserting that a block does not raise specific exception(s)."""
     try:
         yield
@@ -185,14 +185,20 @@ def inject_fixture(request: Any, arg: str, value: Any) -> None:
         request._pyfuncitem._fixtureinfo.names_closure.append(arg)
 
 
-class DefaultMapping(defaultdict):
+class DefaultMapping(defaultdict[Any, Any]):
     Skip = object()
 
-    def __init__(self, *args, default_factory=None, warm_up_keys=(), **kwargs):
+    def __init__(
+        self,
+        *args: Any,
+        default_factory: Callable[[], Any] | None = None,
+        warm_up_keys: Iterable[Any] = (),
+        **kwargs: Any,
+    ) -> None:
         super().__init__(default_factory, *args, **kwargs)
         self.warm_up(*warm_up_keys)
 
-    def __missing__(self, key):
+    def __missing__(self, key: Any) -> Any:
         if ... in self.keys():
             intercessor = self[...]
             if intercessor is self.Skip:
@@ -207,25 +213,31 @@ class DefaultMapping(defaultdict):
             return value
         return super().__missing__(key)
 
-    def warm_up(self, *items):
+    def warm_up(self, *items: Any) -> None:
         for item in items:
             with suppress(KeyError):
                 getitem(self, item)
 
     @classmethod
     def instantiate_from_collection_or_bool(
-        cls, bool_or_items: Collection[str] | dict[str, Any] | Any = True, *, warm_up_keys=()
-    ):
+        cls,
+        bool_or_items: bool | Collection[Any] | Mapping[Any, Any] = True,
+        *,
+        warm_up_keys: Iterable[Any] = (),
+    ) -> "DefaultMapping":
+        items: Mapping[Any, Any] | Iterable[tuple[Any, Any]]
         if isinstance(bool_or_items, Collection):
-            if not isinstance(bool_or_items, Mapping):
-                bool_or_items = zip(*tee(iter(bool_or_items)), strict=False)
+            if isinstance(bool_or_items, Mapping):
+                items = bool_or_items
+            else:
+                items = zip(*tee(iter(bool_or_items)), strict=False)
         else:
-            bool_or_items = {...: ...} if bool_or_items else {...: DefaultMapping.Skip}
-        return cls(bool_or_items, warm_up_keys=warm_up_keys)
+            items = {...: ...} if bool_or_items else {...: DefaultMapping.Skip}
+        return cls(items, warm_up_keys=warm_up_keys)
 
 
-def _itemgetter(*items):
-    def func(obj):
+def _itemgetter(*items: Any) -> Callable[[Any], Any]:
+    def func(obj: Any) -> Any:
         if len(items) == 0:
             return []
         if len(items) == 1:
@@ -243,13 +255,17 @@ class Empty(Enum):
 
 
 def getitemdefault(
-    obj, index, default=Empty.empty, default_factory: Callable | None = None, treat_as_empty=Empty.empty
-):
+    obj: Any,
+    index: Any,
+    default: Any = Empty.empty,
+    default_factory: Callable[[], Any] | None = None,
+    treat_as_empty: Any = Empty.empty,
+) -> Any:
     if default is not Empty.empty:
         if default_factory is not None:
             raise ValueError("Both 'default' and 'default_factory' were specified")
 
-        def default_factory():
+        def default_factory() -> Any:
             return default
 
     try:
@@ -263,7 +279,7 @@ def getitemdefault(
     raise KeyError(f"{index}")
 
 
-def deepattrgetter(*attrs, **kwargs):
+def deepattrgetter(*attrs: str, **kwargs: Any) -> Callable[[Any], tuple[Any, ...]]:
     empty = object()
     default = kwargs.pop("default", empty)
     default_exception_type = AttributeError if default is not empty else _NoneException
@@ -272,8 +288,8 @@ def deepattrgetter(*attrs, **kwargs):
     if default is not empty and skip_missing:
         raise ValueError('Both "default" and "skip_missing" are specified')
 
-    def fn(obj):
-        def _():
+    def fn(obj: Any) -> tuple[Any, ...]:
+        def _() -> Iterator[Any]:
             for attr in attrs:
                 try:
                     with skip_missing_context:
@@ -286,7 +302,12 @@ def deepattrgetter(*attrs, **kwargs):
     return fn
 
 
-def setdefaultattr(obj, key, value: Literal[Empty.empty] | Any = Empty.empty, value_factory: Callable | None = None):
+def setdefaultattr(
+    obj: Any,
+    key: str,
+    value: Any = Empty.empty,
+    value_factory: Callable[[], Any] | None = None,
+) -> Any:
     if value is not Empty.empty and value_factory is not None:
         raise ValueError("Both 'value' and 'value_factory' were specified")
     with suppress(AttributeError):
@@ -297,12 +318,12 @@ def setdefaultattr(obj, key, value: Literal[Empty.empty] | Any = Empty.empty, va
     return value
 
 
-def compose(*funcs):
+def compose(*funcs: Callable[..., Any]) -> Callable[..., Any]:
     return reduce(lambda f, g: lambda *args, **kwargs: f(g(*args, **kwargs)), funcs)
 
 
-def flip(func):
-    def wrapped(*args, **kwargs):
+def flip(func: Callable[..., Any]) -> Callable[..., Any]:
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
         if len(args) > 1:
             first, *other, last = args
             return func(last, *other, first, **kwargs)
@@ -329,10 +350,10 @@ def stringify(value: StringableProtocol | str | bytes) -> str:
 class IdGenerator:
     pytest_cuke_id_generator = "pytest_cuke_id_generator"
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._id_counter = 0
 
-    def __next__(self):
+    def __next__(self) -> str:
         try:
             return str(self._id_counter)
         finally:
@@ -341,9 +362,9 @@ class IdGenerator:
     get_next_id = __next__
 
     @classmethod
-    def from_stash(cls, stash):
+    def from_stash(cls, stash: Any) -> "IdGenerator":
         if hasattr(stash, "get"):
-            gen = stash.get(cls.pytest_cuke_id_generator, None)
+            gen = cast("IdGenerator | None", stash.get(cls.pytest_cuke_id_generator, None))
             if gen is None:
                 gen = cls()
                 stash[cls.pytest_cuke_id_generator] = gen
@@ -351,14 +372,14 @@ class IdGenerator:
         return cls()
 
 
-def is_local_url(urllike):
+def is_local_url(urllike: object) -> bool:
     try:
-        return not any(attrgetter("scheme", "netloc")(urlparse(urllike)))
+        return not any(attrgetter("scheme", "netloc")(urlparse(cast("str | bytes", urllike))))
     except Exception:
         return False
 
 
-def is_url_parsable(urllike):
+def is_url_parsable(urllike: object) -> bool:
     try:
         urlparse(str(urllike))
         return True

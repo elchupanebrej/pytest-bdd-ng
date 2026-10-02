@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from dataclasses import is_dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import messages
 from pytest_cuke.model.message_extension import has_single_payload
@@ -294,13 +294,13 @@ def make_test_step_finished(
     return cucumber_messages.Envelope(test_step_finished=payload)
 
 
-def envelope_to_dict(message: cucumber_messages.Envelope) -> dict:
+def envelope_to_dict(message: messages.Envelope) -> dict[str, Any]:
     validate_envelope_shape(message)
     return message_converter.to_dict(message)
 
 
-def envelope_from_dict(payload: dict) -> cucumber_messages.Envelope:
-    env = message_converter.from_dict(payload, cucumber_messages.Envelope)
+def envelope_from_dict(payload: dict[str, Any]) -> messages.Envelope:
+    env = messages.Envelope.model_validate(payload)
     validate_envelope_shape(env)
     return env
 

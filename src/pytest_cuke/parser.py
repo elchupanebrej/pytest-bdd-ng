@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import mimetypes
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 from attr import attrib, attrs
 from attrs import define, field
@@ -19,6 +19,16 @@ from pytest_cuke.model import Feature
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+
+    class _GherkinParserProtocol(Protocol):
+        def parse(self, token_scanner_or_str: Any, token_matcher: Any = None) -> Any: ...
+
+
+def _new_gherkin_parser(id_generator: Any) -> _GherkinParserProtocol:
+    """Adapt gherkin-official's untyped parser boundary to the runtime contract we use."""
+    ast_builder = cast("Callable[..., Any]", AstBuilder)(id_generator=id_generator)
+    parser_factory = cast("Callable[..., _GherkinParserProtocol]", CucumberIOBaseParser)
+    return parser_factory(ast_builder=ast_builder)
 
 
 @runtime_checkable
@@ -74,7 +84,7 @@ class ParserRegistry:
         if entry is None:
             return None
         if isinstance(entry, type):
-            return entry()
+            return cast("ParserProtocol", entry())
         if callable(entry):
             return entry()
         return entry
@@ -108,7 +118,7 @@ class GherkinParser(BaseParser):
         uri: str | None = None,
         **kwargs: Any,
     ) -> Feature:
-        parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
+        parser = _new_gherkin_parser(self.id_generator)
         try:
             raw_dict = parser.parse(content)
         except CompositeParserException as e:
@@ -144,8 +154,8 @@ class MarkdownParser(BaseParser):
         **kwargs: Any,
     ) -> Feature:
         matcher = MarkdownTokenMatcher()
-        scanner = TokenScanner(content)
-        parser = CucumberIOBaseParser(ast_builder=AstBuilder(id_generator=self.id_generator))
+        scanner = cast("Callable[[str], Any]", TokenScanner)(content)
+        parser = _new_gherkin_parser(self.id_generator)
         try:
             raw_dict = parser.parse(scanner, token_matcher=matcher)
         except CompositeParserException as e:
