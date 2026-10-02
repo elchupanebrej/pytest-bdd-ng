@@ -3,7 +3,7 @@ from __future__ import annotations
 from pytest_cuke.model.background import Background
 from pytest_cuke.model.doc_string import DocString
 from pytest_cuke.model.document import GherkinDocument
-from pytest_cuke.model.examples import Example, Examples
+from pytest_cuke.model.examples import Example, Examples, ExternalExampleRowSource, ExternalExamplesSource
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.rule import Rule
 from pytest_cuke.model.scenario import Pickle, Scenario
@@ -18,6 +18,8 @@ __all__ = [
     "DocString",
     "Example",
     "Examples",
+    "ExternalExampleRowSource",
+    "ExternalExamplesSource",
     "Feature",
     "GherkinDocument",
     "Pickle",
