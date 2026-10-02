@@ -17,7 +17,12 @@ def test_command_registry_accepts_nested_commands_and_rejects_conflicts() -> Non
 
 def test_standalone_dispatcher_help_lists_reserved_commands(monkeypatch, capsys) -> None:
     registry = cli.CommandRegistry()
-    registry.add(("validate", "features"), "validate feature files", lambda arguments: 0)
+    registry.add(
+        ("validate",),
+        "validate feature files",
+        lambda arguments: 0,
+        positionals=("features-dir",),
+    )
     registry.add(("generate", "steps"), "generate step stubs", lambda arguments: 0)
     registry.add(("convert", "allure"), "convert Allure results", lambda arguments: 0)
     monkeypatch.setattr(cli, "_build_registry", lambda: registry)
@@ -27,10 +32,16 @@ def test_standalone_dispatcher_help_lists_reserved_commands(monkeypatch, capsys)
 
     assert error.value.code == 0
     help_text = capsys.readouterr().out
-    assert "validate features" in help_text
+    assert "validate <features-dir>" in help_text
     assert "generate steps" in help_text
     assert "convert allure" in help_text
     assert "pytest_cuke.commands" in help_text
+
+    with pytest.raises(SystemExit) as error:
+        cli.main(["validate", "--help"])
+
+    assert error.value.code == 0
+    assert "features-dir" in capsys.readouterr().out
 
 
 def test_command_dispatch_passes_trailing_arguments_to_extension(monkeypatch) -> None:
@@ -43,11 +54,33 @@ def test_command_dispatch_passes_trailing_arguments_to_extension(monkeypatch) ->
     assert received == ["result.json", "--short"]
 
 
-def test_unimplemented_command_returns_failure_without_success_claim(capsys) -> None:
-    registry = cli.CommandRegistry()
-    registry.add(("validate", "features"), "validate feature files", cli._unimplemented("validate features"))
-    parser = cli._parser_for(registry, "cuke")
-    namespace = parser.parse_args(["validate", "features"])
+def test_validate_requires_and_dispatches_a_features_directory(monkeypatch, capsys) -> None:
+    received: list[str] = []
 
-    assert namespace._cuke_handler(namespace.arguments) == 2
+    def unimplemented_with_capture(arguments: list[str]) -> int:
+        received.extend(arguments)
+        return cli._unimplemented("validate")(arguments)
+
+    registry = cli.CommandRegistry()
+    registry.add(
+        ("validate",),
+        "validate feature files",
+        unimplemented_with_capture,
+        positionals=("features-dir",),
+    )
+    monkeypatch.setattr(cli, "_build_registry", lambda: registry)
+
+    assert cli.main(["validate", "consumer-features"]) == 2
+    assert received == ["consumer-features"]
     assert "not implemented" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as error:
+        cli.main(["validate"])
+
+    assert error.value.code == 2
+    assert "features-dir" in capsys.readouterr().err
+
+    with pytest.raises(SystemExit) as error:
+        cli.main(["validate", "consumer-features", "extra"])
+
+    assert error.value.code == 2

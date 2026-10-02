@@ -350,7 +350,25 @@ def consumer_command_help_output(consumer: ConsumerProject):
     result = consumer.command_result
     assert result is not None, "a standalone command has not been run in this consumer"
     output = f"{result.stdout}\n{result.stderr}"
-    assert all(path in output for path in ("validate features", "generate steps", "convert allure"))
+    assert all(path in output for path in ("validate <features-dir>", "generate steps", "convert allure"))
+
+
+@then("the command help should show the required feature-directory argument")
+def consumer_command_feature_directory_help(consumer: ConsumerProject):
+    result = consumer.command_result
+    assert result is not None, "a standalone command has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert "usage:" in output
+    assert "features-dir" in output
+
+
+@then("the command output should require a feature directory")
+def consumer_command_requires_feature_directory(consumer: ConsumerProject):
+    result = consumer.command_result
+    assert result is not None, "a standalone command has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert "features-dir" in output
+    assert "required" in output.lower()
 
 
 @then("the unimplemented command should report that it is not implemented")

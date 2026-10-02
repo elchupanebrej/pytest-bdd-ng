@@ -13,8 +13,9 @@ settings use the ``--cuke-*`` command-line namespace and ``cuke_*`` ini keys.
 For example, feature autoload can be selected with ``--cuke-autoload`` and the
 feature root can be changed with ``--cuke-features-dir=features``.
 
-The built-in command paths are ``validate features``, ``generate steps``, and
-``convert allure``. These commands are reserved in this release and return a
+The built-in commands are ``validate <features-dir>``, ``generate steps``, and
+``convert allure``. The ``validate`` command requires exactly one feature
+directory argument. These commands are reserved in this release and return a
 non-zero exit status with an explicit not-implemented message.
 
 Registering command extensions
@@ -23,7 +24,9 @@ Registering command extensions
 An installed extension can register additional commands through the
 ``pytest_cuke.commands`` entry-point group. Each entry point loads a callable
 that receives a ``CommandRegistry``. Its handler receives arguments after the
-registered command path and returns the process exit code.
+registered command path and returns the process exit code. A command may pass
+``positionals=(...)`` to declare required positional arguments; the registry
+shows them in help and passes their values to the handler in order.
 
 .. code-block:: python
 
