@@ -147,6 +147,13 @@ def pytest_addoption(parser: Parser) -> None:
         default=None,
         help="select the feature directory for autoload and scenario binding",
     )
+    feature_group.addoption(
+        "--cuke-strict",
+        action="store_true",
+        dest="cuke_strict",
+        default=None,
+        help="reject empty parsed Feature and Scenario titles during collection",
+    )
     steps.add_options(parser)
     scenario_add_options(parser)
     cucumber_json.add_options(parser)
@@ -159,6 +166,9 @@ def pytest_addoption(parser: Parser) -> None:
 def add_bdd_ini(parser: Parser) -> None:
     parser.addini("cuke_features_dir", "Base features directory.", default="features", type="string")
     parser.addini("cuke_features_base_url", "Base features URL.", default="", type="string")
+    parser.addini(
+        "cuke_strict", "Reject empty parsed Feature and Scenario titles during collection.", default=False, type="bool"
+    )
 
 
 def _non_empty_path(value: str) -> str:

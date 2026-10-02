@@ -12,6 +12,7 @@ from urllib.request import urlopen
 
 from attrs import define, evolve, field
 
+from pytest_cuke.heading_scanner import enforce_feature_heading_policy
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
 from pytest_cuke.parser import ParserRegistry, default_parser_registry
@@ -339,7 +340,25 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     p = _parser_from_config_hook(config, feature_path, self.mimetype)
 
             if p is not None:
-                yield p.parse(feature_path, uri=uri, encoding=self.encoding)
+                feature = p.parse(feature_path, uri=uri, encoding=self.encoding)
+                if _strict_heading_policy_enabled(config):
+                    enforce_feature_heading_policy(feature, feature.filename or uri)
+                yield feature
+
+
+def _strict_heading_policy_enabled(config: Any) -> bool:
+    if config is None:
+        return False
+    try:
+        is_strict = config.getoption("cuke_strict")
+    except (AttributeError, ValueError):
+        is_strict = None
+    if is_strict is None:
+        try:
+            is_strict = config.getini("cuke_strict")
+        except (AttributeError, KeyError, ValueError):
+            is_strict = False
+    return bool(is_strict)
 
     @staticmethod
     def _resolve_parser_from_hooks(feature_path: Path, config: Any) -> ParserProtocol | None:
