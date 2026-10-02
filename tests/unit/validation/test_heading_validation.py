@@ -7,6 +7,7 @@ from pytest_cuke.heading_scanner import (
     _relative_document_path,
     build_baseline_audit,
     discover_feature_documents,
+    heading_type_for_keyword,
     run_heading_validation_scan,
 )
 from pytest_cuke.heading_validation import (
@@ -42,6 +43,20 @@ def test_policy_reports_only_empty_enforced_semantic_titles() -> None:
         ("example.feature", 4, EMPTY_HEADING_TITLE_CODE),
     ]
     assert all(violation.raw_name in ("  ", None) for violation in violations)
+
+
+@pytest.mark.parametrize(
+    ("keyword", "language", "expected"),
+    [
+        ("Example", "en", HeadingType.SCENARIO),
+        ("Scenario", "en", HeadingType.SCENARIO),
+        ("Scenario Template", "en", HeadingType.SCENARIO_OUTLINE),
+        ("Exemple", "fr", HeadingType.SCENARIO),
+        ("Plan du scénario", "fr", HeadingType.SCENARIO_OUTLINE),
+    ],
+)
+def test_heading_type_uses_gherkin_dialect_keywords(keyword: str, language: str, expected: HeadingType) -> None:
+    assert heading_type_for_keyword(keyword, language) is expected
 
 
 def test_recursive_discovery_deduplicates_patterns_and_sorts_paths(tmp_path: Path) -> None:
