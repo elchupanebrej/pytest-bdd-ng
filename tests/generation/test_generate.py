@@ -31,7 +31,7 @@ def test_generate(testdir):
         ensure=True,
     )
 
-    result = testdir.runpytest("--generate", "--feature", os.path.join("scripts", "generate.feature"))
+    result = testdir.runpytest("--cuke-generate", "--cuke-feature", os.path.join("scripts", "generate.feature"))
     assert (
         result.stdout.str().strip()
         == dedent(
@@ -41,7 +41,7 @@ def test_generate(testdir):
 
             from pathlib import Path
 
-            from pytest_bdd import (
+            from pytest_cuke import (
                 scenario,
                 given,
                 when,
@@ -104,7 +104,7 @@ def test_generate_with_quotes(testdir):
         ''',
     )
 
-    result = testdir.runpytest("--generate", "--feature", "generate_with_quotes.feature")
+    result = testdir.runpytest("--cuke-generate", "--cuke-feature", "generate_with_quotes.feature")
     assert (
         result.stdout.str().strip()
         == dedent(
@@ -114,7 +114,7 @@ def test_generate_with_quotes(testdir):
 
             from pathlib import Path
 
-            from pytest_bdd import (
+            from pytest_cuke import (
                 scenario,
                 given,
                 when,
@@ -186,7 +186,7 @@ def test_unicode_characters(testdir, monkeypatch):
             """,
     )
 
-    result = testdir.runpytest("--generate", "--feature", "unicode_characters.feature")
+    result = testdir.runpytest("--cuke-generate", "--cuke-feature", "unicode_characters.feature")
     expected_output = dedent(
         # language=python
         '''\
@@ -194,7 +194,7 @@ def test_unicode_characters(testdir, monkeypatch):
 
         from pathlib import Path
 
-        from pytest_bdd import (
+        from pytest_cuke import (
             scenario,
             given,
             when,

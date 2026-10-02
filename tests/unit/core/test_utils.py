@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd import utils
+from pytest_cuke import utils
 
 
 def test_utils_pure_facade() -> None:

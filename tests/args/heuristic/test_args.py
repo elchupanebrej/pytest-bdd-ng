@@ -25,7 +25,7 @@ def test_heuristic_parser(
         # language=python
         """\
         import pytest
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
 
         @pytest.fixture
         def values():

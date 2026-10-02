@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
 from pytest import mark
+from tests.testing_utils import run_pytester_isolated
 
 # language=gherkin
 FEATURE = """\
@@ -13,7 +14,7 @@ Feature: Gherkin terminal output feature
 
 # language=python
 TEST = """\
-    from pytest_bdd import given, when, then
+    from pytest_cuke import given, when, then
 
     @given('there is a bar')
     def a_bar():
@@ -32,8 +33,8 @@ TEST = """\
 def test_default_output_should_be_the_same_as_regular_terminal_reporter(testdir):
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(TEST)
-    regular = testdir.runpytest()
-    gherkin = testdir.runpytest("--gherkin-terminal-reporter")
+    regular = run_pytester_isolated(testdir)
+    gherkin = run_pytester_isolated(testdir, "--cuke-progress")
     regular.assert_outcomes(passed=1, failed=0)
     gherkin.assert_outcomes(passed=1, failed=0)
 
@@ -46,7 +47,7 @@ def test_default_output_should_be_the_same_as_regular_terminal_reporter(testdir)
 def test_verbose_mode_should_display_feature_and_scenario_names_instead_of_test_names_in_a_single_line(testdir):
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(TEST)
-    result = testdir.runpytest("--gherkin-terminal-reporter", "-v")
+    result = run_pytester_isolated(testdir, "--cuke-progress", "-v")
     result.assert_outcomes(passed=1, failed=0)
     result.stdout.fnmatch_lines("Feature: Gherkin terminal output feature")
     result.stdout.fnmatch_lines("*Scenario: Scenario example 1    PASSED")
@@ -60,8 +61,8 @@ def test_verbose_mode_should_preserve_displaying_regular_tests_as_usual(testdir)
             pass
         """
     )
-    regular = testdir.runpytest()
-    gherkin = testdir.runpytest("--gherkin-terminal-reporter", "-v")
+    regular = run_pytester_isolated(testdir)
+    gherkin = run_pytester_isolated(testdir, "--cuke-progress", "-v")
     regular.assert_outcomes(passed=1, failed=0)
     gherkin.assert_outcomes(passed=1, failed=0)
 
@@ -76,7 +77,7 @@ def test_double_verbose_mode_should_display_full_scenario_description(
 ):
     testdir.makefile(".feature", test=FEATURE)
     testdir.makeconftest(TEST)
-    result = testdir.runpytest("--gherkin-terminal-reporter", "-vv")
+    result = run_pytester_isolated(testdir, "--cuke-progress", "-vv")
     result.assert_outcomes(passed=1, failed=0)
 
     result.stdout.fnmatch_lines("*Scenario: Scenario example 1")
@@ -89,7 +90,7 @@ def test_double_verbose_mode_should_display_full_scenario_description(
 @mark.parametrize("verbosity", ["", "-v", "-vv"])
 def test_error_message_for_missing_steps(testdir, verbosity):
     testdir.makefile(".feature", test=FEATURE)
-    result = testdir.runpytest("--gherkin-terminal-reporter", verbosity)
+    result = run_pytester_isolated(testdir, "--cuke-progress", verbosity)
     result.assert_outcomes(passed=0, failed=1)
     result.stdout.fnmatch_lines(
         """*StepDefinitionNotFoundError: Step definition is not found: "there is a bar". Step keyword: "Given".*"""
@@ -103,7 +104,7 @@ def test_error_message_should_be_displayed(testdir, verbosity):
     testdir.makeconftest(
         # language=python
         f"""\
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
 
         @given('there is a bar')
         def a_bar():
@@ -118,7 +119,7 @@ def test_error_message_should_be_displayed(testdir, verbosity):
             raise Exception("BIGBADABOOM")
         """
     )
-    result = testdir.runpytest("--gherkin-terminal-reporter", verbosity)
+    result = run_pytester_isolated(testdir, "--cuke-progress", verbosity)
     result.assert_outcomes(passed=0, failed=1)
     result.stdout.fnmatch_lines("E       Exception: BIGBADABOOM")
     result.stdout.fnmatch_lines("conftest.py:13: Exception")
@@ -129,7 +130,7 @@ def test_local_variables_should_be_displayed_when_showlocals_option_is_used(test
     testdir.makeconftest(
         # language=python
         f"""\
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
 
         @given('there is a bar')
         def a_bar():
@@ -145,7 +146,7 @@ def test_local_variables_should_be_displayed_when_showlocals_option_is_used(test
             raise Exception("BIGBADABOOM")
         """
     )
-    result = testdir.runpytest("--gherkin-terminal-reporter", "--showlocals")
+    result = run_pytester_isolated(testdir, "--cuke-progress", "--showlocals")
     result.assert_outcomes(passed=0, failed=1)
     result.stdout.fnmatch_lines("""request*=*<FixtureRequest for *""")
     result.stdout.fnmatch_lines("""local_var*=*MULTIPASS*""")
@@ -171,7 +172,7 @@ def test_step_parameters_should_be_replaced_by_their_values(testdir):
     testdir.makeconftest(
         # language=python
         f"""\
-        from pytest_bdd import given, when, then, parsers
+        from pytest_cuke import given, when, then, parsers
 
         @given(parsers.parse('there are {{start}} cucumbers'), target_fixture="start_cucumbers")
         def start_cucumbers(start):
@@ -187,7 +188,7 @@ def test_step_parameters_should_be_replaced_by_their_values(testdir):
         """
     )
 
-    result = testdir.runpytest("--gherkin-terminal-reporter", "-vv")
+    result = run_pytester_isolated(testdir, "--cuke-progress", "-vv")
     result.assert_outcomes(passed=1, failed=0)
     result.stdout.fnmatch_lines("*Scenario: Scenario example 2")
     result.stdout.fnmatch_lines("*Given there are {start} cucumbers (PASSED)".format(**example))

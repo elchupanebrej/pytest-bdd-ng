@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.util.webloc import read, write
+from pytest_cuke.util.webloc import read, write
 
 
 def test_webloc_read_write(tmp_path) -> None:

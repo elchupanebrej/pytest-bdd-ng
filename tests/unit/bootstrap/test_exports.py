@@ -1,63 +1,40 @@
 from __future__ import annotations
 
-import inspect
-import sys
+import importlib
 from pathlib import Path
 
-import pytest_bdd
+import pytest_cuke
+from pytest_cuke.compatibility.tomllib import load
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+PUBLIC_NAMES = {"given", "when", "then", "step", "parsers", "scenario", "scenarios"}
 
 
-def test_public_api_exports() -> None:
-    expected_exports = [
-        "DataTable",
-        "DocString",
-        "Feature",
-        "FeaturePathType",
-        "Mimetype",
-        "PytestBDDStepDefinitionWarning",
-        "Scenario",
-        "Step",
-        "Suffix",
-        "Table",
-        "__version__",
-        "given",
-        "not_implemented",
-        "parsers",
-        "scenario",
-        "scenarios",
-        "step",
-        "then",
-        "tolerant",
-        "when",
-    ]
-    for name in expected_exports:
-        assert hasattr(pytest_bdd, name), f"Missing export: {name}"
-        assert name in pytest_bdd.__all__, f"Missing from __all__: {name}"
+def test_public_api_is_exactly_the_seven_accepted_names() -> None:
+    assert set(pytest_cuke.__all__) == PUBLIC_NAMES
+    assert all(hasattr(pytest_cuke, name) for name in PUBLIC_NAMES)
 
 
-def test_public_api_callables_and_types() -> None:
-    for name in ["given", "when", "then", "step", "tolerant", "not_implemented", "scenario", "scenarios"]:
-        obj = getattr(pytest_bdd, name)
-        assert callable(obj), f"Expected callable for {name}"
-
-    for name in ["Feature", "Scenario", "Step", "Table", "DataTable", "DocString", "Mimetype", "Suffix"]:
-        obj = getattr(pytest_bdd, name)
-        assert inspect.isclass(obj), f"Expected class for {name}"
-
-    assert isinstance(pytest_bdd.__version__, str)
-    assert hasattr(pytest_bdd.parsers, "parse")
+def test_wildcard_import_and_private_names_follow_the_facade_boundary() -> None:
+    namespace: dict[str, object] = {}
+    exec("from pytest_cuke import *", namespace)
+    assert {name for name in namespace if name != "__builtins__"} == PUBLIC_NAMES
+    assert not any(hasattr(pytest_cuke, name) for name in ("Feature", "Scenario", "Step", "Runner"))
+    assert importlib.import_module("pytest_cuke.plugin") is not None
 
 
-def test_pytest11_entrypoint_registered() -> None:
+def test_public_api_callables_and_parser_facade() -> None:
+    for name in ("given", "when", "then", "step", "scenario", "scenarios"):
+        assert callable(getattr(pytest_cuke, name))
+
+    assert all(callable(getattr(pytest_cuke.parsers, name)) for name in ("parse", "re", "cfparse", "cuke_expressions"))
+
+
+def test_canonical_plugin_and_command_entrypoints_are_registered() -> None:
     repo_root = Path(__file__).resolve().parent.parent.parent.parent
-    pyproject_path = repo_root / "pyproject.toml"
-    with pyproject_path.open("rb") as f:
-        data = tomllib.load(f)
+    with (repo_root / "pyproject.toml").open("rb") as f:
+        data = load(f)
 
-    entry_points = data.get("project", {}).get("entry-points", {}).get("pytest11", {})
-    assert entry_points.get("pytest-bdd") == "pytest_bdd.plugin"
+    project = data["project"]
+    assert project["name"] == "pytest-cuke"
+    assert project["entry-points"]["pytest11"] == {"cuke": "pytest_cuke.plugin"}
+    assert project["scripts"] == {"pytest-cuke": "pytest_cuke.cli:main", "cuke": "pytest_cuke.cli:main"}

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 if TYPE_CHECKING:
     from pathlib import Path
 
-from pytest_bdd.cucumber_json import LogBDDCucumberJSON
+from pytest_cuke.cucumber_json import LogBDDCucumberJSON
 
 
 def test_log_bdd_cucumber_json_lifecycle_and_output(tmp_path: Path) -> None:

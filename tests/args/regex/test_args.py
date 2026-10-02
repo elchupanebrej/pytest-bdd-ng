@@ -6,7 +6,7 @@ from pytest import mark
 @mark.parametrize(
     "parser_import_string",
     [
-        "from pytest_bdd.parsers import re as parse_re",
+        "from pytest_cuke.parsers import re as parse_re",
         "from re import compile as parse_re",
     ],
 )
@@ -29,7 +29,7 @@ def test_every_steps_takes_param_with_the_same_name(testdir, parser_import_strin
         # language=python
         """\
         import pytest
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
         """
         f"{parser_import_string}"
         r"""
@@ -57,7 +57,7 @@ def test_every_steps_takes_param_with_the_same_name(testdir, parser_import_strin
 @mark.parametrize(
     "parser_import_string",
     [
-        "from pytest_bdd.parsers import re as parse_re",
+        "from pytest_cuke.parsers import re as parse_re",
         "from re import compile as parse_re",
     ],
 )
@@ -78,7 +78,7 @@ def test_argument_in_when(testdir, parser_import_string):
         # language=python
         """\
         import pytest
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
         """
         f"{parser_import_string}"
         r"""

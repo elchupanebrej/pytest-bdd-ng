@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pytest_bdd.steps.definition import Definition
-from pytest_bdd.steps.registry import Registry
-from pytest_bdd.parsers.string_parser import string
+from pytest_cuke.steps.definition import Definition
+from pytest_cuke.steps.registry import Registry
+from pytest_cuke.parsers.string_parser import string
 
 
 def test_definition_with_unhashable_defaults_is_hashable():
@@ -31,7 +31,7 @@ def test_module_with_unhashable_fixture(testdir):
     testdir.makepyfile(
         conftest="""
 import pytest
-from pytest_bdd import given
+from pytest_cuke import given
 
 @pytest.fixture
 def unhashable_dict_fixture():

@@ -1,7 +1,7 @@
 Scenarios tags could be localized
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-pytest-bdd-ng supports all localizations which Gherkin does:
+pytest-cuke supports all localizations which Gherkin does:
 https://cucumber.io/docs/gherkin/languages/
 
 Scenario:
@@ -9,7 +9,7 @@ Scenario:
 
 -  Given File "Localized.feature" with content:
 
-   .. code:: gherkin
+   ::
 
       #language: pt
       #encoding: UTF-8
@@ -21,9 +21,9 @@ Scenario:
 
 -  And File "conftest.py" with content:
 
-   .. code:: python
+   ::
 
-      from pytest_bdd import  given, when, then
+      from pytest_cuke import  given, when, then
 
       @given("que o usuário esteja na tela de login")
       def tela_login():

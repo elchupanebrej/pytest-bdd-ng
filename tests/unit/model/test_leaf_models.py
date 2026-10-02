@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pytest_bdd.model.doc_string import DocString
-from pytest_bdd.model.examples import Example, Examples
-from pytest_bdd.model.table import DataTable, TableCell, TableRow
-from pytest_bdd.model.tag import Tag
+from pytest_cuke.model.doc_string import DocString
+from pytest_cuke.model.examples import Example, Examples
+from pytest_cuke.model.table import DataTable, TableCell, TableRow
+from pytest_cuke.model.tag import Tag
 
 
 def test_leaf_models() -> None:

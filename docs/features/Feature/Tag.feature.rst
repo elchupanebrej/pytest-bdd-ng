@@ -16,7 +16,7 @@ Background:
 
 -  Given File "Passed.feature" with content:
 
-   .. code:: gherkin
+   ::
 
       @passed
       Feature: Steps are executed by corresponding step keyword decorator
@@ -25,7 +25,7 @@ Background:
 
 -  Given File "Failed.feature" with content:
 
-   .. code:: gherkin
+   ::
 
       @failed
       Feature: Steps are executed by corresponding step keyword decorator
@@ -34,7 +34,7 @@ Background:
 
 -  Given File "Both.feature" with content:
 
-   .. code:: gherkin
+   ::
 
       @both
       Feature: Steps are executed by corresponding step keyword decorator
@@ -46,7 +46,7 @@ Background:
 
 -  Given File "pytest.ini" with content:
 
-   .. code:: ini
+   ::
 
       [pytest]
       markers =
@@ -56,10 +56,10 @@ Background:
 
 -  And File "conftest.py" with content:
 
-   .. code:: python
+   ::
 
-      from pytest_bdd.compatibility.pytest import fail
-      from pytest_bdd import given
+      from pytest_cuke.compatibility.pytest import fail
+      from pytest_cuke import given
 
       @given('I produce passed test')
       def passing_step():
@@ -72,13 +72,7 @@ Background:
 Scenario:
          
 
--  When run pytest
-
-   ======== == ======
-   cli_args -m passed
-   ======== == ======
-   ======== == ======
-
+-  When I run pytest with arguments "-m passed"
 -  Then pytest outcome must contain tests with statuses:
 
    ====== ======
@@ -92,13 +86,7 @@ Scenario:
 Scenario:
          
 
--  When run pytest
-
-   ======== == ======
-   cli_args -m failed
-   ======== == ======
-   ======== == ======
-
+-  When I run pytest with arguments "-m failed"
 -  Then pytest outcome must contain tests with statuses:
 
    ====== ======
@@ -112,13 +100,7 @@ Scenario:
 Scenario:
          
 
--  When run pytest
-
-   ======== == ================
-   cli_args -m passed or failed
-   ======== == ================
-   ======== == ================
-
+-  When I run pytest with arguments "-m 'passed or failed'"
 -  Then pytest outcome must contain tests with statuses:
 
    ====== ======
@@ -132,13 +114,7 @@ Scenario:
 Scenario:
          
 
--  When run pytest
-
-   ======== == ========
-   cli_args -m not both
-   ======== == ========
-   ======== == ========
-
+-  When I run pytest with arguments "-m 'not both'"
 -  Then pytest outcome must contain tests with statuses:
 
    ====== ======
@@ -152,13 +128,7 @@ Scenario:
 Scenario:
          
 
--  When run pytest
-
-   ======== == ====
-   cli_args -m both
-   ======== == ====
-   ======== == ====
-
+-  When I run pytest with arguments "-m both"
 -  Then pytest outcome must contain tests with statuses:
 
    ====== ======

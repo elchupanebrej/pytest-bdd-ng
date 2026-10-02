@@ -2,7 +2,7 @@
 
 from textwrap import dedent
 
-from pytest_bdd.compatibility.pytest import assert_outcomes
+from pytest_cuke.compatibility.pytest import assert_outcomes
 
 
 def test_scenarios(testdir, pytest_params, tmp_path):
@@ -11,13 +11,13 @@ def test_scenarios(testdir, pytest_params, tmp_path):
         f"""\
         [pytest]
         console_output_style=classic
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given('I have a bar')
         def i_have_bar():
@@ -59,7 +59,7 @@ def test_scenarios(testdir, pytest_params, tmp_path):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import scenarios, scenario
+        from pytest_cuke import scenarios, scenario
 
         test_feature = scenarios('features/subfolder/test.feature')
 
@@ -83,7 +83,7 @@ def test_scenarios_none_found(testdir, pytest_params):
     testpath = testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import scenarios
+        from pytest_cuke import scenarios
 
         test_feature = scenarios('.')
         """

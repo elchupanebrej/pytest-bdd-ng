@@ -4,7 +4,7 @@ import io
 
 import pytest
 
-from pytest_bdd.compatibility.tomllib import TOMLDecodeError, load, loads
+from pytest_cuke.compatibility.tomllib import TOMLDecodeError, load, loads
 
 
 def test_tomllib_loads() -> None:

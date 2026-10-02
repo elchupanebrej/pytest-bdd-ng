@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_bdd.exceptions import PytestBDDStashLookupError
-from pytest_bdd.model.run_access import (
+from pytest_cuke.exceptions import PytestBDDStashLookupError
+from pytest_cuke.model.run_access import (
     bind_scenario_run,
     get_execution_context,
     get_scenario_run,
@@ -11,8 +11,8 @@ from pytest_bdd.model.run_access import (
     require_scenario_run,
     set_scenario_run,
 )
-from pytest_bdd.model.scenario_run import ScenarioRun
-from pytest_bdd.model.stash_access import ItemStash, SimpleStash
+from pytest_cuke.model.scenario_run import ScenarioRun
+from pytest_cuke.model.stash_access import ItemStash, SimpleStash
 
 
 def test_run_access_with_simple_stash() -> None:

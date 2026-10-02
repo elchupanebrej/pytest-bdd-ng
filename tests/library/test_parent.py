@@ -27,7 +27,7 @@ def test_parent(testdir, tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given("I have a parent fixture", target_fixture="parent")
         def parent():
@@ -42,7 +42,7 @@ def test_parent(testdir, tmp_path):
     testdir.makepyfile(
         # language=python
         f"""\
-        from pytest_bdd import scenario
+        from pytest_cuke import scenario
         from pathlib import Path
 
         @scenario(Path(r"{tmp_path}") / "parent.feature", "Parenting is easy")
@@ -60,7 +60,7 @@ def test_child(testdir, tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given("I have a parent fixture", target_fixture="parent")
         def parent():
@@ -78,7 +78,7 @@ def test_child(testdir, tmp_path):
         dedent(
             # language=python
             """\
-            from pytest_bdd import given
+            from pytest_cuke import given
 
             @given("I have an overridable fixture", target_fixture="overridable")
             def overridable():
@@ -104,7 +104,7 @@ def test_child(testdir, tmp_path):
         dedent(
             # language=python
             f"""\
-            from pytest_bdd import scenario
+            from pytest_cuke import scenario
             from pathlib import Path
 
             @scenario(Path(r"{tmp_path}") / "child.feature", "Happy childhood", features_base_dir='subdir')
@@ -123,7 +123,7 @@ def test_local(testdir, tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given("I have a parent fixture", target_fixture="parent")
         def parent():
@@ -153,7 +153,7 @@ def test_local(testdir, tmp_path):
         dedent(
             # language=python
             f"""\
-            from pytest_bdd import given, scenario
+            from pytest_cuke import given, scenario
             from pathlib import Path
 
             @given("I have an overridable fixture", target_fixture="overridable")
@@ -180,7 +180,7 @@ def test_local_multiple_target_fixtures(testdir, tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given("I have a parent fixtures", target_fixtures=["parent", "overridable"])
         def parent():
@@ -205,7 +205,7 @@ def test_local_multiple_target_fixtures(testdir, tmp_path):
         dedent(
             # language=python
             f"""\
-            from pytest_bdd import given, scenario
+            from pytest_cuke import given, scenario
             from pathlib import Path
 
             @given("I have a parent fixture", target_fixtures=["parent", "overridable"])
@@ -228,7 +228,7 @@ def test_local_both_target_fixture_and_target_fixtures(testdir, tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given("I have a parent fixtures", target_fixture="parent", target_fixtures=["overridable"])
         def parent():
@@ -253,7 +253,7 @@ def test_local_both_target_fixture_and_target_fixtures(testdir, tmp_path):
         dedent(
             # language=python
             f"""\
-            from pytest_bdd import given, scenario
+            from pytest_cuke import given, scenario
             from pathlib import  Path
 
             @given("I have a parent fixture", target_fixtures=["parent", "overridable"])
@@ -267,5 +267,5 @@ def test_local_both_target_fixture_and_target_fixtures(testdir, tmp_path):
             """
         )
     )
-    result = testdir.runpytest_subprocess("-W", "ignore::pytest_bdd.PytestBDDStepDefinitionWarning")
+    result = testdir.runpytest_subprocess("-W", "ignore::pytest_cuke.PytestBDDStepDefinitionWarning")
     result.assert_outcomes(passed=1)

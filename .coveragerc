@@ -1,5 +1,5 @@
 [run]
 branch = true
 include =
-    pytest_bdd/*
+    pytest_cuke/*
     tests/*

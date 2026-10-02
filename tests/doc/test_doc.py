@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 from pytest import mark
 
 if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.compatibility.pytest import Testdir
+    from pytest_cuke.compatibility.pytest import Testdir
 
 
 @mark.skipif(sys.version_info < (3, 12), reason="Verify only on the latest version")
 def test_doc_generation(testdir: "Testdir"):
-    from pytest_bdd.script.bdd_tree_to_rst import convert
+    from pytest_cuke.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
@@ -50,8 +50,8 @@ def test_doc_generation(testdir: "Testdir"):
                 ========
 
                 .. NOTE:: Features below are part of end-to-end test suite; You always could find most specific
-                          use cases of **pytest-bdd-ng** by investigation of its regression
-                          test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/default/tests
+                          use cases of **pytest-cuke** by investigation of its regression
+                          test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/rewrite-from-2.3.1/tests
 
 
 

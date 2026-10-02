@@ -2,7 +2,7 @@
 
 from textwrap import dedent
 
-from pytest_bdd.compatibility.pytest import assert_outcomes
+from pytest_cuke.compatibility.pytest import assert_outcomes
 
 
 def test_simple(testdir, pytest_params, tmp_path):
@@ -22,7 +22,7 @@ def test_simple(testdir, pytest_params, tmp_path):
         '''\
         from pathlib import Path
 
-        from pytest_bdd import scenario, given, then
+        from pytest_cuke import scenario, given, then
 
         @scenario(Path(r"'''
         f"{tmp_path / 'simple.feature'}"

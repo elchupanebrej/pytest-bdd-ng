@@ -19,8 +19,8 @@ except ImportError:
     hamcrest = None
     all_of = any_of = assert_that = contains_string = equal_to = has_entry = has_item = has_property = None
 
-from pytest_bdd import given, parsers, then, when
-from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
+from pytest_cuke import given, parsers, then, when
+from pytest_cuke.compatibility.allure import ALLURE_INSTALLED
 
 if ALLURE_INSTALLED:
     import allure_commons

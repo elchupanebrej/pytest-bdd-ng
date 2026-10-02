@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from pytest_bdd.collector import (
+from pytest_cuke.collector import (
     FeatureFileCollector,
     FeatureFileModule,
     Module,
@@ -10,7 +10,7 @@ from pytest_bdd.collector import (
     PackageCollector,
     ScenarioItem,
 )
-from pytest_bdd.scenario import FeaturePathType as PathType
+from pytest_cuke.scenario import FeaturePathType as PathType
 
 
 def test_collector_classes_and_aliases() -> None:

@@ -23,7 +23,7 @@
 
 * Given File "conftest.py" with content:
     ```python
-    from pytest_bdd import step
+    from pytest_cuke import step
 
     @step('Passing step')
 
@@ -39,9 +39,7 @@
     | 2      |
 
 ### Scenario: Feature autoload could be disabled via command line
-* When run pytest
-    | cli_args | --disable-feature-autoload |
-    |----------|----------------------------|
+* When I run pytest with arguments "--cuke-no-autoload"
 
 * Then pytest outcome must contain tests with statuses:
     | passed |

@@ -4,14 +4,16 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Optional
 
+from tests.testing_utils import run_pytester_isolated
+
 if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.compatibility.pytest import RunResult
+    from pytest_cuke.compatibility.pytest import RunResult
 
 
 def runandparse(testdir, *args: Any) -> tuple["RunResult", Sequence[dict[str, Any]]]:
     """Run tests in testdir and parse json output."""
     resultpath = testdir.tmpdir.join("cucumber.json")
-    result = testdir.runpytest(f"--cucumberjson={resultpath}", "-s", *args)
+    result = run_pytester_isolated(testdir, f"--cuke-json={resultpath}", "-s", *args)
     with resultpath.open() as f:
         jsonobject = json.load(f)
     return result, jsonobject
@@ -71,7 +73,7 @@ def test_step_trace(testdir):
     testdir.makeconftest(
         # language=python
         f"""
-        from pytest_bdd import given, parsers
+        from pytest_cuke import given, parsers
 
         @given('a passing step')
         def a_passing_step():
@@ -252,7 +254,7 @@ def test_skipped_scenario_in_cucumber_json(testdir):
     testdir.makeconftest(
         """
         import pytest
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given('a step that is skipped')
         def a_step_that_is_skipped():

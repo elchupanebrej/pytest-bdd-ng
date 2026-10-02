@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.cucumber_json import (
+from pytest_cuke.cucumber_json import (
     Argument,
     CucumberJson,
     DataTableRow,
@@ -80,6 +80,6 @@ def test_cucumber_json_models_validation() -> None:
     assert feature.name == "Test Feature"
     assert len(feature.elements or []) == 1
 
-    cuke_json = CucumberJson(implementation="pytest-bdd-ng", features=[feature])
-    assert cuke_json.implementation == "pytest-bdd-ng"
+    cuke_json = CucumberJson(implementation="pytest-cuke", features=[feature])
+    assert cuke_json.implementation == "pytest-cuke"
     assert len(cuke_json.features or []) == 1

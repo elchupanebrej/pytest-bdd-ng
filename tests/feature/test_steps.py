@@ -2,7 +2,7 @@ import textwrap
 
 import pytest
 
-from pytest_bdd.utils import collect_dumped_objects
+from pytest_cuke.utils import collect_dumped_objects
 
 
 def test_steps(testdir):
@@ -28,7 +28,7 @@ def test_steps(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
 
         @given('I have a foo fixture with value "foo"', target_fixture="foo")
         def foo():
@@ -67,7 +67,7 @@ def test_step_function_can_be_decorated_multiple_times(testdir, tmp_path):
     testdir.makeini(
         f"""\
         [pytest]
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
     (tmp_path / "steps.feature").write_text(
@@ -89,7 +89,7 @@ def test_step_function_can_be_decorated_multiple_times(testdir, tmp_path):
         # language=python
         """\
         from pytest import fixture
-        from pytest_bdd import given, when, then, scenario, parsers
+        from pytest_cuke import given, when, then, scenario, parsers
 
         @fixture
         def first_foo():
@@ -152,7 +152,7 @@ def test_all_steps_can_provide_fixtures(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, when, then, parsers
+        from pytest_cuke import given, when, then, parsers
 
         @given(parsers.parse('Foo is "{value}"'), target_fixture="foo")
         def given_foo_is_value(value):
@@ -192,7 +192,7 @@ def test_when_first(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import when, then
+        from pytest_cuke import when, then
 
         @when("I do nothing")
         def do_nothing():
@@ -225,7 +225,7 @@ def test_then_after_given(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given('I have a foo fixture with value "foo"', target_fixture="foo")
         def foo():
@@ -266,7 +266,7 @@ def test_unknown_first(testdir, keyword):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import step, then
+        from pytest_cuke import step, then
 
         @step('I have a foo fixture with value "foo"', target_fixture="foo")
         def foo():
@@ -299,7 +299,7 @@ def test_conftest(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given("I have a bar", target_fixture="bar")
         def bar():
@@ -331,7 +331,7 @@ def test_multiple_given(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import parsers, given, then
+        from pytest_cuke import parsers, given, then
 
         @given(parsers.parse("foo is {value}"), target_fixture="foo")
         def foo(value):
@@ -373,7 +373,7 @@ def test_step_hooks(testdir):
         # language=python
         """\
         import pytest
-        from pytest_bdd import given, when, scenario
+        from pytest_cuke import given, when, scenario
 
         @given('I have a bar')
         def i_have_bar():
@@ -415,28 +415,28 @@ def test_step_hooks(testdir):
     reprec = testdir.inline_run("-k test_when_fails")
     reprec.assertoutcome(failed=1)
 
-    calls = reprec.getcalls("pytest_bdd_before_scenario")
+    calls = reprec.getcalls("pytest_cuke_before_scenario")
     assert calls[0].request
 
-    calls = reprec.getcalls("pytest_bdd_after_scenario")
+    calls = reprec.getcalls("pytest_cuke_after_scenario")
     assert calls[0].request
 
-    calls = reprec.getcalls("pytest_bdd_before_step")
+    calls = reprec.getcalls("pytest_cuke_before_step")
     assert calls[0].request
 
-    calls = reprec.getcalls("pytest_bdd_before_step_call")
+    calls = reprec.getcalls("pytest_cuke_before_step_call")
     assert calls[0].request
 
-    calls = reprec.getcalls("pytest_bdd_after_step")
+    calls = reprec.getcalls("pytest_cuke_after_step")
     assert calls[0].request
 
-    calls = reprec.getcalls("pytest_bdd_step_error")
+    calls = reprec.getcalls("pytest_cuke_step_error")
     assert calls[0].request
 
     reprec = testdir.inline_run("-k test_when_not_found")
     reprec.assertoutcome(failed=1)
 
-    calls = reprec.getcalls("pytest_bdd_step_func_lookup_error")
+    calls = reprec.getcalls("pytest_cuke_step_func_lookup_error")
     assert calls[0].request
 
     reprec = testdir.inline_run("-k test_when_step_validation_error")
@@ -445,13 +445,13 @@ def test_step_hooks(testdir):
     reprec = testdir.inline_run("-k test_when_dependency_fails", "-vv")
     reprec.assertoutcome(failed=1)
 
-    calls = reprec.getcalls("pytest_bdd_before_step")
+    calls = reprec.getcalls("pytest_cuke_before_step")
     assert len(calls) == 2
 
-    calls = reprec.getcalls("pytest_bdd_before_step_call")
+    calls = reprec.getcalls("pytest_cuke_before_step_call")
     assert len(calls) == 1
 
-    calls = reprec.getcalls("pytest_bdd_step_error")
+    calls = reprec.getcalls("pytest_cuke_step_error")
     assert calls[0].request
 
 
@@ -488,7 +488,7 @@ def test_step_trace(testdir):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, when, scenario
+        from pytest_cuke import given, when, scenario
 
         @given('I have a bar')
         def i_have_bar():
@@ -554,9 +554,9 @@ def test_steps_parameter_mapping(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd.compatibility.pytest import FixtureLookupError
+        from pytest_cuke.compatibility.pytest import FixtureLookupError
         from pytest import raises
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given('I have a "{foo}" parameter which is not injected as fixture', params_fixtures_mapping={})
         def foo(foo):
@@ -587,9 +587,9 @@ def test_steps_parameter_mapping_could_redirect_to_fixture(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd.compatibility.pytest import FixtureLookupError
+        from pytest_cuke.compatibility.pytest import FixtureLookupError
         from pytest import raises
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given('I have a "{foo}" parameter which is injected as fixture "bar"', params_fixtures_mapping={"foo":"bar"})
         def foo(foo, bar):
@@ -623,9 +623,9 @@ def test_steps_parameter_mapping_rejection_for_all_parameters(testdir, mapping_s
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd.compatibility.pytest import FixtureLookupError
+        from pytest_cuke.compatibility.pytest import FixtureLookupError
         from pytest import raises
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given('I have a "{foo}", "{bar}", "{fizz}", "{buzz}" parameters which are rejected by wild pattern',
                """
@@ -670,7 +670,7 @@ def test_steps_parameter_mapping_acceptance_for_all_parameters(testdir, mapping_
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given('I have a "{foo}", "{bar}", "{fizz}", "{buzz}" parameters which are accepted by wild pattern',
             """
@@ -711,7 +711,7 @@ def test_steps_parameter_mapping_acceptance_for_non_listed_parameters_by_wildcar
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given('I have a "{foo}", "{bar}", "{fizz}", "{buzz}" parameters few of which are accepted by wild pattern',
                params_fixtures_mapping={'foo': 'cool_foo', 'bar': 'nice_bar', ...: ...})
@@ -757,7 +757,7 @@ def test_steps_with_yield(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import when, then
+        from pytest_cuke import when, then
 
         @when("I setup stuff", target_fixture="stuff")
         def stuff():
@@ -787,7 +787,7 @@ def test_liberal_step_decorator(testdir, tmp_path):
     testdir.makeini(
         f"""\
         [pytest]
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
     (tmp_path / "steps.feature").write_text(
@@ -813,7 +813,7 @@ def test_liberal_step_decorator(testdir, tmp_path):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import step, scenario
+        from pytest_cuke import step, scenario
         from pytest import fixture
 
         @fixture
@@ -842,7 +842,7 @@ def test_liberal_keyworded_step_decorator(testdir, tmp_path):
     testdir.makeini(
         f"""\
         [pytest]
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
     (tmp_path / "steps.feature").write_text(
@@ -868,7 +868,7 @@ def test_liberal_keyworded_step_decorator(testdir, tmp_path):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, scenario
+        from pytest_cuke import given, scenario
         from pytest import fixture
 
         @fixture
@@ -897,7 +897,7 @@ def test_liberal_keyworded_step_decorator_cli_option(testdir, tmp_path):
     testdir.makeini(
         f"""\
         [pytest]
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
     (tmp_path / "steps.feature").write_text(
@@ -923,7 +923,7 @@ def test_liberal_keyworded_step_decorator_cli_option(testdir, tmp_path):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, scenario
+        from pytest_cuke import given, scenario
         from pytest import fixture
 
         @fixture
@@ -944,7 +944,7 @@ def test_liberal_keyworded_step_decorator_cli_option(testdir, tmp_path):
             step_values.append(value)
         """
     )
-    result = testdir.runpytest("--liberal-steps")
+    result = testdir.runpytest("--cuke-liberal-steps")
     result.assert_outcomes(passed=1, failed=0)
 
 
@@ -953,7 +953,7 @@ def test_liberal_keyworded_step_decorator_ini_option(testdir, tmp_path):
         f"""\
         [pytest]
         liberal_steps = True
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
 
@@ -980,7 +980,7 @@ def test_liberal_keyworded_step_decorator_ini_option(testdir, tmp_path):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, scenario
+        from pytest_cuke import given, scenario
         from pytest import fixture
 
         @fixture
@@ -1009,7 +1009,7 @@ def test_strict_step_has_precedence_over_liberal_step_decorator(testdir, tmp_pat
     testdir.makeini(
         f"""\
         [pytest]
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
     (tmp_path / "steps.feature").write_text(
@@ -1035,7 +1035,7 @@ def test_strict_step_has_precedence_over_liberal_step_decorator(testdir, tmp_pat
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, when, step, scenario
+        from pytest_cuke import given, when, step, scenario
         from pytest import fixture
 
         @fixture
@@ -1080,7 +1080,7 @@ def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
     testdir.makeini(
         f"""\
         [pytest]
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
     (tmp_path / "steps.feature").write_text(
@@ -1106,7 +1106,7 @@ def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import when, then, scenario
+        from pytest_cuke import when, then, scenario
         from pytest import fixture
 
         @fixture
@@ -1135,7 +1135,7 @@ def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
             then_step_values.append(value)
         """
     )
-    result = testdir.runpytest("-W", "ignore::pytest_bdd.PytestBDDStepDefinitionWarning")
+    result = testdir.runpytest("-W", "ignore::pytest_cuke.PytestBDDStepDefinitionWarning")
     result.assert_outcomes(passed=1, failed=0)
 
 
@@ -1157,7 +1157,7 @@ def test_extend_steps_from_step(testdir):
         from collections import deque
 
         from messages import PickleStep, Type
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
 
         @when("I inject step \\"{keyword}\\" \\"{step_text}\\"")
         def inject_step(steps_left: deque, keyword, step_text, scenario):
@@ -1196,7 +1196,7 @@ def test_default_params(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given("I have default defined param", param_defaults={'default_param': 'foo'}, target_fixture='foo_fixture')
         def save_fixture(default_param):
@@ -1234,8 +1234,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
         textwrap.dedent(
             # language=python
             """\
-            from pytest_bdd import parsers, given, then
-            from pytest_bdd.utils import dump_obj
+            from pytest_cuke import parsers, given, then
+            from pytest_cuke.utils import dump_obj
 
             @given(parsers.re("(?P<thing>.*)"))
             def root_conftest_catchall(thing):
@@ -1263,8 +1263,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
     testdir.makepyfile(
         # language=python
         test_a="""\
-            from pytest_bdd import given, parsers
-            from pytest_bdd.utils import dump_obj
+            from pytest_cuke import given, parsers
+            from pytest_cuke.utils import dump_obj
 
             @given(parsers.re("(?P<thing>.*)"))
             def in_root_test_a_catch_all(thing):
@@ -1282,8 +1282,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
     testdir.makepyfile(
         # language=python
         test_c="""\
-            from pytest_bdd import given, parsers
-            from pytest_bdd.utils import dump_obj
+            from pytest_cuke import given, parsers
+            from pytest_cuke.utils import dump_obj
 
             @given(parsers.re("(?P<thing>.*)"))
             def in_root_test_c_catch_all(thing):
@@ -1306,8 +1306,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
         textwrap.dedent(
             # language=python
             """\
-                from pytest_bdd import given, parsers
-                from pytest_bdd.utils import dump_obj
+                from pytest_cuke import given, parsers
+                from pytest_cuke.utils import dump_obj
 
                 @given(parsers.re("(?P<thing>.*)"))
                 def in_root_test_b_test_a_catch_all(thing):
@@ -1327,8 +1327,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
         textwrap.dedent(
             # language=python
             """\
-                from pytest_bdd import given, parsers
-                from pytest_bdd.utils import dump_obj
+                from pytest_cuke import given, parsers
+                from pytest_cuke.utils import dump_obj
 
                 @given(parsers.re("(?P<thing>.*)"))
                 def in_root_test_b_test_c_catch_all(thing):
@@ -1350,8 +1350,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
         textwrap.dedent(
             # language=python
             f"""\
-                from pytest_bdd import scenarios, given, parsers
-                from pytest_bdd.utils import dump_obj
+                from pytest_cuke import scenarios, given, parsers
+                from pytest_cuke.utils import dump_obj
                 from pathlib import Path
 
                 test_scenarios = scenarios(Path(r"{tmp_path}") / "specific.feature")
@@ -1367,8 +1367,8 @@ def test_uses_correct_step_in_the_hierarchy(testdir, tmp_path):
         textwrap.dedent(
             # language=python
             f"""\
-            from pytest_bdd import scenarios, given, parsers
-            from pytest_bdd.utils import dump_obj
+            from pytest_cuke import scenarios, given, parsers
+            from pytest_cuke.utils import dump_obj
             from pathlib import Path
 
             test_scenarios = scenarios(Path(r"{tmp_path}") /"specific.feature")
@@ -1406,7 +1406,7 @@ def test_steps_parameters_injected_as_fixtures_are_not_shared_between_scenarios(
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given('I have a "{foo}" parameter which is injected as fixture')
         def inject_fixture(request):

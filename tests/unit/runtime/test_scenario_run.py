@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pytest_bdd.model.scenario_run import ExecutionContext, ScenarioRun, StepRun
-from pytest_bdd.model.stash_access import SimpleStash
+from pytest_cuke.model.scenario_run import ExecutionContext, ScenarioRun, StepRun
+from pytest_cuke.model.stash_access import SimpleStash
 
 
 def test_step_run_lifecycle_and_status() -> None:

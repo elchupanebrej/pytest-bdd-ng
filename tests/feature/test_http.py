@@ -5,15 +5,15 @@ from typing import TYPE_CHECKING
 import pytest
 from pytest import mark
 
-from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
-from pytest_bdd.mimetypes import Mimetype
-from pytest_bdd.webloc import write as webloc_write
+from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from pytest_cuke.mimetypes import Mimetype
+from pytest_cuke.webloc import write as webloc_write
 
 pytest_httpserver = pytest.importorskip("pytest_httpserver")
 HTTPServer = pytest_httpserver.HTTPServer
 
 if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.compatibility.pytest import Testdir
+    from pytest_cuke.compatibility.pytest import Testdir
 
 MINIMAL_FEATURE = dedent(
     # language=gherkin
@@ -34,7 +34,7 @@ MINIMAL_FEATURE = dedent(
 MINIMAL_CONFTEST = dedent(
     # language=python
     """\
-    from pytest_bdd import given
+    from pytest_cuke import given
 
     @given("I have {cuckes_count} cukes in my belly")
     def results(cuckes_count):
@@ -51,8 +51,8 @@ def test_feature_load_by_http(testdir: "Testdir", httpserver: HTTPServer):
     testdir.makepyfile(
         # language=python
         test_http=f"""\
-            from pytest_bdd import given, scenarios, FeaturePathType
-            from pytest_bdd.mimetypes import Mimetype
+            from pytest_cuke import given, scenarios, FeaturePathType
+            from pytest_cuke.mimetypes import Mimetype
 
             @given("I have {{cuckes_count}} cukes in my belly")
             def results(cuckes_count):
@@ -116,7 +116,7 @@ def test_feature_load_by_http_from_webloc_file(testdir: "Testdir", httpserver: H
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given("I have {cuckes_count} cukes in my belly")
         def results(cuckes_count):
@@ -153,7 +153,7 @@ def test_struct_bdd_feature_load_by_http(testdir, httpserver: HTTPServer):
     testdir.makepyfile(
         # language=python
         test_http=f"""\
-            from pytest_bdd import given, scenarios, FeaturePathType
+            from pytest_cuke import given, scenarios, FeaturePathType
 
             @given("I have {{cuckes_count}} cukes in my belly")
             def results(cuckes_count):
@@ -177,8 +177,8 @@ def test_feature_load_by_http_with_base_url(testdir, httpserver: HTTPServer):
     testdir.makepyfile(
         # language=python
         test_http=f"""\
-            from pytest_bdd import given, scenarios
-            from pytest_bdd.mimetypes import Mimetype
+            from pytest_cuke import given, scenarios
+            from pytest_cuke.mimetypes import Mimetype
 
             @given("I have {{cuckes_count}} cukes in my belly")
             def results(cuckes_count):
@@ -205,14 +205,14 @@ def test_feature_load_by_http_with_base_url_from_ini(testdir, httpserver: HTTPSe
         f"""\
         [pytest]
         console_output_style=classic
-        bdd_features_base_url=http://localhost:{httpserver.port}
+        cuke_features_base_url=http://localhost:{httpserver.port}
         """
     )
 
     testdir.makepyfile(
         # language=python
         test_http="""\
-            from pytest_bdd import given, scenarios, FeaturePathType
+            from pytest_cuke import given, scenarios, FeaturePathType
 
             @given("I have {cuckes_count} cukes in my belly")
             def results(cuckes_count):

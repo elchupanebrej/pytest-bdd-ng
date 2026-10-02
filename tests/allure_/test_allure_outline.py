@@ -1,8 +1,8 @@
 from pytest import mark
 
-from pytest_bdd import scenario
-from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
-from pytest_bdd.compatibility.pytest import PYTEST81
+from pytest_cuke import scenario
+from pytest_cuke.compatibility.allure import ALLURE_INSTALLED
+from pytest_cuke.compatibility.pytest import PYTEST81
 
 
 @scenario("testdata/allure_/outline.feature", "Scenario outline")

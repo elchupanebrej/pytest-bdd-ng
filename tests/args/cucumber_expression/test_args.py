@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from pytest import mark
 
 if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.compatibility.pytest import Testdir
+    from pytest_cuke.compatibility.pytest import Testdir
 
 
 @mark.parametrize(
@@ -13,7 +13,7 @@ if TYPE_CHECKING:  # pragma: no cover
     [
         # language=python
         """
-        from pytest_bdd.parsers import cucumber_expression
+        from pytest_cuke.parsers import cucumber_expression
         assert cucumber_expression
         """,
         # language=python
@@ -48,7 +48,7 @@ def test_cucumber_expression(
         # language=python
         """\
         import pytest
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
         """
         f"{parser_import_string}"
         """
@@ -86,8 +86,8 @@ def test_cucumber_expression_complex_type(testdir: "Testdir", tmp_path):
         from cucumber_expressions.parameter_type import ParameterType
         from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
-        from pytest_bdd import given
-        from pytest_bdd.parsers import cucumber_expression
+        from pytest_cuke import given
+        from pytest_cuke.parsers import cucumber_expression
 
 
         class Coordinate:
@@ -154,7 +154,7 @@ def test_cucumber_expression_complex_type(testdir: "Testdir", tmp_path):
     "parser_import_string",
     [
         # language=python
-        "from pytest_bdd.parsers import cucumber_regular_expression as CucumberRegularExpression",
+        "from pytest_cuke.parsers import cucumber_regular_expression as CucumberRegularExpression",
         # language=python
         "from cucumber_expressions.regular_expression import RegularExpression as CucumberRegularExpression",
     ],
@@ -182,7 +182,7 @@ def test_cucumber_regular_expression(
         # language=python
         """\
         import pytest
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
         from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
         from functools import partial
         """

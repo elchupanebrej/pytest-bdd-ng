@@ -8,7 +8,7 @@
     ```
 * And File "conftest.py" with content:
     ```python
-    from pytest_bdd import step
+    from pytest_cuke import step
 
     @step('Passing step')
     def _():
@@ -19,10 +19,7 @@
     Output file could be fed into other @cucumber tools for more verbose report
     [Messages](https://github.com/cucumber/messages)
 
-* When run pytest
-    | cli_args   | --messages-ndjson | out.ndjson |
-    |------------|-------------------|------------|
-    | subprocess | true              |            |
+* When I run pytest in a subprocess with arguments "--cuke-messages-ndjson out.ndjson"
 
 * Then File "out.ndjson" has "9" lines
 * Then Report "out.ndjson" parsable into messages
@@ -34,9 +31,6 @@
     | packages | @cucumber/html-formatter |
     |----------|--------------------------|
 
-* When run pytest
-    | cli_args   | --cucumber-html | out.html |
-    |------------|-----------------|----------|
-    | subprocess | true            |          |
+* When I run pytest in a subprocess with arguments "--cuke-html out.html"
 
 * Then File "out.html" is not empty
