@@ -15,9 +15,12 @@ from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 from typing import cast
 
+from pytest_cuke.heading_validation_cli import configure_validation_parser, run_validation_command
 from pytest_cuke.packaging import get_distribution_version
 
 CommandHandler = Callable[[Sequence[str]], int]
+NamespaceCommandHandler = Callable[[argparse.Namespace], int]
+ParserConfigurer = Callable[[argparse.ArgumentParser], None]
 
 
 @dataclass(frozen=True)
@@ -26,8 +29,10 @@ class CommandSpec:
 
     path: tuple[str, ...]
     help: str
-    handler: CommandHandler
+    handler: CommandHandler | None
     positionals: tuple[str, ...] = ()
+    parser_configurer: ParserConfigurer | None = None
+    namespace_handler: NamespaceCommandHandler | None = None
 
 
 @dataclass
@@ -45,9 +50,11 @@ class CommandRegistry:
         self,
         path: Sequence[str],
         help: str,
-        handler: CommandHandler,
+        handler: CommandHandler | None,
         *,
         positionals: Sequence[str] = (),
+        parser_configurer: ParserConfigurer | None = None,
+        namespace_handler: NamespaceCommandHandler | None = None,
     ) -> None:
         """Register a command path and its handler.
 
@@ -69,13 +76,22 @@ class CommandRegistry:
             raise ValueError("positional arguments must be valid non-empty names")
         if len(set(positional_destinations)) != len(positional_destinations):
             raise ValueError("positional arguments must have unique names")
+        if (handler is None) == (namespace_handler is None):
+            raise ValueError("register exactly one command handler")
         if normalized_path in self._commands:
             raise ValueError(f"command already registered: {' '.join(normalized_path)}")
         if any(existing[: len(normalized_path)] == normalized_path for existing in self._commands):
             raise ValueError(f"command path already has registered children: {' '.join(normalized_path)}")
         if any(normalized_path[: len(existing)] == existing for existing in self._commands):
             raise ValueError(f"command path conflicts with registered parent: {' '.join(normalized_path)}")
-        self._commands[normalized_path] = CommandSpec(normalized_path, help, handler, normalized_positionals)
+        self._commands[normalized_path] = CommandSpec(
+            normalized_path,
+            help,
+            handler,
+            normalized_positionals,
+            parser_configurer,
+            namespace_handler,
+        )
 
     @property
     def commands(self) -> tuple[CommandSpec, ...]:
@@ -97,8 +113,10 @@ def _build_registry() -> CommandRegistry:
     registry.add(
         ("validate",),
         "validate feature files",
-        _unimplemented("validate"),
+        None,
         positionals=("features-dir",),
+        parser_configurer=configure_validation_parser,
+        namespace_handler=run_validation_command,
     )
     registry.add(("generate", "steps"), "generate step definition stubs", _unimplemented("generate steps"))
     registry.add(("convert", "allure"), "convert Allure results", _unimplemented("convert allure"))
@@ -148,9 +166,15 @@ def _parser_for(registry: CommandRegistry, program: str) -> argparse.ArgumentPar
                 if branch.positionals:
                     for positional in branch.positionals:
                         child_parser.add_argument(positional.replace("-", "_"), metavar=positional)
-                else:
+                elif branch.namespace_handler is None:
                     child_parser.add_argument("arguments", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
-                child_parser.set_defaults(_cuke_handler=branch.handler, _cuke_positionals=branch.positionals)
+                if branch.parser_configurer is not None:
+                    branch.parser_configurer(child_parser)
+                child_parser.set_defaults(
+                    _cuke_handler=branch.handler,
+                    _cuke_namespace_handler=branch.namespace_handler,
+                    _cuke_positionals=branch.positionals,
+                )
             else:
                 first_command = next(_iter_commands(branch))
                 invocation = _command_invocation(first_command)
@@ -179,6 +203,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     program = "pytest-cuke" if "pytest-cuke" in sys.argv[0] else "cuke"
     parser = _parser_for(_build_registry(), program)
     namespace = parser.parse_args(arguments)
+    namespace_handler = cast("NamespaceCommandHandler | None", getattr(namespace, "_cuke_namespace_handler", None))
+    if namespace_handler is not None:
+        return namespace_handler(namespace)
     handler = cast("CommandHandler | None", getattr(namespace, "_cuke_handler", None))
     if handler is None:
         parser.print_help()
