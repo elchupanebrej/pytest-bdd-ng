@@ -12,6 +12,7 @@ import sys
 import tarfile
 import venv
 import zipfile
+from collections import defaultdict
 from dataclasses import dataclass
 from functools import reduce
 from operator import attrgetter, itemgetter
@@ -157,7 +158,7 @@ def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, _pytes
     )
 
 
-@given(
+@step(
     re.compile(r'consumer file "(?P<relative_path>[^\"]+)" contains:'),
 )
 def write_consumer_file(relative_path, consumer: ConsumerProject, step):
@@ -167,6 +168,45 @@ def write_consumer_file(relative_path, consumer: ConsumerProject, step):
     file_path = consumer.path / destination
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(step.doc_string.content, encoding="utf-8")
+
+
+@step(re.compile(r'consumer file "(?P<relative_path>[^\"]+)" contains UTF-8 BOM and CRLF:'))
+def write_consumer_file_with_bom_and_crlf(relative_path, consumer: ConsumerProject, step):
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    file_path = consumer.path / destination
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    content = step.doc_string.content.replace("\\t", "\t").replace("\r\n", "\n").replace("\r", "\n")
+    file_path.write_bytes(b"\xef\xbb\xbf" + content.replace("\n", "\r\n").encode("utf-8"))
+
+
+@step(re.compile(r'consumer empty file "(?P<relative_path>[^\"]+)" exists'))
+def write_empty_consumer_file(relative_path, consumer: ConsumerProject):
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    file_path = consumer.path / destination
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(b"")
+
+
+@step(re.compile(r'consumer file "(?P<relative_path>[^\"]+)" contains invalid UTF-8'))
+def write_invalid_utf8_consumer_file(relative_path, consumer: ConsumerProject):
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    file_path = consumer.path / destination
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(b"name,tier\nAda,\xff\n")
+
+
+@step(re.compile(r'consumer directory "(?P<relative_path>[^\"]+)" exists'))
+def create_consumer_directory(relative_path, consumer: ConsumerProject):
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer directory paths must stay inside the consumer project")
+    (consumer.path / destination).mkdir(parents=True, exist_ok=True)
 
 
 @given("pytest configuration:")
@@ -226,6 +266,27 @@ def consumer_invalid_features_dir_message(consumer: ConsumerProject):
     result = consumer.pytest_result
     assert result is not None, "pytest has not been run in this consumer"
     assert "feature directory must not be empty" in f"{result.stdout}\n{result.stderr}"
+
+
+@then("pytest output should identify the invalid external Examples source")
+def consumer_invalid_external_examples_source(consumer: ConsumerProject):
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert "External Examples source error" in output
+    assert "row 2 has 1 columns; expected 2" in output
+    assert str((consumer.path / "features/broken.feature").resolve()) in output
+    assert str((consumer.path / "features/broken.csv").resolve()) in output
+    for feature_name, source_name, diagnostic in (
+        ("missing.feature", "missing.csv", "FileNotFoundError"),
+        ("empty.feature", "empty.csv", "source is empty"),
+        ("blank-header.feature", "blank-header.csv", "blank column"),
+        ("invalid-encoding.feature", "invalid-encoding.csv", "UnicodeDecodeError"),
+        ("unreadable.feature", "unreadable.csv", "IsADirectoryError"),
+    ):
+        assert diagnostic.lower() in output.lower(), output
+        assert str((consumer.path / "features" / feature_name).resolve()) in output
+        assert str((consumer.path / "features" / source_name).resolve()) in output
 
 
 @then(re.compile(r"the test outcome should have (?P<count>\d+) passed scenarios"))
@@ -312,6 +373,204 @@ def consumer_messages_artifact(relative_path, scenario_count, step_count, consum
     run_finished = [message for message in messages if isinstance(message, TestRunFinished)]
     assert len(run_finished) == 1
     assert run_finished[0].success is True
+
+
+@then("consumer reports should preserve external row identities, source URIs, Background steps, and outcomes")
+def consumer_external_examples_reports(consumer: ConsumerProject):
+    json_report = json.loads((consumer.path / "report.json").read_text(encoding="utf-8"))
+    json_features = {Path(feature["uri"]).name: feature for feature in json_report}
+    assert set(json_features) == {
+        "users.feature",
+        "inline-users.feature",
+        "reported-users.feature",
+        "markdown-users.feature.md",
+    }
+
+    def assert_json_rows(filename: str, row_values: set[str], expected_failed: set[str]) -> None:
+        feature = json_features[filename]
+        assert not feature["uri"].endswith(".csv")
+        elements = feature["elements"]
+        assert len(elements) == len(row_values)
+        assert len({element["id"] for element in elements}) == len(row_values)
+        seen_rows = set()
+        for element in elements:
+            step_names = [step["name"] for step in element["steps"]]
+            assert step_names[0] in {
+                "the lookup service is ready",
+                "the user lookup service is ready",
+                "the report session is open",
+            }
+            row_step = next(
+                name for name in step_names if name.startswith("user row ") or name.startswith("the report row is ")
+            )
+            row_id = row_step.removeprefix("user row ").removeprefix("the report row is ").split()[0]
+            seen_rows.add(row_id)
+            step_statuses = {step["name"]: step["result"]["status"] for step in element["steps"]}
+            assert step_statuses[step_names[0]] == "passed"
+            result_step = next(
+                name
+                for name in step_names
+                if name.startswith("looked up user ") or name.startswith("the report row result is ")
+            )
+            assert step_statuses[result_step] == ("failed" if row_id in expected_failed else "passed")
+            source = element.get("external_examples_source")
+            if filename in {"users.feature", "reported-users.feature", "markdown-users.feature.md"}:
+                assert source is not None
+                assert source["path"].endswith(
+                    {
+                        "users.feature": "users.csv",
+                        "reported-users.feature": "report-users.csv",
+                        "markdown-users.feature.md": "markdown-users.tab",
+                    }[filename]
+                )
+                assert source["section_index"] == 1
+                assert source["row_index"] in {1, 2}
+                assert source["source_line"] == source["row_index"] + 1
+                source_feature = consumer.path / "features" / filename
+                marker_lines = [
+                    line_number
+                    for line_number, line in enumerate(source_feature.read_text(encoding="utf-8").splitlines(), start=1)
+                    if "table:" in line
+                ]
+                assert source["marker_line"] in marker_lines
+            else:
+                assert source is None
+        assert seen_rows == row_values
+
+    assert_json_rows("users.feature", {"Ada", "Grace"}, set())
+    assert_json_rows("inline-users.feature", {"Ada", "Grace"}, set())
+    assert_json_rows("markdown-users.feature.md", {"Tina", "Maja"}, set())
+    assert_json_rows("reported-users.feature", {"passed", "failed"}, {"failed"})
+
+    def normalized_user_rows(filename: str) -> list[tuple[tuple[str, str], ...]]:
+        return sorted(
+            tuple((step["name"], step["result"]["status"]) for step in element["steps"])
+            for element in json_features[filename]["elements"]
+        )
+
+    assert normalized_user_rows("users.feature") == normalized_user_rows("inline-users.feature")
+
+    message_lines = (consumer.path / "messages.ndjson").read_text(encoding="utf-8").splitlines()
+    envelopes = [json.loads(line) for line in message_lines]
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    started = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    finished_steps = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    assert len(pickles) == len(cases) == len(started) == 8
+    assert len({pickle["id"] for pickle in pickles}) == 8
+    pickle_step_ids_all = [step["id"] for pickle in pickles for step in pickle["steps"]]
+    assert len(pickle_step_ids_all) == len(set(pickle_step_ids_all))
+    assert len(run_finished) == 1
+    assert run_finished[0]["success"] is False
+
+    from messages import Envelope
+
+    for line in message_lines:
+        Envelope.model_validate(json.loads(line))
+
+    sources = [envelope["source"] for envelope in envelopes if "source" in envelope]
+    assert {Path(source["uri"].removeprefix("file:")).name for source in sources} == {
+        "users.feature",
+        "inline-users.feature",
+        "reported-users.feature",
+        "markdown-users.feature.md",
+    }
+    source_by_name = {Path(source["uri"].removeprefix("file:")).name: source for source in sources}
+    assert source_by_name["inline-users.feature"]["data"].find("Examples:") >= 0
+    assert not any(source["uri"].endswith((".csv", ".tab")) for source in sources)
+
+    documents = [envelope["gherkinDocument"] for envelope in envelopes if "gherkinDocument" in envelope]
+    assert {Path(document["uri"].removeprefix("file:")).name for document in documents} == set(json_features)
+    external_documents = {
+        Path(document["uri"].removeprefix("file:")).name: document for document in documents if document.get("comments")
+    }
+    assert set(external_documents) == {"users.feature", "reported-users.feature", "markdown-users.feature.md"}
+    for filename, document in external_documents.items():
+        comment = document["comments"][0]
+        expected_source_name = {
+            "users.feature": "users.csv",
+            "reported-users.feature": "report-users.csv",
+            "markdown-users.feature.md": "markdown-users.tab",
+        }[filename]
+        assert comment["location"]["line"] > 0
+        assert expected_source_name in comment["text"]
+        feature_node = document["feature"]
+        scenario_nodes = [child["scenario"] for child in feature_node["children"] if "scenario" in child]
+        examples = [example for scenario in scenario_nodes for example in scenario["examples"]]
+        assert examples
+        for example in examples:
+            assert example["tableHeader"]["location"]["line"] == 0
+            assert all(row["location"]["line"] == 0 for row in example["tableBody"])
+
+    document_ast_ids: dict[str, set[str]] = {}
+    for document in documents:
+        ast_node_ids: set[str] = set()
+        for child in document["feature"]["children"]:
+            scenario_node = child.get("scenario")
+            if scenario_node is None:
+                continue
+            ast_node_ids.add(scenario_node["id"])
+            for example in scenario_node["examples"]:
+                ast_node_ids.add(example["id"])
+                if header := example.get("tableHeader"):
+                    ast_node_ids.add(header["id"])
+                ast_node_ids.update(row["id"] for row in example["tableBody"])
+        document_ast_ids[document["uri"]] = ast_node_ids
+
+    case_pickle_ids = {case["id"]: case["pickleId"] for case in cases}
+    pickle_step_ids = {pickle["id"]: [step["id"] for step in pickle["steps"]] for pickle in pickles}
+    for case in cases:
+        assert [test_step["pickleStepId"] for test_step in case["testSteps"]] == pickle_step_ids[case["pickleId"]]
+    start_pickle_ids = {case_start["id"]: case_pickle_ids[case_start["testCaseId"]] for case_start in started}
+    statuses_by_pickle: dict[str, list[str]] = defaultdict(list)
+    for finished in finished_steps:
+        statuses_by_pickle[start_pickle_ids[finished["testCaseStartedId"]]].append(
+            finished["testStepResult"]["status"].lower()
+        )
+
+    found_report_rows = set()
+    found_user_rows: dict[str, set[str]] = defaultdict(set)
+    for pickle in pickles:
+        filename = Path(pickle["uri"].removeprefix("file:")).name
+        step_texts = [step["text"] for step in pickle["steps"]]
+        assert filename in {
+            "users.feature",
+            "inline-users.feature",
+            "reported-users.feature",
+            "markdown-users.feature.md",
+        }
+        assert pickle["uri"].endswith(filename)
+        assert not pickle["uri"].endswith(".csv") and not pickle["uri"].endswith(".tab")
+        assert len(pickle["astNodeIds"]) == 2
+        assert set(pickle["astNodeIds"]).issubset(document_ast_ids[pickle["uri"]])
+        assert step_texts[0] in {
+            "the lookup service is ready",
+            "the report session is open",
+        }
+        assert statuses_by_pickle[pickle["id"]]
+        assert len(statuses_by_pickle[pickle["id"]]) == len(pickle["steps"])
+        if filename in {"users.feature", "inline-users.feature", "markdown-users.feature.md"}:
+            assert all(status == "passed" for status in statuses_by_pickle[pickle["id"]])
+            user_step = next(text for text in step_texts if text.startswith("user row "))
+            found_user_rows[filename].add(user_step.removeprefix("user row ").split()[0])
+            assert statuses_by_pickle[pickle["id"]][0] == "passed"
+            if filename == "users.feature":
+                assert "[external_examples:[section: 1, row:" in pickle["name"]
+            if filename == "inline-users.feature":
+                assert "[external_examples:" not in pickle["name"]
+        else:
+            identity_step = next(text for text in step_texts if text.startswith("the report row is "))
+            identity = identity_step.removeprefix("the report row is ")
+            found_report_rows.add(identity)
+            expected_status = "failed" if identity == "failed" else "passed"
+            assert expected_status in statuses_by_pickle[pickle["id"]]
+    assert found_report_rows == {"passed", "failed"}
+    assert found_user_rows == {
+        "users.feature": {"Ada", "Grace"},
+        "inline-users.feature": {"Ada", "Grace"},
+        "markdown-users.feature.md": {"Tina", "Maja"},
+    }
 
 
 @then(re.compile(r'pytest help should not mention the legacy option "(?P<option>[a-z-]+)"'))

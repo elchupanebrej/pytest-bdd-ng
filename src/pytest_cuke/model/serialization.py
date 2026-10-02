@@ -9,7 +9,7 @@ import attrs
 from pytest_cuke.model.background import Background
 from pytest_cuke.model.doc_string import DocString
 from pytest_cuke.model.document import GherkinDocument
-from pytest_cuke.model.examples import Example, Examples
+from pytest_cuke.model.examples import Example, Examples, ExternalExampleRowSource, ExternalExamplesSource
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.rule import Rule
 from pytest_cuke.model.scenario import Scenario
@@ -26,10 +26,23 @@ _SCHEMA_MAPPING: dict[type, dict[str, Any]] = {
     TableRow: {"cells": TableCell},
     DataTable: {"rows": TableRow},
     Example: {"row": TableRow, "tags": Tag},
-    Examples: {"header": TableRow, "rows": TableRow, "tags": Tag},
+    ExternalExamplesSource: {},
+    ExternalExampleRowSource: {},
+    Examples: {
+        "header": TableRow,
+        "rows": TableRow,
+        "tags": Tag,
+        "external_source": ExternalExamplesSource,
+    },
     Step: {"doc_string": DocString, "data_table": DataTable, "type": StepType},
     Background: {"steps": Step},
-    Scenario: {"tags": Tag, "steps": Step, "background": Background, "examples": Examples},
+    Scenario: {
+        "tags": Tag,
+        "steps": Step,
+        "background": Background,
+        "examples": Examples,
+        "external_example_source": ExternalExampleRowSource,
+    },
     Rule: {"tags": Tag, "background": Background, "scenarios": Scenario},
     Feature: {"tags": Tag, "background": Background, "scenarios": Scenario, "rules": Rule},
     GherkinDocument: {"feature": Feature},

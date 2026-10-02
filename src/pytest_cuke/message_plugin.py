@@ -57,6 +57,7 @@ from pytest_cuke.compatibility.pytest import (
     get_config_root_path,
     get_metafunc_call_arg,
 )
+from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_message_id, scenario_to_pickle
 from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_cuke.packaging import get_distribution_version
 from pytest_cuke.steps import Matcher
@@ -316,17 +317,42 @@ class MessagePlugin:
             pickle_registry: set[int] = set()
             for call in metafunc._calls:
                 feature = get_metafunc_call_arg(call, "feature")
-                pickle = get_metafunc_call_arg(call, "scenario")
+                scenario = get_metafunc_call_arg(call, "scenario")
 
-                if is_set(feature) and hasattr(feature_source, "uri") and feature_source.uri not in feature_registry:
-                    feature_registry.add(feature_source.uri)
-                    config.hook.pytest_cuke_message(config=config, message=Message(source=feature_source))
-
+                if is_set(feature) and feature.uri not in feature_registry:
+                    feature_registry.add(feature.uri)
+                    if feature.source_content is not None:
+                        config.hook.pytest_cuke_message(
+                            config=config,
+                            message=Message(
+                                source=Source(
+                                    uri=feature.uri or feature.filename or "",
+                                    data=feature.source_content,
+                                    media_type=feature.source_media_type or "text/x.cucumber.gherkin+plain",
+                                )
+                            ),
+                        )
                     config.hook.pytest_cuke_message(
-                        config=config, message=Message(gherkin_document=feature.gherkin_document)
+                        config=config,
+                        message=Message(
+                            gherkin_document=feature_to_gherkin_document(
+                                feature, uri=feature.uri or feature.filename or feature.name
+                            )
+                        ),
                     )
-                if is_set(pickle) and id(pickle) not in pickle_registry:
-                    config.hook.pytest_cuke_message(config=config, message=Message(pickle=pickle))
+                if is_set(scenario) and id(scenario) not in pickle_registry:
+                    pickle_registry.add(id(scenario))
+                    feature_uri = feature.uri or feature.filename or feature.name if is_set(feature) else ""
+                    config.hook.pytest_cuke_message(
+                        config=config,
+                        message=Message(
+                            pickle=scenario_to_pickle(
+                                scenario,
+                                uri=feature_uri,
+                                default_id=f"{feature_uri}#{call.id}",
+                            )
+                        ),
+                    )
 
     def pytest_cuke_message(self, config: Config, message: Message) -> None:
         if self.is_disabled:
@@ -486,6 +512,7 @@ class MessagePlugin:
         step_registry = request.getfixturevalue("step_registry")
         seen_steps = set()
         while step_registry is not None:
+            not_yet_registered_parameter_types: dict[int, Any] = {}
             for step_definition in step_registry:
                 if id(step_definition) not in seen_steps:
                     parameter_type_registry_getter: Callable[[FixtureRequest], ParameterTypeRegistry] = deepattrgetter(
@@ -527,10 +554,12 @@ class MessagePlugin:
         previous_step = None
 
         self.current_test_case_step_id_to_step_mapping = {}
-        self.current_test_case_started_step_ids = set()
-        self.current_test_case_finished_step_ids = set()
+        feature_uri = feature.uri or feature.filename or feature.name
+        callspec_id = getattr(getattr(request.node, "callspec", None), "id", "")
+        fallback_id = f"{feature_uri}#{callspec_id}" if callspec_id else ""
+        scenario_id = scenario_message_id(scenario, uri=feature_uri, default_id=fallback_id)
 
-        for step in scenario.steps:
+        for step_index, step in enumerate(scenario.all_steps):
             try:
                 step_definition = hook_handler.pytest_cuke_match_step_definition_to_step(
                     request=request,
@@ -544,7 +573,11 @@ class MessagePlugin:
             else:
                 test_step = TestStep(
                     id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
-                    pickle_step_id=step.id,
+                    pickle_step_id=(
+                        f"{scenario_id}-step-{step_index}"
+                        if scenario.source_ast_node_ids
+                        else step.id or f"{scenario_id}-step-{step_index}"
+                    ),
                     step_definition_ids=[step_definition.as_message(config).id],
                 )
                 test_steps.append(test_step)
@@ -554,7 +587,7 @@ class MessagePlugin:
 
         current_test_case = TestCase(
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
-            pickle_id=scenario.id,
+            pickle_id=scenario_id,
             test_steps=test_steps,
         )
         self.current_test_case = current_test_case
@@ -611,7 +644,7 @@ class MessagePlugin:
             return
         config = request.config
         hook_handler = config.hook
-        current_test_case = self._get_current_test_case()
+        current_test_case_start = self._get_current_test_case_start()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
 
@@ -622,7 +655,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_started=TestStepStarted(
-                    test_case_started_id=current_test_case.id,
+                    test_case_started_id=current_test_case_start.id,
                     timestamp=start_timestamp,
                     test_step_id=step_definition.id,
                 )
@@ -637,7 +670,7 @@ class MessagePlugin:
             return
         config = request.config
         hook_handler = config.hook
-        current_test_case = self._get_current_test_case()
+        current_test_case_start = self._get_current_test_case_start()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
         finish_timestamp = self.get_timestamp()
@@ -659,7 +692,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_finished=TestStepFinished(
-                    test_case_started_id=current_test_case.id,
+                    test_case_started_id=current_test_case_start.id,
                     timestamp=finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(
@@ -685,7 +718,7 @@ class MessagePlugin:
             return
         config = request.config
         hook_handler = config.hook
-        current_test_case = self._get_current_test_case()
+        current_test_case_start = self._get_current_test_case_start()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
         finish_timestamp = self.get_timestamp()
@@ -707,7 +740,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 test_step_finished=TestStepFinished(
-                    test_case_started_id=current_test_case.id,
+                    test_case_started_id=current_test_case_start.id,
                     timestamp=finish_timestamp,
                     test_step_id=step_definition.id,
                     test_step_result=TestStepResult(

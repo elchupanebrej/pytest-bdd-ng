@@ -107,6 +107,26 @@ def test_parse_struct_bdd_file(tmp_path: Path) -> None:
     feature = parser.parse(yaml_file)
     assert feature.name == "File YAML Feature"
     assert feature.filename == str(yaml_file.as_posix())
+    assert feature.source_content == yaml_file.read_text(encoding="utf-8")
+    assert feature.source_media_type == "application/x.struct_bdd+yaml"
+
+
+def test_struct_bdd_text_containing_examples_marker_is_not_rewritten(tmp_path: Path) -> None:
+    yaml_file = tmp_path / "structured.bdd.yaml"
+    yaml_file.write_text(
+        "Name: Structured feature\n"
+        "Description: 'Examples: table: users.csv'\n"
+        "Steps:\n"
+        "  - Step:\n"
+        "      Name: Structured scenario\n"
+        "      Steps:\n"
+        "        - Given: a structured step\n",
+        encoding="utf-8",
+    )
+
+    feature = StructBDDParser(kind="yaml").parse(yaml_file)
+
+    assert feature.description == "Examples: table: users.csv"
 
 
 def test_registry_lookup_struct_bdd() -> None:

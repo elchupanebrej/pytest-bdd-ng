@@ -174,6 +174,243 @@ Feature: Installed pytest-cuke product bootstrap
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
 
+  Scenario: External Examples load in autoload and explicit bindings and stay visible in reports
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given, parsers, then
+
+
+      @given("the lookup service is ready", target_fixture="lookup_ready")
+      def lookup_service():
+          return True
+
+
+      @given(parsers.parse("user row {name} has tier {tier}"), target_fixture="user_record")
+      def load_user(lookup_ready, name, tier):
+          assert lookup_ready
+          return {"name": name, "tier": tier}
+
+
+      @then(parsers.parse("looked up user {name} has tier {tier}"))
+      def check_user(user_record, name, tier):
+          assert user_record == {"name": name, "tier": tier}
+
+
+      @given("the report session is open", target_fixture="report_session")
+      def report_session():
+          return True
+
+
+      @given(parsers.parse("the report row is {name}"), target_fixture="report_row")
+      def load_report_row(report_session, name):
+          assert report_session
+          return name
+
+
+      @then(parsers.parse("the report row result is {expected}"))
+      def check_report_row(report_row, expected):
+          assert report_row == expected
+      """
+    And consumer file "features/users.csv" contains:
+      """csv
+      name,tier
+      Ada,gold
+      Grace,silver
+      """
+    And consumer file "features/users.feature" contains:
+      """gherkin
+      Feature: External users
+        Background:
+          Given the lookup service is ready
+
+        Scenario Outline: Look up a user from the external table
+          Given user row <name> has tier <tier>
+          Then looked up user <name> has tier <tier>
+
+          Examples: | table: users.csv |
+      """
+    And consumer file "features/inline-users.feature" contains:
+      """gherkin
+      Feature: Inline users
+        Background:
+          Given the lookup service is ready
+
+        Scenario Outline: Look up a user from the inline table
+          Given user row <name> has tier <tier>
+          Then looked up user <name> has tier <tier>
+
+          Examples:
+            | name  | tier   |
+            | Ada   | gold   |
+            | Grace | silver |
+      """
+    And consumer file "features/markdown-users.tab" contains UTF-8 BOM and CRLF:
+      """tsv
+      name	tier
+      Tina	bronze
+      Maja	copper
+      """
+    And consumer file "features/markdown-users.feature.md" contains:
+      """markdown
+      # Feature: External Markdown users
+      ## Scenario Outline: Look up a Markdown user
+          * Given the lookup service is ready
+        * Given user row <name> has tier <tier>
+        * Then looked up user <name> has tier <tier>
+      ### Examples:
+          | table: markdown-users.tab |
+      """
+    And consumer file "features/report-users.csv" contains:
+      """csv
+      name,expected
+      passed,passed
+      failed,expected-other
+      """
+    And consumer file "features/reported-users.feature" contains:
+      """gherkin
+      Feature: External rows in reports
+        Background:
+          Given the report session is open
+
+        Scenario Outline: Report a row outcome
+          Given the report row is <name>
+          Then the report row result is <expected>
+
+          Examples: <table:report-users.csv>
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-json=report.json --cuke-messages-ndjson=messages.ndjson --cuke-summary --cuke-progress"
+    Then pytest should exit with a non-zero code
+    And consumer reports should preserve external row identities, source URIs, Background steps, and outcomes
+
+    When consumer file "test_explicit_binding.py" contains:
+      """python
+      from pytest_cuke import scenario
+
+
+      @scenario("users.feature")
+      def test_explicit_users_binding():
+          pass
+      """
+    And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-summary"
+    Then pytest should exit with code 0
+    And the test outcome should have 2 passed scenarios
+
+    When consumer file "features/users.csv" contains:
+      """csv
+      name,tier
+      Lin,platinum
+      """
+    And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-summary"
+    Then pytest should exit with code 0
+    And the test outcome should have 1 passed scenarios
+
+  Scenario: External CSV special values survive public step substitution
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given, parsers, then
+
+
+      @given(parsers.re(r"payload is ?(?P<payload>(?s:.*))"), target_fixture="actual_payload")
+      def capture_payload(payload):
+          return payload
+
+
+      @then(parsers.re(r"payload should equal ?(?P<expected>(?s:.*))"))
+      def check_payload(actual_payload, expected):
+          assert actual_payload == expected
+      """
+    And consumer file "features/special-values.csv" contains:
+      """csv
+      value,expected
+      ,
+      "comma, quote ""value""","comma, quote ""value"""
+      "pipe | and back\slash","pipe | and back\slash"
+      "first line
+      second line","first line
+      second line"
+      """
+    And consumer file "features/special-values.feature" contains:
+      """gherkin
+      Feature: External CSV special values
+        Scenario Outline: Compare an external value
+          Given payload is <value>
+          Then payload should equal <expected>
+
+          Examples: table: special-values.csv
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-summary"
+    Then pytest should exit with code 0
+    And the test outcome should have 4 passed scenarios
+
+  Scenario: Invalid external CSV fails autoload collection with source diagnostics
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "features/broken.csv" contains:
+      """csv
+      name,tier
+      Ada
+      """
+    And consumer empty file "features/empty.csv" exists
+    And consumer file "features/blank-header.csv" contains:
+      """csv
+      name, ,tier
+      Ada,gold
+      """
+    And consumer file "features/invalid-encoding.csv" contains invalid UTF-8
+    And consumer directory "features/unreadable.csv" exists
+    And consumer file "features/broken.feature" contains:
+      """gherkin
+      Feature: Invalid external examples
+        Scenario Outline: Read an invalid source
+          Given user row <name> has tier <tier>
+
+          Examples: table: broken.csv
+      """
+    And consumer file "features/missing.feature" contains:
+      """gherkin
+      Feature: Missing external examples
+        Scenario Outline: Read a missing source
+          Given user row <name> has tier <tier>
+
+          Examples: table: missing.csv
+      """
+    And consumer file "features/empty.feature" contains:
+      """gherkin
+      Feature: Empty external examples
+        Scenario Outline: Read an empty source
+          Given user row <name> has tier <tier>
+
+          Examples: table: empty.csv
+      """
+    And consumer file "features/blank-header.feature" contains:
+      """gherkin
+      Feature: Blank header in external examples
+        Scenario Outline: Read a source with a blank header
+          Given user row <name> has tier <tier>
+
+          Examples: table: blank-header.csv
+      """
+    And consumer file "features/invalid-encoding.feature" contains:
+      """gherkin
+      Feature: Invalid encoding in external examples
+        Scenario Outline: Read a source with invalid UTF-8
+          Given user row <name> has tier <tier>
+
+          Examples: table: invalid-encoding.csv
+      """
+    And consumer file "features/unreadable.feature" contains:
+      """gherkin
+      Feature: Unreadable external examples
+        Scenario Outline: Read an unreadable source
+          Given user row <name> has tier <tier>
+
+          Examples: table: unreadable.csv
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-summary"
+    Then pytest should exit with a non-zero code
+    And pytest output should identify the invalid external Examples source
+
   Scenario: Legacy pytest-bdd imports and option spellings are rejected
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And consumer file "test_legacy_import.py" contains:

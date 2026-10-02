@@ -6,7 +6,7 @@ from attrs import frozen
 
 if TYPE_CHECKING:
     from pytest_cuke.model.background import Background
-    from pytest_cuke.model.examples import Examples
+    from pytest_cuke.model.examples import Examples, ExternalExampleRowSource
     from pytest_cuke.model.step import Step
     from pytest_cuke.model.tag import Tag
 
@@ -22,6 +22,8 @@ class Scenario:
     id: str | None = None
     keyword: str = "Scenario"
     description: str = ""
+    external_example_source: ExternalExampleRowSource | None = None
+    source_ast_node_ids: tuple[str, ...] = ()
 
     @property
     def tag_names(self) -> tuple[str, ...]:

@@ -107,6 +107,8 @@ def test_url_scenario_locator_mocked() -> None:
         assert features[0].name == "Remote Feature"
         assert len(features[0].scenarios) == 1
         assert features[0].scenarios[0].name == "Remote S1"
+        assert features[0].source_content == mock_resp.read.return_value.decode("utf-8")
+        assert features[0].source_media_type == "text/x-gherkin"
 
 
 def test_seam2_contract_all_formats(tmp_path: Path) -> None:

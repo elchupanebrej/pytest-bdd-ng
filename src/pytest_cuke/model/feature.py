@@ -26,6 +26,8 @@ class Feature:
     keyword: str = "Feature"
     language: str = "en"
     filename: str | None = None
+    source_content: str | None = None
+    source_media_type: str | None = None
 
     @property
     def tag_names(self) -> tuple[str, ...]:

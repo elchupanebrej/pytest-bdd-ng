@@ -154,3 +154,8 @@ scenario-search-from-base-url
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 .. include:: features/feature/load/scenario-search-from-base-url.feature.rst
+
+external-examples
+!!!!!!!!!!!!!!!!!
+
+.. include:: features/feature/load/external-examples.feature.rst

@@ -125,6 +125,16 @@ class Result(BaseModel):
     error_message: str | None = None
 
 
+class ExternalExamplesRowSource(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    path: str
+    marker_line: int
+    section_index: int
+    row_index: int
+    source_line: int
+
+
 class Step(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -164,6 +174,7 @@ class Element(BaseModel):
     steps: list[Step] | None = None
     after: list[Hook] | None = None
     tags: list[Tag] | None = None
+    external_examples_source: ExternalExamplesRowSource | None = None
 
 
 class Feature(BaseModel):
@@ -275,19 +286,20 @@ class LogBDDCucumberJSON:
             }
 
         item_name = getattr(report, "item", {}).get("name", scenario["name"])
-        sc_name = scenario["name"].split("[table_rows:")[0]
-        self.features[filename]["elements"].append(
-            {
-                "keyword": "Scenario",
-                "id": item_name,
-                "name": sc_name,
-                "line": scenario["line_number"],
-                "description": "",
-                "tags": self._serialize_tags(scenario),
-                "type": "scenario",
-                "steps": [stepmap(step) for step in scenario["steps"]],
-            }
-        )
+        sc_name = scenario["name"].split("[table_rows:")[0].split("[external_examples:")[0]
+        element: dict[str, Any] = {
+            "keyword": "Scenario",
+            "id": item_name,
+            "name": sc_name,
+            "line": scenario["line_number"],
+            "description": "",
+            "tags": self._serialize_tags(scenario),
+            "type": "scenario",
+            "steps": [stepmap(step) for step in scenario["steps"]],
+        }
+        if external_source := scenario.get("external_examples_source"):
+            element["external_examples_source"] = external_source
+        self.features[filename]["elements"].append(element)
 
     def pytest_sessionstart(self) -> None:
         self.suite_start_time = time.time()
