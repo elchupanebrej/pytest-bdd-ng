@@ -26,6 +26,7 @@ class CommandSpec:
     path: tuple[str, ...]
     help: str
     handler: CommandHandler
+    positionals: tuple[str, ...] = ()
 
 
 @dataclass
@@ -39,23 +40,41 @@ class CommandRegistry:
     def __init__(self) -> None:
         self._commands: dict[tuple[str, ...], CommandSpec] = {}
 
-    def add(self, path: Sequence[str], help: str, handler: CommandHandler) -> None:
+    def add(
+        self,
+        path: Sequence[str],
+        help: str,
+        handler: CommandHandler,
+        *,
+        positionals: Sequence[str] = (),
+    ) -> None:
         """Register a command path and its handler.
 
         ``path`` must contain at least one command name, such as
         ``("check", "manifest")``. Handlers receive the arguments following
-        their command path and return the process exit code.
+        their command path and return the process exit code. A command may
+        declare required positional arguments, which are shown in help and
+        passed to its handler in order.
         """
         normalized_path = tuple(part.strip() for part in path)
         if not normalized_path or any(not part or part.startswith("-") for part in normalized_path):
             raise ValueError("command paths must contain non-empty positional names")
+        normalized_positionals = tuple(argument.strip() for argument in positionals)
+        positional_destinations = tuple(argument.replace("-", "_") for argument in normalized_positionals)
+        if any(
+            not argument or argument.startswith("-") or not destination.isidentifier()
+            for argument, destination in zip(normalized_positionals, positional_destinations, strict=True)
+        ):
+            raise ValueError("positional arguments must be valid non-empty names")
+        if len(set(positional_destinations)) != len(positional_destinations):
+            raise ValueError("positional arguments must have unique names")
         if normalized_path in self._commands:
             raise ValueError(f"command already registered: {' '.join(normalized_path)}")
         if any(existing[: len(normalized_path)] == normalized_path for existing in self._commands):
             raise ValueError(f"command path already has registered children: {' '.join(normalized_path)}")
         if any(normalized_path[: len(existing)] == existing for existing in self._commands):
             raise ValueError(f"command path conflicts with registered parent: {' '.join(normalized_path)}")
-        self._commands[normalized_path] = CommandSpec(normalized_path, help, handler)
+        self._commands[normalized_path] = CommandSpec(normalized_path, help, handler, normalized_positionals)
 
     @property
     def commands(self) -> tuple[CommandSpec, ...]:
@@ -74,7 +93,12 @@ def _unimplemented(path: str) -> CommandHandler:
 
 def _build_registry() -> CommandRegistry:
     registry = CommandRegistry()
-    registry.add(("validate", "features"), "validate feature files", _unimplemented("validate features"))
+    registry.add(
+        ("validate",),
+        "validate feature files",
+        _unimplemented("validate"),
+        positionals=("features-dir",),
+    )
     registry.add(("generate", "steps"), "generate step definition stubs", _unimplemented("generate steps"))
     registry.add(("convert", "allure"), "convert Allure results", _unimplemented("convert allure"))
 
@@ -114,17 +138,30 @@ def _parser_for(registry: CommandRegistry, program: str) -> argparse.ArgumentPar
         subparsers = command_parser.add_subparsers(metavar="COMMANDS")
         for name, branch in sorted(branches.children.items()):
             if isinstance(branch, CommandSpec):
-                child_parser = subparsers.add_parser(name, help=branch.help, description=branch.help)
-                child_parser.add_argument("arguments", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
-                child_parser.set_defaults(_cuke_handler=branch.handler)
+                invocation = _command_invocation(branch)
+                child_parser = subparsers.add_parser(
+                    name,
+                    help=f"{invocation} — {branch.help}",
+                    description=branch.help,
+                )
+                if branch.positionals:
+                    for positional in branch.positionals:
+                        child_parser.add_argument(positional.replace("-", "_"), metavar=positional)
+                else:
+                    child_parser.add_argument("arguments", nargs=argparse.REMAINDER, help=argparse.SUPPRESS)
+                child_parser.set_defaults(_cuke_handler=branch.handler, _cuke_positionals=branch.positionals)
             else:
                 first_command = next(_iter_commands(branch))
-                command_path = " ".join(first_command.path)
-                child_parser = subparsers.add_parser(name, help=f"{command_path} — {first_command.help}")
+                invocation = _command_invocation(first_command)
+                child_parser = subparsers.add_parser(name, help=f"{invocation} — {first_command.help}")
                 add_commands(child_parser, branch)
 
     add_commands(parser, tree)
     return parser
+
+
+def _command_invocation(command: CommandSpec) -> str:
+    return " ".join((*command.path, *(f"<{argument}>" for argument in command.positionals)))
 
 
 def _iter_commands(branches: _CommandGroup) -> Iterator[CommandSpec]:
@@ -145,7 +182,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if handler is None:
         parser.print_help()
         return 0 if not arguments else 2
-    return handler(getattr(namespace, "arguments", ()))
+    handler_arguments = getattr(namespace, "arguments", None)
+    if handler_arguments is None:
+        handler_arguments = [
+            getattr(namespace, positional.replace("-", "_"))
+            for positional in getattr(namespace, "_cuke_positionals", ())
+        ]
+    return handler(handler_arguments)
 
 
 if __name__ == "__main__":

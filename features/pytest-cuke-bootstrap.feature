@@ -216,7 +216,13 @@ Feature: Installed pytest-cuke product bootstrap
     When I run command "pytest-cuke" with arguments "--help"
     Then the command should exit with code 0
     And the command output should list the public subcommands
-    When I run command "cuke" with arguments "validate features"
+    When I run command "cuke" with arguments "validate --help"
+    Then the command should exit with code 0
+    And the command help should show the required feature-directory argument
+    When I run command "cuke" with arguments "validate"
+    Then the command should exit with a non-zero code
+    And the command output should require a feature directory
+    When I run command "cuke" with arguments "validate consumer-features"
     Then the command should exit with a non-zero code
     And the unimplemented command should report that it is not implemented
     When I run command "cuke" with arguments "generate steps"
