@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path, PurePath
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from attrs import frozen
+from gherkin.dialect import Dialect
 
 from pytest_cuke.heading_validation import (
     BaselineAuditSummary,
@@ -21,9 +22,14 @@ from pytest_cuke.heading_validation import (
 from pytest_cuke.parser import ParserRegistry, default_parser_registry
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
+    from typing import Protocol
 
     from pytest_cuke.model import Feature
+
+    class _GherkinDialect(Protocol):
+        scenario_keywords: list[str]
+        scenario_outline_keywords: list[str]
 
 
 DEFAULT_INCLUDE_PATTERNS = (
@@ -59,12 +65,20 @@ class HeadingValidationCollectionError(ValueError):
         )
 
 
-def heading_type_for_keyword(keyword: str | None) -> HeadingType | None:
-    """Map parser-provided scenario keywords, including supported outline aliases, to policy types."""
-    normalized = (keyword or "").strip().casefold()
-    if normalized.startswith(("scenario outline", "scenario template")):
+def heading_type_for_keyword(keyword: str | None, language: str = "en") -> HeadingType | None:
+    """Map parser-provided scenario keywords through Gherkin's active dialect metadata."""
+    if keyword is None:
+        return None
+    normalized_keyword = keyword.strip().casefold()
+    dialect_for_name = cast("Callable[[str], _GherkinDialect | None]", Dialect.for_name)
+    dialect = dialect_for_name(language)
+    if dialect is None:
+        return None
+    scenario_outline_keywords = {candidate.strip().casefold() for candidate in dialect.scenario_outline_keywords}
+    if normalized_keyword in scenario_outline_keywords:
         return HeadingType.SCENARIO_OUTLINE
-    if normalized.startswith("scenario"):
+    scenario_keywords = {candidate.strip().casefold() for candidate in dialect.scenario_keywords}
+    if normalized_keyword in scenario_keywords:
         return HeadingType.SCENARIO
     return None
 
@@ -80,7 +94,7 @@ def extract_parsed_heading_records(feature: Feature, document_path: str) -> tupl
         ),
     ]
     for scenario in feature.all_scenarios:
-        heading_type = heading_type_for_keyword(scenario.keyword)
+        heading_type = heading_type_for_keyword(scenario.keyword, feature.language)
         if heading_type is not None:
             records.append(
                 ParsedHeadingRecord(
