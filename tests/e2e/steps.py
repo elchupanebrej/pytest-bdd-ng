@@ -8,6 +8,8 @@ import shlex
 import shutil
 import subprocess
 import string
+import tarfile
+import zipfile
 from dataclasses import dataclass
 from functools import reduce
 from operator import attrgetter, itemgetter
@@ -37,7 +39,7 @@ from pytest_cuke import given, step, then, when
 from pytest_cuke.compatibility.pytest import assert_outcomes
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.utils import compose
-from tests.testing_utils import data_table_to_dicts
+from tests.support.testing_utils import data_table_to_dicts
 
 
 @dataclass
@@ -49,6 +51,7 @@ class ConsumerProject:
     pytest: Path
     cuke: Path
     env: dict[str, str]
+    artifact: Path
     pytest_result: subprocess.CompletedProcess[str] | None = None
     command_result: subprocess.CompletedProcess[str] | None = None
 
@@ -57,20 +60,11 @@ class ConsumerProject:
 def _pytest_cuke_artifacts(request, tmp_path_factory):
     project_root = Path(request.config.rootpath)
     artifact_dir = tmp_path_factory.mktemp("pytest-cuke-artifacts")
-    build_source = artifact_dir.parent / "pytest-cuke-package-source"
-    build_source.mkdir()
-    for filename in ("pyproject.toml", "setup.cfg", "README.rst", "LICENSE.rst"):
-        shutil.copy2(project_root / filename, build_source / filename)
-    shutil.copytree(
-        project_root / "src",
-        build_source / "src",
-        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
-    )
     uv_executable = shutil.which("uv")
     assert uv_executable, "the installed-consumer contract requires uv to build distributions"
     result = subprocess.run(
-        [uv_executable, "build", "--sdist", "--wheel", "--out-dir", str(artifact_dir), str(build_source)],
-        cwd=build_source,
+        [uv_executable, "build", "--sdist", "--wheel", "--out-dir", str(artifact_dir), str(project_root)],
+        cwd=project_root,
         check=False,
         capture_output=True,
         text=True,
@@ -124,7 +118,7 @@ def _pytest_cuke_environments(_pytest_cuke_artifacts, tmp_path_factory):
     ),
     target_fixture="consumer",
 )
-def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, tmp_path_factory):
+def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, _pytest_cuke_artifacts, tmp_path_factory):
     project_path = tmp_path_factory.mktemp("pytest-cuke-consumer")
     (project_path / "pyproject.toml").write_text(
         "[tool.pytest.ini_options]\ncuke_features_dir = 'features'\ncuke_autoload = true\n",
@@ -157,6 +151,7 @@ def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, tmp_pa
         pytest=binary_dir / "pytest",
         cuke=binary_dir / "cuke",
         env=environment,
+        artifact=_pytest_cuke_artifacts["paths"][distribution],
     )
 
 
@@ -238,6 +233,30 @@ def consumer_passed_scenarios(count, consumer: ConsumerProject):
     output = f"{result.stdout}\n{result.stderr}"
     expected_summary = rf"\b{re.escape(count)} passed BDD scenarios, 0 failed, 0 skipped\b"
     assert re.search(expected_summary, output), output
+
+
+@then("the installed distribution archive excludes harness and test assets")
+def consumer_distribution_archive_is_runtime_only(consumer: ConsumerProject):
+    if consumer.artifact.suffix == ".whl":
+        with zipfile.ZipFile(consumer.artifact) as archive:
+            members = archive.namelist()
+    else:
+        with tarfile.open(consumer.artifact, "r:gz") as archive:
+            members = archive.getnames()
+
+    forbidden_parts = {
+        ".agents",
+        ".github",
+        ".planning",
+        "docs",
+        "examples",
+        "features",
+        "pytest_cuke_testing",
+        "scripts",
+        "tests",
+    }
+    leaked = [member for member in members if forbidden_parts.intersection(Path(member).parts)]
+    assert not leaked, f"distribution archive contains non-runtime files: {leaked}"
 
 
 @then("pytest terminal output should report 2 passed BDD scenarios")

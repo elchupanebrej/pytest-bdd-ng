@@ -8,7 +8,7 @@ from pytest import mark, param
 from pytest_cuke.compatibility.pytest import assert_outcomes
 from pytest_cuke.packaging import compare_distribution_version
 from pytest_cuke.utils import collect_dumped_objects
-from tests.testing_utils import run_pytester_isolated
+from tests.support.testing_utils import run_pytester_isolated
 
 pytestmark = mark.integration
 

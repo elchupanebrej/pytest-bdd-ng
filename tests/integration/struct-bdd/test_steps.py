@@ -4,7 +4,7 @@ from textwrap import dedent
 from pytest import mark, param
 
 from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
-from tests.testing_utils import run_pytester_isolated
+from tests.support.testing_utils import run_pytester_isolated
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
     from pytest_cuke.struct_bdd.parser import StructBDDParser

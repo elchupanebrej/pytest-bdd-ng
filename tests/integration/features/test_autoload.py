@@ -1,7 +1,7 @@
 from pathlib import Path
 from textwrap import dedent
 
-from tests.testing_utils import run_pytester_isolated
+from tests.support.testing_utils import run_pytester_isolated
 
 
 def test_autoload_disabled_with_conftest_on_same_level(testdir):

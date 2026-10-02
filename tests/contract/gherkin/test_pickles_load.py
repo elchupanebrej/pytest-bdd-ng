@@ -9,7 +9,7 @@ from pytest_bdd.model.message_converter import message_converter
 pytestmark = mark.integration
 
 
-test_data = Path(__file__).parent.parent.parent / "gherkin" / "testdata"
+test_data = Path(__file__).parent.parent.parent.parent / "gherkin" / "testdata"
 
 
 @mark.parametrize(
