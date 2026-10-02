@@ -2,18 +2,25 @@ from __future__ import annotations
 
 import mimetypes
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol, cast, runtime_checkable
 
 from attr import attrib, attrs
-from attrs import define, field
+from attrs import define, evolve, field
 from gherkin.ast_builder import AstBuilder
 from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser as CucumberIOBaseParser
 from gherkin.token_scanner import TokenScanner
 
 from pytest_cuke.exceptions import FeatureConcreteParseError
+from pytest_cuke.external_examples import (
+    attach_external_examples_sources,
+    expand_external_examples,
+    map_feature_source_lines,
+    remap_parse_error,
+)
 from pytest_cuke.gherkin_builder import build_feature_from_dict
 from pytest_cuke.markdown_token_matcher import MarkdownTokenMatcher
+from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import Feature
 
 if TYPE_CHECKING:
@@ -38,6 +45,7 @@ class ParserProtocol(Protocol):
 
 @define
 class BaseParser:
+    supports_external_examples: ClassVar[bool] = False
     id_generator: Any = None
 
     def parse_text(self, content: str, uri: str | None = None, **kwargs: Any) -> Feature:
@@ -46,8 +54,24 @@ class BaseParser:
     def parse(self, path: Path | str, uri: str | None = None, encoding: str = "utf-8", **kwargs: Any) -> Feature:
         p = Path(path)
         content = p.read_text(encoding=encoding)
+        source_content = content
+        external_examples = None
+        if self.supports_external_examples:
+            external_examples = expand_external_examples(content, p)
+            content = external_examples.content
         resolved_uri = uri or str(p.as_posix())
-        feature = self.parse_text(content, uri=resolved_uri, **kwargs)
+        try:
+            feature = self.parse_text(content, uri=resolved_uri, **kwargs)
+        except FeatureConcreteParseError as error:
+            if external_examples is not None:
+                remap_parse_error(error, external_examples, source_content, resolved_uri)
+            raise
+        if external_examples is not None:
+            feature = attach_external_examples_sources(feature, external_examples.bindings)
+            feature = map_feature_source_lines(feature, external_examples.line_map)
+        if feature.source_content is None:
+            source_media_type = feature.source_media_type or self._source_media_type(p)
+            feature = evolve(feature, source_content=source_content, source_media_type=source_media_type)
         if feature.filename is None:
             return Feature(
                 name=feature.name,
@@ -62,8 +86,21 @@ class BaseParser:
                 keyword=feature.keyword,
                 language=feature.language,
                 filename=str(p.as_posix()),
+                source_content=feature.source_content,
+                source_media_type=feature.source_media_type,
             )
         return feature
+
+    def _source_media_type(self, path: Path) -> str:
+        if path.name.lower().endswith((".md", ".markdown")):
+            return Mimetype.markdown.value
+        if self.supports_external_examples:
+            return Mimetype.gherkin_plain.value
+        kind = getattr(self, "kind", None)
+        structured_media_type = getattr(Mimetype, f"struct_bdd_{kind}", None) if kind else None
+        if structured_media_type is not None:
+            return str(structured_media_type.value)
+        return mimetypes.guess_type(path.name)[0] or Mimetype.gherkin_plain.value
 
     def build_feature(self, gherkin_document_raw_dict: Any, filename: str) -> Feature:
         return build_feature_from_dict(gherkin_document_raw_dict, filename=filename)
@@ -111,6 +148,8 @@ default_parser_registry = ParserRegistry()
 
 @define
 class GherkinParser(BaseParser):
+    supports_external_examples: ClassVar[bool] = True
+
     def parse_text(
         self,
         content: str,
@@ -146,6 +185,8 @@ class LegacyGherkinParser(BaseParser):
 
 @define
 class MarkdownParser(BaseParser):
+    supports_external_examples: ClassVar[bool] = True
+
     def parse_text(
         self,
         content: str,

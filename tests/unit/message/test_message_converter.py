@@ -67,6 +67,36 @@ def test_scenario_to_pickle_and_test_case() -> None:
     assert pickle.steps[0].text == "user logs in"
     assert len(pickle.tags) == 1
     assert pickle.tags[0].name == "@auth"
+    assert pickle.ast_node_ids == ["sc-1"]
+
+    outline_row = Scenario(
+        name="Outline row",
+        id="expanded-row-id",
+        source_ast_node_ids=("outline-source-id", "examples-row-source-id"),
+        steps=(step,),
+    )
+    outline_pickle = mc.scenario_to_pickle(outline_row)
+    assert outline_pickle.ast_node_ids == ["outline-source-id", "examples-row-source-id"]
+    assert outline_pickle.steps[0].id == "expanded-row-id-step-0"
+    outline_test_case = mc.scenario_to_test_case(outline_row, pickle_id=outline_pickle.id)
+    assert outline_test_case.test_steps[0].pickle_step_id == "expanded-row-id-step-0"
+
+    struct_scenario = Scenario(name="Struct route", line=0)
+    struct_pickle = mc.scenario_to_pickle(
+        struct_scenario,
+        uri="file:routes.bdd.yaml",
+        default_id="file:routes.bdd.yaml#route-case-1",
+    )
+    struct_document = mc.feature_to_gherkin_document(
+        Feature(name="Routes", uri="file:routes.bdd.yaml", scenarios=(struct_scenario,))
+    )
+    struct_test_case = mc.scenario_to_test_case(struct_scenario, pickle_id=struct_pickle.id)
+    assert struct_pickle.id == "file:routes.bdd.yaml#route-case-1"
+    assert struct_document.feature is not None
+    struct_document_scenario = struct_document.feature.children[0].scenario
+    assert struct_document_scenario is not None
+    assert struct_pickle.ast_node_ids == [struct_document_scenario.id]
+    assert struct_test_case.pickle_id == struct_pickle.id
 
     p_env = mc.pickle_to_envelope(pickle)
     assert p_env.pickle is not None

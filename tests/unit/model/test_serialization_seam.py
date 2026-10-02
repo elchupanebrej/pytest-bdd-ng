@@ -3,7 +3,7 @@ from __future__ import annotations
 from pytest_cuke.model.background import Background
 from pytest_cuke.model.doc_string import DocString
 from pytest_cuke.model.document import GherkinDocument
-from pytest_cuke.model.examples import Examples
+from pytest_cuke.model.examples import Examples, ExternalExampleRowSource, ExternalExamplesSource
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.rule import Rule
 from pytest_cuke.model.scenario import Scenario
@@ -84,3 +84,37 @@ def test_composite_tree_seam2_roundtrip_contract() -> None:
     doc_json = to_json(document)
     restored_from_json = from_json(GherkinDocument, doc_json)
     assert restored_from_json == document
+
+
+def test_external_examples_provenance_serialization_roundtrip() -> None:
+    source = ExternalExamplesSource(
+        path="features/данные users.csv",
+        marker_line=8,
+        section_index=2,
+        header_line=10,
+        row_lines=(11, 13),
+    )
+    examples = Examples(
+        header=TableRow(cells=(TableCell("name"),)),
+        rows=(TableRow(cells=(TableCell("Ada"),)),),
+        external_source=source,
+    )
+    row_source = ExternalExampleRowSource(
+        path=source.path,
+        marker_line=source.marker_line,
+        section_index=source.section_index,
+        row_index=2,
+        source_line=13,
+        row_id="external-row-2",
+    )
+    scenario = Scenario(
+        name="Look up external row",
+        line=3,
+        external_example_source=row_source,
+        source_ast_node_ids=("outline-id", "row-id"),
+    )
+
+    assert from_dict(Examples, as_dict(examples)) == examples
+    assert from_json(Examples, to_json(examples)) == examples
+    assert from_dict(Scenario, as_dict(scenario)) == scenario
+    assert from_json(Scenario, to_json(scenario)) == scenario

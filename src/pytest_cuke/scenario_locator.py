@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import partial, reduce
+from hashlib import sha256
 from itertools import filterfalse
 from operator import methodcaller, truediv
 from os.path import commonpath
@@ -9,8 +10,9 @@ from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 from urllib.parse import urljoin
 from urllib.request import urlopen
 
-from attrs import define, field
+from attrs import define, evolve, field
 
+from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
 from pytest_cuke.parser import ParserRegistry, default_parser_registry
 from pytest_cuke.utils import is_local_url
@@ -41,11 +43,11 @@ class ScenarioLocatorFilterMixin:
         all_scenarios = getattr(feature, "all_scenarios", feature.scenarios)
         for scenario in all_scenarios:
             if scenario.examples:
-                for example in scenario.examples:
+                for section_index, example in enumerate(scenario.examples, start=1):
                     if not example.header or not example.rows:
                         continue
                     headers = [c.value for c in example.header.cells]
-                    for row in example.rows:
+                    for row_index, row in enumerate(example.rows):
                         mapping = {
                             h: (c.value if i < len(row.cells) else "")
                             for i, (h, c) in enumerate(zip(headers, row.cells, strict=False))
@@ -97,16 +99,45 @@ class ScenarioLocatorFilterMixin:
                                 )
                             )
                         expanded_tags = scenario.tags + (example.tags or ())
+                        external_row_source = (
+                            example.external_source.row_source(row_index, row.id) if example.external_source else None
+                        )
+                        identity_section = (
+                            external_row_source.section_index if external_row_source is not None else section_index
+                        )
+                        identity_source = (
+                            f"{feature.uri or feature.filename or feature.name}\0{external_row_source.path}"
+                            if external_row_source
+                            else ""
+                        )
+                        identity_digest = (
+                            sha256(identity_source.encode("utf-8")).hexdigest()[:12] if identity_source else ""
+                        )
+                        expanded_name = (
+                            f"{scenario.name}[external_examples:[section: {identity_section}, row: {row_index + 1}]]"
+                            if external_row_source is not None
+                            else f"{scenario.name}[table_rows:[line: {row.line}]]"
+                        )
+                        expanded_id = (
+                            f"{scenario.id or scenario.name}-external-{identity_digest}"
+                            f"-section-{identity_section}-row-{row_index + 1}"
+                            if external_row_source is not None
+                            else f"{scenario.id or scenario.name}-{row.id or row.line}"
+                        )
                         expanded_scenario = Scenario(
-                            name=f"{scenario.name}[table_rows:[line: {row.line}]]",
+                            name=expanded_name,
                             keyword=scenario.keyword,
                             description=scenario.description,
                             line=scenario.line,
-                            id=f"{scenario.id or scenario.name}-{row.id or row.line}",
+                            id=expanded_id,
                             tags=expanded_tags,
                             steps=tuple(expanded_steps),
                             background=scenario.background,
                             examples=(),
+                            external_example_source=external_row_source,
+                            source_ast_node_ids=tuple(
+                                node_id for node_id in (scenario.id, row.id) if node_id is not None
+                            ),
                         )
                         if self.filter_ is None or self.filter_(config, feature, expanded_scenario):
                             yield feature, expanded_scenario
@@ -176,7 +207,14 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                         p = _parser_from_config_hook(config, Path(url), self.mimetype or content_type)
 
                 if p is not None:
-                    yield p.parse_text(content, uri=url)
+                    feature = p.parse_text(content, uri=url)
+                    if feature.source_content is None:
+                        feature = evolve(
+                            feature,
+                            source_content=content,
+                            source_media_type=feature.source_media_type or media_type or Mimetype.gherkin_plain.value,
+                        )
+                    yield feature
             except Exception:  # noqa: S112
                 continue
 
