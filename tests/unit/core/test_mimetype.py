@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import mimetypes
 
-from pytest_bdd.mimetype import (
+from pytest_cuke.mimetype import (
     Mimetype,
     Suffix,
     gherkin_suffixes,

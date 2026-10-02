@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pytest_bdd.compatibility.parser import ParsedFeature, ParserProtocol
+from pytest_cuke.compatibility.parser import ParsedFeature, ParserProtocol
 
 
 def test_parsed_feature_instantiation() -> None:

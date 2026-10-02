@@ -27,7 +27,7 @@ def prepare_testdir(testdir, ini_base_dir):
     testdir.makeini(
         f"""
         [pytest]
-        bdd_features_base_dir={ini_base_dir}
+        cuke_features_dir={ini_base_dir}
         """
     )
 
@@ -47,7 +47,7 @@ def prepare_testdir(testdir, ini_base_dir):
         import pytest
         from pathlib import Path
 
-        from pytest_bdd import scenario, scenarios
+        from pytest_cuke import scenario, scenarios
 
         FEATURE = 'steps.feature'
 
@@ -101,7 +101,7 @@ def prepare_testdir(testdir, ini_base_dir):
             'multiple', [True, False]
         )
         def test_ok_by_param(scenario_name, multiple):
-            # Shouldn't raise any exception no matter of bdd_features_base_dir in ini
+            # Shouldn't raise any exception no matter of cuke_features_dir in ini
             if multiple:
                 scenarios(FEATURE, features_base_dir='features')
             else:

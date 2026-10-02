@@ -12,7 +12,7 @@ Feature: Scenario
     And conftest.py with content:
       # language=python
       """
-      from pytest_bdd import given, then, when
+      from pytest_cuke import given, then, when
 
       @given("passed step")
       def given_passed_step():

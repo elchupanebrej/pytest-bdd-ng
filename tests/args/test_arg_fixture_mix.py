@@ -8,7 +8,7 @@ def test_arg_fixture_mix(testdir, tmp_path):
             # language=python
             f"""\
             import pytest
-            from pytest_bdd import scenario, given, then, parsers
+            from pytest_cuke import scenario, given, then, parsers
             from pathlib import Path
 
             @pytest.fixture
@@ -52,7 +52,7 @@ def test_arg_fixture_mix(testdir, tmp_path):
             # language=python
             f"""\
             import pytest
-            from pytest_bdd import scenario, given, then
+            from pytest_cuke import scenario, given, then
             from pathlib import Path
 
             @scenario(

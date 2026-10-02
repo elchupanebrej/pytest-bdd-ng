@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pytest
-from pytest_bdd.exceptions import (
+from pytest_cuke.exceptions import (
     FeatureConcreteParseError,
     FeatureParseError,
     NoScenariosFound,

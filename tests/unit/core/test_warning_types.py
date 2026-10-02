@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import warnings
 
-from pytest_bdd.warning_types import PytestBDDStepDefinitionWarning
+from pytest_cuke.warning_types import PytestBDDStepDefinitionWarning
 
 
 def test_warning_hierarchy_and_emission() -> None:

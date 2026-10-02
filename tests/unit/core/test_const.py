@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.const import ALPHA_REGEX, PYTHON_REPLACE_REGEX, TAG_PREFIX
+from pytest_cuke.const import ALPHA_REGEX, PYTHON_REPLACE_REGEX, TAG_PREFIX
 
 
 def test_consts() -> None:

@@ -16,7 +16,7 @@ def test_no_scenarios(testdir):
     testdir.makepyfile(
         # language=python
         f"""\
-        from pytest_bdd import scenarios
+        from pytest_cuke import scenarios
 
         test_cukes = scenarios('features')
         """

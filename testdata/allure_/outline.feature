@@ -17,8 +17,8 @@ Feature: Scenario outline
     And conftest.py with content:
       # language=python
       """
-      from pytest_bdd import given, then, when
-      from pytest_bdd.parsers import cfparse
+      from pytest_cuke import given, then, when
+      from pytest_cuke.parsers import cfparse
 
       @given(cfparse("{first} step"))
       def given_step(first):

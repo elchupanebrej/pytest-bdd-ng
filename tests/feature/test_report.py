@@ -91,7 +91,7 @@ def test_step_trace(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, when, then, parsers
+        from pytest_cuke import given, when, then, parsers
 
         @given('a passing step')
         def a_passing_step():
@@ -321,7 +321,7 @@ def test_complex_types(testdir, pytestconfig):
         # language=python
         """\
         import pytest
-        from pytest_bdd import given,  scenario, parsers
+        from pytest_cuke import given,  scenario, parsers
 
         class Point:
 

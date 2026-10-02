@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pytest_bdd.scenario import (
+from pytest_cuke.scenario import (
     FeaturePathType,
     add_options,
     get_python_name_generator,

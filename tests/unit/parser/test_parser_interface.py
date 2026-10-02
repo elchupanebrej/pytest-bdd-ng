@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pytest_bdd.model.feature import Feature
-from pytest_bdd.parser import BaseParser, ParserProtocol, ParserRegistry
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.parser import BaseParser, ParserProtocol, ParserRegistry
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -5,18 +5,25 @@ Tutorial for Behave/Cucumber users
 
 Leslie's tutorial_ ...
 
-.. toctree::
-   :glob:
+The runnable project lives in ``examples/tutorial``. Pytest discovers its
+feature file automatically, without a mirror test module.
 
-    tests/features/*.feature
-    src/*.py
-    tests/*.py
-    tests/*.desktop
-    tests/steps/*.py
+Feature
+-------
+
+.. literalinclude:: ../../examples/tutorial/features/books.feature
+   :language: gherkin
+
+Step definitions
+----------------
+
+.. literalinclude:: ../../examples/tutorial/tests/steps/library_steps.py
+   :language: python
 
 
 Set up the tutorial
 -------------------
 
-From the project root, activate a virtual environment and run:
-``pip install -r docs/tutorial/requirements.txt``
+From ``examples/tutorial``, activate a virtual environment and run:
+``pip install -r requirements.txt``
+Then run ``python -m pytest`` from the same directory.

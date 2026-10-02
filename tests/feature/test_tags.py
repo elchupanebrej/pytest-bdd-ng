@@ -2,7 +2,7 @@
 
 from operator import ge
 
-from pytest_bdd.packaging import compare_distribution_version
+from pytest_cuke.packaging import compare_distribution_version
 
 
 def test_tags_selector(testdir):
@@ -39,7 +39,7 @@ def test_tags_selector(testdir):
     testdir.makeconftest(
         # language=python
         f"""\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given('I have a bar')
         def i_have_bar():
@@ -91,7 +91,7 @@ def test_tags_after_background_issue_160(testdir):
     testdir.makeconftest(
         # language=python
         f"""\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given('I have a bar')
         def i_have_bar():
@@ -124,7 +124,7 @@ def test_at_in_scenario(testdir):
     testdir.makeconftest(
         # language=python
         f"""\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given('I have a foo@bar')
         def i_have_at():

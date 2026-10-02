@@ -1,6 +1,7 @@
-Welcome to Pytest-BDD-NextGeneration's documentation!
-=====================================================
+Welcome to pytest-cuke's documentation!
+=======================================
 .. toctree::
    :glob:
 
    include.rst
+   cli.rst

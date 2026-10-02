@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 import pytest
 
 import messages
-from pytest_bdd.model import message_converter as mc
-from pytest_bdd.model import message_serialization as ms
+from pytest_cuke.model import message_converter as mc
+from pytest_cuke.model import message_serialization as ms
 
 if TYPE_CHECKING:
     from pathlib import Path

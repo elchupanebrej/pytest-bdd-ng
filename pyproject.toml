@@ -76,13 +76,17 @@ license = {file = "LICENSE.rst"}
 maintainers = [
   {name = "Konstantin Goloveshko", email = "kostya.goloveshko@gmail.com"}
 ]
-name = "pytest-bdd-ng"
+name = "pytest-cuke"
 readme = {file = "README.rst", content-type = "text/x-rst"}
 requires-python = ">=3.10"
 version = "2.3.1"
 
 [project.entry-points.pytest11]
-pytest-bdd = "pytest_bdd.plugin"
+cuke = "pytest_cuke.plugin"
+
+[project.scripts]
+pytest-cuke = "pytest_cuke.cli:main"
+cuke = "pytest_cuke.cli:main"
 
 
 [project.optional-dependencies]
@@ -143,7 +147,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["pytest_bdd"]
+known-first-party = ["pytest_cuke"]
 
 [tool.ruff.lint.per-file-ignores]
 "docs/**" = ["ALL"]
@@ -173,12 +177,11 @@ known-first-party = ["pytest_bdd"]
   "E402",
 ]
 "src/*/plugin.py" = ["ARG001"]
-"src/pytest_bdd/compatibility/**" = ["TCH", "C4", "RET", "PLR", "SIM", "UP"]
-"src/pytest_bdd/struct_bdd/**" = ["PLC0415", "TCH", "ARG001", "ARG002"]
-"src/pytest_bdd/script/**" = ["RET503", "PLC0415"]
-"src/pytest_bdd/utils.py" = ["PLC0415"]
-"src/pytest_bdd/testing_utils.py" = ["B905"]
-"src/pytest_bdd/webloc.py" = ["C408"]
+"src/pytest_cuke/compatibility/**" = ["TCH", "C4", "RET", "PLR", "SIM", "UP"]
+"src/pytest_cuke/struct_bdd/**" = ["PLC0415", "TCH", "ARG001", "ARG002"]
+"src/pytest_cuke/script/**" = ["RET503", "PLC0415"]
+"src/pytest_cuke/utils.py" = ["PLC0415"]
+"src/pytest_cuke/webloc.py" = ["C408"]
 
 [tool.pyright]
 include = ["src"]
@@ -189,7 +192,7 @@ reportUnknownMemberType = "warning"
 reportMissingTypeStubs = "none"
 
 [tool.deptry]
-known_first_party = ["pytest_bdd"]
+known_first_party = ["pytest_cuke"]
 
 [tool.deptry.package_module_name_map]
 allure-python-commons = "allure_commons"
@@ -249,7 +252,7 @@ disallow_untyped_defs = true
 disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "features"]
 filterwarnings = [
   "ignore::DeprecationWarning",
   "ignore::ImportWarning",
@@ -262,3 +265,11 @@ markers = [
   "e2e: End-to-end tests",
   "external: External integration tests"
 ]
+cuke_autoload = true
+cuke_features_dir = "features"
+cuke_liberal_steps = false
+cuke_json = ""
+cuke_messages_ndjson = ""
+cuke_html = ""
+cuke_progress = false
+cuke_summary = false

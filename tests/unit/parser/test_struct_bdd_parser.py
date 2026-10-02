@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path  # noqa: TCH003
 
-from pytest_bdd.struct_bdd.parser import StructBDDParser
+from pytest_cuke.struct_bdd.parser import StructBDDParser
 
 
 def test_parse_yaml_struct_bdd_feature() -> None:
@@ -106,7 +106,7 @@ def test_parse_struct_bdd_file(tmp_path: Path) -> None:
 
 
 def test_registry_lookup_struct_bdd() -> None:
-    from pytest_bdd.parser import default_parser_registry
+    from pytest_cuke.parser import default_parser_registry
 
     p_yaml = default_parser_registry.get_parser_for_path("test.bdd.yaml")
     p_json = default_parser_registry.get_parser_for_path("test.bdd.json")

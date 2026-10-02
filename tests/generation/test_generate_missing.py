@@ -3,8 +3,8 @@
 import itertools
 import textwrap
 
-from pytest_bdd.compatibility.pytest import assert_outcomes
-from pytest_bdd.scenario import get_python_name_generator
+from pytest_cuke.compatibility.pytest import assert_outcomes
+from pytest_cuke.scenario import get_python_name_generator
 
 
 def test_python_name_generator():
@@ -45,7 +45,7 @@ def test_generate_missing(testdir, tmp_path):
         f"""\
         import functools
 
-        from pytest_bdd import scenario, given
+        from pytest_cuke import scenario, given
         from pathlib import Path
 
         scenario = functools.partial(scenario, Path(r"{tmp_path}") / "generation.feature")
@@ -64,7 +64,7 @@ def test_generate_missing(testdir, tmp_path):
         """
     )
 
-    result = testdir.runpytest("--generate-missing", "--feature", str(tmp_path / "generation.feature"))
+    result = testdir.runpytest("--cuke-generate-missing", "--cuke-feature", str(tmp_path / "generation.feature"))
     assert_outcomes(result, passed=0, failed=0, errors=0)
     assert not result.stderr.str()
     assert result.ret == 0
@@ -102,7 +102,7 @@ def test_generate_missing_with_step_parsers(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, parsers
+        from pytest_cuke import given, parsers
 
         @given("I use the string parser without parameter")
         def i_have_a_bar():
@@ -122,7 +122,7 @@ def test_generate_missing_with_step_parsers(testdir):
         """
     )
 
-    result = testdir.runpytest("--generate-missing", "--feature", "generation.feature")
+    result = testdir.runpytest("--cuke-generate-missing", "--cuke-feature", "generation.feature")
     assert_outcomes(result, passed=0, failed=0, errors=0)
     assert not result.stderr.str()
     assert result.ret == 0

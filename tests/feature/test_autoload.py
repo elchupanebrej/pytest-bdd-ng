@@ -1,6 +1,8 @@
 from pathlib import Path
 from textwrap import dedent
 
+from tests.testing_utils import run_pytester_isolated
+
 
 def test_autoload_disabled_with_conftest_on_same_level(testdir):
     testdir.makefile(
@@ -30,7 +32,7 @@ def test_autoload_disabled_with_conftest_on_same_level(testdir):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, when, then, scenario
+        from pytest_cuke import given, when, then, scenario
 
         @scenario('steps.feature')
         def test():
@@ -65,7 +67,7 @@ def test_autoload_disabled_with_conftest_on_same_level(testdir):
             assert results == [1, 2, 3]
         """
     )
-    result = testdir.runpytest("--disable-feature-autoload")
+    result = run_pytester_isolated(testdir, "--cuke-no-autoload")
     result.assert_outcomes(passed=2, failed=0)
 
 
@@ -73,7 +75,7 @@ def test_autoload_disabled_with_conftest_on_higher_level(testdir):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, when, then, scenario
+        from pytest_cuke import given, when, then, scenario
 
         @scenario('steps.feature', features_base_dir='features')
         def test():
@@ -134,5 +136,5 @@ def test_autoload_disabled_with_conftest_on_higher_level(testdir):
         ),
     )
 
-    result = testdir.runpytest("--disable-feature-autoload")
+    result = run_pytester_isolated(testdir, "--cuke-no-autoload")
     result.assert_outcomes(passed=2, failed=0)

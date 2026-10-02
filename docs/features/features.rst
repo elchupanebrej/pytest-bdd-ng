@@ -2,149 +2,155 @@ Features
 ========
 
 .. NOTE:: Features below are part of end-to-end test suite; You always could find most specific
-          use cases of **pytest-bdd-ng** by investigation of its regression
-          test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/default/tests
+          use cases of **pytest-cuke** by investigation of its regression
+          test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/rewrite-from-2.3.1/tests
 
 
 
-Tutorial
+pytest-cuke-bootstrap
+---------------------
+
+.. include:: ../features/pytest-cuke-bootstrap.feature
+   :code: gherkin
+
+tutorial
 --------
 
-Launch
+launch
 ######
 
-.. include:: features/Tutorial/Launch.feature.rst
+.. include:: features/tutorial/launch.feature.rst
 
-Step definition
+step-definition
 ---------------
 
-Pytest fixtures substitution
+pytest-fixtures-substitution
 ############################
 
-.. include:: features/Step definition/Pytest fixtures substitution.feature.rst
+.. include:: features/step-definition/pytest-fixtures-substitution.feature.rst
 
-Target fixtures specification
+target-fixtures-specification
 #############################
 
-.. include:: features/Step definition/Target fixtures specification.feature.rst
+.. include:: features/step-definition/target-fixtures-specification.feature.rst
 
-Parameters
+parameters
 ##########
 
-Conversion
+conversion
 !!!!!!!!!!
 
-.. include:: features/Step definition/Parameters/Conversion.feature.rst
+.. include:: features/step-definition/parameters/conversion.feature.rst
 
-Defaults
+defaults
 !!!!!!!!
 
-.. include:: features/Step definition/Parameters/Defaults.feature.rst
+.. include:: features/step-definition/parameters/defaults.feature.rst
 
-Injection as fixtures
+injection-as-fixtures
 !!!!!!!!!!!!!!!!!!!!!
 
-.. include:: features/Step definition/Parameters/Injection as fixtures.feature.rst
+.. include:: features/step-definition/parameters/injection-as-fixtures.feature.rst
 
-Parsing by custom parser
+parsing-by-custom-parser
 !!!!!!!!!!!!!!!!!!!!!!!!
 
-.. include:: features/Step definition/Parameters/Parsing by custom parser.feature.rst
+.. include:: features/step-definition/parameters/parsing-by-custom-parser.feature.rst
 
-Parsing
+parsing
 !!!!!!!
 
-.. include:: features/Step definition/Parameters/Parsing.feature.rst
+.. include:: features/step-definition/parameters/parsing.feature.rst
 
-Step
+step
 ----
 
-Data table
+data-table
 ##########
 
-.. include:: features/Step/Data table.feature.rst
+.. include:: features/step/data-table.feature.rst
 
-Doc string
+doc-string
 ##########
 
-.. include:: features/Step/Doc string.feature.rst
+.. include:: features/step/doc-string.feature.rst
 
-Step definition bounding
+step-definition-bounding
 ########################
 
-.. include:: features/Step/Step definition bounding.feature.rst
+.. include:: features/step/step-definition-bounding.feature.rst
 
-Scenario
+scenario
 --------
 
-Description
+description
 ###########
 
-.. include:: features/Scenario/Description.feature.rst
+.. include:: features/scenario/description.feature.rst
 
-Tag
+tag
 ###
 
-.. include:: features/Scenario/Tag.feature.rst
+.. include:: features/scenario/tag.feature.rst
 
-Outline
+outline
 #######
 
-Examples Tag
+examples-tag
 !!!!!!!!!!!!
 
-.. include:: features/Scenario/Outline/Examples Tag.feature.rst
+.. include:: features/scenario/outline/examples-tag.feature.rst
 
-Report
+report
 ------
 
-Gathering
+gathering
 #########
 
-.. include:: features/Report/Gathering.feature.rst
+.. include:: features/report/gathering.feature.rst
 
-Feature
+feature
 -------
 
-Description
+description
 ###########
 
-.. include:: features/Feature/Description.feature.rst
+.. include:: features/feature/description.feature.rst
 
-Localization
+localization
 ############
 
-.. include:: features/Feature/Localization.feature.rst
+.. include:: features/feature/localization.feature.rst
 
-Tag conversion
+tag-conversion
 ##############
 
-.. include:: features/Feature/Tag conversion.feature.rst
+.. include:: features/feature/tag-conversion.feature.rst
 
-Tag
+tag
 ###
 
-.. include:: features/Feature/Tag.feature.rst
+.. include:: features/feature/tag.feature.rst
 
-Load
+load
 ####
 
-Autoload
+autoload
 !!!!!!!!
 
-.. include:: features/Feature/Load/Autoload.feature.rst
+.. include:: features/feature/load/autoload.feature.rst
 
-Scenario function loader
+scenario-function-loader
 !!!!!!!!!!!!!!!!!!!!!!!!
 
-.. include:: features/Feature/Load/Scenario function loader.feature.rst
+.. include:: features/feature/load/scenario-function-loader.feature.rst
 
-Scenario search from base directory
+scenario-search-from-base-directory
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-.. include:: features/Feature/Load/Scenario search from base directory.feature.rst
+.. include:: features/feature/load/scenario-search-from-base-directory.feature.rst
 
-Scenario search from base url
+scenario-search-from-base-url
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-.. include:: features/Feature/Load/Scenario search from base url.feature.rst
+.. include:: features/feature/load/scenario-search-from-base-url.feature.rst

@@ -8,7 +8,7 @@ def test_background_no_strict_gherkin(testdir):
         """\
         import pytest
 
-        from pytest_bdd import when
+        from pytest_cuke import when
 
         @pytest.fixture
         def foo():
@@ -55,7 +55,7 @@ def test_scenario_no_strict_gherkin(testdir):
         """\
         import pytest
 
-        from pytest_bdd import when
+        from pytest_cuke import when
 
         @pytest.fixture
         def foo():

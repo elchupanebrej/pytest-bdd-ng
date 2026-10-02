@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.util.inspect_extra import (
+from pytest_cuke.util.inspect_extra import (
     get_args,
     get_caller_module_locals,
     get_caller_module_path,

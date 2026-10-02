@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
-from pytest_bdd.util.data_table import data_table_to_dicts
+from pytest_cuke.util.data_table import data_table_to_dicts
 
 
 def test_data_table_to_dicts() -> None:

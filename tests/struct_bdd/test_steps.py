@@ -3,10 +3,11 @@ from textwrap import dedent
 
 from pytest import mark, param
 
-from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from tests.testing_utils import run_pytester_isolated
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
-    from pytest_bdd.struct_bdd.parser import StructBDDParser
+    from pytest_cuke.struct_bdd.parser import StructBDDParser
 else:  # pragma: no cover
     from unittest.mock import Mock
 
@@ -242,7 +243,7 @@ def test_steps(testdir, kind, file_content, tmp_path):
     testdir.makeini(
         f"""\
         [pytest]
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
 
@@ -250,7 +251,7 @@ def test_steps(testdir, kind, file_content, tmp_path):
         # language=python
         """\
         from textwrap import dedent
-        from pytest_bdd import given, when, then, scenario, step
+        from pytest_cuke import given, when, then, scenario, step
 
         @scenario("steps.bdd.{kind}", "Executed step by step")
         def test_steps(feature):
@@ -289,7 +290,7 @@ def test_steps(testdir, kind, file_content, tmp_path):
             assert results == [1, 2, 3]
         """.format(kind=kind)
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=1, failed=0)
 
 
@@ -330,7 +331,7 @@ def test_default_loader(testdir, kind, file_content):
         # language=python
         """\
         from textwrap import dedent
-        from pytest_bdd import given, when, then, scenario
+        from pytest_cuke import given, when, then, scenario
 
         @scenario("steps.bdd.{kind}", "Executed step by step")
         def test_steps(feature):
@@ -375,7 +376,7 @@ def test_default_loader(testdir, kind, file_content):
             assert results == [1, 2, 3]
         """.format(kind=kind)
     )
-    result = testdir.runpytest("--disable-feature-autoload")
+    result = run_pytester_isolated(testdir, "--cuke-no-autoload")
     result.assert_outcomes(passed=1, failed=0)
 
 
@@ -415,7 +416,7 @@ def test_autoload_feature_yaml(testdir, kind, file_content):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
 
         @given('I have a foo fixture with value "foo"', target_fixture="foo")
         def foo():
@@ -446,7 +447,7 @@ def test_autoload_feature_yaml(testdir, kind, file_content):
             assert results == [1, 2, 3]
         """
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=1, failed=0)
 
 
@@ -480,7 +481,7 @@ def test_examples(testdir, file_content):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given('I have {count:g} cucumbers', target_fixture="cucumbers")
         def foo(count):
@@ -495,7 +496,7 @@ def test_examples(testdir, file_content):
             assert count == cucumbers
         """
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=2, failed=0)
 
 
@@ -503,8 +504,8 @@ def test_dsl(testdir):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step, Table
+        from pytest_cuke import given, then
+        from pytest_cuke.struct_bdd.model import Step, Table
 
         test_scenarios = Step(
             name="Examples are substituted",
@@ -538,7 +539,7 @@ def test_dsl(testdir):
             assert count == cucumbers
         """
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=2, failed=0)
 
 
@@ -546,9 +547,9 @@ def test_dsl_decorator(testdir):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step, Table
-        from pytest_bdd.model import Feature
+        from pytest_cuke import given, then
+        from pytest_cuke.struct_bdd.model import Step, Table
+        from pytest_cuke.model import Feature
 
         step = Step(
             name="Examples are substituted",
@@ -587,7 +588,7 @@ def test_dsl_decorator(testdir):
             assert count == cucumbers
         """
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=2, failed=0)
 
 
@@ -595,8 +596,8 @@ def test_dsl_as_dict(testdir):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step
+        from pytest_cuke import given, then
+        from pytest_cuke.struct_bdd.model import Step
 
         test_scenarios = Step.parse_obj(
             dict(
@@ -633,7 +634,7 @@ def test_dsl_as_dict(testdir):
             assert count == cucumbers
         """
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=2, failed=0)
 
 
@@ -641,8 +642,8 @@ def test_dsl_keyworded_steps(testdir):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, then
-        from pytest_bdd.struct_bdd.model import Step, Given, And, Then, Table
+        from pytest_cuke import given, then
+        from pytest_cuke.struct_bdd.model import Step, Given, And, Then, Table
 
         test_scenarios = Step(
             name="Examples are substituted",
@@ -675,7 +676,7 @@ def test_dsl_keyworded_steps(testdir):
             assert count == cucumbers
         """
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=2, failed=0)
 
 
@@ -683,8 +684,8 @@ def test_dsl_alternative_steps(testdir):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, then, step
-        from pytest_bdd.struct_bdd.model import Step, Given, And, Then, Table, Alternative, When
+        from pytest_cuke import given, then, step
+        from pytest_cuke.struct_bdd.model import Step, Given, And, Then, Table, Alternative, When
 
         test_scenarios = Step(
             name="Alternative steps",
@@ -732,7 +733,7 @@ def test_dsl_alternative_steps(testdir):
             assert count == cucumbers
         """
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=8, failed=0)
 
 
@@ -740,8 +741,8 @@ def test_dsl_joined_tables(testdir):
     testdir.makepyfile(
         # language=python
         """\
-        from pytest_bdd import given, then, step
-        from pytest_bdd.struct_bdd.model import Step, Given, And, Then, Table, Join
+        from pytest_cuke import given, then, step
+        from pytest_cuke.struct_bdd.model import Step, Given, And, Then, Table, Join
 
         test_scenarios = Step(
             name="Alternative steps",
@@ -799,5 +800,5 @@ def test_dsl_joined_tables(testdir):
             assert count == cucumbers
         """
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=6, failed=0)

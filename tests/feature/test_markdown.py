@@ -27,7 +27,7 @@ def test_markdown(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
 
         @given('I have a foo fixture with value "foo"', target_fixture="foo")
         def foo():

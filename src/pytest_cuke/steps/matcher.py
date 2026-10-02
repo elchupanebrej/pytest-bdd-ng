@@ -1,0 +1,136 @@
+from __future__ import annotations
+
+from contextlib import suppress
+from typing import TYPE_CHECKING
+from warnings import warn
+
+from pytest_cuke.const import Steps
+from pytest_cuke.model.step import StepType
+from pytest_cuke.steps.types import _parser_specificity, _step_text
+from pytest_cuke.warning_types import PytestBDDStepDefinitionWarning
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator, Sequence
+
+    from pytest_cuke.compatibility.pytest import Config, FixtureRequest
+    from pytest_cuke.model.feature import Feature
+    from pytest_cuke.model.scenario import Scenario
+    from pytest_cuke.model.step import Step
+    from pytest_cuke.steps.definition import Definition
+    from pytest_cuke.steps.registry import Registry
+
+
+class Matcher:
+    class MatchNotFoundError(RuntimeError):
+        pass
+
+    def __init__(self, config: Config) -> None:
+        self.config = config
+        self.request: FixtureRequest = None  # type: ignore[assignment]
+        self.feature: Feature = None  # type: ignore[assignment]
+        self.scenario: Scenario = None  # type: ignore[assignment]
+        self.step: Step = None  # type: ignore[assignment]
+        self.previous_step: Step | None = None
+        self.step_registry: Registry = None  # type: ignore[assignment]
+        self.step_type_context: StepType | str | None = None
+
+    def __call__(
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Scenario,
+        step: Step,
+        previous_step: Step | None,
+        step_registry: Registry,
+    ) -> Definition:
+        self.request, self.feature, self.scenario = request, feature, scenario
+        self.step, self.previous_step, self.step_registry = step, previous_step, step_registry
+        step_type = self.step.type
+        if hasattr(step_type, "value"):
+            step_type_str = str(step_type.value).lower()
+        elif step_type is not None:
+            step_type_str = str(step_type).lower()
+        else:
+            step_type_str = ""
+
+        if step_type_str in ("context", "given"):
+            step_type = StepType.context
+        elif step_type_str in ("action", "when"):
+            step_type = StepType.action
+        elif step_type_str in ("outcome", "then"):
+            step_type = StepType.outcome
+        elif step_type_str in ("conjunction", "and", "but", "*"):
+            step_type = "Conjunction"
+        elif not step_type:
+            kw = (getattr(self.step, "keyword", "") or "").strip().lower()
+            if kw == "given":
+                step_type = StepType.context
+            elif kw == "when":
+                step_type = StepType.action
+            elif kw == "then":
+                step_type = StepType.outcome
+            elif kw in ("and", "but", "*"):
+                step_type = "Conjunction"
+            else:
+                step_type = StepType.unknown
+
+        if step_type in {StepType.context, StepType.action, StepType.outcome}:
+            self.step_type_context = step_type
+        elif self.step_type_context is None:
+            prev_type = getattr(previous_step, "type", None) if previous_step else None
+            self.step_type_context = (
+                prev_type if prev_type in {StepType.context, StepType.action, StepType.outcome} else StepType.context
+            )
+        matchers = (self.strict_matcher, self.unspecified_matcher, self.liberal_matcher)
+        matches = list(self.find_step_definition_matches(self.step_registry, matchers))
+        if matches:
+            if len(matches) > 1:
+                warn(PytestBDDStepDefinitionWarning(f"Alternative step definitions are found: {matches}"), stacklevel=2)
+            return matches[0]
+        raise self.MatchNotFoundError(_step_text(self.step))
+
+    def strict_matcher(self, defn: Definition) -> bool:
+        return defn.type_ == self.step_type_context and defn.parser.is_matching(self.request, _step_text(self.step))
+
+    def unspecified_matcher(self, defn: Definition) -> bool:
+        has_unk = ({self.step_type_context, defn.type_} & {StepType.unknown, "Unknown"}) != set()
+        return has_unk and defn.parser.is_matching(self.request, _step_text(self.step))
+
+    def liberal_matcher(self, defn: Definition) -> bool:
+        if defn.liberal is None:
+            cli_name = getattr(Steps.Cli.LIBERAL_OPTION, "value", str(Steps.Cli.LIBERAL_OPTION))
+            ini_name = getattr(Steps.Ini.LIBERAL_OPTION, "value", str(Steps.Ini.LIBERAL_OPTION))
+            opt = getattr(getattr(self.config, "option", None), cli_name, None)
+            if opt is None:
+                try:
+                    is_lib = getattr(self.config, "getini", lambda _: False)(ini_name)
+                except (ValueError, KeyError):
+                    is_lib = False
+            else:
+                is_lib = opt
+        else:
+            is_lib = defn.liberal
+        return all(
+            (
+                not self.unspecified_matcher(defn),
+                bool(is_lib),
+                defn.type_ != self.step_type_context,
+                defn.parser.is_matching(self.request, _step_text(self.step)),
+            )
+        )
+
+    @staticmethod
+    def find_step_definition_matches(
+        registry: Registry | None, matchers: Sequence[Callable[[Definition], bool]]
+    ) -> Iterator[Definition]:
+        if registry:
+            found = False
+            for matcher in matchers:
+                for d in sorted((x for x in registry if matcher(x)), key=_parser_specificity, reverse=True):
+                    found = True
+                    yield d
+                if found:
+                    break
+            if not found:
+                with suppress(AttributeError):
+                    yield from Matcher.find_step_definition_matches(registry.parent, matchers)

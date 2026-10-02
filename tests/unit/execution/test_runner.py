@@ -4,11 +4,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pytest_bdd import exceptions
-from pytest_bdd.model.feature import Feature
-from pytest_bdd.model.scenario import Scenario
-from pytest_bdd.model.step import Step
-from pytest_bdd.runner import ScenarioRunner, StepRunner
+from pytest_cuke import exceptions
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.step import Step
+from pytest_cuke.runner import ScenarioRunner, StepRunner
 
 
 def test_step_runner_inject_target_fixtures() -> None:
@@ -24,7 +24,7 @@ def test_step_runner_inject_target_fixtures() -> None:
 def test_step_runner_missing_step_definition_raises_not_found() -> None:
     runner = StepRunner()
     mock_request = MagicMock()
-    mock_request.config.hook.pytest_bdd_match_step_definition_to_step.side_effect = (
+    mock_request.config.hook.pytest_cuke_match_step_definition_to_step.side_effect = (
         exceptions.StepDefinitionNotFoundError("Not found")
     )
 

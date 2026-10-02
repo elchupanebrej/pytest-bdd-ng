@@ -22,7 +22,7 @@ def test_step_alias(testdir):
     testdir.makeconftest(
         # language=python
         f"""\
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
 
         @given("I have an empty list", target_fixture="results")
         def results():

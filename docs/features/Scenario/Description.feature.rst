@@ -12,7 +12,7 @@ Scenario:
 
 -  Given File "Description.feature" with content:
 
-   .. code:: gherkin
+   ::
 
       Feature:
         Scenario:
@@ -22,9 +22,9 @@ Scenario:
 
 -  And File "conftest.py" with content:
 
-   .. code:: python
+   ::
 
-      from pytest_bdd import given
+      from pytest_cuke import given
 
       @given('I check scenario description')
       def step(scenario):

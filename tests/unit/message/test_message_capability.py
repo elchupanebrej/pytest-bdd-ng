@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import messages
-from pytest_bdd.model.message_capability import (
+from pytest_cuke.model.message_capability import (
     MessageCapability,
     capability_is_relevant,
     classify_capability_relevance,
 )
-from pytest_bdd.model.message_extension import (
+from pytest_cuke.model.message_extension import (
     CONTROLLER_SINGULAR_PAYLOAD_KINDS,
     EXECUTION_PRESERVED_PAYLOAD_KINDS,
     STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS,
@@ -73,7 +73,7 @@ def test_message_extension_payload_helpers() -> None:
 
 
 def test_message_extension_pattern_and_lifecycle() -> None:
-    assert StepDefinitionPatternType.pytest_bdd_heuristic_expression.value == "PYTEST_BDD_HEURISTIC_EXPRESSION"
+    assert StepDefinitionPatternType.pytest_cuke_heuristic_expression.value == "PYTEST_BDD_HEURISTIC_EXPRESSION"
     assert StepDefinitionPatternType.regular_expression.value == "REGULAR_EXPRESSION"
 
     correlation = LifecycleCorrelation(

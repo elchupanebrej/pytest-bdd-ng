@@ -42,8 +42,8 @@
     ```
 * And File "conftest.py" with content:
     ```python
-    from pytest_bdd.compatibility.pytest import fail
-    from pytest_bdd import given
+    from pytest_cuke.compatibility.pytest import fail
+    from pytest_cuke import given
 
     @given('I produce passed test')
     def passing_step():
@@ -55,45 +55,35 @@
     ```
 
 ### Scenario:
-* When run pytest
-    | cli_args | -m | passed |
-    |----------|----|--------|
+* When I run pytest with arguments "-m passed"
 * Then pytest outcome must contain tests with statuses:
     | passed | failed |
     |--------|--------|
     | 1      | 0      |
 
 ### Scenario:
-* When run pytest
-    | cli_args | -m | failed |
-    |----------|----|--------|
+* When I run pytest with arguments "-m failed"
 * Then pytest outcome must contain tests with statuses:
     | passed | failed |
     |--------|--------|
     | 0      | 1      |
 
 ### Scenario:
-* When run pytest
-    | cli_args | -m | passed or failed |
-    |----------|----|------------------|
+* When I run pytest with arguments "-m 'passed or failed'"
 * Then pytest outcome must contain tests with statuses:
     | passed | failed |
     |--------|--------|
     | 1      | 1      |
 
 ### Scenario:
-* When run pytest
-    | cli_args | -m | not both |
-    |----------|----|----------|
+* When I run pytest with arguments "-m 'not both'"
 * Then pytest outcome must contain tests with statuses:
     | passed | failed |
     |--------|--------|
     | 1      | 1      |
 
 ### Scenario:
-* When run pytest
-    | cli_args | -m | both |
-    |----------|----|------|
+* When I run pytest with arguments "-m both"
 * Then pytest outcome must contain tests with statuses:
     | passed | failed |
     |--------|--------|

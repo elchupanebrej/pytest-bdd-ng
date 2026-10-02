@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from pytest_bdd.cucumber_json import (
+from pytest_cuke.cucumber_json import (
     LogBDDCucumberJSON,
     add_options,
     configure,
@@ -16,17 +16,16 @@ def test_add_options() -> None:
     parser.getgroup.return_value = group
 
     add_options(parser)
-    parser.getgroup.assert_called_once_with("bdd", "Cucumber JSON")
+    parser.getgroup.assert_called_once_with("cuke", "Cucumber JSON")
     group.addoption.assert_called_once()
     args, kwargs = group.addoption.call_args
-    assert "--cucumberjson" in args
-    assert "--cucumber-json" in args
-    assert kwargs["dest"] == "cucumber_json_path"
+    assert "--cuke-json" in args
+    assert kwargs["dest"] == "cuke_json"
 
 
 def test_configure_and_unconfigure() -> None:
     config = MagicMock()
-    config.option.cucumber_json_path = "report.json"
+    config.option.cuke_json = "report.json"
     del config.workerinput  # simulate master process
 
     configure(config)
