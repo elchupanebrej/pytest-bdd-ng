@@ -7,6 +7,12 @@ Features
 
 
 
+mypy-runtime-gate
+-----------------
+
+.. include:: ../features/mypy-runtime-gate.feature
+   :code: gherkin
+
 pytest-cuke-bootstrap
 ---------------------
 
@@ -109,6 +115,15 @@ gathering
 
 .. include:: features/report/gathering.feature.rst
 
+heading-validation
+------------------
+
+semantic-heading-validation
+###########################
+
+.. include:: ../features/heading-validation/semantic-heading-validation.feature
+   :code: gherkin
+
 feature
 -------
 
@@ -140,6 +155,11 @@ autoload
 
 .. include:: features/feature/load/autoload.feature.rst
 
+external-examples
+!!!!!!!!!!!!!!!!!
+
+.. include:: features/feature/load/external-examples.feature.rst
+
 scenario-function-loader
 !!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -154,8 +174,3 @@ scenario-search-from-base-url
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 .. include:: features/feature/load/scenario-search-from-base-url.feature.rst
-
-external-examples
-!!!!!!!!!!!!!!!!!
-
-.. include:: features/feature/load/external-examples.feature.rst

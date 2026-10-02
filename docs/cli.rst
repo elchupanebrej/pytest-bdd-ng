@@ -14,9 +14,39 @@ For example, feature autoload can be selected with ``--cuke-autoload`` and the
 feature root can be changed with ``--cuke-features-dir=features``.
 
 The built-in commands are ``validate <features-dir>``, ``generate steps``, and
-``convert allure``. The ``validate`` command requires exactly one feature
-directory argument. These commands are reserved in this release and return a
-non-zero exit status with an explicit not-implemented message.
+``convert allure``. ``validate`` recursively scans ``.feature``, ``.gherkin``,
+``.feature.md`` and ``.gherkin.md`` files using the same parser registry as
+feature collection. It checks parsed Feature, Scenario and Scenario Outline
+titles after trimming whitespace. Empty Background and Rule titles are not
+part of this policy.
+
+.. code-block:: console
+
+   cuke validate features
+   cuke validate features --include-pattern '**/*.feature.md' --json
+   cuke validate features --baseline-audit --json
+   cuke validate features --policy --json
+
+Repeat ``--include-pattern`` to select multiple glob patterns. Matching files
+are deduplicated and sorted by normalized path before scanning. A normal scan
+returns non-zero when a title violates the policy. Add
+``--no-fail-on-violation`` for advisory output with the same findings and a
+zero status. ``--baseline-audit`` emits the compact compliance record, while
+``--policy`` emits the active policy payload. Both ``--json`` modes retain
+stable field names and violation code ``EMPTY_HEADING_TITLE``; run timestamps
+and IDs vary by invocation.
+
+An empty discovery is a valid scan with zero documents. An invalid root, file
+read failure, or Gherkin parse failure returns non-zero and a structured error
+when JSON output is selected.
+
+Feature collection can reject the same violations before any scenario steps
+run by enabling ``--cuke-strict`` or ``cuke_strict = true`` in pytest
+configuration. It is opt-in and defaults to false, so ordinary collection
+does not change when the validation policy is installed.
+
+The ``generate steps`` and ``convert allure`` commands remain reserved and
+return a non-zero exit status with an explicit not-implemented message.
 
 Registering command extensions
 ------------------------------

@@ -446,7 +446,7 @@ Feature: Installed pytest-cuke product bootstrap
       | pytest-cuke |
       | cuke        |
 
-  Scenario: Standalone dispatchers show commands and reject unimplemented work honestly
+  Scenario: Standalone dispatchers expose validation and reserve remaining work honestly
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     When I run command "cuke" with arguments "--help"
     Then the command should exit with code 0
@@ -462,10 +462,191 @@ Feature: Installed pytest-cuke product bootstrap
     And the command output should require a feature directory
     When I run command "cuke" with arguments "validate consumer-features"
     Then the command should exit with a non-zero code
-    And the unimplemented command should report that it is not implemented
+    And the command output should contain "invalid feature root"
     When I run command "cuke" with arguments "generate steps"
     Then the command should exit with a non-zero code
     And the unimplemented command should report that it is not implemented
     When I run command "cuke" with arguments "convert allure"
     Then the command should exit with a non-zero code
     And the unimplemented command should report that it is not implemented
+
+  Scenario: Heading validation scans parsed Gherkin and reports stable baseline data
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    # The consumer file step expands this marker to three spaces.
+    And consumer file "features/empty.feature" has content:
+      ```
+      Feature: {WHITESPACE_TITLE}
+        # Scenario: this comment is not a heading
+        Background:
+          Given a background step
+        Scenario: {WHITESPACE_TITLE}
+          Given a note:
+            """
+            Feature:
+            Scenario:
+            """
+      Scenario: Quoted words in step text are not headings
+        Given a quoted example contains "Feature:" and "Scenario:"
+      ```
+    And consumer file "features/nested.gherkin" has content:
+      """
+      Feature: Outline aliases and nested rules
+        Rule:
+          Scenario Template:
+            Given a value <value>
+            Examples:
+              | value |
+              | ready |
+      """
+    And consumer file "features/markdown.feature.md" has content:
+      """
+      # Feature:
+      ## Scenario: Unicode café
+      * Given this step is only parsed
+
+      ```gherkin
+      Feature:
+        Scenario:
+          Given fenced text must not be parsed
+      ```
+      """
+    And consumer file "features/markdown.gherkin.md" has content:
+      """
+      # Feature: Valid markdown Gherkin
+      ## Scenario:
+      * Given this step is only parsed
+      """
+    When I run command "cuke" with arguments "validate features --include-pattern **/*.feature --include-pattern **/*.feature --include-pattern **/*.gherkin --include-pattern **/*.feature.md --include-pattern **/*.gherkin.md --json"
+    Then the command should exit with a non-zero code
+    And the command JSON should include:
+      """
+      {
+        "documents_scanned": 4,
+        "status": "fail",
+        "violations": [
+          {"path": "empty.feature", "line": 1, "heading_type": "feature", "code": "EMPTY_HEADING_TITLE", "raw_name": ""},
+          {"path": "empty.feature", "line": 5, "heading_type": "scenario", "code": "EMPTY_HEADING_TITLE", "raw_name": ""},
+          {"path": "markdown.feature.md", "line": 1, "heading_type": "feature", "code": "EMPTY_HEADING_TITLE", "raw_name": ""},
+          {"path": "markdown.gherkin.md", "line": 2, "heading_type": "scenario", "code": "EMPTY_HEADING_TITLE", "raw_name": ""},
+          {"path": "nested.gherkin", "line": 3, "heading_type": "scenario_outline", "code": "EMPTY_HEADING_TITLE", "raw_name": ""}
+        ]
+      }
+      """
+    And the regular heading scan findings are stored
+    When I run command "cuke" with arguments "validate features --include-pattern **/*.feature --include-pattern **/*.feature --include-pattern **/*.gherkin --include-pattern **/*.feature.md --include-pattern **/*.gherkin.md --json --no-fail-on-violation"
+    Then the command should exit with code 0
+    And the advisory heading scan should preserve the regular findings
+    When I run command "cuke" with arguments "validate features --include-pattern **/*.feature --include-pattern **/*.feature --include-pattern **/*.gherkin --include-pattern **/*.feature.md --include-pattern **/*.gherkin.md --json --baseline-audit"
+    Then the command should exit with a non-zero code
+    And the command JSON should include:
+      """
+      {
+        "policy_id": "feature-heading-policy-v1",
+        "violations_count": 5,
+        "compliant": false
+      }
+      """
+    And the baseline audit should preserve identity fields
+    When I run command "cuke" with arguments "validate features --policy --json"
+    Then the command should exit with code 0
+    And the command JSON should include:
+      """
+      {
+        "policy_id": "feature-heading-policy-v1",
+        "enforced_heading_types": ["feature", "scenario", "scenario_outline"],
+        "trim_whitespace": true,
+        "empty_name_is_violation": true,
+        "snippet_text_excluded": true
+      }
+      """
+    Given consumer file "compliant/valid.feature" has content:
+      """
+      Feature: Checked baseline
+        Scenario: A useful title
+      """
+    When I run command "cuke" with arguments "validate compliant --baseline-audit --json"
+    Then the command should exit with code 0
+    And the command JSON should include:
+      """
+      {
+        "policy_id": "feature-heading-policy-v1",
+        "violations_count": 0,
+        "compliant": true
+      }
+      """
+    And the baseline audit should preserve identity fields
+
+  Scenario: Heading validation distinguishes invalid roots and syntax errors from empty discovery
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    When I run command "cuke" with arguments "validate missing-features --json"
+    Then the command should exit with a non-zero code
+    And the command output should contain "invalid feature root"
+    Given consumer directory "empty-discovery" exists
+    When I run command "cuke" with arguments "validate empty-discovery --include-pattern **/*.feature --json"
+    Then the command should exit with code 0
+    And the command JSON should include:
+      """
+      {"documents_scanned": 0, "violations": [], "status": "pass"}
+      """
+    Given consumer file "features/broken.feature" has content:
+      """
+      Feature: Broken
+        Scenario: broken syntax
+          Given a step
+          Invalid syntax without keyword
+      """
+    When I run command "cuke" with arguments "validate features --json"
+    Then the command should exit with a non-zero code
+    And the command output should contain "parse error"
+    And the command output should contain "features/broken.feature"
+    Given consumer file "io-error/invalid.feature" has invalid UTF-8 content
+    When I run command "cuke" with arguments "validate io-error --json"
+    Then the command should exit with a non-zero code
+    And the command output should contain "io_error"
+    And the command output should contain "io-error/invalid.feature"
+
+  Scenario: Strict autoload rejects an empty parsed heading before a step can run
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "features/strict.feature" has content:
+      """
+      Feature: Strict title validation
+        Scenario:
+          Given record that the feature step ran
+      """
+    And consumer file "conftest.py" has content:
+      """
+      from pathlib import Path
+
+      from pytest_cuke import given
+
+      @given("record that the feature step ran")
+      def record_feature_step():
+          Path("step-ran.txt").write_text("ran", encoding="utf-8")
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-features-dir=features --cuke-autoload --cuke-strict"
+    Then pytest should exit with a non-zero code
+    And pytest output should contain "EMPTY_HEADING_TITLE"
+    And pytest output should contain "strict.feature:2"
+    And the consumer file "step-ran.txt" should not exist
+
+  Scenario: Non-strict autoload keeps heading policy opt-in
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "features/non-strict.feature" has content:
+      """
+      Feature: Non-strict title validation
+        Scenario:
+          Given record that the feature step ran
+      """
+    And consumer file "conftest.py" has content:
+      """
+      from pathlib import Path
+
+      from pytest_cuke import given
+
+      @given("record that the feature step ran")
+      def record_feature_step():
+          Path("step-ran.txt").write_text("ran", encoding="utf-8")
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-features-dir=features --cuke-autoload"
+    Then pytest should exit with code 0
+    And the consumer file "step-ran.txt" should exist

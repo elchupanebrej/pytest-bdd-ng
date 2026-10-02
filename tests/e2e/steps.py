@@ -57,6 +57,7 @@ class ConsumerProject:
     artifact: Path
     pytest_result: subprocess.CompletedProcess[str] | None = None
     command_result: subprocess.CompletedProcess[str] | None = None
+    validation_findings: list[dict[str, object]] | None = None
 
 
 @fixture(scope="session")
@@ -615,6 +616,100 @@ def consumer_command_exit_nonzero(consumer: ConsumerProject):
     result = consumer.command_result
     assert result is not None, "a standalone command has not been run in this consumer"
     assert result.returncode != 0, f"unexpected command success:\n{result.stdout}\n{result.stderr}"
+
+
+@given(re.compile(r'consumer file "(?P<relative_path>[^\"]+)" has content:'))
+def write_consumer_file_with_content(relative_path: str, consumer: ConsumerProject, step) -> None:
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    target = consumer.path / destination
+    target.parent.mkdir(parents=True, exist_ok=True)
+    content = step.doc_string.content.replace("{WHITESPACE_TITLE}", "   ")
+    target.write_text(content, encoding="utf-8")
+
+
+@given(re.compile(r'consumer file "(?P<relative_path>[^\"]+)" has invalid UTF-8 content'))
+def write_consumer_file_with_invalid_utf8(relative_path: str, consumer: ConsumerProject) -> None:
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    target = consumer.path / destination
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"Feature: Invalid encoding\n\xff")
+
+
+@then("the command JSON should include:")
+def consumer_command_json_includes(consumer: ConsumerProject, step) -> None:
+    result = consumer.command_result
+    assert result is not None, "a standalone command has not been run in this consumer"
+    actual = json.loads(result.stdout)
+    expected = json.loads(step.doc_string.content)
+
+    def assert_subset(expected_value: object, actual_value: object) -> None:
+        if isinstance(expected_value, dict):
+            assert isinstance(actual_value, dict)
+            for key, value in expected_value.items():
+                assert key in actual_value, f"JSON result has no {key!r}: {actual_value}"
+                assert_subset(value, actual_value[key])
+        elif isinstance(expected_value, list):
+            assert isinstance(actual_value, list)
+            assert len(actual_value) == len(expected_value), (expected_value, actual_value)
+            for expected_item, actual_item in zip(expected_value, actual_value, strict=True):
+                assert_subset(expected_item, actual_item)
+        else:
+            assert actual_value == expected_value, (expected_value, actual_value)
+
+    assert_subset(expected, actual)
+
+
+@then("the regular heading scan findings are stored")
+def store_regular_heading_scan_findings(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a standalone command has not been run in this consumer"
+    consumer.validation_findings = json.loads(result.stdout)["violations"]
+
+
+@then("the advisory heading scan should preserve the regular findings")
+def advisory_heading_scan_preserves_findings(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a standalone command has not been run in this consumer"
+    assert consumer.validation_findings is not None, "the regular heading scan has not been stored"
+    actual_findings = json.loads(result.stdout)["violations"]
+    assert actual_findings == consumer.validation_findings
+
+
+@then("the baseline audit should preserve identity fields")
+def baseline_audit_preserves_identity_fields(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a standalone command has not been run in this consumer"
+    payload = json.loads(result.stdout)
+    assert payload["policy_id"] == "feature-heading-policy-v1"
+    assert payload["run_id"].startswith("heading-scan-")
+    assert payload["record_id"] == f"baseline-audit-{payload['run_id']}"
+
+
+@then(re.compile(r'the command output should contain "(?P<expected>[^\"]+)"'))
+def consumer_command_output_contains(expected: str, consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a standalone command has not been run in this consumer"
+    assert expected.lower() in f"{result.stdout}\n{result.stderr}".lower()
+
+
+@then(re.compile(r'pytest output should contain "(?P<expected>[^\"]+)"'))
+def consumer_pytest_output_contains(expected: str, consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    assert expected.lower() in f"{result.stdout}\n{result.stderr}".lower()
+
+
+@then(re.compile(r'the consumer file "(?P<relative_path>[^\"]+)" should (?P<state>exist|not exist)'))
+def consumer_file_existence(relative_path: str, state: str, consumer: ConsumerProject) -> None:
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    exists = (consumer.path / destination).exists()
+    assert exists is (state == "exist"), f"consumer file {relative_path!r} exists={exists}"
 
 
 @then("the command output should identify the installed pytest-cuke version")
