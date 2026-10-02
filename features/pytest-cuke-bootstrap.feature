@@ -34,6 +34,7 @@ Feature: Installed pytest-cuke product bootstrap
       """
     When I run installed pytest with arguments "--rootdir=. test_public_api.py -q"
     Then pytest should exit with code 0
+    And the installed distribution archive excludes harness and test assets
 
     Examples:
       | distribution     |

@@ -37,11 +37,11 @@ def test_scenario_decorator_validation() -> None:
 
 
 def test_scenario_and_scenarios_returns_test() -> None:
-    test_fn = scenarios("tests/feature/test.feature", return_test_decorator=False)
+    test_fn = scenarios("tests/integration/features/test.feature", return_test_decorator=False)
     assert callable(test_fn)
     assert hasattr(test_fn, "pytestmark")
 
-    decorator = scenario("tests/feature/test.feature", return_test_decorator=True)
+    decorator = scenario("tests/integration/features/test.feature", return_test_decorator=True)
     assert callable(decorator)
 
     @decorator
