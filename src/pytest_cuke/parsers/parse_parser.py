@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, cast
 
 import parse as base_parse
 import parse_type.cfparse as base_cfparse
@@ -12,19 +10,29 @@ from pytest_cuke.parsers.base import ParserBuildValueError, StepParser, register
 from pytest_cuke.utils import StringableProtocol, stringify
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable
+    from collections.abc import Callable, Collection, Iterable
+    from re import Pattern
 
     from pytest_cuke.compatibility.pytest import FixtureRequest
 
-_ParserBuilder: TypeAlias = Callable[..., base_parse.Parser]
+    class _ParseParserProtocol(Protocol):
+        _format: str
+        _match_re: Pattern[str]
+
+        def parse(self, value: str) -> Any: ...
+
+    _ParserBuilder: TypeAlias = Callable[..., _ParseParserProtocol]
 
 
 class parse(StepParser):
     type = StepDefinitionPatternType.pytest_cuke_parse_expression
 
-    @singledispatchmethod
     def __init__(self, format_: object, *args: object, **kwargs: object) -> None:
-        if isinstance(format_, StringableProtocol | str | bytes):
+        if isinstance(format_, base_parse.Parser):
+            parser = cast("_ParseParserProtocol", format_)
+            self.format = parser._format
+            self.parser = parser
+        elif isinstance(format_, StringableProtocol | str | bytes):
             builder = cast("_ParserBuilder", kwargs.pop("builder", base_parse.compile))
             self._init_stringable(format_, *args, builder=builder, **kwargs)
         else:
@@ -34,20 +42,17 @@ class parse(StepParser):
         self,
         format_: StringableProtocol | str | bytes,
         *args: object,
-        builder: _ParserBuilder = base_parse.compile,
+        builder: _ParserBuilder | None = None,
         **kw: object,
     ) -> None:
         self.format = stringify(format_)
-        self.parser = cast("base_parse.Parser", builder(self.format, *args, **kw))
-
-    @__init__.register
-    def _(self, format_: base_parse.Parser) -> None:
-        self.format, self.parser = format_._format, format_
+        parser_builder = builder or cast("_ParserBuilder", base_parse.compile)
+        self.parser = parser_builder(self.format, *args, **kw)
 
     @classmethod
     def cfparse(cls, *args: object, **kwargs: object) -> parse:
         kwargs.setdefault("builder", base_cfparse.Parser)
-        return cast("parse", cls(*args, **kwargs))
+        return cls(*args, **kwargs)
 
     def parse_arguments(
         self, request: FixtureRequest, name: str, anonymous_group_names: Iterable[str] | None = None

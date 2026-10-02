@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import messages
 from pytest_cuke.model.message_extension import has_single_payload
@@ -275,12 +275,12 @@ def make_test_step_finished(
     return messages.Envelope(test_step_finished=payload)
 
 
-def envelope_to_dict(message: messages.Envelope) -> dict:
+def envelope_to_dict(message: messages.Envelope) -> dict[str, Any]:
     validate_envelope_shape(message)
     return message.model_dump(mode="json", exclude_none=True, by_alias=True)
 
 
-def envelope_from_dict(payload: dict) -> messages.Envelope:
+def envelope_from_dict(payload: dict[str, Any]) -> messages.Envelope:
     env = messages.Envelope.model_validate(payload)
     validate_envelope_shape(env)
     return env

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 from attrs import define, field
 
@@ -84,13 +84,13 @@ class StashAccess:
                 actual_type=type(candidate).__name__,
                 expected_type=stash_type.__name__,
             )
-        return candidate
+        return cast("B", candidate)
 
     @classmethod
     def require(cls, stash: Any, stash_type: type[B] | StashKey[B] | Any, *, missing_message: str) -> B:
         candidate = cls.get_optional(stash, stash_type)
         if candidate is not None:
-            return candidate
+            return cast("B", candidate)
         raise PytestBDDStashLookupError(missing_message)
 
     @classmethod

@@ -21,26 +21,36 @@ from pytest_cuke.utils import DefaultMapping, get_args
 
 if TYPE_CHECKING:
     from collections import deque
-    from collections.abc import Iterator
-
-    from pluggy import PluginManager
+    from collections.abc import Callable, Iterator
 
     from pytest_cuke.model.feature import Feature
     from pytest_cuke.model.scenario import Scenario
+    from pytest_cuke.model.step import Step
+    from pytest_cuke.steps.definition import Definition
 
 
 class StepRunner:
     """Handles execution of individual steps in a scenario."""
 
-    def match_to_step(self, request: FixtureRequest, feature: Any, scenario: Any, step: Any, previous_step: Any):
+    def match_to_step(
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Scenario,
+        step: Step,
+        previous_step: Step | None,
+    ) -> Definition:
         __tracebackhide__ = True
         try:
-            return request.config.hook.pytest_cuke_match_step_definition_to_step(
-                request=request,
-                feature=feature,
-                scenario=scenario,
-                step=step,
-                previous_step=previous_step,
+            return cast(
+                "Definition",
+                request.config.hook.pytest_cuke_match_step_definition_to_step(
+                    request=request,
+                    feature=feature,
+                    scenario=scenario,
+                    step=step,
+                    previous_step=previous_step,
+                ),
             )
         except (Matcher.MatchNotFoundError, StepDefinitionManager.Matcher.MatchNotFoundError) as e:
             step_text = getattr(step, "name", getattr(step, "text", str(step)))
@@ -57,7 +67,10 @@ class StepRunner:
             ) from e
 
     def inject_step_parameters_as_fixtures(
-        self, request: FixtureRequest, step_params: dict | None = None, params_fixtures_mapping: dict | None = None
+        self,
+        request: FixtureRequest,
+        step_params: dict[str, Any] | None = None,
+        params_fixtures_mapping: dict[str, str | None] | None = None,
     ) -> None:
         step_params = step_params or {}
         params_fixtures_mapping = (
@@ -73,7 +86,7 @@ class StepRunner:
             inject_fixture(request, fixture_name, step_params[param])
 
     def get_step_function_kwargs(
-        self, request: FixtureRequest, step: Any, step_definition: Any, step_params: dict
+        self, request: FixtureRequest, step: Step, step_definition: Definition, step_params: dict[str, Any]
     ) -> Iterator[tuple[str, Any]]:
         for param in get_args(step_definition.func):
             try:
@@ -84,7 +97,7 @@ class StepRunner:
                 except KeyError:
                     yield param, request.getfixturevalue(param)
 
-    def inject_target_fixtures(self, request: FixtureRequest, step_definition: Any, step_result: Any) -> None:
+    def inject_target_fixtures(self, request: FixtureRequest, step_definition: Definition, step_result: Any) -> None:
         target_fixtures = getattr(step_definition, "target_fixtures", [])
         if len(target_fixtures) == 1:
             injectable_fixtures = [(target_fixtures[0], step_result)]
@@ -96,7 +109,14 @@ class StepRunner:
         for target_fixture, return_value in injectable_fixtures:
             inject_fixture(request, target_fixture, return_value)
 
-    def run_step(self, request: FixtureRequest, feature: Any, scenario: Any, step: Any, previous_step: Any) -> Any:
+    def run_step(
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Scenario,
+        step: Step,
+        previous_step: Step | None,
+    ) -> Any:
         __tracebackhide__ = True
         hook_kwargs: dict[str, Any] = {
             "request": request,
@@ -160,11 +180,11 @@ class ScenarioRunner:
         self.step_runner = step_runner or StepRunner()
         self.request: FixtureRequest | None = None
         self.feature: Feature | None = None
-        self.scenario = None
-        self.plugin_manager: PluginManager | None = None
+        self.scenario: Scenario | None = None
+        self.plugin_manager: Any = None
 
     @hookimpl(tryfirst=True)
-    def pytest_runtest_call(self, item: Item):
+    def pytest_runtest_call(self, item: Item) -> None:
         __tracebackhide__ = True
         if "pytest_cuke_scenario" in list(map(attrgetter("name"), item.iter_markers())):
             self.request = item._request
@@ -172,35 +192,36 @@ class ScenarioRunner:
             self.scenario = self.request.getfixturevalue("scenario")
             if self.feature is None or self.scenario is None:
                 return
-            self.plugin_manager = cast("PluginManager", self.request.config.hook)
-            self.plugin_manager.pytest_cuke_before_scenario(  # type: ignore[attr-defined]
+            self.plugin_manager = self.request.config.hook
+            self.plugin_manager.pytest_cuke_before_scenario(
                 request=self.request, feature=self.feature, scenario=self.scenario
             )
             try:
-                self.plugin_manager.pytest_cuke_run_scenario(  # type: ignore[attr-defined]
+                self.plugin_manager.pytest_cuke_run_scenario(
                     request=self.request,
                     feature=self.feature,
                     scenario=self.scenario,
                 )
             finally:
-                self.plugin_manager.pytest_cuke_after_scenario(  # type: ignore[attr-defined]
+                self.plugin_manager.pytest_cuke_after_scenario(
                     request=self.request, feature=self.feature, scenario=self.scenario
                 )
 
             # Allow test function to use updated fixtures directly
             fixturenames = getattr(item, "fixturenames", [])
             for argname in fixturenames:
-                item.funcargs[argname] = item._request.getfixturevalue(argname)  # type: ignore[attr-defined]
+                item.funcargs[argname] = item._request.getfixturevalue(argname)  # type: ignore[attr-defined]  # Pytest populates this private request for late fixture injection.
 
-    def pytest_cuke_run_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario):
+    def pytest_cuke_run_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario) -> Any:
         """Execute the scenario steps."""
         __tracebackhide__ = True
-        steps: deque = request.getfixturevalue("steps_left")
-        bg_steps = (
-            scenario.background.steps
-            if getattr(scenario, "background", None)
-            else (feature.background.steps if (feature and getattr(feature, "background", None)) else ())
-        )
+        steps: deque[Step] = request.getfixturevalue("steps_left")
+        scenario_background = scenario.background
+        if scenario_background is not None:
+            bg_steps = scenario_background.steps
+        else:
+            feature_background = feature.background
+            bg_steps = feature_background.steps if feature_background is not None else ()
         all_steps = tuple(bg_steps) + tuple(getattr(scenario, "steps", ()))
         steps.extend(all_steps)
         step_dispatcher = request.config.hook.pytest_cuke_get_step_dispatcher(
@@ -209,11 +230,13 @@ class ScenarioRunner:
         return step_dispatcher(steps)
 
     @hookimpl(trylast=True)
-    def pytest_cuke_get_step_dispatcher(self, request: FixtureRequest, feature: Feature, scenario: Scenario):
+    def pytest_cuke_get_step_dispatcher(
+        self, request: FixtureRequest, feature: Feature, scenario: Scenario
+    ) -> Callable[[deque[Step]], None]:
         """Provide default step dispatcher."""
         __tracebackhide__ = True
 
-        def dispatcher(left_steps):
+        def dispatcher(left_steps: deque[Step]) -> None:
             __tracebackhide__ = True
             previous_step = None
             while left_steps:
@@ -224,13 +247,13 @@ class ScenarioRunner:
                     scenario=scenario,
                     step=step,
                     previous_step=previous_step,
-                )  # type: ignore[call-arg]
+                )
                 previous_step = step
 
         return dispatcher
 
     @contextmanager
-    def extended_step_context(self, feature: Feature, scenario: Any, step: Any):
+    def extended_step_context(self, feature: Feature, scenario: Scenario, step: Step) -> Iterator[None]:
         try:
             if hasattr(step, "__dict__"):
                 if hasattr(feature, "_get_step_doc_string"):
@@ -241,9 +264,10 @@ class ScenarioRunner:
                     step.__dict__["keyword"] = feature._get_step_keyword(step)
                 if hasattr(feature, "_get_step_line_number"):
                     step.__dict__["line_number"] = feature._get_step_line_number(step)
-            has_reg = hasattr(scenario, "__dict__") and hasattr(feature, "registry")
-            if has_reg and getattr(scenario, "ast_node_ids", None):
-                scenario.__dict__["description"] = feature.registry[scenario.ast_node_ids[0]].description
+            registry = getattr(feature, "registry", None)
+            ast_node_ids = getattr(scenario, "ast_node_ids", None)
+            if registry is not None and ast_node_ids and hasattr(scenario, "__dict__"):
+                scenario.__dict__["description"] = registry[ast_node_ids[0]].description
             yield
         finally:
             if hasattr(step, "__dict__"):
@@ -258,34 +282,51 @@ class ScenarioRunner:
         self,
         request: FixtureRequest,
         feature: Feature,
-        scenario: Any,
-        step: Any,
-        previous_step: Any,
-    ):
+        scenario: Scenario,
+        step: Step,
+        previous_step: Step | None,
+    ) -> Any:
         __tracebackhide__ = True
         with self.extended_step_context(feature, scenario, step):
             return self.step_runner.run_step(request, feature, scenario, step, previous_step)
 
     @hookimpl(trylast=True)
-    def pytest_cuke_get_step_caller(self, request, feature, scenario, step, step_func, step_func_args, step_definition):
+    def pytest_cuke_get_step_caller(
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Scenario,
+        step: Step,
+        step_func: Any,
+        step_func_args: dict[str, Any],
+        step_definition: Definition,
+    ) -> Callable[[], Any]:
         return partial(call_fixture_func, fixturefunc=step_definition.func, request=request, kwargs=step_func_args)
 
-    def _inject_step_parameters_as_fixtures(self, step_params=None, params_fixtures_mapping=None):
+    def _inject_step_parameters_as_fixtures(
+        self,
+        step_params: dict[str, Any] | None = None,
+        params_fixtures_mapping: dict[str, str | None] | None = None,
+    ) -> None:
         return self.step_runner.inject_step_parameters_as_fixtures(
             cast("FixtureRequest", self.request), step_params, params_fixtures_mapping
         )
 
-    def _get_step_function_kwargs(self, step, step_definition, step_params):
+    def _get_step_function_kwargs(
+        self, step: Step, step_definition: Definition, step_params: dict[str, Any]
+    ) -> Iterator[tuple[str, Any]]:
         return self.step_runner.get_step_function_kwargs(
             cast("FixtureRequest", self.request), step, step_definition, step_params
         )
 
-    def _inject_target_fixtures(self, step_definition, step_result):
+    def _inject_target_fixtures(self, step_definition: Definition, step_result: Any) -> None:
         return self.step_runner.inject_target_fixtures(
             cast("FixtureRequest", self.request), step_definition, step_result
         )
 
-    def _match_to_step(self, step, previous_step):
+    def _match_to_step(self, step: Step, previous_step: Step | None) -> Definition:
+        if self.feature is None or self.scenario is None:
+            raise RuntimeError("ScenarioRunner has no active feature and scenario.")
         return self.step_runner.match_to_step(
             cast("FixtureRequest", self.request), self.feature, self.scenario, step, previous_step
         )

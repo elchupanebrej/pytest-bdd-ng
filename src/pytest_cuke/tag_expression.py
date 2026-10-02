@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 from attrs import frozen
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 
 @runtime_checkable
@@ -25,7 +25,8 @@ class TagExpression:
         if not cleaned:
             return cls(expression_str="", compiled=None)
         try:
-            compiled = TagExpressionParser.parse(cleaned)
+            parse_expression = cast("Callable[[str], TagExpressionProtocol]", TagExpressionParser.parse)
+            compiled = parse_expression(cleaned)
             return cls(expression_str=cleaned, compiled=compiled)
         except TagExpressionError as e:
             raise ValueError(f"Unable to parse tag expression: {expression}: {e}") from e

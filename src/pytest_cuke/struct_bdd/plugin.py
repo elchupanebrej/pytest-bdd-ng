@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import suppress
 from functools import partial
 from inspect import getmembers
@@ -30,7 +31,7 @@ class StructBDDPlugin:
 
     def pytest_cuke_get_parser(self, config: Config, mimetype: str) -> Any:
         with suppress(KeyError):
-            return partial(  # type:ignore[call-arg]
+            return partial(
                 StructBDDParser,
                 kind={
                     Mimetype.struct_bdd_yaml.value: StructBDDParser.KIND.YAML.value,
@@ -55,7 +56,7 @@ class StructBDDPlugin:
                 return True
         return None
 
-    def _pytest_pycollect_makemodule(self) -> Any:
+    def _pytest_pycollect_makemodule(self) -> Generator[Any, Any, Any]:
         outcome = yield
         res = outcome.get_result()
         if isinstance(res, Module):
@@ -63,14 +64,18 @@ class StructBDDPlugin:
                 if isinstance(member, StepPrototype) and member_name.startswith("test_"):
                     setattr(res.module, member_name, member.as_test(res.module.__file__))
 
-    if PYTEST7:
 
-        @pytest.hookimpl(hookwrapper=True)
-        def pytest_pycollect_makemodule(self, parent: Any, module_path: Any) -> Any:
-            yield from self._pytest_pycollect_makemodule()
+def _pytest7_pycollect_makemodule(self: StructBDDPlugin, parent: Any, module_path: Any) -> Generator[Any, Any, Any]:
+    yield from self._pytest_pycollect_makemodule()
 
-    else:
 
-        @pytest.hookimpl(hookwrapper=True)
-        def pytest_pycollect_makemodule(self, path: Any, parent: Any) -> Any:
-            yield from self._pytest_pycollect_makemodule()
+def _pytest_legacy_pycollect_makemodule(self: StructBDDPlugin, path: Any, parent: Any) -> Generator[Any, Any, Any]:
+    yield from self._pytest_pycollect_makemodule()
+
+
+_pytest_pycollect_makemodule_hook: Any
+_pytest_pycollect_makemodule_hook = _pytest7_pycollect_makemodule if PYTEST7 else _pytest_legacy_pycollect_makemodule
+
+_pytest_pycollect_makemodule_hook_name = "pytest_pycollect_makemodule"
+_decorated_hook = pytest.hookimpl(hookwrapper=True)(_pytest_pycollect_makemodule_hook)
+setattr(StructBDDPlugin, _pytest_pycollect_makemodule_hook_name, _decorated_hook)

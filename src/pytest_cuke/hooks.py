@@ -9,57 +9,89 @@ if TYPE_CHECKING:
     from io import BufferedIOBase, TextIOBase
     from pathlib import Path
 
-    from messages import Envelope as Message  # type:ignore[attr-defined, import-untyped]
-    from messages import Pickle  # type:ignore[attr-defined]
     from pytest_cuke.compatibility.pytest import Config, FixtureRequest, Mark
     from pytest_cuke.model import Feature
+    from pytest_cuke.model.message_extension import EventEnvelope as Message
+    from pytest_cuke.model.scenario import Scenario
+    from pytest_cuke.model.step import Step
 
 """Pytest-bdd pytest hooks."""
 
 
-def pytest_cuke_before_scenario(request, feature, scenario):
+def pytest_cuke_before_scenario(request: FixtureRequest, feature: Feature, scenario: Scenario) -> None:
     """Called before scenario is executed."""
 
 
-def pytest_cuke_run_scenario(request, feature, scenario):
+def pytest_cuke_run_scenario(request: FixtureRequest, feature: Feature, scenario: Scenario) -> Any:
     """Execution scenario protocol"""
 
 
-def pytest_cuke_after_scenario(request, feature, scenario):
+def pytest_cuke_after_scenario(request: FixtureRequest, feature: Feature, scenario: Scenario) -> None:
     """Called after scenario is executed."""
 
 
-def pytest_cuke_run_step(request, feature, scenario, step, previous_step):
+def pytest_cuke_run_step(
+    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, previous_step: Step | None
+) -> Any:
     """Execution of run step protocol"""
 
 
-def pytest_cuke_before_step(request, feature, scenario, step, step_func):
+def pytest_cuke_before_step(
+    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, step_func: Any
+) -> None:
     """Called before step function is set up."""
 
 
-def pytest_cuke_before_step_call(request, feature, scenario, step, step_func, step_func_args, step_definition):
+def pytest_cuke_before_step_call(
+    request: FixtureRequest,
+    feature: Feature,
+    scenario: Scenario,
+    step: Step,
+    step_func: Any,
+    step_func_args: tuple[Any, ...],
+    step_definition: Any,
+) -> None:
     """Called before step function is executed."""
 
 
-def pytest_cuke_after_step(request, feature, scenario, step, step_func, step_func_args, step_definition):
+def pytest_cuke_after_step(
+    request: FixtureRequest,
+    feature: Feature,
+    scenario: Scenario,
+    step: Step,
+    step_func: Any,
+    step_func_args: tuple[Any, ...],
+    step_definition: Any,
+) -> None:
     """Called after step function is successfully executed."""
 
 
-def pytest_cuke_step_error(request, feature, scenario, step, step_func, step_func_args, exception, step_definition):
+def pytest_cuke_step_error(
+    request: FixtureRequest,
+    feature: Feature,
+    scenario: Scenario,
+    step: Step,
+    step_func: Any,
+    step_func_args: tuple[Any, ...],
+    exception: Exception,
+    step_definition: Any,
+) -> None:
     """Called when step function failed to execute."""
 
 
-def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+def pytest_cuke_step_func_lookup_error(
+    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, exception: Exception
+) -> None:
     """Called when step lookup failed."""
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_apply_tag(tag, function):
+def pytest_cuke_apply_tag(tag: Any, function: Any) -> Any:
     """Apply a tag (from a .feature file) to the given test function."""
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_convert_tag_to_marks(feature, scenario, tag) -> Iterable[Mark] | None:
+def pytest_cuke_convert_tag_to_marks(feature: Feature, scenario: Scenario, tag: Any) -> Iterable[Mark] | None:
     """Apply a tag (from a .feature file) to the given test item.
 
     The default implementation does the equivalent of
@@ -69,43 +101,53 @@ def pytest_cuke_convert_tag_to_marks(feature, scenario, tag) -> Iterable[Mark] |
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_match_step_definition_to_step(request, feature, scenario, step, previous_step):
+def pytest_cuke_match_step_definition_to_step(
+    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, previous_step: Step | None
+) -> Any:
     """Find match between scenario step and user defined step function"""
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_get_step_caller(request, feature, scenario, step, step_func, step_func_args, step_definition):
+def pytest_cuke_get_step_caller(
+    request: FixtureRequest,
+    feature: Feature,
+    scenario: Scenario,
+    step: Step,
+    step_func: Any,
+    step_func_args: tuple[Any, ...],
+    step_definition: Any,
+) -> Any:
     """Provide alternative approach to execute step"""
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_get_step_dispatcher(request: FixtureRequest, feature: Feature, scenario: Pickle):
+def pytest_cuke_get_step_dispatcher(request: FixtureRequest, feature: Feature, scenario: Any) -> Any:
     """Provide alternative approach to execute scenario steps"""
 
 
-def pytest_cuke_message(config: Config, message: Message):
+def pytest_cuke_message(config: Config, message: Message) -> None:
     """Implement cucumber message protocol https://github.com/cucumber/messages"""
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_is_collectible(config: Config, path: Path):
+def pytest_cuke_is_collectible(config: Config, path: Path) -> bool | None:
     """Verifies if path could be collected by pytest_cuke"""
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_get_parser(config: Config, mimetype: str):
+def pytest_cuke_get_parser(config: Config, mimetype: str) -> Any:
     """Get parser for specific file path"""
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_get_mimetype(config: Config, path: Path):
+def pytest_cuke_get_mimetype(config: Config, path: Path) -> str | None:
     """Get parser for specific file path"""
 
 
 def pytest_cuke_attach(
     request: FixtureRequest,
-    attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase | Any,
+    attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase,
     media_type: str | None,
     file_name: str | None,
-):
+) -> None:
     """Internal hook to add attachment to a test case"""

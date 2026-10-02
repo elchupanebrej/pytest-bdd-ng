@@ -13,6 +13,7 @@ import sys
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, field
 from importlib.metadata import entry_points
+from typing import cast
 
 from pytest_cuke.packaging import get_distribution_version
 
@@ -178,7 +179,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     program = "pytest-cuke" if "pytest-cuke" in sys.argv[0] else "cuke"
     parser = _parser_for(_build_registry(), program)
     namespace = parser.parse_args(arguments)
-    handler = getattr(namespace, "_cuke_handler", None)
+    handler = cast("CommandHandler | None", getattr(namespace, "_cuke_handler", None))
     if handler is None:
         parser.print_help()
         return 0 if not arguments else 2

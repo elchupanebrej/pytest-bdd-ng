@@ -97,9 +97,21 @@ lint = [
   "bandit>=1.7.8",
   "pip-audit>=2.7.0"
 ]
-typecheck = [
-  "pyright>=1.1.350",
-  "mypy>=1.10.0"
+pyright = [
+  "pyright==1.1.414"
+]
+testtypes = [
+  "attrs==26.1.0",
+  "mypy==2.3.1",
+  "pydantic==2.12.5",
+  "tomli==2.2.1",
+  "types-PyYAML==6.0.12.20260906",
+  "allure-python-commons==2.16.2",
+  "allure-pytest==2.16.2",
+  "hjson==3.1.0",
+  "json5==0.15.0",
+  "pyhocon==0.3.63",
+  "PyYAML==6.0.3"
 ]
 test = [
   "pytest>=7.0.0",
@@ -239,20 +251,45 @@ mutate_only_covered_lines = true
 
 [tool.mypy]
 python_version = "3.10"
-check_untyped_defs = true
+files = ["src/pytest_cuke"]
+strict = true
+disallow_untyped_defs = true
+disallow_untyped_calls = true
+disallow_any_generics = true
+plugins = ["pydantic.mypy"]
+warn_unused_configs = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 no_implicit_optional = true
 show_error_codes = true
 
-[tool.mypy-src]
-disallow_untyped_defs = true
+[[tool.mypy.overrides]]
+module = [
+  "messages", "messages.*",
+  "gherkin", "gherkin.*",
+  "cucumber_expressions", "cucumber_expressions.*",
+  "cucumber_tag_expressions", "cucumber_tag_expressions.*",
+  "parse", "parse_type", "parse_type.*",
+  "mako", "mako.*",
+  "allure_commons", "allure_commons.*",
+  "allure_pytest", "allure_pytest.*",
+  "ci_environment", "chevron"
+]
+follow_untyped_imports = true
 
-[tool.mypy-tests]
-disallow_untyped_defs = false
+[tool.pytest-cuke.typecheck]
+checker_version = "2.3.1"
+source_scope = "src/pytest_cuke"
+required_distributions = [
+  "attrs==26.1.0",
+  "pydantic==2.12.5",
+  "tomli==2.2.1",
+  "types-PyYAML==6.0.12.20260906",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "features"]
+addopts = ["-m", "not typecheck"]
 filterwarnings = [
   "ignore::DeprecationWarning",
   "ignore::ImportWarning",
@@ -263,7 +300,8 @@ markers = [
   "integration: Integration tests",
   "contract: Contract tests",
   "e2e: End-to-end tests",
-  "external: External integration tests"
+  "external: External integration tests",
+  "typecheck: Strict runtime-source Mypy acceptance probes"
 ]
 cuke_autoload = true
 cuke_features_dir = "features"

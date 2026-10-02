@@ -3,7 +3,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from enum import Enum
 from functools import partial
-from typing import TYPE_CHECKING, Any
+from importlib import import_module
+from typing import TYPE_CHECKING, Any, cast
 
 from attrs import define
 
@@ -50,7 +51,8 @@ class StructBDDParser(BaseParser):
             step = Step.model_validate(raw)
             return StepToFeatureASTBuilder(model=step).build_feature(uri=uri or "", filename=filename)
         except Exception as err:
-            raise FeatureConcreteParseError(
+            error_constructor = cast("Callable[..., FeatureConcreteParseError]", FeatureConcreteParseError)
+            raise error_constructor(
                 f"Failed to parse structured BDD ({self.kind or 'custom'}): {err}",
                 filename=filename,
                 uri=uri,
@@ -75,16 +77,14 @@ class StructBDDParser(BaseParser):
 
             return load_json5
         if self.kind == StructBDDKind.HJSON.value:
-            from hjson import loads as load_hjson
-
-            return load_hjson
+            return cast("Callable[..., Any]", import_module("hjson").loads)
         if self.kind == StructBDDKind.HOCON.value:
             from json import loads
 
-            from pyhocon import ConfigFactory, HOCONConverter
+            pyhocon = import_module("pyhocon")
 
             def load_hocon(s: str, *args: Any, **kwargs: Any) -> Any:
-                return loads(HOCONConverter.to_json(config=ConfigFactory.parse_string(s)))
+                return loads(pyhocon.HOCONConverter.to_json(config=pyhocon.ConfigFactory.parse_string(s)))
 
             return load_hocon
 

@@ -114,7 +114,7 @@ def scenario(
 
 def scenarios(
     *feature_paths: Path | str,
-    filter_: str | Callable | None = None,
+    filter_: str | Callable[..., bool] | None = None,
     return_test_decorator: bool = False,
     encoding: str = "utf-8",
     features_base_dir: Path | str | None = None,
@@ -168,7 +168,7 @@ def scenarios(
         return decorator
 
     @decorator
-    def test(): ...
+    def test() -> None: ...
 
     test.__name__ = next(iter(test_names))
 

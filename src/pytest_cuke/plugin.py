@@ -9,7 +9,7 @@ from itertools import chain
 from operator import attrgetter, contains, methodcaller
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -40,16 +40,18 @@ from pytest_cuke.runner import ScenarioRunner
 from pytest_cuke.scenario import FeaturePathType, scenarios
 from pytest_cuke.scenario import add_options as scenario_add_options
 from pytest_cuke.scenario_locator import FileScenarioLocator, UrlScenarioLocator
-from pytest_cuke.steps import StepHandler
+from pytest_cuke.steps.matcher import Matcher
+from pytest_cuke.steps.registry import Registry, StepRegistryProtocol
 from pytest_cuke.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterable, Sequence
+    from collections.abc import Callable, Collection, Generator, Iterable, Sequence
 
     from _pytest.nodes import Collector
 
-    from messages import PickleStep as Step
     from pytest_cuke.model import Feature, Scenario
+    from pytest_cuke.model.step import Step
+    from pytest_cuke.steps.definition import Definition
 
 if STRUCT_BDD_INSTALLED:
     from pytest_cuke.struct_bdd.plugin import StructBDDPlugin
@@ -75,7 +77,7 @@ def trace() -> None:
     pytest.set_trace()
 
 
-__registry = StepHandler.Registry()
+__registry = Registry()
 
 
 @pytest.fixture
@@ -93,18 +95,18 @@ def pytestbdd_id_generator(pytestconfig: Config) -> IdGenerator:
 
 
 @pytest.fixture
-def step_registry() -> StepHandler.Registry:
+def step_registry() -> Registry:
     """Fixture containing registry of all user-defined steps"""
     return __registry
 
 
-step_registry.__pytest_cuke_step_registry__ = __registry  # type: ignore[attr-defined]
+step_registry.__pytest_cuke_step_registry__ = __registry  # type: ignore[attr-defined]  # The collector reads this dynamic marker from the fixture function.
 
 
 @pytest.fixture
-def step_matcher(pytestconfig: Config) -> StepHandler.Matcher:
+def step_matcher(pytestconfig: Config) -> Matcher:
     """Fixture containing matcher to help find step definition for selected step of scenario"""
-    return StepHandler.Matcher(pytestconfig)  # type: ignore[call-arg]
+    return Matcher(pytestconfig)
 
 
 @pytest.fixture
@@ -114,16 +116,16 @@ def steps_left() -> deque[Step]:
 
 
 @pytest.fixture
-def parameter_type_registry():
+def parameter_type_registry() -> Any:
     """Fixture parameter type registry for Cucumber expressions"""
     return cucumber_expression.parameter_type_registry
 
 
 @pytest.fixture
-def attach(request: FixtureRequest):
+def attach(request: FixtureRequest) -> Callable[..., None]:
     """Fixture parameter type registry for Cucumber expressions"""
 
-    def add_attachment(attachment, media_type: str | None = None, file_name=None):
+    def add_attachment(attachment: Any, media_type: str | None = None, file_name: str | None = None) -> None:
         request.config.hook.pytest_cuke_attach(
             request=request, attachment=attachment, media_type=media_type, file_name=file_name
         )
@@ -173,15 +175,15 @@ def pytest_configure(config: Config) -> None:
     gherkin_terminal_reporter.configure(config)
     config.pluginmanager.register(ScenarioReporterPlugin())
     config.pluginmanager.register(ScenarioRunner())
-    config.pluginmanager.register(MessagePlugin(config=config), name="pytest_cuke_messages")  # type: ignore[call-arg]
+    config.pluginmanager.register(MessagePlugin(config=config), name="pytest_cuke_messages")
     summary_enabled = config.option.cuke_summary
     if summary_enabled is None:
         summary_enabled = config.getini("cuke_summary")
     if summary_enabled:
         config.pluginmanager.register(ScenarioSummaryPlugin(), name="pytest_cuke_summary")
-    config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
+    config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]  # Store the optional plugin for paired unregistration.
     if hasattr(config, "stash"):
-        config.stash[IdGenerator.pytest_cuke_id_generator] = IdGenerator.from_stash(config.stash)
+        IdGenerator.from_stash(config.stash)
     setdefaultattr(config, "pytest_cuke_id_generator", value_factory=IdGenerator)
     if STRUCT_BDD_INSTALLED:
         config.pluginmanager.register(StructBDDPlugin())
@@ -192,43 +194,45 @@ def pytest_unconfigure(config: Config) -> None:
     config.pluginmanager.unregister(name="pytest_cuke_messages")
     config.pluginmanager.unregister(name="pytest_cuke_summary")
     with suppress(AttributeError):
-        config.__allure_plugin__.unregister(config)  # type: ignore[attr-defined]
+        config.__allure_plugin__.unregister(config)  # type: ignore[attr-defined]  # Allure is attached dynamically during configuration.
     cucumber_json.unconfigure(config)
 
 
-def _pytest_pycollect_makemodule():
+def _pytest_pycollect_makemodule() -> Generator[Any, None, None]:
     with patch("_pytest.python.Module", new=ModuleCollector):
         yield
 
 
+def _pytest_pycollect_makemodule_pytest7(parent: Collector, module_path: Path) -> Generator[Any, None, None]:
+    yield from _pytest_pycollect_makemodule()
+
+
+def _pytest_pycollect_makemodule_legacy(path: Path, parent: Collector) -> Generator[Any, None, None]:
+    yield from _pytest_pycollect_makemodule()
+
+
+pytest_pycollect_makemodule: Any
 if PYTEST7:
-
-    @pytest.hookimpl(hookwrapper=True)
-    def pytest_pycollect_makemodule(parent, module_path):
-        yield from _pytest_pycollect_makemodule()
-
+    pytest_pycollect_makemodule = pytest.hookimpl(hookwrapper=True)(_pytest_pycollect_makemodule_pytest7)
 else:
-
-    @pytest.hookimpl(hookwrapper=True)
-    def pytest_pycollect_makemodule(path, parent):
-        yield from _pytest_pycollect_makemodule()
+    pytest_pycollect_makemodule = pytest.hookimpl(hookwrapper=True)(_pytest_pycollect_makemodule_legacy)
 
 
 @pytest.hookimpl(tryfirst=True)
-def pytest_plugin_registered(plugin, manager):
+def pytest_plugin_registered(plugin: object, manager: PytestPluginManager) -> None:
     if hasattr(plugin, "__file__") and isinstance(plugin, type | ModuleType):
-        StepHandler.Registry.inject_registry_fixture(plugin)
+        Registry.inject_registry_fixture(cast("StepRegistryProtocol", plugin))
 
 
-def _build_filter(filter_):
+def _build_filter(filter_: Any) -> Callable[..., bool] | None:
     if callable(filter_):
-        updated_filter = filter_
+        updated_filter = cast("Callable[..., bool]", filter_)
     elif filter_ is None:
         updated_filter = None
     else:
         filter_str = str(filter_)
 
-        def updated_filter(config, feature, scenario):
+        def updated_filter(config: Config, feature: Feature, scenario: Scenario) -> bool:
             return scenario.name == filter_str or scenario.name.startswith(f"{filter_str}[")
 
     return updated_filter
@@ -279,7 +283,7 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
     else:
         file_locator_feature_paths = []
 
-    path_locator = FileScenarioLocator(  # type: ignore[call-arg]
+    path_locator = FileScenarioLocator(
         feature_paths=file_locator_feature_paths,
         filter_=filter_,
         encoding=mark_arguments["encoding"],
@@ -297,7 +301,7 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
     else:
         url_locator_feature_paths = []
 
-    url_locator = UrlScenarioLocator(  # type: ignore[call-arg]
+    url_locator = UrlScenarioLocator(
         url_paths=url_locator_feature_paths,
         filter_=mark_arguments["filter_"],
         encoding=mark_arguments["encoding"],
@@ -310,8 +314,8 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
     return chain(*locators_iterables)
 
 
-def _build_scenario_param(feature: Feature, scenario: Scenario, config: Config):
-    marks = []
+def _build_scenario_param(feature: Feature, scenario: Scenario, config: Config) -> Any:
+    marks: list[Mark | MarkDecorator] = []
     feature_tags = getattr(feature, "tag_names", ()) or ()
     scenario_tags = getattr(scenario, "tag_names", ()) or ()
     all_tags = set(feature_tags).union(scenario_tags)
@@ -330,7 +334,7 @@ def _build_scenario_param(feature: Feature, scenario: Scenario, config: Config):
 chain_map = compose(chain.from_iterable, map)
 
 
-def pytest_generate_tests(metafunc: Metafunc):
+def pytest_generate_tests(metafunc: Metafunc) -> None:
     config = metafunc.config
 
     # build marker locators
@@ -357,7 +361,7 @@ def pytest_cmdline_main(config: Config) -> int | None:
     return generation.cmdline_main(config)
 
 
-def _pytest_collect_file(parent: Collector, file_path=None):
+def _pytest_collect_file(parent: Collector, file_path: Any = None) -> FeatureFileCollector | None:
     file_path = Path(file_path)
     config = parent.session.config
     is_enabled_feature_autoload = config.getoption("cuke_autoload")
@@ -382,32 +386,36 @@ def _pytest_collect_file(parent: Collector, file_path=None):
     hook = parent.config.hook
 
     if hook.pytest_cuke_is_collectible(config=config, path=Path(file_path)):
-        return FeatureFileCollector.build(parent=parent, file_path=file_path)
+        return cast("FeatureFileCollector", FeatureFileCollector.build(parent=parent, file_path=file_path))
     return None
 
 
-if PYTEST7:  # Done intentionally because of API change
+def _pytest_collect_file_pytest7(parent: Collector, file_path: Path) -> FeatureFileCollector | None:
+    return _pytest_collect_file(parent=parent, file_path=file_path)
 
-    def pytest_collect_file(parent: Collector, file_path):
-        return _pytest_collect_file(parent=parent, file_path=file_path)
 
-else:
+def _pytest_collect_file_legacy(parent: Collector, path: Any) -> FeatureFileCollector | None:
+    return _pytest_collect_file(parent=parent, file_path=path)
 
-    def pytest_collect_file(parent: Collector, path):  # type: ignore[misc]
-        return _pytest_collect_file(parent=parent, file_path=path)
+
+pytest_collect_file: Any
+# The two pytest collector APIs intentionally have version-specific signatures.
+pytest_collect_file = _pytest_collect_file_pytest7 if PYTEST7 else _pytest_collect_file_legacy
 
 
 @pytest.mark.trylast
-def pytest_cuke_convert_tag_to_marks(feature, scenario, tag) -> Collection[Mark | MarkDecorator] | None:
+def pytest_cuke_convert_tag_to_marks(
+    feature: Feature, scenario: Scenario, tag: str
+) -> Collection[Mark | MarkDecorator] | None:
     tag_clean = tag.lstrip("@")
     return [getattr(pytest.mark, tag_clean)]
 
 
 def pytest_cuke_match_step_definition_to_step(
-    request, feature, scenario, step, previous_step
-) -> StepHandler.Definition:
-    step_registry: StepHandler.Registry = request.getfixturevalue("step_registry")
-    step_matcher: StepHandler.Matcher = request.getfixturevalue("step_matcher")
+    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, previous_step: Step | None
+) -> Definition:
+    step_registry: Registry = request.getfixturevalue("step_registry")
+    step_matcher: Matcher = request.getfixturevalue("step_matcher")
 
     return step_matcher(request, feature, scenario, step, previous_step, step_registry)
 
@@ -421,7 +429,7 @@ def pytest_cuke_get_mimetype(config: Config, path: Path) -> str | None:
     return None
 
 
-def pytest_cuke_get_parser(config: Config, mimetype: str):
+def pytest_cuke_get_parser(config: Config, mimetype: str) -> Any:
     return {
         Mimetype.gherkin_plain.value: GherkinParser,
         Mimetype.markdown.value: MarkdownGherkinParser,

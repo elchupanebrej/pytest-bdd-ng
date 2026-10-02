@@ -26,12 +26,12 @@ class Matcher:
 
     def __init__(self, config: Config) -> None:
         self.config = config
-        self.request: FixtureRequest = None  # type: ignore[assignment]
-        self.feature: Feature = None  # type: ignore[assignment]
-        self.scenario: Scenario = None  # type: ignore[assignment]
-        self.step: Step = None  # type: ignore[assignment]
+        self.request: FixtureRequest = None  # type: ignore[assignment]  # The matcher call initializes per-scenario state before lookups.
+        self.feature: Feature = None  # type: ignore[assignment]  # The matcher call initializes per-scenario state before lookups.
+        self.scenario: Scenario = None  # type: ignore[assignment]  # The matcher call initializes per-scenario state before lookups.
+        self.step: Step = None  # type: ignore[assignment]  # The matcher call initializes per-scenario state before lookups.
         self.previous_step: Step | None = None
-        self.step_registry: Registry = None  # type: ignore[assignment]
+        self.step_registry: Registry = None  # type: ignore[assignment]  # The matcher call initializes per-scenario state before lookups.
         self.step_type_context: StepType | str | None = None
 
     def __call__(
@@ -46,8 +46,8 @@ class Matcher:
         self.request, self.feature, self.scenario = request, feature, scenario
         self.step, self.previous_step, self.step_registry = step, previous_step, step_registry
         step_type = self.step.type
-        if hasattr(step_type, "value"):
-            step_type_str = str(step_type.value).lower()
+        if isinstance(step_type, StepType):
+            step_type_str = step_type.value.lower()
         elif step_type is not None:
             step_type_str = str(step_type).lower()
         else:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping
 from inspect import getfile, getsourcelines
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, Any, TypeAlias, cast
 
 from typing_extensions import Protocol
 
@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
 class StepFunc(Protocol):
     __name__: str
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
 StepDecorator: TypeAlias = Callable[[StepFunc], StepFunc]
