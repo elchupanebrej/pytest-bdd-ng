@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+from attrs import define
+
+from pytest_cuke.compatibility.pytest import Config
+from pytest_cuke.types.protocol import HasPytestStash
+from pytest_cuke.utils import IdGenerator
+
+if TYPE_CHECKING:
+    from cucumber_messages import GherkinDocument
+
+
+@define
+class ParsedFeature:
+    gherkin_document: GherkinDocument
+    filename: str
+    raw_data: str
+
+
+@runtime_checkable
+class ParserProtocol(Protocol):
+    id_generator: IdGenerator | None = None
+
+    def parse(
+        self,
+        config: Config | HasPytestStash,
+        path: Path,
+        uri: str,
+        *args: object,
+        **kwargs: object,
+    ) -> ParsedFeature: ...
+
+
+__all__ = ["ParsedFeature", "ParserProtocol"]

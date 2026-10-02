@@ -6,22 +6,13 @@ from pytest import mark
 from yaml import FullLoader
 from yaml import load as load_yaml
 
-from pytest_bdd.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
-from pytest_bdd.scenario_locator import ScenarioLocatorFilterMixin
-from pytest_bdd.utils import doesnt_raise
+from messages import KeywordType  # type:ignore[attr-defined]
+from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from pytest_cuke.utils import IdGenerator, doesnt_raise
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
-    from pytest_bdd.struct_bdd.model import (
-        Alternative,
-        Join,
-        Keyword,
-        KeywordType,
-        Node,
-        Step,
-        StepPrototype,
-        Table,
-    )
-    from pytest_bdd.struct_bdd.model_builder import GherkinDocumentBuilder
+    from pytest_cuke.struct_bdd.model import Alternative, Join, Keyword, Node, Step, StepPrototype, Table
+    from pytest_cuke.struct_bdd.model_builder import GherkinDocumentBuilder
 
 pytestmark = [mark.unit, mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
 

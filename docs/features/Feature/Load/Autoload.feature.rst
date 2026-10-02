@@ -13,7 +13,7 @@ Background:
 
 -  Given File "Passing.feature" with content:
 
-   .. code:: gherkin
+   ::
 
       Feature: Passing feature
         Scenario: Passing scenario
@@ -21,7 +21,7 @@ Background:
 
 -  Given File "Another.passing.feature.md" with content:
 
-   .. code:: markdown
+   ::
 
       # Feature: Passing feature
       ## Scenario: Passing scenario
@@ -36,9 +36,9 @@ Background:
 
 -  Given File "conftest.py" with content:
 
-   .. code:: python
+   ::
 
-      from pytest_bdd import step
+      from pytest_cuke import step
 
       @step('Passing step')
 
@@ -60,12 +60,7 @@ Scenario: Feature is loaded by default
 Scenario: Feature autoload could be disabled via command line
 
 
--  When run pytest
-
-   ======== ==========================
-   cli_args --disable-feature-autoload
-   ======== ==========================
-   ======== ==========================
+-  When I run pytest with arguments "--cuke-no-autoload"
 
 -  Then pytest outcome must contain tests with statuses:
 
@@ -80,7 +75,7 @@ Scenario: Feature autoload could be disabled via pytest.ini
 
 -  Given Set pytest.ini content to:
 
-   .. code:: ini
+   ::
 
       [pytest]
       disable_feature_autoload=true

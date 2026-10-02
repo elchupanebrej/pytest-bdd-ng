@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.util.webloc import read, write
-from pytest_bdd.webloc import read as legacy_read
-from pytest_bdd.webloc import write as legacy_write
-
-from pytest import mark
-
-pytestmark = mark.unit
+from pytest_cuke.util.webloc import read, write
 
 
 def test_webloc_read_write(tmp_path) -> None:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from _pytest.compat import NOTSET
 
-from pytest_bdd.compatibility.pytest import (
+from pytest_cuke.compatibility.pytest import (
     Exit,
     Expression,
     Failed,

@@ -1,13 +1,7 @@
 from __future__ import annotations
 
-import os
-import tempfile
-from pathlib import Path
-
-import pytest
-
-from pytest_bdd.util.temp_root import prefer_posix_temp_root
-from pytest_bdd.util.toolz_extra import compose, flip
+from pytest_cuke.util.temp_root import prefer_posix_temp_root
+from pytest_cuke.util.toolz_extra import compose, flip
 
 from pytest import mark
 

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pytest_bdd.model import message_converter as mc
-from pytest_bdd.model.background import Background
-from pytest_bdd.model.feature import Feature
-from pytest_bdd.model.message_registry import EnvelopeRegistry
-from pytest_bdd.model.message_serialization import dump_ndjson, load_ndjson
-from pytest_bdd.model.message_stream_validation import validate_message_stream
-from pytest_bdd.model.scenario import Scenario
-from pytest_bdd.model.step import Step
+from pytest_cuke.model import message_converter as mc
+from pytest_cuke.model.background import Background
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.message_registry import EnvelopeRegistry
+from pytest_cuke.model.message_serialization import dump_ndjson, load_ndjson
+from pytest_cuke.model.message_stream_validation import validate_message_stream
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.step import Step
 
 from pytest import mark
 

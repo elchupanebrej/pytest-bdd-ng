@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pytest_bdd.compatibility.pytest import TerminalReporter
-from pytest_bdd.gherkin_terminal_reporter import (
+from pytest_cuke.compatibility.pytest import TerminalReporter
+from pytest_cuke.gherkin_terminal_reporter import (
     GherkinTerminalReporter,
     add_options,
     configure,
@@ -20,16 +20,17 @@ def test_terminal_reporter_add_options() -> None:
     parser.getgroup.return_value = group
 
     add_options(parser)
-    parser.getgroup.assert_called_once_with("terminal reporting", "reporting", after="general")
+    parser.getgroup.assert_called_once_with("cuke reporting", "reporting", after="general")
     group._addoption.assert_called_once()
     args, kwargs = group._addoption.call_args
-    assert "--gherkin-terminal-reporter" in args
-    assert kwargs["dest"] == "gherkin_terminal_reporter"
+    assert "--cuke-progress" in args
+    assert kwargs["dest"] == "cuke_progress"
 
 
 def test_terminal_reporter_configure() -> None:
     config = MagicMock()
-    config.option.gherkin_terminal_reporter = True
+    config.option.cuke_progress = True
+    config.option.verbose = 0
     current_reporter = TerminalReporter(config)
     config.pluginmanager.getplugin.side_effect = lambda name: current_reporter if name == "terminalreporter" else None
 
@@ -40,7 +41,8 @@ def test_terminal_reporter_configure() -> None:
 
 def test_terminal_reporter_configure_incompatible_class() -> None:
     config = MagicMock()
-    config.option.gherkin_terminal_reporter = True
+    config.option.cuke_progress = True
+    config.option.verbose = 0
     config.pluginmanager.getplugin.return_value = MagicMock()  # not TerminalReporter instance
 
     with pytest.raises(Exception, match="gherkin-terminal-reporter is not compatible with any other terminal reporter"):

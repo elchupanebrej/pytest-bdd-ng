@@ -23,7 +23,7 @@ def test_steps_in_feature_file_have_unicode(testdir):
         """\
         import pytest
 
-        from pytest_bdd import parsers, given, then
+        from pytest_cuke import parsers, given, then
 
         @pytest.fixture
         def string():
@@ -59,7 +59,7 @@ def test_steps_in_py_file_have_unicode(testdir):
         # language=python
         """\
         import pytest
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @pytest.fixture
         def string():

@@ -9,7 +9,7 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
-from pytest_bdd.generation import (
+from pytest_cuke.generation import (
     STEP_TYPE_TO_STEP_METHOD_NAME,
     STEP_TYPE_TO_STEP_PREFIX,
     add_options,
@@ -18,7 +18,7 @@ from pytest_bdd.generation import (
     make_python_docstring,
     make_string_literal,
 )
-from pytest_bdd.model import StepType
+from pytest_cuke.model import StepType
 
 pytestmark = pytest.mark.unit
 

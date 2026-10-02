@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pytest_bdd.model import message_converter as mc
-from pytest_bdd.model.message_transport import MessageFanOutEmitter, MessageTransport
+from pytest_cuke.model import message_converter as mc
+from pytest_cuke.model.message_transport import MessageFanOutEmitter, MessageTransport
 
 from pytest import mark
 

@@ -2,7 +2,7 @@
 
 import textwrap
 
-from pytest_bdd.compatibility.pytest import assert_outcomes
+from pytest_cuke.compatibility.pytest import assert_outcomes
 
 from pytest import mark
 

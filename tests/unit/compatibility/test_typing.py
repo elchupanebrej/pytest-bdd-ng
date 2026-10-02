@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.compatibility.typing import (
+from pytest_cuke.compatibility.typing import (
     Protocol,
     Self,
     TypeAlias,

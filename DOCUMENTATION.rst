@@ -9,32 +9,32 @@ Hooks
 
 .. NOTE:: Important difference from pytest-bdd_
 
-pytest-bdd-ng exposes several `pytest hooks <http://pytest.org/latest/plugins.html#well-specified-hooks>`_
+pytest-cuke exposes several `pytest hooks <http://pytest.org/latest/plugins.html#well-specified-hooks>`_
 which might be helpful building useful reporting, visualization, etc on top of it:
 
-* pytest_bdd_before_scenario(request, feature, scenario) - Called before scenario is executed
-* pytest_bdd_run_scenario(request, feature, scenario) - Execution scenario protocol
-* pytest_bdd_after_scenario(request, feature, scenario) - Called after scenario is executed
+* pytest_cuke_before_scenario(request, feature, scenario) - Called before scenario is executed
+* pytest_cuke_run_scenario(request, feature, scenario) - Execution scenario protocol
+* pytest_cuke_after_scenario(request, feature, scenario) - Called after scenario is executed
   (even if one of steps has failed)
-* pytest_bdd_before_step(request, feature, scenario, step, step_func) - Called before step function
+* pytest_cuke_before_step(request, feature, scenario, step, step_func) - Called before step function
   is executed and it's arguments evaluated
-* pytest_bdd_run_step(request, feature, scenario, step, previous_step) - Execution step protocol
-* pytest_bdd_before_step_call(request, feature, scenario, step, step_func, step_func_args) - Called before step
+* pytest_cuke_run_step(request, feature, scenario, step, previous_step) - Execution step protocol
+* pytest_cuke_before_step_call(request, feature, scenario, step, step_func, step_func_args) - Called before step
   function is executed with evaluated arguments
-* pytest_bdd_after_step(request, feature, scenario, step, step_func, step_func_args) - Called after step function
+* pytest_cuke_after_step(request, feature, scenario, step, step_func, step_func_args) - Called after step function
   is successfully executed
-* pytest_bdd_step_error(request, feature, scenario, step, step_func, step_func_args, exception) - Called when step
+* pytest_cuke_step_error(request, feature, scenario, step, step_func, step_func_args, exception) - Called when step
   function failed to execute
-* pytest_bdd_step_func_lookup_error(request, feature, scenario, step, exception) - Called when step lookup failed
-* pytest_bdd_match_step_definition_to_step(request, feature, scenario, step, previous_step) - Called to match step to step definition
-* pytest_bdd_get_step_caller(request, feature, scenario, step, step_func, step_func_args, step_definition) - Called to get step caller. For example could be used to make steps async
-* pytest_bdd_get_step_dispatcher(request, feature, scenario) - Provide alternative approach to execute scenario steps
+* pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception) - Called when step lookup failed
+* pytest_cuke_match_step_definition_to_step(request, feature, scenario, step, previous_step) - Called to match step to step definition
+* pytest_cuke_get_step_caller(request, feature, scenario, step, step_func, step_func_args, step_definition) - Called to get step caller. For example could be used to make steps async
+* pytest_cuke_get_step_dispatcher(request, feature, scenario) - Provide alternative approach to execute scenario steps
 
 
 Default steps
 -------------
 
-Here is the list of steps that are implemented inside of the pytest-bdd:
+Here is the list of steps that are implemented inside of pytest-cuke:
 
 given
     * trace - enters the `pdb` debugger via `pytest.set_trace()`
@@ -47,7 +47,7 @@ then
 Fixtures
 --------
 
-pytest-bdd-ng exposes several plugin fixtures to give more testing flexibility
+pytest-cuke exposes several plugin fixtures to give more testing flexibility
 
 * bdd_example - The current scenario outline parametrization.
 * attach - Fixture to allow attach files to Gherkin report
@@ -60,8 +60,8 @@ pytest-bdd-ng exposes several plugin fixtures to give more testing flexibility
 
     from collections import deque
 
-    from pytest_bdd.model import UserStep
-    from pytest_bdd import when
+    from pytest_cuke.model import UserStep
+    from pytest_cuke import when
 
     @when('I inject step "{keyword}" "{step_text}')
     def inject_step(steps_left: deque, keyword, step_text, scenario):
@@ -124,8 +124,8 @@ Scenario could be imported as usual, but with specified parser:
 .. code-block:: python
 
     from textwrap import dedent
-    from pytest_bdd import given, when, then, scenario
-    from pytest_bdd.parser import StructBDDParser
+    from pytest_cuke import given, when, then, scenario
+    from pytest_cuke.parser import StructBDDParser
     from functools import partial
 
     kind = StructBDDParser.KIND.YAML
@@ -139,7 +139,7 @@ Another option is to inject built scenario directly:
 
 .. code-block:: python
 
-    from pytest_bdd.struct_bdd.model import Step, Table
+    from pytest_cuke.struct_bdd.model import Step, Table
 
     test_cukes = Step(
         name="Examples are substituted",
@@ -164,7 +164,7 @@ There is also an option to build Step from dict(and use your own file format/pre
 
 .. code-block:: python
 
-    from pytest_bdd.struct_bdd.model import Step
+    from pytest_cuke.struct_bdd.model import Step
 
     cukes = Step.parse_obj(
             dict(
@@ -226,7 +226,7 @@ Install StructBDD:
 
 ::
 
-    pip install pytest-bdd-ng[struct_bdd]
+    pip install pytest-cuke[struct-bdd]
 
 Reporting
 ---------
@@ -240,7 +240,7 @@ To have an output in json format:
 
 ::
 
-    pytest --cucumberjson=<path to json report>
+    pytest --cuke-json=<path to JSON report>
 
 This will output an expanded (meaning scenario outlines will be expanded to several scenarios) cucumber format.
 
@@ -248,7 +248,7 @@ To enable gherkin-formatted output on terminal, use
 
 ::
 
-    pytest -vv --gherkin-terminal-reporter
+    pytest -vv --cuke-progress
 
 Allure reporting is also in place https://docs.qameta.io/allure and based on
 `allure-pytest` https://pypi.org/project/allure-pytest/ plugin. Usage is same.
@@ -258,7 +258,7 @@ To install plugin
 
 ::
 
-    pip install pytest-bdd-ng[allure]
+    pip install pytest-cuke[allure]
 
 
 Test code generation helpers
@@ -267,17 +267,17 @@ Test code generation helpers
 For newcomers it's sometimes hard to write all needed test code without being frustrated.
 To simplify their life, simple code generator was implemented. It allows to create fully functional
 but of course empty tests and step definitions for given a feature file.
-It's done as a separate console script provided by pytest-bdd package:
+It's done as a separate console script provided by the pytest-cuke package:
 
 ::
 
-    pytest --generate --feature <feature file name> .. <feature file nameN>
+    pytest --cuke-generate --cuke-feature <feature file name> .. <feature file nameN>
 
 It will print the generated code to the standard output so you can easily redirect it to the file:
 
 ::
 
-    pytest --generate --feature features/some.feature > tests/functional/test_some.py
+    pytest --cuke-generate --cuke-feature features/some.feature > tests/functional/test_some.py
 
 
 Advanced code generation
@@ -289,7 +289,7 @@ test execution. The code suggestion tool is called via passing additional pytest
 
 ::
 
-    pytest --generate-missing --feature features tests/functional
+    pytest --cuke-generate-missing --cuke-feature features tests/functional
 
 The output will be like:
 

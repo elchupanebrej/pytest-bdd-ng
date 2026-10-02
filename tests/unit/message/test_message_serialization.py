@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import cucumber_messages
-from pytest_bdd.model import message_converter as mc
-from pytest_bdd.model import message_serialization as ms
+import messages
+from pytest_cuke.model import message_converter as mc
+from pytest_cuke.model import message_serialization as ms
 
 pytestmark = pytest.mark.unit
 

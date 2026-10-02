@@ -34,7 +34,7 @@ Feature: Background support
 STEPS = r"""\
 import pytest
 
-from pytest_bdd import given, then, parsers
+from pytest_cuke import given, then, parsers
 
 @pytest.fixture
 def foo():
@@ -87,7 +87,7 @@ def test_background_basic(testdir, tmp_path):
         f'''\
         from pathlib import Path
 
-        from pytest_bdd import scenario
+        from pytest_cuke import scenario
 
         @scenario(Path(r"'''
         f"{tmp_path / 'background.feature'}"
@@ -112,7 +112,7 @@ def test_background_check_order(testdir, tmp_path):
         f'''\
         from pathlib import Path
 
-        from pytest_bdd import scenario
+        from pytest_cuke import scenario
 
         @scenario(Path(r"'''
         f"{tmp_path / 'background.feature'}"

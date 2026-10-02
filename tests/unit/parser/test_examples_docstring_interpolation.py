@@ -31,8 +31,8 @@ Feature: Examples interpolation in docstring and data table
         """
 import json
 import pytest
-from pytest_bdd import given, then
-from pytest_bdd.testing_utils import data_table_to_dicts
+from pytest_cuke import given, then
+from tests.testing_utils import data_table_to_dicts
 
 captured = []
 

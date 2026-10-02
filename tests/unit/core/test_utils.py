@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import pytest
-from pytest_bdd import utils
+from pytest_cuke import utils
 
 from pytest import mark
 

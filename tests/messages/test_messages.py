@@ -18,25 +18,21 @@ from cucumber_messages import (
     Source,
     StepDefinition,
 )
-from cucumber_messages import Envelope as Message
-from cucumber_messages import TestCase as _TestCase
-from cucumber_messages import TestCaseFinished as _TestCaseFinished
-from cucumber_messages import TestCaseStarted as _TestCaseStarted
-from cucumber_messages import TestRunFinished as _TestRunFinished
-from cucumber_messages import TestRunStarted as _TestRunStarted
-from cucumber_messages import TestStepFinished as _TestStepFinished
-from cucumber_messages import TestStepResultStatus as _TestStepResultStatus
-from cucumber_messages import TestStepStarted as _TestStepStarted
-from pytest_bdd.model.message_converter import envelope_from_dict
-from pytest_bdd.model.message_serialization import load_ndjson
-from pytest_bdd.model.message_stream_validation import validate_message_stream
-from pytest_bdd.utils import flip
+from messages import Envelope as Message  # type:ignore[attr-defined]
+from messages import TestCase as _TestCase  # type:ignore[attr-defined]
+from messages import TestCaseFinished as _TestCaseFinished  # type:ignore[attr-defined]
+from messages import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
+from messages import TestRunFinished as _TestRunFinished  # type:ignore[attr-defined]
+from messages import TestRunStarted as _TestRunStarted  # type:ignore[attr-defined]
+from messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
+from messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
+from pytest_cuke.utils import flip
 
 pytestmark = pytest.mark.integration
 
 
 if TYPE_CHECKING:  # pragma: nocover
-    from pytest_bdd.compatibility.pytest import Testdir
+    from pytest_cuke.compatibility.pytest import Testdir
 
 samples_path = Path(__file__).parent.parent.parent / "compatibility-kit/devkit/samples"
 
@@ -103,7 +99,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import  given
+        from pytest_cuke import  given
         from parse_type.cfparse import Parser as cfparse
 
         @given(
@@ -118,7 +114,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -140,10 +136,10 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     assert len(pickle_messages) == 1, f"Messages: {pformat(messages)}"
 
     step_definition_messages = messages = list_filter_by_type(StepDefinition, unfold_messages)
-    step_definitions_defined_by_pytest_bdd_ng = 3
+    step_definitions_defined_by_pytest_cuke_ng = 3
     step_definitions_defined_by_test = 1
     assert (
-        len(step_definition_messages) == step_definitions_defined_by_pytest_bdd_ng + step_definitions_defined_by_test
+        len(step_definition_messages) == step_definitions_defined_by_pytest_cuke_ng + step_definitions_defined_by_test
     ), f"Messages: {pformat(messages)}"
 
     test_run_started_messages = messages = list_filter_by_type(_TestRunStarted, unfold_messages)
@@ -209,8 +205,8 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
         from cucumber_expressions.parameter_type import ParameterType
         from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
-        from pytest_bdd import given
-        from pytest_bdd.parsers import cucumber_expression
+        from pytest_cuke import given
+        from pytest_cuke.parsers import cucumber_expression
 
 
         class Coordinate:
@@ -271,7 +267,7 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -288,7 +284,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given('Attach "{value}" as string')
         def attach_as_string(attach, value):
@@ -308,7 +304,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -330,7 +326,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given('Attach "{value}" as url')
         def attach_as_url(attach, value):
@@ -350,7 +346,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -372,7 +368,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
 
         @given('Attach "{value}" as bytes')
         def attach_as_bytes(attach, value):
@@ -392,7 +388,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -416,7 +412,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
         from pathlib import Path
 
         @given('Attach text from {file_path} file', converters={'file_path': Path})
@@ -438,7 +434,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -462,7 +458,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given
+        from pytest_cuke import given
         from pathlib import Path
 
         @given('Attach bytes from {file_path} file', converters={'file_path': Path})
@@ -484,7 +480,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -527,10 +523,10 @@ def test_hook_type_messages(testdir, tmp_path):
         # language=python
         """\
         from pytest import fixture
-        from pytest_bdd import when
-        from pytest_bdd.hook import before_tag, before_mark, after_tag, around_mark
-        from pytest_bdd.compatibility.pytest import FixtureRequest
-        from pytest_bdd.utils import inject_fixture
+        from pytest_cuke import when
+        from pytest_cuke.hook import before_tag, before_mark, after_tag, around_mark
+        from pytest_cuke.compatibility.pytest import FixtureRequest
+        from pytest_cuke.utils import inject_fixture
 
 
         @fixture(scope='session')
@@ -575,7 +571,7 @@ def test_hook_type_messages(testdir, tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
+    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 

@@ -13,7 +13,7 @@
     ```
 * And File "conftest.py" with content:
     ```python
-    from pytest_bdd import given
+    from pytest_cuke import given
 
     @given('I check feature description')
     def step(feature):

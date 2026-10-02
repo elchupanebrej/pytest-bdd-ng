@@ -20,8 +20,8 @@ Feature: Shared parameter type registry
         """
 import pytest
 from cucumber_expressions.parameter_type import ParameterType
-from pytest_bdd import given, when, then
-from pytest_bdd.parsers import cucumber_expression, cucumber_regular_expression
+from pytest_cuke import given, when, then
+from pytest_cuke.parsers import cucumber_expression, cucumber_regular_expression
 
 class Point:
     def __init__(self, x: int, y: int):

@@ -5,17 +5,18 @@ from textwrap import dedent
 
 from pytest import mark, param
 
-from pytest_bdd.compatibility.pytest import assert_outcomes
-from pytest_bdd.packaging import compare_distribution_version
-from pytest_bdd.utils import collect_dumped_objects
+from pytest_cuke.compatibility.pytest import assert_outcomes
+from pytest_cuke.packaging import compare_distribution_version
+from pytest_cuke.utils import collect_dumped_objects
+from tests.testing_utils import run_pytester_isolated
 
 pytestmark = mark.integration
 
 
 # language=python
 STEPS = """\
-    from pytest_bdd import parsers, given, when, then
-    from pytest_bdd.utils import dump_obj
+    from pytest_cuke import parsers, given, when, then
+    from pytest_cuke.utils import dump_obj
 
 
     @given(parsers.parse("there are {start:d} cucumbers"), target_fixture="start_cucumbers")
@@ -43,8 +44,8 @@ STEPS = """\
 
 # language=python
 STEPS_OUTLINED = """\
-    from pytest_bdd import given, when, then, scenario, parsers
-    from pytest_bdd.utils import dump_obj
+    from pytest_cuke import given, when, then, scenario, parsers
+    from pytest_cuke.utils import dump_obj
 
     @scenario(
         "outline.feature",
@@ -107,7 +108,7 @@ def test_outlined(testdir, examples_header):
 
     testdir.makeconftest(STEPS)
 
-    result = testdir.runpytest("-s")
+    result = run_pytester_isolated(testdir, "-s")
     result.assert_outcomes(passed=2)
     # fmt: off
     assert collect_dumped_objects(result) == [
@@ -138,7 +139,7 @@ def test_wrongly_outlined_duplicated_parameter_scenario(testdir):
     )
     testdir.makeconftest(STEPS)
 
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     assert_outcomes(result, errors=1)
     result.stdout.fnmatch_lines(
         "*Scenario has not valid examples. Example rows should contain unique parameters. "
@@ -166,7 +167,7 @@ def test_wrongly_outlined_missing_parameter_scenario(testdir):
     )
     testdir.makeconftest(STEPS)
 
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     assert_outcomes(result, errors=1)
     result.stdout.fnmatch_lines("*FeatureConcreteParseError*")
 
@@ -176,7 +177,7 @@ def test_outlined_with_other_fixtures(testdir, tmp_path):
     testdir.makeini(
         f"""\
         [pytest]
-        bdd_features_base_dir={tmp_path}
+        cuke_features_dir={tmp_path}
         """
     )
 
@@ -204,7 +205,7 @@ def test_outlined_with_other_fixtures(testdir, tmp_path):
         # language=python
         f"""\
         from pytest import fixture
-        from pytest_bdd import scenario
+        from pytest_cuke import scenario
 
         @fixture(params=[1, 2, 3])
         def other_fixture(request):
@@ -219,7 +220,7 @@ def test_outlined_with_other_fixtures(testdir, tmp_path):
             pass
         """
     )
-    result = testdir.runpytest()
+    result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=6)
 
 
@@ -265,15 +266,15 @@ def test_outline_with_escaped_pipes(testdir, parser):
     testdir.makeconftest(
         # language=python
         f"""\
-        from pytest_bdd import given, parsers
-        from pytest_bdd.utils import dump_obj
+        from pytest_cuke import given, parsers
+        from pytest_cuke.utils import dump_obj
 
         @given(parsers.parse("I print the {{string}}"))
         def i_print_the_string(string):
             dump_obj(string)
         """
     )
-    result = testdir.runpytest("-s")
+    result = run_pytester_isolated(testdir, "-s")
     result.assert_outcomes(passed=7)
     assert collect_dumped_objects(result) == [
         r"bork",

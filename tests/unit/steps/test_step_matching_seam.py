@@ -6,14 +6,14 @@ from unittest.mock import MagicMock
 import pytest
 from ordered_set import OrderedSet
 
-from pytest_bdd.model.step import Step, StepType
-from pytest_bdd.parsers.parse_parser import parse
-from pytest_bdd.parsers.re_parser import re as bdd_re
-from pytest_bdd.parsers.string_parser import string
-from pytest_bdd.steps.decorators import given, then
-from pytest_bdd.steps.decorators import step as generic_step
-from pytest_bdd.steps.matcher import Matcher
-from pytest_bdd.steps.registry import Registry
+from pytest_cuke.model.step import Step, StepType
+from pytest_cuke.parsers.parse_parser import parse
+from pytest_cuke.parsers.re_parser import re as bdd_re
+from pytest_cuke.parsers.string_parser import string
+from pytest_cuke.steps.decorators import given
+from pytest_cuke.steps.decorators import step as generic_step
+from pytest_cuke.steps.matcher import Matcher
+from pytest_cuke.steps.registry import Registry
 
 pytestmark = pytest.mark.unit
 
@@ -30,8 +30,8 @@ def test_matcher_strict_and_unspecified() -> None:
     reg = Registry(
         definitions=OrderedSet(
             [
-                next(iter(given_cucumbers.__pytest_bdd_step_definitions__)),
-                next(iter(do_generic.__pytest_bdd_step_definitions__)),
+                next(iter(given_cucumbers.__pytest_cuke_step_definitions__)),
+                next(iter(do_generic.__pytest_cuke_step_definitions__)),
             ]
         )
     )
@@ -57,8 +57,8 @@ def test_matcher_specificity_sort() -> None:
     reg = Registry(
         definitions=OrderedSet(
             [
-                next(iter(regex_step.__pytest_bdd_step_definitions__)),
-                next(iter(exact_step.__pytest_bdd_step_definitions__)),
+                next(iter(regex_step.__pytest_cuke_step_definitions__)),
+                next(iter(exact_step.__pytest_cuke_step_definitions__)),
             ]
         )
     )
@@ -72,7 +72,7 @@ def test_matcher_hierarchy_parent_fallback() -> None:
     def parent_func() -> None:
         pass
 
-    parent_reg = Registry(definitions=OrderedSet([next(iter(parent_func.__pytest_bdd_step_definitions__))]))
+    parent_reg = Registry(definitions=OrderedSet([next(iter(parent_func.__pytest_cuke_step_definitions__))]))
     child_reg = Registry(definitions=OrderedSet([]))
     child_reg.parent = parent_reg
 

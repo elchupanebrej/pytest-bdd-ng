@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import attr
-from pytest_bdd.types import (
+from pytest_cuke.types import (
     CollectorFailure,
     GenericFailure,
     Identifiable,

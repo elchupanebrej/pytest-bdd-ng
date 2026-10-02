@@ -19,7 +19,7 @@ def test_given_injection(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd import given, then
+        from pytest_cuke import given, then
 
         @given("I have injecting given", target_fixture="foo")
         def injecting_given():

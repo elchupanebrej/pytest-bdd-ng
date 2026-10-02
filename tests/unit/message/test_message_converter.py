@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-import cucumber_messages
-from pytest_bdd.model import message_converter as mc
-from pytest_bdd.model.background import Background
-from pytest_bdd.model.doc_string import DocString
-from pytest_bdd.model.feature import Feature
-from pytest_bdd.model.rule import Rule
-from pytest_bdd.model.scenario import Scenario
-from pytest_bdd.model.step import Step
-from pytest_bdd.model.table import DataTable, TableCell, TableRow
-from pytest_bdd.model.tag import Tag
+import messages
+from pytest_cuke.model import message_converter as mc
+from pytest_cuke.model.background import Background
+from pytest_cuke.model.doc_string import DocString
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.rule import Rule
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.step import Step
+from pytest_cuke.model.table import DataTable, TableCell, TableRow
+from pytest_cuke.model.tag import Tag
 
 pytestmark = pytest.mark.unit
 

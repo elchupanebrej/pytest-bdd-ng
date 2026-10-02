@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import pytest
-
-from pytest_bdd.model.feature import Feature
-from pytest_bdd.parser import BaseParser, ParserProtocol, ParserRegistry
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.parser import BaseParser, ParserProtocol, ParserRegistry
 
 from pytest import mark
 

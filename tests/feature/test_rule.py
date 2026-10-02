@@ -61,7 +61,7 @@ FEATURE = '''\
 
 # language=python
 STEPS = """\
-    from pytest_bdd import given
+    from pytest_cuke import given
 
     @given("{}")
     def step():

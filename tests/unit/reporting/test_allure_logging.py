@@ -4,20 +4,14 @@ import contextlib
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-import pytest_bdd.allure_logging as allure_mod
-from pytest_bdd.allure_logging import AllurePytestBDD
-from pytest_bdd.compatibility.allure import ALLURE_INSTALLED
-
-from pytest import mark
-
-pytestmark = mark.unit
-
+import pytest_cuke.allure_logging as allure_mod
+from pytest_cuke.allure_logging import AllurePytestBDD
 
 if TYPE_CHECKING:
     import pytest
 
 
-def test_allure_pytest_bdd_helpers() -> None:
+def test_allure_pytest_cuke_helpers() -> None:
     feature = MagicMock()
     feature.rel_filename = "features/foo.feature"
     feature.name = "Foo Feature"
@@ -42,7 +36,7 @@ def test_allure_pytest_bdd_helpers() -> None:
     assert len(params) == 2
 
 
-def test_allure_pytest_bdd_lifecycle_hooks(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_allure_pytest_cuke_lifecycle_hooks(monkeypatch: pytest.MonkeyPatch) -> None:
     # Provide mocks for allure objects if not installed
     monkeypatch.setattr(allure_mod, "ALLURE_INSTALLED", True)
     monkeypatch.setattr(allure_mod, "TestStepResult", MagicMock())
@@ -65,15 +59,15 @@ def test_allure_pytest_bdd_lifecycle_hooks(monkeypatch: pytest.MonkeyPatch) -> N
     scenario = MagicMock()
     scenario.name = "My Scenario"
 
-    bdd.pytest_bdd_before_scenario(request, feature, scenario)
+    bdd.pytest_cuke_before_scenario(request, feature, scenario)
     allure_logger.start_step.assert_called_once()
 
-    bdd.pytest_bdd_after_scenario(request, feature, scenario)
+    bdd.pytest_cuke_after_scenario(request, feature, scenario)
     allure_logger.stop_step.assert_called_once()
 
     exc = ValueError("lookup error")
     step = MagicMock()
-    bdd.pytest_bdd_step_func_lookup_error(request, feature, scenario, step, exc)
+    bdd.pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exc)
     assert allure_logger.stop_step.call_count == 2
 
 

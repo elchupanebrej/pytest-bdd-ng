@@ -8,7 +8,7 @@ pytestmark = mark.integration
 @mark.parametrize(
     "parser_import_string",
     [
-        "from pytest_bdd.parsers import cfparse",  # Deprecated
+        "from pytest_cuke.parsers import cfparse",  # Deprecated
         "from parse_type.cfparse import Parser as cfparse",
     ],
 )
@@ -33,7 +33,7 @@ def test_every_step_takes_param_with_the_same_name(testdir, parser_import_string
         # language=python
         """\
         import pytest
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
         """
         f"{parser_import_string}"
         """
@@ -62,7 +62,7 @@ def test_every_step_takes_param_with_the_same_name(testdir, parser_import_string
 @mark.parametrize(
     "parser_import_string",
     [
-        "from pytest_bdd.parsers import cfparse",  # Deprecated
+        "from pytest_cuke.parsers import cfparse",  # Deprecated
         "from parse_type.cfparse import Parser as cfparse",
     ],
 )
@@ -84,7 +84,7 @@ def test_argument_in_when(testdir, parser_import_string):
         # language=python
         """\
         import pytest
-        from pytest_bdd import given, when, then
+        from pytest_cuke import given, when, then
         """
         f"{parser_import_string}"
         """

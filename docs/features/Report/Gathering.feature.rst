@@ -6,7 +6,7 @@ Background:
 
 -  Given File "Passing.feature" with content:
 
-   .. code:: gherkin
+   ::
 
       Feature: Passing feature
         Scenario: Passing scenario
@@ -14,9 +14,9 @@ Background:
 
 -  And File "conftest.py" with content:
 
-   .. code:: python
+   ::
 
-      from pytest_bdd import step
+      from pytest_cuke import step
 
       @step('Passing step')
       def _():
@@ -30,15 +30,10 @@ Scenario: NDJson(JSONL) could be produced on the feature run
    Output file could be fed into other @cucumber tools for more verbose report
    [Messages](https://github.com/cucumber/messages)
 
--  When run pytest
+-  When I run pytest in a subprocess with arguments
+   "--cuke-messages-ndjson out.ndjson"
 
-   ========== ================= ==========
-   cli_args   --messages-ndjson out.ndjson
-   ========== ================= ==========
-   subprocess true
-   ========== ================= ==========
-
--  Then File "out.ndjson" has "15" lines
+-  Then File "out.ndjson" has "9" lines
 
 -  Then Report "out.ndjson" parsable into messages
 
@@ -56,12 +51,7 @@ Scenario: HTML report could be produced on the feature run
    ======== ========================
    ======== ========================
 
--  When run pytest
-
-   ========== =============== ========
-   cli_args   --cucumber-html out.html
-   ========== =============== ========
-   subprocess true
-   ========== =============== ========
+-  When I run pytest in a subprocess with arguments "--cuke-html
+   out.html"
 
 -  Then File "out.html" is not empty

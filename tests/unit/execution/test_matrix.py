@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
-from pytest_bdd.model.examples import Examples
-from pytest_bdd.model.scenario import Scenario
-from pytest_bdd.model.table import TableCell, TableRow
-from pytest_bdd.util.matrix import (
+from pytest_cuke.model.examples import Examples
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.table import TableCell, TableRow
+from pytest_cuke.util.matrix import (
     build_parametrization,
     build_scenario_parametrization,
     expand_example_rows,

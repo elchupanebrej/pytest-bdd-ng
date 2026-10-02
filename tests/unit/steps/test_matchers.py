@@ -7,13 +7,13 @@ import pytest
 from cucumber_expressions.expression import CucumberExpression
 from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
 
-from pytest_bdd.parsers.base import ParserBuildValueError, RegistryMode, StepMatch, StepParser, StepParserProtocol
-from pytest_bdd.parsers.cucumber_expression import cucumber_expression
-from pytest_bdd.parsers.cucumber_regex import cucumber_regular_expression
-from pytest_bdd.parsers.heuristic import heuristic
-from pytest_bdd.parsers.parse_parser import cfparse, parse
-from pytest_bdd.parsers.re_parser import re as bdd_re
-from pytest_bdd.parsers.string_parser import string
+from pytest_cuke.parsers.base import ParserBuildValueError, RegistryMode, StepMatch, StepParser, StepParserProtocol
+from pytest_cuke.parsers.cucumber_expression import cucumber_expression
+from pytest_cuke.parsers.cucumber_regex import cucumber_regular_expression
+from pytest_cuke.parsers.heuristic import heuristic
+from pytest_cuke.parsers.parse_parser import cfparse, parse
+from pytest_cuke.parsers.re_parser import re as bdd_re
+from pytest_cuke.parsers.string_parser import string
 
 from pytest import mark
 

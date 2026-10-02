@@ -3,12 +3,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
-import pytest
-
-from pytest_bdd.mimetypes import Mimetype
-from pytest_bdd.model import Feature
-from pytest_bdd.parser import GherkinParser
-from pytest_bdd.scenario_locator import (
+from pytest_cuke.model import Feature
+from pytest_cuke.scenario_locator import (
     FileScenarioLocator,
     ScenarioLocatorFeatureResolver,
     ScenarioLocatorResolver,
@@ -95,7 +91,7 @@ def test_protocols_conformance() -> None:
 def test_url_scenario_locator_mocked() -> None:
     from unittest.mock import MagicMock, patch
 
-    from pytest_bdd.scenario_locator import UrlScenarioLocator
+    from pytest_cuke.scenario_locator import UrlScenarioLocator
 
     mock_resp = MagicMock()
     mock_resp.headers.get_content_type.return_value = "text/x-gherkin"
@@ -103,7 +99,7 @@ def test_url_scenario_locator_mocked() -> None:
     mock_resp.__enter__.return_value = mock_resp
     mock_resp.__exit__.return_value = False
 
-    with patch("pytest_bdd.scenario_locator.urlopen", return_value=mock_resp):
+    with patch("pytest_cuke.scenario_locator.urlopen", return_value=mock_resp):
         locator = UrlScenarioLocator(url_paths=["https://example.com/test.feature"])
         features = list(locator.resolve_features())
 
@@ -115,7 +111,7 @@ def test_url_scenario_locator_mocked() -> None:
 
 def test_seam2_contract_all_formats(tmp_path: Path) -> None:
     """Seam 2 Contract: All parsers & locators produce pure Layer L2a Feature model trees."""
-    from pytest_bdd.model import Scenario, Step
+    from pytest_cuke.model import Scenario, Step
 
     f_gherkin = tmp_path / "test.feature"
     f_gherkin.write_text("Feature: Gherkin\n  Scenario: G\n    Given g1\n", encoding="utf-8")

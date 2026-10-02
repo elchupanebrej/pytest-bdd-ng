@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from pytest_bdd.model.step import Step, StepType
-from pytest_bdd.parsers.string_parser import string
-from pytest_bdd.steps.definition import Definition, _resolve_callable_source_location
-from pytest_bdd.utils import IdGenerator
+from pytest_cuke.model.step import Step, StepType
+from pytest_cuke.parsers.string_parser import string
+from pytest_cuke.steps.definition import Definition, _resolve_callable_source_location
+from pytest_cuke.utils import IdGenerator
 
 from pytest import mark
 
@@ -64,7 +64,7 @@ def test_definition_as_message() -> None:
         liberal=False,
     )
     config = MagicMock()
-    config.stash = {IdGenerator.pytest_bdd_id_generator: IdGenerator()}
+    config.stash = {IdGenerator.pytest_cuke_id_generator: IdGenerator()}
     msg = defn.as_message(config)
     assert msg.id == "0"
     assert msg.pattern.source == "I have apples"

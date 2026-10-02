@@ -1,0 +1,435 @@
+from __future__ import annotations
+
+from argparse import ArgumentTypeError
+from collections import deque
+from contextlib import suppress
+from functools import lru_cache, partial
+from inspect import signature
+from itertools import chain
+from operator import attrgetter, contains, methodcaller
+from pathlib import Path
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, cast
+from unittest.mock import patch
+
+import pytest
+from pathvalidate import is_valid_filepath
+
+from pytest_cuke import cucumber_json, generation, gherkin_terminal_reporter, given, hooks, steps, then, when
+from pytest_cuke.allure_logging import AllurePytestBDD
+from pytest_cuke.collector import FeatureFileModule as FeatureFileCollector
+from pytest_cuke.collector import Module as ModuleCollector
+from pytest_cuke.compatibility.pytest import (
+    PYTEST7,
+    Config,
+    FixtureRequest,
+    Mark,
+    MarkDecorator,
+    Metafunc,
+    Parser,
+    PytestPluginManager,
+)
+from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from pytest_cuke.message_plugin import MessagePlugin
+from pytest_cuke.mimetypes import Mimetype
+from pytest_cuke.npm_resource import check_npm, check_npm_package
+from pytest_cuke.parser import GherkinParser, MarkdownGherkinParser
+from pytest_cuke.parsers import cucumber_expression
+from pytest_cuke.reporting import ScenarioReporterPlugin, ScenarioSummaryPlugin, add_summary_options
+from pytest_cuke.runner import ScenarioRunner
+from pytest_cuke.scenario import FeaturePathType, scenarios
+from pytest_cuke.scenario import add_options as scenario_add_options
+from pytest_cuke.scenario_locator import FileScenarioLocator, UrlScenarioLocator
+from pytest_cuke.steps import StepHandler
+from pytest_cuke.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
+
+if TYPE_CHECKING:
+    from collections.abc import Collection, Iterable, Sequence
+
+    from _pytest.nodes import Collector
+    from cucumber_messages import PickleStep as Step
+
+    from messages import PickleStep as Step
+    from pytest_cuke.model import Feature, Scenario
+
+if STRUCT_BDD_INSTALLED:
+    from pytest_cuke.struct_bdd.plugin import StructBDDPlugin
+
+
+@lru_cache(maxsize=1)
+def _is_npm_gherkin_installed() -> bool:
+    return check_npm() and (
+        check_npm_package("@cucumber/gherkin", global_install=True) or check_npm_package("@cucumber/gherkin")
+    )
+
+
+def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
+    """Register plugin hooks."""
+    pluginmanager.add_hookspecs(hooks)
+
+
+@given("trace")
+@when("trace")
+@then("trace")
+def trace() -> None:
+    """Enter pytest's pdb trace."""
+    pytest.set_trace()
+
+
+__registry = StepHandler.Registry(namespace=sys.modules[__name__])
+
+
+@pytest.fixture
+def pytestbdd_step_runner() -> ScenarioRunner:
+    """Fixture containing scenario step runner."""
+    return ScenarioRunner()
+
+
+@pytest.fixture
+def pytestbdd_id_generator(pytestconfig: Config) -> IdGenerator:
+    """Fixture containing ID generator."""
+    if hasattr(pytestconfig, "stash"):
+        return IdGenerator.from_stash(pytestconfig.stash)
+    return getattr(pytestconfig, "pytest_cuke_id_generator", IdGenerator())
+
+
+@pytest.fixture
+def step_registry() -> Registry:
+    """Fixture containing registry of all user-defined steps"""
+    return __registry
+
+
+step_registry.__pytest_cuke_step_registry__ = __registry  # type: ignore[attr-defined]
+
+
+@pytest.fixture
+def step_matcher(pytestconfig: Config) -> Matcher:
+    """Fixture containing matcher to help find step definition for selected step of scenario"""
+    return Matcher(pytestconfig)
+
+
+@pytest.fixture
+def steps_left() -> deque[Step]:
+    """Fixture containing steps which are left to be executed"""
+    return deque()
+
+
+@pytest.fixture
+def parameter_type_registry():
+    """Fixture parameter type registry for Cucumber expressions"""
+    return cucumber_expression.parameter_type_registry
+
+
+@pytest.fixture
+def attach(request: FixtureRequest):
+    """Fixture parameter type registry for Cucumber expressions"""
+
+    def add_attachment(attachment, media_type: str | None = None, file_name=None):
+        request.config.hook.pytest_cuke_attach(
+            request=request, attachment=attachment, media_type=media_type, file_name=file_name
+        )
+
+    return add_attachment
+
+
+def pytest_addoption(parser: Parser) -> None:
+    """Add the canonical pytest-cuke configuration and CLI surface."""
+    add_bdd_ini(parser)
+    feature_group = parser.getgroup("cuke", "Feature collection")
+    feature_group.addoption(
+        "--cuke-features-dir",
+        action="store",
+        dest="cuke_features_dir",
+        metavar="DIR",
+        type=_non_empty_path,
+        default=None,
+        help="select the feature directory for autoload and scenario binding",
+    )
+    steps.add_options(parser)
+    scenario_add_options(parser)
+    cucumber_json.add_options(parser)
+    generation.add_options(parser)
+    gherkin_terminal_reporter.add_options(parser)
+    MessagePlugin.add_options(parser)
+    add_summary_options(parser)
+
+
+def add_bdd_ini(parser: Parser) -> None:
+    parser.addini("cuke_features_dir", "Base features directory.", default="features", type="string")
+    parser.addini("cuke_features_base_url", "Base features URL.", default="", type="string")
+
+
+def _non_empty_path(value: str) -> str:
+    if not value.strip():
+        raise ArgumentTypeError("feature directory must not be empty")
+    return value
+
+
+@pytest.mark.trylast
+def pytest_configure(config: Config) -> None:
+    """Configure all subplugins."""
+    config.addinivalue_line("markers", "pytest_cuke_scenario: marker to identify pytest_cuke tests")
+    config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
+    cucumber_json.configure(config)
+    gherkin_terminal_reporter.configure(config)
+    config.pluginmanager.register(ScenarioReporterPlugin())
+    config.pluginmanager.register(ScenarioRunner())
+    config.pluginmanager.register(MessagePlugin(config=config), name="pytest_cuke_messages")  # type: ignore[call-arg]
+    summary_enabled = config.option.cuke_summary
+    if summary_enabled is None:
+        summary_enabled = config.getini("cuke_summary")
+    if summary_enabled:
+        config.pluginmanager.register(ScenarioSummaryPlugin(), name="pytest_cuke_summary")
+    config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]
+    if hasattr(config, "stash"):
+        config.stash[IdGenerator.pytest_cuke_id_generator] = IdGenerator.from_stash(config.stash)
+    setdefaultattr(config, "pytest_cuke_id_generator", value_factory=IdGenerator)
+    if STRUCT_BDD_INSTALLED:
+        config.pluginmanager.register(StructBDDPlugin())
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_unconfigure(config: Config) -> None:
+    config.pluginmanager.unregister(name="pytest_cuke_messages")
+    config.pluginmanager.unregister(name="pytest_cuke_summary")
+    with suppress(AttributeError):
+        config.__allure_plugin__.unregister(config)  # type: ignore[attr-defined]
+    cucumber_json.unconfigure(config)
+
+
+def _pytest_pycollect_makemodule():
+    with patch("_pytest.python.Module", new=ModuleCollector):
+        yield
+
+
+if PYTEST7:
+
+    @pytest.hookimpl(hookwrapper=True)
+    def pytest_pycollect_makemodule(parent, module_path):
+        yield from _pytest_pycollect_makemodule()
+
+else:
+    # pytest <7 calls this hook with (path, parent); mypy reports the deliberate
+    # version-gated redefinition of the PYTEST7 signature above as an error.
+    @pytest.hookimpl(hookwrapper=True)
+    def pytest_pycollect_makemodule(path, parent):  # type: ignore[misc]
+        yield from _pytest_pycollect_makemodule()
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_plugin_registered(plugin, manager):
+    if hasattr(plugin, "__file__") and isinstance(plugin, type | ModuleType):
+        StepHandler.Registry.inject_registry_fixture(cast("StepRegistryProtocol", plugin))
+
+
+def _build_filter(filter_):
+    if callable(filter_):
+        updated_filter = filter_
+    elif filter_ is None:
+        updated_filter = None
+    else:
+        filter_str = str(filter_)
+
+        def updated_filter(config, feature, scenario):
+            return scenario.name == filter_str or scenario.name.startswith(f"{filter_str}[")
+
+    return updated_filter
+
+
+def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[Any]:
+    raw_mark_arguments = signature(scenarios).bind(*mark.args, **mark.kwargs)
+    raw_mark_arguments.apply_defaults()
+    mark_arguments = raw_mark_arguments.arguments
+
+    locators_iterables = [mark_arguments["locators"]]
+
+    filter_ = _build_filter(getitemdefault(mark_arguments, "filter_", default=None))
+
+    features_base_dir = mark.kwargs.get("features_base_dir")
+    if features_base_dir is None:
+        features_base_dir = config.getoption("cuke_features_dir")
+        if features_base_dir is None:
+            features_base_dir = config.getini("cuke_features_dir") or config.rootpath
+    if callable(features_base_dir):
+        features_base_dir = features_base_dir(config)
+
+    features_base_url = mark.kwargs.get("features_base_url")
+    if features_base_url is None:
+        try:
+            features_base_url = config.getini("cuke_features_base_url") or None
+        except (ValueError, KeyError):
+            features_base_url = None
+    if callable(features_base_url):
+        features_base_url = features_base_url(config)
+
+    features_path_type = mark_arguments["features_path_type"]
+    if features_path_type is None:
+        features_path_type = FeaturePathType.UNDEFINED
+    elif isinstance(features_path_type, str):
+        features_path_type = FeaturePathType(features_path_type)
+    elif isinstance(features_path_type, FeaturePathType):
+        pass
+    else:
+        raise ValueError("Unknown feature path type")
+
+    feature_paths = list(mark_arguments["feature_paths"] or [])
+
+    if features_path_type is FeaturePathType.PATH:
+        file_locator_feature_paths = feature_paths
+    elif features_path_type is FeaturePathType.UNDEFINED:
+        file_locator_feature_paths = [*filter(lambda p: is_valid_filepath(Path(p), platform="auto"), feature_paths)]
+    else:
+        file_locator_feature_paths = []
+
+    path_locator = FileScenarioLocator(
+        feature_paths=file_locator_feature_paths,
+        filter_=filter_,
+        encoding=mark_arguments["encoding"],
+        features_base_dir=features_base_dir,
+        mimetype=mark_arguments["features_mimetype"],
+        parser_type=mark_arguments["parser_type"],
+    )
+
+    locators_iterables.append([path_locator])
+
+    if features_path_type is FeaturePathType.URL:
+        url_locator_feature_paths = feature_paths
+    elif features_path_type is FeaturePathType.UNDEFINED:
+        url_locator_feature_paths = [*filter(is_url_parsable, feature_paths)]
+    else:
+        url_locator_feature_paths = []
+
+    url_locator = UrlScenarioLocator(
+        url_paths=url_locator_feature_paths,
+        filter_=mark_arguments["filter_"],
+        encoding=mark_arguments["encoding"],
+        features_base_url=features_base_url,
+        mimetype=mark_arguments["features_mimetype"],
+        parser_type=mark_arguments["parser_type"],
+    )
+
+    locators_iterables.append([url_locator])
+    return chain(*locators_iterables)
+
+
+def _build_scenario_param(feature: Feature, scenario: Scenario, config: Config):
+    marks = []
+    feature_tags = getattr(feature, "tag_names", ()) or ()
+    scenario_tags = getattr(scenario, "tag_names", ()) or ()
+    all_tags = set(feature_tags).union(scenario_tags)
+    for tag in all_tags:
+        tag_marks = config.hook.pytest_cuke_convert_tag_to_marks(feature=feature, scenario=scenario, tag=tag)
+        if tag_marks is not None:
+            marks.extend(tag_marks)
+    return pytest.param(
+        feature,
+        scenario,
+        id=f"{feature.uri or feature.filename or 'feature'}-{feature.name}-{scenario.name}",
+        marks=marks,
+    )
+
+
+chain_map = compose(chain.from_iterable, map)
+
+
+def pytest_generate_tests(metafunc: Metafunc):
+    config = metafunc.config
+
+    # build marker locators
+    marks: Sequence[Mark] = metafunc.definition.own_markers
+    mark_names = list(map(attrgetter("name"), marks))
+    if "pytest_cuke_scenario" in mark_names:
+        scenario_marks = filter(lambda mark: mark.name == "scenarios", marks)
+        locators = chain_map(partial(_build_scenario_locators_from_mark, config=config), scenario_marks)
+        feature_scenarios = list(chain_map(methodcaller("resolve", config), locators))
+
+        if not feature_scenarios:
+            metafunc.parametrize(
+                ("feature", "scenario"),
+                [pytest.param(None, None, marks=pytest.mark.skip(reason="No scenarios found"))],
+            )
+        else:
+            metafunc.parametrize(
+                ("feature", "scenario"),
+                [_build_scenario_param(feat, sc, config=config) for feat, sc in feature_scenarios],
+            )
+
+
+def pytest_cmdline_main(config: Config) -> int | None:
+    return generation.cmdline_main(config)
+
+
+def _pytest_collect_file(parent: Collector, file_path=None):
+    file_path = Path(file_path)
+    config = parent.session.config
+    is_enabled_feature_autoload = config.getoption("cuke_autoload")
+    if is_enabled_feature_autoload is None:
+        is_enabled_feature_autoload = config.getini("cuke_autoload")
+    if not is_enabled_feature_autoload:
+        return None
+
+    configured_dir = config.getoption("cuke_features_dir")
+    if configured_dir is None:
+        configured_dir = config.getini("cuke_features_dir")
+    rootpath = getattr(config, "rootpath", getattr(config, "rootdir", Path.cwd()))
+    feature_root = Path(configured_dir or rootpath)
+    if not feature_root.is_absolute():
+        feature_root = Path(rootpath) / feature_root
+    try:
+        file_path.resolve().relative_to(feature_root.resolve())
+    except ValueError:
+        return None
+
+    config = parent.config
+    hook = parent.config.hook
+
+    if hook.pytest_cuke_is_collectible(config=config, path=Path(file_path)):
+        return FeatureFileCollector.build(parent=parent, file_path=file_path)
+    return None
+
+
+if PYTEST7:  # Done intentionally because of API change
+
+    def pytest_collect_file(parent: Collector, file_path):
+        return _pytest_collect_file(parent=parent, file_path=file_path)
+
+else:
+
+    def pytest_collect_file(parent: Collector, path):  # type: ignore[misc]
+        return _pytest_collect_file(parent=parent, file_path=path)
+
+
+@pytest.mark.trylast
+def pytest_cuke_convert_tag_to_marks(feature, scenario, tag) -> Collection[Mark | MarkDecorator] | None:
+    tag_clean = tag.lstrip("@")
+    return [getattr(pytest.mark, tag_clean)]
+
+
+def pytest_cuke_match_step_definition_to_step(
+    request, feature, scenario, step, previous_step
+) -> StepHandler.Definition:
+    step_registry: StepHandler.Registry = request.getfixturevalue("step_registry")
+    step_matcher: StepHandler.Matcher = request.getfixturevalue("step_matcher")
+
+    return step_matcher(request, feature, scenario, step, previous_step, step_registry)
+
+
+def pytest_cuke_get_mimetype(config: Config, path: Path) -> str | None:
+    # TODO use mimetypes module
+    if str(path).endswith(".gherkin") or str(path).endswith(".feature"):
+        return Mimetype.gherkin_plain.value
+    if (str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md")) and _is_npm_gherkin_installed():
+        return Mimetype.markdown.value
+    return None
+
+
+def pytest_cuke_get_parser(config: Config, mimetype: str):
+    return {
+        Mimetype.gherkin_plain.value: GherkinParser,
+        Mimetype.markdown.value: MarkdownGherkinParser,
+    }.get(mimetype)
+
+
+def pytest_cuke_is_collectible(config: Config, path: Path) -> bool:
+    # TODO add more extensions
+    return any(map(partial(contains, {".gherkin", ".feature", ".url", ".desktop", ".webloc"}), path.suffixes))

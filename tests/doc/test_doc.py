@@ -12,7 +12,7 @@ pytestmark = mark.integration
 
 
 if TYPE_CHECKING:  # pragma: no cover
-    from pytest_bdd.compatibility.pytest import Testdir
+    from pytest_cuke.compatibility.pytest import Testdir
 
 
 def _load_bdd_tree_to_rst():
@@ -77,18 +77,7 @@ def test_convert_includes_struct_bdd_files(tmp_path: Path) -> None:
 
 @mark.skipif(sys.version_info < (3, 12), reason="Verify only on the latest version")
 def test_doc_generation(testdir: "Testdir"):
-    try:
-        import pypandoc
-        from pytest_bdd.script.bdd_tree_to_rst import convert
-    except ModuleNotFoundError as err:
-        if err.name not in {"panflute", "pycmarkgfm", "pypandoc", "docopt"}:
-            raise
-        pytest.skip(f"doc-gen extra is not installed ({err.name}); install pytest-bdd-ng[doc-gen]")
-
-    try:
-        pypandoc.get_pandoc_path()
-    except OSError:
-        pytest.skip("pandoc binary is not found; CI installs it via r-lib/actions/setup-pandoc")
+    from pytest_cuke.script.bdd_tree_to_rst import convert
 
     features_path = Path(testdir.tmpdir) / "features"
     features_path.mkdir()
@@ -126,8 +115,8 @@ def test_doc_generation(testdir: "Testdir"):
                 ========
 
                 .. NOTE:: Features below are part of end-to-end test suite; You always could find most specific
-                          use cases of **pytest-bdd-ng** by investigation of its regression
-                          test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/default/tests
+                          use cases of **pytest-cuke** by investigation of its regression
+                          test suite https://github.com/elchupanebrej/pytest-bdd-ng/tree/rewrite-from-2.3.1/tests
 
 
 

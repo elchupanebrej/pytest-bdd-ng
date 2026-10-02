@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.compatibility.runtime_compat import (
+from pytest_cuke.compatibility.runtime_compat import (
     MIN_SUPPORTED_PYTEST,
     MIN_SUPPORTED_PYTHON,
     PYTEST_COMPATIBILITY_BOUNDS,

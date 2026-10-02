@@ -4,10 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pytest_bdd.exceptions import FeatureConcreteParseError
-from pytest_bdd.gherkin_builder import build_feature_from_dict
-from pytest_bdd.model.step import StepType
-from pytest_bdd.parser import GherkinParser, default_parser_registry
+from pytest_cuke.exceptions import FeatureConcreteParseError
+from pytest_cuke.parser import GherkinParser, default_parser_registry
 
 pytestmark = pytest.mark.unit
 

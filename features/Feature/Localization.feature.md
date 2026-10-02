@@ -1,5 +1,5 @@
 # Scenarios tags could be localized
-  pytest-bdd-ng supports all localizations which
+  pytest-cuke supports all localizations which
   Gherkin does: https://cucumber.io/docs/gherkin/languages/
 
 ## Scenario:
@@ -15,7 +15,7 @@
     ```
 * And File "conftest.py" with content:
     ```python
-    from pytest_bdd import  given, when, then
+    from pytest_cuke import  given, when, then
 
     @given("que o usuário esteja na tela de login")
     def tela_login():

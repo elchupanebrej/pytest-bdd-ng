@@ -4,9 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pytest_bdd.exceptions import FeatureConcreteParseError
-from pytest_bdd.model.step import StepType
-from pytest_bdd.parser import MarkdownGherkinParser, MarkdownParser, default_parser_registry
+from pytest_cuke.exceptions import FeatureConcreteParseError
+from pytest_cuke.parser import MarkdownGherkinParser, MarkdownParser, default_parser_registry
 
 pytestmark = pytest.mark.unit
 

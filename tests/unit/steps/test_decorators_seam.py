@@ -6,20 +6,14 @@ from unittest.mock import MagicMock, call
 import pytest
 from ordered_set import OrderedSet
 
-from pytest_bdd.model.step import Step, StepType
-from pytest_bdd.parsers.string_parser import string
-from pytest_bdd.steps.decorators import given, not_implemented, then, tolerant, when
-from pytest_bdd.steps.matcher import Matcher
-from pytest_bdd.steps.registry import Registry
-from pytest_bdd.warning_types import PytestBDDStepDefinitionWarning
-
-from pytest import mark
-
-pytestmark = mark.unit
-
+from pytest_cuke.model.step import Step, StepType
+from pytest_cuke.parsers.string_parser import string
+from pytest_cuke.steps.decorators import given, not_implemented, then, tolerant, when
+from pytest_cuke.steps.matcher import Matcher
+from pytest_cuke.steps.registry import Registry
 
 if TYPE_CHECKING:
-    from pytest_bdd.steps.definition import Definition
+    from pytest_cuke.steps.definition import Definition
 
 
 def test_decorators_and_manager_registration() -> None:
@@ -27,8 +21,8 @@ def test_decorators_and_manager_registration() -> None:
     def given_book() -> str:
         return "The Hobbit"
 
-    assert hasattr(given_book, "__pytest_bdd_step_definitions__")
-    definitions = given_book.__pytest_bdd_step_definitions__
+    assert hasattr(given_book, "__pytest_cuke_step_definitions__")
+    definitions = given_book.__pytest_cuke_step_definitions__
     assert len(definitions) == 1
     defn: Definition = next(iter(definitions))
     assert defn.type_ == StepType.context
@@ -43,9 +37,9 @@ def test_decorators_not_implemented_and_tolerant() -> None:
     def when_read() -> None:
         pass
 
-    assert when_read.__pytest_bdd_not_implemented__ is True
-    assert when_read.__pytest_bdd_tolerant__ is True
-    defn = next(iter(when_read.__pytest_bdd_step_definitions__))
+    assert when_read.__pytest_cuke_not_implemented__ is True
+    assert when_read.__pytest_cuke_tolerant__ is True
+    defn = next(iter(when_read.__pytest_cuke_step_definitions__))
     assert defn.not_implemented is True
     assert defn.tolerant is True
 
@@ -55,9 +49,9 @@ def test_matcher_liberal_mode() -> None:
     def then_check() -> None:
         pass
 
-    reg = Registry(definitions=OrderedSet([next(iter(then_check.__pytest_bdd_step_definitions__))]))
+    reg = Registry(definitions=OrderedSet([next(iter(then_check.__pytest_cuke_step_definitions__))]))
     config = MagicMock()
-    config.option.liberal_steps = True
+    config.option.cuke_liberal_steps = True
     matcher = Matcher(config)
 
     step_item = Step(name="I check state", keyword="Given", type=StepType.context)

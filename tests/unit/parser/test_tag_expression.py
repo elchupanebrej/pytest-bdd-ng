@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_bdd.model.tag import Tag
-from pytest_bdd.tag_expression import TagExpression, parse_tag_expression
+from pytest_cuke.model.tag import Tag
+from pytest_cuke.tag_expression import TagExpression, parse_tag_expression
 
 pytestmark = pytest.mark.unit
 
