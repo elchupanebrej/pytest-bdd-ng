@@ -12,6 +12,7 @@ from urllib.request import urlopen
 
 from attrs import define, evolve, field
 
+from pytest_cuke.batch_collection import BatchFeatureRequest, get_batch_service
 from pytest_cuke.heading_scanner import enforce_feature_heading_policy
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
@@ -318,12 +319,19 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         return f"file:{rel_feature_path.as_posix()}"
 
-    def resolve_features(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[Feature]:
+    def build_batch_requests(
+        self,
+        config: Any = None,
+        registry: ParserRegistry | None = None,
+        feature_paths: Iterable[Path] | None = None,
+    ) -> list[BatchFeatureRequest]:
         reg = registry or default_parser_registry
         base_dir = self._resolve_features_base_dir(config)
         seen: set[str] = set()
+        requests: list[BatchFeatureRequest] = []
 
-        for feature_path in self._gen_feature_paths(base_dir):
+        paths = feature_paths if feature_paths is not None else self._gen_feature_paths(base_dir)
+        for feature_path in paths:
             canon_key = str(feature_path.resolve())
             if canon_key in seen:
                 continue
@@ -343,10 +351,38 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
             if p is not None:
                 parser_options = _parser_backend_options(p, config)
-                feature = p.parse(feature_path, uri=uri, encoding=self.encoding, **parser_options)
-                if _strict_heading_policy_enabled(config):
-                    enforce_feature_heading_policy(feature, feature.filename or uri)
-                yield feature
+                requests.append(
+                    BatchFeatureRequest(
+                        path=feature_path,
+                        uri=uri,
+                        encoding=self.encoding,
+                        parser=p,
+                        mimetype=self.mimetype,
+                        parser_options=tuple(parser_options.items()),
+                    )
+                )
+        return requests
+
+    def resolve_features(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[Feature]:
+        requests = self.build_batch_requests(config, registry)
+        service = get_batch_service(config) if config is not None else None
+        if service is not None:
+            features = service.resolve_many(requests)
+        else:
+            features = [
+                request.parser.parse(
+                    request.path,
+                    uri=request.uri,
+                    encoding=request.encoding,
+                    **dict(request.parser_options),
+                )
+                for request in requests
+            ]
+
+        for feature, request in zip(features, requests, strict=True):
+            if _strict_heading_policy_enabled(config):
+                enforce_feature_heading_policy(feature, feature.filename or request.uri)
+            yield feature
 
 
 def _strict_heading_policy_enabled(config: Any) -> bool:

@@ -11,8 +11,10 @@ from uuid import uuid4
 from pytest_cuke.compatibility.pytest import Item as PytestItem
 from pytest_cuke.compatibility.pytest import Module as PytestModule
 from pytest_cuke.compatibility.pytest import Package as PytestPackage
+from pytest_cuke.batch_collection import get_batch_service
 from pytest_cuke.scenario import FeaturePathType as PathType
 from pytest_cuke.scenario import scenarios
+from pytest_cuke.scenario_locator import FileScenarioLocator
 from pytest_cuke.steps import StepDefinitionManager
 from pytest_cuke.utils import convert_str_to_python_name
 from pytest_cuke.webloc import read as webloc_read
@@ -46,6 +48,7 @@ class PackageCollector(PytestPackage):
 
 class FeatureFileModule(Module):
     def _getobj(self) -> ModuleType:
+        self._prime_autoload_batch()
         path: Path = self.get_path()
         feature_pathlike: str | Path | None
         features_path_type: PathType
@@ -59,6 +62,62 @@ class FeatureFileModule(Module):
         else:
             feature_pathlike, features_path_type, base_dir = path, PathType.PATH, None
         return self._build_test_module(feature_pathlike, features_path_type, base_dir)
+
+    def _prime_autoload_batch(self) -> None:
+        config = self.config
+        service = get_batch_service(config)
+        if service is None or service.autoload_primed:
+            return
+        enabled = config.getoption("cuke_autoload")
+        if enabled is None:
+            enabled = config.getini("cuke_autoload")
+        if not enabled:
+            return
+
+        configured_dir = config.getoption("cuke_features_dir")
+        if configured_dir is None:
+            configured_dir = config.getini("cuke_features_dir")
+        rootpath = getattr(config, "rootpath", getattr(config, "rootdir", Path.cwd()))
+        feature_root = Path(configured_dir or rootpath)
+        if not feature_root.is_absolute():
+            feature_root = Path(rootpath) / feature_root
+        feature_root = feature_root.resolve()
+        if not feature_root.is_dir():
+            return
+
+        selected_roots = []
+        for argument in getattr(config, "args", ()):
+            argument_path = Path(str(argument).split("::", maxsplit=1)[0])
+            if not argument_path.is_absolute():
+                argument_path = Path(rootpath) / argument_path
+            selected_roots.append(argument_path.resolve())
+
+        def selected_for_collection(candidate: Path) -> bool:
+            if not selected_roots:
+                return True
+            resolved = candidate.resolve()
+            for selected_root in selected_roots:
+                if resolved == selected_root:
+                    return True
+                try:
+                    resolved.relative_to(selected_root)
+                except ValueError:
+                    continue
+                return True
+            return False
+
+        def requests() -> list[Any]:
+            candidate_paths: list[str | Path] = [
+                candidate
+                for candidate in feature_root.rglob("*")
+                if candidate.is_file()
+                and selected_for_collection(candidate)
+                and config.hook.pytest_cuke_is_collectible(config=config, path=candidate)
+            ]
+            locator = FileScenarioLocator(feature_paths=candidate_paths, features_base_dir=feature_root)
+            return locator.build_batch_requests(config)
+
+        service.prime_autoload(requests())
 
     def _build_test_module(
         self, path: str | Path | None, features_path_type: PathType, base_dir: str | Path | None

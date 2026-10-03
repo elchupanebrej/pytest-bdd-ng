@@ -45,6 +45,38 @@ run by enabling ``--cuke-strict`` or ``cuke_strict = true`` in pytest
 configuration. It is opt-in and defaults to false, so ordinary collection
 does not change when the validation policy is installed.
 
+Batch feature collection
+------------------------
+
+Feature files are read and parsed serially while their count is below the batch
+threshold. At the threshold and above, collection reads files asynchronously
+when ``aiofiles`` is installed and parses built-in Gherkin formats in spawn
+workers. ``aiofiles`` is optional; when it is absent, collection reads files
+synchronously and still uses spawn workers for parsing. Custom parsers and
+features that load external Examples tables keep the regular parser path. A
+read, worker or pool failure is reported and falls back to serial processing
+for the affected files.
+
+Set the threshold with ``--cuke-batch-threshold`` or
+``cuke_batch_threshold`` in pytest configuration. The command-line value takes
+precedence. The platform default is 50 files on POSIX and 1000 files elsewhere.
+
+.. code-block:: console
+
+   pytest --cuke-batch-threshold=25
+
+The pending requests and parsed Feature cache live for one pytest session and
+are cleared when the session ends. Equivalent paths share a parse result while
+each binding retains its own URI and scenario filters.
+
+To compare collection locally, run the reproducible benchmark from the checkout
+root. It checks that both strategies collect the same scenario identities and
+prints paired timings without enforcing a speed threshold:
+
+.. code-block:: console
+
+   uv run python scripts/benchmark_batch_feature_collection.py --files 100 --repeats 3
+
 Selecting a Gherkin parser
 --------------------------
 

@@ -89,6 +89,15 @@ def _marker_path(value: str) -> str | None:
     return path or None
 
 
+def has_external_examples_reference(content: str) -> bool:
+    """Return whether feature text contains a supported external table marker."""
+    for line in content.splitlines():
+        heading = _EXAMPLES_HEADING.fullmatch(line)
+        if heading is not None and _marker_path(heading.group("rest")) is not None:
+            return True
+    return False
+
+
 def _resolve_windows_drive_path(raw_path: str, windows_path: PureWindowsPath) -> Path:
     if os.name == "nt":
         return Path(raw_path)
