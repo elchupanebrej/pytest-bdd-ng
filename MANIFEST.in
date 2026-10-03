@@ -1,0 +1,2 @@
+include setup.py
+recursive-include native/gherkin_go *.go go.mod go.sum

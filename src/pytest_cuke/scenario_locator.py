@@ -15,7 +15,8 @@ from attrs import define, evolve, field
 from pytest_cuke.heading_scanner import enforce_feature_heading_policy
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
-from pytest_cuke.parser import ParserRegistry, default_parser_registry
+from pytest_cuke.parser import GherkinParser, MarkdownParser, ParserRegistry, default_parser_registry
+from pytest_cuke.parser_backend import resolve_parser_backend
 from pytest_cuke.utils import is_local_url
 
 if TYPE_CHECKING:
@@ -208,7 +209,8 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                         p = _parser_from_config_hook(config, Path(url), self.mimetype or content_type)
 
                 if p is not None:
-                    feature = p.parse_text(content, uri=url)
+                    parser_options = _parser_backend_options(p, config)
+                    feature = p.parse_text(content, uri=url, **parser_options)
                     if feature.source_content is None:
                         feature = evolve(
                             feature,
@@ -340,7 +342,8 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     p = _parser_from_config_hook(config, feature_path, self.mimetype)
 
             if p is not None:
-                feature = p.parse(feature_path, uri=uri, encoding=self.encoding)
+                parser_options = _parser_backend_options(p, config)
+                feature = p.parse(feature_path, uri=uri, encoding=self.encoding, **parser_options)
                 if _strict_heading_policy_enabled(config):
                     enforce_feature_heading_policy(feature, feature.filename or uri)
                 yield feature
@@ -359,6 +362,12 @@ def _strict_heading_policy_enabled(config: Any) -> bool:
         except (AttributeError, KeyError, ValueError):
             is_strict = False
     return bool(is_strict)
+
+
+def _parser_backend_options(parser: ParserProtocol, config: Any) -> dict[str, str]:
+    if isinstance(parser, (GherkinParser, MarkdownParser)):
+        return {"parser_mode": resolve_parser_backend(config).value}
+    return {}
 
 
 __all__ = [

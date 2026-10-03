@@ -153,6 +153,14 @@ def pytest_addoption(parser: Parser) -> None:
         default=None,
         help="reject empty parsed Feature and Scenario titles during collection",
     )
+    feature_group.addoption(
+        "--cuke-parser",
+        action="store",
+        dest="cuke_parser",
+        metavar="MODE",
+        default=None,
+        help="select the Gherkin parser backend: python, auto, or go",
+    )
     steps.add_options(parser)
     scenario_add_options(parser)
     cucumber_json.add_options(parser)
@@ -165,6 +173,7 @@ def pytest_addoption(parser: Parser) -> None:
 def add_bdd_ini(parser: Parser) -> None:
     parser.addini("cuke_features_dir", "Base features directory.", default="features", type="string")
     parser.addini("cuke_features_base_url", "Base features URL.", default="", type="string")
+    parser.addini("cuke_parser", "Gherkin parser backend: python, auto, or go.", default="auto", type="string")
     parser.addini(
         "cuke_strict", "Reject empty parsed Feature and Scenario titles during collection.", default=False, type="bool"
     )
