@@ -442,14 +442,19 @@ def map_feature_source_lines(feature: Feature, line_map: Sequence[SourceLine]) -
 
 def remap_parse_error(error: FeatureConcreteParseError, expanded: ExpandedFeatureText, source: str, uri: str) -> None:
     """Raise a parse error at its original line, anchored to the marker if synthetic."""
-    line = error.args[1] if len(error.args) > 1 and isinstance(error.args[1], int) else 0
+    line = error.line
     mapped = expanded.line_map[line - 1] if 1 <= line <= len(expanded.line_map) else None
     original_line = mapped.original_line if mapped is not None else line
     diagnostic_line = original_line or (mapped.diagnostic_line if mapped else line)
     original_lines = source.splitlines()
     line_text = original_lines[diagnostic_line - 1] if 1 <= diagnostic_line <= len(original_lines) else ""
-    message = error.args[0] if error.args else str(error)
-    raise FeatureConcreteParseError(message, diagnostic_line, line_text, uri) from error
+    raise FeatureConcreteParseError(
+        error.parse_message,
+        diagnostic_line,
+        line_text,
+        uri,
+        column=error.column,
+    ) from error
 
 
 __all__ = [

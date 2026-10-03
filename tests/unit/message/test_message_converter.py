@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 import messages
+from pytest_cuke.exceptions import FeatureConcreteParseError
 from pytest_cuke.model import message_converter as mc
 from pytest_cuke.model.background import Background
 from pytest_cuke.model.doc_string import DocString
@@ -56,6 +57,25 @@ def test_validate_envelope_shape_error() -> None:
     empty_env = cucumber_messages.Envelope()
     with pytest.raises(TypeError, match="exactly one payload"):
         mc.validate_envelope_shape(empty_env)
+
+
+def test_parse_error_envelope_preserves_source_and_uses_one_based_location() -> None:
+    error = FeatureConcreteParseError("invalid syntax", 6, "  open", "features/broken.feature.md", column=0)
+
+    envelope = mc.parse_error_to_envelope(error)
+
+    assert envelope.parse_error is not None
+    assert envelope.parse_error.message == "invalid syntax"
+    assert envelope.parse_error.source.uri == "features/broken.feature.md"
+    assert envelope.parse_error.source.location is not None
+    assert envelope.parse_error.source.location.line == 6
+    assert envelope.parse_error.source.location.column == 1
+    mc.validate_envelope_shape(envelope)
+    assert messages.Envelope.model_validate(envelope.model_dump(exclude_none=True, by_alias=True)) == envelope
+
+    missing_source = FeatureConcreteParseError("invalid syntax", 0, "", "")
+    with pytest.raises(ValueError, match="positive source line and non-empty URI"):
+        mc.parse_error_to_envelope(missing_source)
 
 
 def test_scenario_to_pickle_and_test_case() -> None:

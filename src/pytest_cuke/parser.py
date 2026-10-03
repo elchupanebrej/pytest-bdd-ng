@@ -309,9 +309,14 @@ def _parse_python_document(
         first_error = exc.errors[0] if getattr(exc, "errors", None) else None
         location = getattr(first_error, "location", None) or {}
         line = location.get("line", 0)
+        column = location.get("column", 1)
+        if not isinstance(line, int):
+            line = 0
+        if not isinstance(column, int) or column < 1:
+            column = 1
         lines = content.splitlines()
         line_text = lines[line - 1] if isinstance(line, int) and 1 <= line <= len(lines) else ""
-        raise FeatureConcreteParseError(str(exc), line, line_text, uri or "") from exc
+        raise FeatureConcreteParseError(str(exc), line, line_text, uri or "", column=column) from exc
     if not isinstance(raw_document, dict):
         raise FeatureConcreteParseError("Gherkin parser returned an invalid document", 0, "", uri or "")
     return raw_document

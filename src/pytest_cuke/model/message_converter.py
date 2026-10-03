@@ -10,6 +10,7 @@ from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_extension import has_single_payload
 
 if TYPE_CHECKING:
+    from pytest_cuke.exceptions import FeatureConcreteParseError
     from pytest_cuke.model.background import Background
     from pytest_cuke.model.doc_string import DocString
     from pytest_cuke.model.examples import Examples
@@ -217,6 +218,22 @@ def feature_to_gherkin_document(feature: Feature, uri: str = "") -> cucumber_mes
 
 def feature_to_envelope(feature: Feature, uri: str = "") -> cucumber_messages.Envelope:
     return cucumber_messages.Envelope(gherkin_document=feature_to_gherkin_document(feature, uri=uri))
+
+
+def parse_error_to_envelope(error: FeatureConcreteParseError) -> messages.Envelope:
+    """Convert a parser failure to the official Cucumber ParseError payload."""
+    if error.line < 1 or not error.source_uri:
+        raise ValueError("a Cucumber ParseError requires a positive source line and non-empty URI")
+    column = error.column if error.column > 0 else 1
+    return messages.Envelope(
+        parse_error=messages.ParseError(
+            source=messages.SourceReference(
+                uri=error.source_uri,
+                location=make_location(error.line, column),
+            ),
+            message=error.parse_message,
+        )
+    )
 
 
 def step_to_pickle_step(step: Step, default_id: str = "", *, force_generated_id: bool = False) -> messages.PickleStep:
