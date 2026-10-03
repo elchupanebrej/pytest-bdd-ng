@@ -44,6 +44,7 @@ from pytest_cuke.scenario import add_options as scenario_add_options
 from pytest_cuke.scenario_locator import FileScenarioLocator, UrlScenarioLocator
 from pytest_cuke.steps.matcher import Matcher
 from pytest_cuke.steps.registry import Registry, StepRegistryProtocol
+from pytest_cuke.test_groups.plugin import TestGroupPlugin, add_test_group_ini
 from pytest_cuke.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
 
 if TYPE_CHECKING:
@@ -194,6 +195,7 @@ def add_bdd_ini(parser: Parser) -> None:
     parser.addini(
         "cuke_strict", "Reject empty parsed Feature and Scenario titles during collection.", default=False, type="bool"
     )
+    add_test_group_ini(parser)
 
 
 def _non_empty_path(value: str) -> str:
@@ -233,6 +235,8 @@ def pytest_configure(config: Config) -> None:
     setdefaultattr(config, "pytest_cuke_id_generator", value_factory=IdGenerator)
     if STRUCT_BDD_INSTALLED:
         config.pluginmanager.register(StructBDDPlugin())
+    if config.getini("cuke_test_group_order"):
+        config.pluginmanager.register(TestGroupPlugin(config), name="pytest_cuke_test_groups")
 
 
 def pytest_sessionstart(session: Any) -> None:
