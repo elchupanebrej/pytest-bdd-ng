@@ -6,7 +6,8 @@ from contextlib import suppress
 from functools import lru_cache, partial
 from inspect import signature
 from itertools import chain
-from operator import attrgetter, contains, methodcaller
+from operator import attrgetter, methodcaller
+from os.path import normcase
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, cast
@@ -391,6 +392,40 @@ def _build_scenario_param(feature: Feature, scenario: Scenario, config: Config) 
     )
 
 
+def _feature_scenario_identity(feature: Feature, scenario: Scenario) -> tuple[Any, ...] | None:
+    """Build a stable identity for duplicate locator results with a known source."""
+    if feature.filename:
+        source: tuple[str, str] = ("path", normcase(str(Path(feature.filename).resolve())))
+    elif feature.uri:
+        source = ("uri", feature.uri)
+    else:
+        return None
+
+    scenario_identity = (
+        scenario.id or scenario.name,
+        scenario.line,
+        tuple((step.keyword, step.name, step.line) for step in scenario.steps),
+        scenario.tag_names,
+    )
+    return (*source, *scenario_identity)
+
+
+def _deduplicate_feature_scenarios(
+    feature_scenarios: Iterable[tuple[Feature, Scenario]],
+) -> list[tuple[Feature, Scenario]]:
+    """Drop duplicate source/scenario pairs while preserving locator order."""
+    seen: set[tuple[Any, ...]] = set()
+    unique: list[tuple[Feature, Scenario]] = []
+    for feature, scenario in feature_scenarios:
+        identity = _feature_scenario_identity(feature, scenario)
+        if identity is not None and identity in seen:
+            continue
+        if identity is not None:
+            seen.add(identity)
+        unique.append((feature, scenario))
+    return unique
+
+
 chain_map = compose(chain.from_iterable, map)
 
 
@@ -403,7 +438,7 @@ def pytest_generate_tests(metafunc: Metafunc) -> None:
     if "pytest_cuke_scenario" in mark_names:
         scenario_marks = filter(lambda mark: mark.name == "scenarios", marks)
         locators = chain_map(partial(_build_scenario_locators_from_mark, config=config), scenario_marks)
-        feature_scenarios = list(chain_map(methodcaller("resolve", config), locators))
+        feature_scenarios = _deduplicate_feature_scenarios(chain_map(methodcaller("resolve", config), locators))
 
         if not feature_scenarios:
             metafunc.parametrize(
@@ -481,10 +516,10 @@ def pytest_cuke_match_step_definition_to_step(
 
 
 def pytest_cuke_get_mimetype(config: Config, path: Path) -> str | None:
-    # TODO use mimetypes module
-    if str(path).endswith(".gherkin") or str(path).endswith(".feature"):
+    name = path.name.casefold()
+    if name.endswith((".gherkin", ".feature")):
         return Mimetype.gherkin_plain.value
-    if (str(path).endswith(".gherkin.md") or str(path).endswith(".feature.md")) and _is_npm_gherkin_installed():
+    if name.endswith((".gherkin.md", ".feature.md")) and _is_npm_gherkin_installed():
         return Mimetype.markdown.value
     return None
 
@@ -496,6 +531,8 @@ def pytest_cuke_get_parser(config: Config, mimetype: str) -> Any:
     }.get(mimetype)
 
 
-def pytest_cuke_is_collectible(config: Config, path: Path) -> bool:
-    # TODO add more extensions
-    return any(map(partial(contains, {".gherkin", ".feature", ".url", ".desktop", ".webloc"}), path.suffixes))
+def pytest_cuke_is_collectible(config: Config, path: Path) -> bool | None:
+    suffixes = {".gherkin", ".feature", ".url", ".desktop", ".webloc"}
+    if any(suffix.casefold() in suffixes for suffix in path.suffixes):
+        return True
+    return None

@@ -67,6 +67,7 @@ class ConsumerProject:
     command_result: subprocess.CompletedProcess[str] | None = None
     native_parity_result: subprocess.CompletedProcess[str] | None = None
     validation_findings: list[dict[str, object]] | None = None
+    struct_bdd_selection_runs: list[subprocess.CompletedProcess[str]] | None = None
 
 
 @fixture(scope="session")
@@ -1158,11 +1159,7 @@ def _normalized_cucumber_messages(consumer: ConsumerProject, relative_path: str)
 
     def normalize(value: object) -> object:
         if isinstance(value, dict):
-            return {
-                key: normalize(item)
-                for key, item in value.items()
-                if key not in {"timestamp", "duration"}
-            }
+            return {key: normalize(item) for key, item in value.items() if key not in {"timestamp", "duration"}}
         if isinstance(value, list):
             return [normalize(item) for item in value]
         return value
@@ -1454,3 +1451,249 @@ def batch_collection_errors_keep_feature_and_source_paths(consumer: ConsumerProj
         assert association in output, output
     assert "row 2 has 1 columns; expected 2" in output, output
     assert any(error_name in output for error_name in ("IsADirectoryError", "PermissionError")), output
+
+
+_STRUCT_BDD_CONSUMER_FILES = (
+    "contract.bdd",
+    "contract.bdd.yaml",
+    "contract.bdd.yml",
+    "contract.bdd.hocon",
+    "contract.bdd.json5",
+    "contract.bdd.json",
+    "contract.bdd.hjson",
+    "contract.bdd.toml",
+)
+_STRUCT_BDD_CASE_VARIANT = "contract-uppercase.BDD.YAML"
+
+
+def _struct_bdd_payload(relative_path: str) -> str:
+    name = Path(relative_path).name
+    scenario = f"Scenario for {name}"
+    lowered_path = relative_path.lower()
+    if lowered_path.endswith((".bdd", ".bdd.yaml", ".bdd.yml")):
+        return f"Name: StructBDD {name}\nSteps:\n  - Step:\n      Name: {scenario}\n"
+    if lowered_path.endswith(".bdd.hocon"):
+        return f'Name = "StructBDD {name}"\nSteps = [{{ Step = {{ Name = "{scenario}" }} }}]\n'
+    if lowered_path.endswith(".bdd.json5"):
+        return f"{{ Name: 'StructBDD {name}', Steps: [{{ Step: {{ Name: '{scenario}' }} }}], }}\n"
+    if lowered_path.endswith(".bdd.json"):
+        return json.dumps({"Name": f"StructBDD {name}", "Steps": [{"Step": {"Name": scenario}}]}) + "\n"
+    if lowered_path.endswith(".bdd.hjson"):
+        return (
+            "{\n"
+            f'  Name: "StructBDD {name}"\n'
+            "  Steps: [\n"
+            "    {\n"
+            "      Step: {\n"
+            f'        Name: "{scenario}"\n'
+            "      }\n"
+            "    }\n"
+            "  ]\n"
+            "}\n"
+        )
+    if lowered_path.endswith(".bdd.toml"):
+        return f'Name = "StructBDD {name}"\n\n[[Steps]]\n[Steps.Step]\nName = "{scenario}"\n'
+    raise ValueError(f"no StructBDD consumer payload is defined for {relative_path}")
+
+
+def _struct_bdd_result_items(
+    result: subprocess.CompletedProcess[str],
+) -> list[tuple[str, str]]:
+    items: list[tuple[str, str]] = []
+    status_pattern = re.compile(r"\s+(?P<status>PASSED|FAILED|SKIPPED|ERROR)(?:\s+\[\s*\d+%\])?\s*$")
+    for line in _consumer_batch_output(result).splitlines():
+        match = status_pattern.search(line)
+        if match and ".bdd" in line.lower():
+            items.append((line[: match.start()].strip(), match.group("status")))
+    return items
+
+
+@given("the consumer installs the optional StructBDD loaders")
+def install_optional_struct_bdd_loaders(consumer: ConsumerProject) -> None:
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "installing optional StructBDD loaders requires uv"
+    result = subprocess.run(
+        [
+            uv_executable,
+            "pip",
+            "install",
+            "--python",
+            str(consumer.python),
+            "PyYAML",
+            "hjson",
+            "json5",
+            "pyhocon",
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"could not install the StructBDD loaders:\n{result.stdout}\n{result.stderr}"
+
+
+@given("the consumer has one runnable feature for every supported StructBDD suffix")
+def create_all_struct_bdd_consumer_suffixes(consumer: ConsumerProject) -> None:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    for relative_path in _STRUCT_BDD_CONSUMER_FILES:
+        (feature_root / relative_path).write_text(_struct_bdd_payload(relative_path), encoding="utf-8")
+
+    # These are deliberately invalid as structured BDD documents. Autoload must
+    # ignore data and unknown files rather than trying to parse them.
+    for relative_path in ("ordinary.yaml", "ordinary.json", "unsupported.bdd.txt"):
+        (feature_root / relative_path).write_text("not a feature: [", encoding="utf-8")
+
+
+@given("the consumer also has an uppercase StructBDD suffix variant")
+def create_uppercase_struct_bdd_suffix_variant(consumer: ConsumerProject) -> None:
+    feature_path = consumer.path / "features" / _STRUCT_BDD_CASE_VARIANT
+    feature_path.write_text(_struct_bdd_payload(_STRUCT_BDD_CASE_VARIANT), encoding="utf-8")
+
+
+@when("I compare StructBDD autoload by directory and by explicit files")
+def compare_struct_bdd_autoload_selection(consumer: ConsumerProject) -> None:
+    common_arguments = [
+        "--rootdir=.",
+        "--cuke-autoload",
+        "--cuke-features-dir=features",
+        "--cuke-summary",
+        "-vv",
+        "--color=no",
+    ]
+    directory_run = _run_consumer_batch_pytest(consumer, [*common_arguments, "features"])
+    explicit_run = _run_consumer_batch_pytest(
+        consumer,
+        [
+            *common_arguments,
+            *(f"features/{relative_path}" for relative_path in (*_STRUCT_BDD_CONSUMER_FILES, _STRUCT_BDD_CASE_VARIANT)),
+        ],
+    )
+    consumer.struct_bdd_selection_runs = [directory_run, explicit_run]
+
+
+@then("both StructBDD selections should collect all eight formats and the uppercase variant as passing scenarios")
+def struct_bdd_autoload_selections_match(consumer: ConsumerProject) -> None:
+    runs = getattr(consumer, "struct_bdd_selection_runs", None)
+    assert runs is not None and len(runs) == 2, "the StructBDD selection runs have not completed"
+    directory_run, explicit_run = runs
+    for result in runs:
+        output = _consumer_batch_output(result)
+        assert result.returncode == 0, output
+        items = _struct_bdd_result_items(result)
+        expected_files = (*_STRUCT_BDD_CONSUMER_FILES, _STRUCT_BDD_CASE_VARIANT)
+        assert len(items) == len(expected_files) == 9, output
+        assert all(status == "PASSED" for _, status in items), output
+        assert all(any(relative_path in node_id for node_id, _ in items) for relative_path in expected_files), (
+            items,
+            output,
+        )
+
+    directory_items = _struct_bdd_result_items(directory_run)
+    explicit_items = _struct_bdd_result_items(explicit_run)
+    assert dict(directory_items) == dict(explicit_items), (directory_items, explicit_items)
+
+
+@then("ordinary YAML and JSON data files and unsupported suffixes should be ignored")
+def struct_bdd_autoload_ignores_data_files(consumer: ConsumerProject) -> None:
+    runs = getattr(consumer, "struct_bdd_selection_runs", None)
+    assert runs is not None and len(runs) == 2, "the StructBDD selection runs have not completed"
+    for result in runs:
+        output = _consumer_batch_output(result)
+        for relative_path in ("ordinary.yaml", "ordinary.json", "unsupported.bdd.txt"):
+            assert relative_path not in output, output
+
+
+@given("the consumer has one structured feature selected through overlapping locators")
+def create_overlapping_struct_bdd_locators(consumer: ConsumerProject) -> None:
+    (consumer.path / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\ncuke_features_dir = 'features'\ncuke_autoload = false\n",
+        encoding="utf-8",
+    )
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    feature_path = "features/overlap.bdd.yaml"
+    (consumer.path / feature_path).write_text(
+        "Name: Overlapping locators\nSteps:\n  - Step:\n      Name: One selected scenario\n",
+        encoding="utf-8",
+    )
+    (consumer.path / "test_overlap.py").write_text(
+        "from pytest_cuke import scenarios\n\n"
+        "@scenarios('.', 'overlap.bdd.yaml', return_test_decorator=True)\n"
+        "def test_overlapping_locators(scenario):\n"
+        "    assert scenario.name == 'One selected scenario'\n",
+        encoding="utf-8",
+    )
+
+
+@then("the overlapping locators should collect the structured scenario once")
+def overlapping_struct_bdd_locators_are_deduplicated(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = _consumer_batch_output(result)
+    items = []
+    for line in output.splitlines():
+        if "test_overlapping_locators[" in line:
+            status = re.search(r"\b(PASSED|FAILED|SKIPPED|ERROR)(?:\s+\[\s*\d+%\])?\s*$", line)
+            if status is None:
+                continue
+            assert status is not None
+            items.append((line[: status.start()].strip(), status.group(1)))
+    assert result.returncode == 0, output
+    assert len(items) == 1, output
+    assert items[0][1] == "PASSED", output
+
+
+@given("the consumer has a core Gherkin feature, malformed structured data, and an optional JSON5 feature")
+def create_struct_bdd_loader_failure_fixtures(consumer: ConsumerProject) -> None:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    (feature_root / "core.feature").write_text(
+        "Feature: Core Gherkin stays available\n  Scenario: Core scenario passes without optional loaders\n",
+        encoding="utf-8",
+    )
+    (feature_root / "malformed.bdd.json").write_text('{"Name": "Broken", "Steps": [', encoding="utf-8")
+    (feature_root / "optional.bdd.json5").write_text(
+        _struct_bdd_payload("optional.bdd.json5"),
+        encoding="utf-8",
+    )
+
+
+@given("the consumer blocks the optional JSON5 loader")
+def block_struct_bdd_json5_loader(consumer: ConsumerProject) -> None:
+    (consumer.path / "sitecustomize.py").write_text(
+        "import importlib\n"
+        "_original_import_module = importlib.import_module\n\n"
+        "def _without_json5(name, package=None):\n"
+        "    if name == 'json5':\n"
+        "        raise ModuleNotFoundError(\"No module named 'json5'\", name='json5')\n"
+        "    return _original_import_module(name, package)\n\n"
+        "importlib.import_module = _without_json5\n",
+        encoding="utf-8",
+    )
+    consumer.env["PYTHONPATH"] = str(consumer.path)
+
+
+@then("the StructBDD collection errors should identify both source files and the optional install extra")
+def struct_bdd_collection_errors_are_attributed(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = _consumer_batch_output(result)
+    assert "INTERNALERROR" not in output, output
+    assert "Failed to parse structured BDD" in output, output
+    for relative_path in ("features/malformed.bdd.json", "features/optional.bdd.json5"):
+        assert str((consumer.path / relative_path).resolve()) in output, output
+    assert "json5" in output.lower(), output
+    assert "struct-bdd" in output.lower(), output
+
+
+@then("the core Gherkin scenario should still pass")
+def core_gherkin_passes_with_struct_bdd_collection_errors(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    items = []
+    for line in _consumer_batch_output(result).splitlines():
+        if "features/core.feature::" in line and re.search(r"\bPASSED(?:\s+\[\s*\d+%\])?\s*$", line):
+            items.append(line.strip())
+    assert len(items) == 1, _consumer_batch_output(result)

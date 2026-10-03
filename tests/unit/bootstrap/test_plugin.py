@@ -77,4 +77,4 @@ def test_builtin_fixtures() -> None:
     request.config.hook.pytest_cuke_attach.assert_called_once()
 
     assert pytest_cuke_is_collectible(config, Path("test.feature")) is True
-    assert pytest_cuke_is_collectible(config, Path("test.py")) is False
+    assert pytest_cuke_is_collectible(config, Path("test.py")) is None
