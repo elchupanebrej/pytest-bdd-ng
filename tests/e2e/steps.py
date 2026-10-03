@@ -4807,3 +4807,119 @@ def consumer_artifact_has_one_valid_parse_error(
     assert location is not None, "ParseError must include a SourceReference location"
     assert location.line == int(line), f"expected parse error on line {line}, got {location.line}"
     assert location.column == int(column), f"expected one-based column {column}, got {location.column}"
+
+
+@then("both message-reporting pytest sessions should fail with 3 BDD scenarios")
+def both_consumer_message_sessions_fail_with_three_scenarios(consumer: ConsumerProject) -> None:
+    results = consumer.feature_source_session_results
+    assert results is not None and len(results) == 2, "both independent pytest sessions must have run"
+    for session, result in enumerate(results, start=1):
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0, f"message-reporting pytest session {session} unexpectedly passed:\n{output}"
+        assert "0 passed BDD scenarios, 3 failed, 0 skipped" in output, output
+
+
+def _consumer_message_envelopes(relative_path: str, consumer: ConsumerProject) -> list[Envelope]:
+    artifact_path = Path(relative_path)
+    if artifact_path.is_absolute() or ".." in artifact_path.parts:
+        raise ValueError("consumer artifact paths must stay inside the consumer project")
+    raw_lines = (consumer.path / artifact_path).read_text(encoding="utf-8").splitlines()
+    assert raw_lines, f"consumer artifact {relative_path!r} is empty"
+    return [Envelope.model_validate(json.loads(raw_line)) for raw_line in raw_lines]
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should contain (?P<count>\d+) schema-valid '
+        r'UndefinedParameterType messages with expression "(?P<expression>[^"]+)" and name "(?P<name>[^"]+)"'
+    )
+)
+def consumer_artifact_has_undefined_parameter_type_messages(
+    relative_path: str,
+    count: str,
+    expression: str,
+    name: str,
+    consumer: ConsumerProject,
+) -> None:
+    envelopes = _consumer_message_envelopes(relative_path, consumer)
+    messages = [envelope.undefined_parameter_type for envelope in envelopes if envelope.undefined_parameter_type]
+    assert len(messages) == int(count), f"expected {count} UndefinedParameterType messages, got {len(messages)}"
+    assert all(message.expression == expression for message in messages), messages
+    assert all(message.name == name for message in messages), messages
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should report (?P<count>\d+) UNDEFINED steps, '
+        r'(?P<scenario_count>\d+) failed scenarios, and an unsuccessful run'
+    )
+)
+def consumer_artifact_has_undefined_steps_and_failed_scenarios(
+    relative_path: str,
+    count: str,
+    scenario_count: str,
+    consumer: ConsumerProject,
+) -> None:
+    envelopes = _consumer_message_envelopes(relative_path, consumer)
+    steps = [envelope.test_step_finished for envelope in envelopes if envelope.test_step_finished is not None]
+    assert len(steps) == int(count), f"expected {count} scenario step results, got {len(steps)}"
+    statuses = [step.test_step_result.status.value for step in steps]
+    assert all(status == "UNDEFINED" for status in statuses), statuses
+    finished_cases = [envelope.test_case_finished for envelope in envelopes if envelope.test_case_finished is not None]
+    assert len(finished_cases) == int(scenario_count), (
+        f"expected {scenario_count} finished scenarios, got {len(finished_cases)}"
+    )
+    run_finishes = [envelope.test_run_finished for envelope in envelopes if envelope.test_run_finished is not None]
+    assert len(run_finishes) == 1, f"expected one TestRunFinished event, got {len(run_finishes)}"
+    assert run_finishes[0].success is False, run_finishes[0]
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should report one FAILED converter step and '
+        r'two UNDEFINED unmatched steps'
+    )
+)
+def consumer_artifact_reports_negative_control_step_statuses(
+    relative_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    envelopes = _consumer_message_envelopes(relative_path, consumer)
+    steps = [envelope.test_step_finished for envelope in envelopes if envelope.test_step_finished is not None]
+    statuses = [step.test_step_result.status.value for step in steps]
+    assert len(statuses) == 3, f"expected three negative-control step results, got {statuses}"
+    assert statuses.count("FAILED") == 1, statuses
+    assert statuses.count("UNDEFINED") == 2, statuses
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should contain (?P<chain_count>\d+) exception chains '
+        r'and exactly (?P<cause_count>\d+) with UndefinedParameterTypeError'
+    )
+)
+def consumer_artifact_has_expected_undefined_parameter_type_causes(
+    relative_path: str,
+    chain_count: str,
+    cause_count: str,
+    consumer: ConsumerProject,
+) -> None:
+    artifact_path = Path(relative_path)
+    if artifact_path.is_absolute() or ".." in artifact_path.parts:
+        raise ValueError("consumer artifact paths must stay inside the consumer project")
+    raw_lines = (consumer.path / artifact_path).read_text(encoding="utf-8").splitlines()
+    chains = [json.loads(raw_line) for raw_line in raw_lines]
+    assert len(chains) == int(chain_count), f"expected {chain_count} captured exception chains, got {len(chains)}"
+    cause_chains = [
+        chain for chain in chains if any(entry.get("type") == "UndefinedParameterTypeError" for entry in chain)
+    ]
+    assert len(cause_chains) == int(cause_count), (
+        f"expected exactly {cause_count} chains containing UndefinedParameterTypeError, got {len(cause_chains)}: "
+        f"{chains!r}"
+    )
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should contain no UndefinedParameterType messages'))
+def consumer_artifact_has_no_undefined_parameter_type_messages(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _consumer_message_envelopes(relative_path, consumer)
+    assert not any(envelope.undefined_parameter_type is not None for envelope in envelopes)
