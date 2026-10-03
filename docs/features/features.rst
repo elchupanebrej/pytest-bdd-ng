@@ -19,6 +19,12 @@ pytest-cuke-bootstrap
 .. include:: ../features/pytest-cuke-bootstrap.feature
    :code: gherkin
 
+feature-source-selection
+------------------------
+
+.. include:: ../features/feature-source-selection.feature
+   :code: gherkin
+
 tutorial
 --------
 

@@ -32,6 +32,7 @@ from pytest_cuke.compatibility.pytest import (
     PytestPluginManager,
 )
 from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from pytest_cuke.feature_sources import resolve_feature_sources
 from pytest_cuke.message_plugin import MessagePlugin
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.npm_resource import check_npm, check_npm_package
@@ -147,7 +148,20 @@ def pytest_addoption(parser: Parser) -> None:
         metavar="DIR",
         type=_non_empty_path,
         default=None,
-        help="select the feature directory for autoload and scenario binding",
+        help=(
+            "select the local feature root (cuke_features_dir); precedence is binding, CLI, then ini; "
+            "relative to pytest root"
+        ),
+    )
+    feature_group.addoption(
+        "--cuke-features-base-url",
+        action="store",
+        dest="cuke_features_base_url",
+        metavar="URL",
+        default=None,
+        help=(
+            "select the URL base for URL-backed bindings (cuke_features_base_url); precedence is binding, CLI, then ini"
+        ),
     )
     feature_group.addoption(
         "--cuke-strict",
@@ -217,6 +231,11 @@ def _positive_integer(value: str) -> int:
 @pytest.mark.trylast
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
+    try:
+        resolve_feature_sources(config)
+    except ValueError as error:
+        raise pytest.UsageError(str(error)) from error
+
     config.addinivalue_line("markers", "pytest_cuke_scenario: marker to identify pytest_cuke tests")
     config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
     cucumber_json.configure(config)
@@ -313,22 +332,13 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
 
     filter_ = _build_filter(getitemdefault(mark_arguments, "filter_", default=None))
 
-    features_base_dir = mark.kwargs.get("features_base_dir")
-    if features_base_dir is None:
-        features_base_dir = config.getoption("cuke_features_dir")
-        if features_base_dir is None:
-            features_base_dir = config.getini("cuke_features_dir") or config.rootpath
-    if callable(features_base_dir):
-        features_base_dir = features_base_dir(config)
-
-    features_base_url = mark.kwargs.get("features_base_url")
-    if features_base_url is None:
-        try:
-            features_base_url = config.getini("cuke_features_base_url") or None
-        except (ValueError, KeyError):
-            features_base_url = None
-    if callable(features_base_url):
-        features_base_url = features_base_url(config)
+    feature_sources = resolve_feature_sources(
+        config,
+        features_base_dir=mark.kwargs.get("features_base_dir"),
+        features_base_url=mark.kwargs.get("features_base_url"),
+    )
+    features_base_dir = feature_sources.features_base_dir
+    features_base_url = feature_sources.features_base_url
 
     features_path_type = mark_arguments["features_path_type"]
     if features_path_type is None:
@@ -472,13 +482,11 @@ def _pytest_collect_file(parent: Collector, file_path: Any = None) -> FeatureFil
     if not is_enabled_feature_autoload:
         return None
 
-    configured_dir = config.getoption("cuke_features_dir")
-    if configured_dir is None:
-        configured_dir = config.getini("cuke_features_dir")
-    rootpath = getattr(config, "rootpath", getattr(config, "rootdir", Path.cwd()))
-    feature_root = Path(configured_dir or rootpath)
-    if not feature_root.is_absolute():
-        feature_root = Path(rootpath) / feature_root
+    feature_root = resolve_feature_sources(config).features_base_dir
+    if not feature_root.is_dir():
+        raise pytest.UsageError(
+            f"Feature root {str(feature_root)!r}, selected by --cuke-features-dir or cuke_features_dir, does not exist."
+        )
     try:
         file_path.resolve().relative_to(feature_root.resolve())
     except ValueError:

@@ -8,10 +8,11 @@ from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlparse
 from uuid import uuid4
 
+from pytest_cuke.batch_collection import get_batch_service
 from pytest_cuke.compatibility.pytest import Item as PytestItem
 from pytest_cuke.compatibility.pytest import Module as PytestModule
 from pytest_cuke.compatibility.pytest import Package as PytestPackage
-from pytest_cuke.batch_collection import get_batch_service
+from pytest_cuke.feature_sources import resolve_feature_sources
 from pytest_cuke.scenario import FeaturePathType as PathType
 from pytest_cuke.scenario import scenarios
 from pytest_cuke.scenario_locator import FileScenarioLocator
@@ -74,17 +75,11 @@ class FeatureFileModule(Module):
         if not enabled:
             return
 
-        configured_dir = config.getoption("cuke_features_dir")
-        if configured_dir is None:
-            configured_dir = config.getini("cuke_features_dir")
-        rootpath = getattr(config, "rootpath", getattr(config, "rootdir", Path.cwd()))
-        feature_root = Path(configured_dir or rootpath)
-        if not feature_root.is_absolute():
-            feature_root = Path(rootpath) / feature_root
-        feature_root = feature_root.resolve()
+        feature_root = resolve_feature_sources(config).features_base_dir
         if not feature_root.is_dir():
             return
 
+        rootpath = getattr(config, "rootpath", getattr(config, "rootdir", Path.cwd()))
         selected_roots = []
         for argument in getattr(config, "args", ()):
             argument_path = Path(str(argument).split("::", maxsplit=1)[0])

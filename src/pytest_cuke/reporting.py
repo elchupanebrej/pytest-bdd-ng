@@ -108,10 +108,11 @@ class ScenarioReport:
         pickle_tags = getattr(pickle, "tag_names", ()) or ()
         feature_tags = getattr(feature, "tag_names", ()) or ()
 
-        feat_rel = getattr(feature, "rel_filename", None)
-        if not feat_rel:
-            uri = feature.uri or ""
-            feat_rel = uri[5:] if uri.startswith("file:") else (uri or feature.filename or "")
+        uri = feature.uri or ""
+        if uri.startswith("file:"):
+            feat_rel = uri[5:]
+        else:
+            feat_rel = getattr(feature, "rel_filename", None) or uri or feature.filename or ""
 
         steps_data = (
             [step_report.serialize(self.feature) for step_report in self.step_reports]

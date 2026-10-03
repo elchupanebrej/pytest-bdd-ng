@@ -83,6 +83,51 @@ class ConsumerProject:
     second_group_started_before_release: bool | None = None
     concurrent_group_results: list[subprocess.CompletedProcess[str]] | None = None
     concurrent_group_events: list[dict[str, object]] | None = None
+    feature_source_session_results: list[subprocess.CompletedProcess[str]] | None = None
+    feature_url_session_results: list[subprocess.CompletedProcess[str]] | None = None
+
+
+@dataclass
+class LocalFeatureHTTPFixture:
+    """Small local HTTP server for installed-consumer feature source contracts."""
+
+    base_url: str
+    responses: dict[str, tuple[int, str, str]]
+
+    def respond(self, path: str, content: str, status: int, content_type: str) -> None:
+        self.responses[path] = (status, content, content_type)
+
+
+@fixture
+def local_feature_http_server():
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from threading import Thread
+
+    responses: dict[str, tuple[int, str, str]] = {}
+
+    class RequestHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            status, content, content_type = responses.get(self.path, (404, "not found", "text/plain"))
+            body = content.encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format: str, *args: object) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), RequestHandler)
+    server_thread = Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    local_server = LocalFeatureHTTPFixture(f"http://127.0.0.1:{server.server_port}", responses)
+    try:
+        yield local_server
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=5)
 
 
 @fixture(scope="session")
@@ -455,12 +500,144 @@ def write_consumer_pytest_configuration(consumer: ConsumerProject, step):
     (consumer.path / "pyproject.toml").write_text(step.doc_string.content, encoding="utf-8")
 
 
+@given(re.compile(r'the local HTTP fixture serves feature endpoint "(?P<path>[^\"]+)":'))
+def serve_local_http_feature_endpoint(path: str, local_feature_http_server: LocalFeatureHTTPFixture, step) -> None:
+    local_feature_http_server.respond(
+        path,
+        step.doc_string.content,
+        status=200,
+        content_type=Mimetype.gherkin_plain.value,
+    )
+
+
+@given(re.compile(r'the local HTTP fixture returns status (?P<status>\d+) for feature endpoint "(?P<path>[^\"]+)"'))
+def local_http_feature_endpoint_returns_status(
+    path: str, status: str, local_feature_http_server: LocalFeatureHTTPFixture
+) -> None:
+    local_feature_http_server.respond(path, "not found", status=int(status), content_type="text/plain")
+
+
 @when(re.compile(r'I run installed pytest with arguments "(?P<arguments>[^\"]*)"'), target_fixture="pytest_run_result")
 def run_consumer_pytest(arguments, consumer: ConsumerProject):
     result = subprocess.run(
         [str(consumer.pytest), *shlex.split(arguments)],
         cwd=consumer.path,
         env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    consumer.pytest_result = result
+    return result
+
+
+@when(
+    re.compile(
+        r'I run installed pytest from consumer directory "(?P<working_directory>[^\"]+)" '
+        r'with arguments "(?P<arguments>[^\"]*)"'
+    ),
+    target_fixture="pytest_result",
+)
+def run_consumer_pytest_from_consumer_directory(working_directory, arguments, consumer: ConsumerProject):
+    destination = Path(working_directory)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer working directories must stay inside the consumer project")
+    cwd = consumer.path / destination
+    if not cwd.is_dir():
+        raise ValueError(f"consumer working directory does not exist: {cwd}")
+    command = [
+        str(consumer.pytest),
+        *shlex.split(arguments.replace("{consumer_path}", str(consumer.path))),
+    ]
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    consumer.pytest_result = result
+    return result
+
+
+@when(
+    re.compile(
+        r'I run installed pytest in two independent sessions with arguments "(?P<first_arguments>[^\"]*)" '
+        r'and then "(?P<second_arguments>[^\"]*)"'
+    ),
+    target_fixture="pytest_results",
+)
+def run_consumer_pytest_in_two_independent_sessions(first_arguments, second_arguments, consumer: ConsumerProject):
+    results = []
+    for arguments in (first_arguments, second_arguments):
+        result = subprocess.run(
+            [str(consumer.pytest), *shlex.split(arguments)],
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        results.append(result)
+    consumer.feature_source_session_results = results
+    consumer.pytest_result = results[-1]
+    return results
+
+
+@when(
+    re.compile(
+        r"I run installed pytest in two independent URL-base sessions with the local HTTP fixture and arguments "
+        r'"(?P<first_arguments>[^\"]*)" and then "(?P<second_arguments>[^\"]*)"'
+    ),
+    target_fixture="pytest_results",
+)
+def run_consumer_pytest_in_two_independent_url_base_sessions(
+    first_arguments: str,
+    second_arguments: str,
+    consumer: ConsumerProject,
+    local_feature_http_server: LocalFeatureHTTPFixture,
+):
+    results = []
+    for arguments in (first_arguments, second_arguments):
+        command = [
+            str(consumer.pytest),
+            *shlex.split(arguments.replace("{local_http_base_url}", local_feature_http_server.base_url)),
+        ]
+        result = subprocess.run(
+            command,
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        results.append(result)
+    consumer.feature_url_session_results = results
+    consumer.pytest_result = results[-1]
+    return results
+
+
+@when(
+    re.compile(r'I run installed pytest with the local HTTP fixture URL base and arguments "(?P<arguments>[^\"]*)"'),
+    target_fixture="pytest_result",
+)
+def run_consumer_pytest_with_local_http_fixture_url_base(
+    arguments: str,
+    consumer: ConsumerProject,
+    local_feature_http_server: LocalFeatureHTTPFixture,
+):
+    http_base_url = local_feature_http_server.base_url
+    environment = consumer.env.copy()
+    environment["PYTEST_CUKE_TEST_HTTP_BASE_URL"] = http_base_url
+    command = [
+        str(consumer.pytest),
+        *shlex.split(arguments.replace("{local_http_base_url}", http_base_url)),
+    ]
+    result = subprocess.run(
+        command,
+        cwd=consumer.path,
+        env=environment,
         check=False,
         capture_output=True,
         text=True,
@@ -500,6 +677,37 @@ def consumer_pytest_exit_nonzero(consumer: ConsumerProject):
     result = consumer.pytest_result
     assert result is not None, "pytest has not been run in this consumer"
     assert result.returncode != 0, f"unexpected pytest success:\n{result.stdout}\n{result.stderr}"
+
+
+@then("both independent pytest sessions should execute exactly one selected root scenario")
+def independent_pytest_sessions_execute_selected_root_scenarios(consumer: ConsumerProject) -> None:
+    results = consumer.feature_source_session_results
+    assert results is not None and len(results) == 2, "the independent pytest sessions have not completed"
+    expected_summary = re.compile(r"\b1 passed BDD scenarios, 0 failed, 0 skipped\b")
+    scenario_names = ("The first local root is selected", "The second local root is selected")
+    for index, result in enumerate(results, start=1):
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, f"independent pytest session {index} failed:\n{output}"
+        assert expected_summary.search(output), (
+            f"independent pytest session {index} did not run exactly one passing root scenario:\n{output}"
+        )
+        expected_name = scenario_names[index - 1]
+        unexpected_name = scenario_names[1 - (index - 1)]
+        assert expected_name in output, f"session {index} did not name its selected root scenario:\n{output}"
+        assert unexpected_name not in output, f"session {index} also reported the other root scenario:\n{output}"
+
+
+@then("both independent URL-base sessions should execute only their selected URL source")
+def independent_pytest_sessions_execute_selected_url_sources(consumer: ConsumerProject) -> None:
+    results = consumer.feature_url_session_results
+    assert results is not None and len(results) == 2, "the independent URL-base sessions have not completed"
+    expected_summary = re.compile(r"\b1 passed BDD scenarios, 0 failed, 0 skipped\b")
+    for index, result in enumerate(results, start=1):
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, f"independent URL-base session {index} failed:\n{output}"
+        assert expected_summary.search(output), (
+            f"independent URL-base session {index} did not run exactly one passing source scenario:\n{output}"
+        )
 
 
 @then("pytest output should explain the invalid feature directory")
@@ -668,6 +876,14 @@ def consumer_explicit_bindings_json_artifact(relative_path: str, consumer: Consu
         "Bound with scenarios",
     }, report
     assert all(step["result"]["status"] == "passed" for scenario in scenarios for step in scenario["steps"]), report
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^\"]+)" should report feature URI "(?P<expected_uri>[^\"]+)"'))
+def consumer_cucumber_json_feature_uri(relative_path: str, expected_uri: str, consumer: ConsumerProject) -> None:
+    report = json.loads((consumer.path / relative_path).read_text(encoding="utf-8"))
+    assert len(report) == 1, report
+    actual_uri = report[0].get("uri")
+    assert actual_uri == expected_uri, f"expected feature URI {expected_uri!r}, got {actual_uri!r}"
 
 
 @then(
@@ -1785,6 +2001,28 @@ def consumer_pytest_output_excludes(unexpected, consumer: ConsumerProject) -> No
     )
 
 
+@then("pytest output should explain conflicting per-binding feature sources")
+def consumer_pytest_output_explains_conflicting_source_bases(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    expected = 'Both "features_base_dir" and "features_base_url" were specified'
+    assert expected.casefold() in output.casefold(), f"pytest output did not explain the conflict:\n{output}"
+
+
+@then(re.compile(r'pytest output should identify the local HTTP source URL "(?P<path>[^\"]+)"'))
+def consumer_pytest_output_identifies_local_http_source_url(
+    path: str,
+    consumer: ConsumerProject,
+    local_feature_http_server: LocalFeatureHTTPFixture,
+) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    expected_url = f"{local_feature_http_server.base_url}{path}"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert expected_url in output, f"pytest output did not identify {expected_url!r}:\n{output}"
+
+
 def _read_consumer_test_group_events(consumer: ConsumerProject) -> list[dict[str, object]]:
     event_directory = consumer.path / ".pytest-cuke-group-events"
     assert event_directory.is_dir(), f"consumer test-group events were not recorded: {event_directory}"
@@ -2579,7 +2817,9 @@ def installed_custom_parser_example_preserves_invocation_and_report(consumer: Co
     assert _resolved_custom_parser_uri(record["uri"], consumer, record["path"]) == _resolved_custom_parser_uri(
         feature_report.get("uri"), consumer
     ), (record, feature_report)
-    assert _resolved_custom_parser_uri(feature_report.get("uri"), consumer, record["path"]) == feature_path, feature_report
+    assert _resolved_custom_parser_uri(feature_report.get("uri"), consumer, record["path"]) == feature_path, (
+        feature_report
+    )
     assert _custom_parser_source_name(feature_report.get("uri")) == feature_path.name, feature_report
     elements = feature_report.get("elements")
     assert isinstance(elements, list) and len(elements) == 1, feature_report
@@ -2800,7 +3040,7 @@ def create_custom_parser_session_isolation_consumer(consumer: ConsumerProject) -
         )
 
     runner = dedent(
-        '''\
+        """\
         from __future__ import annotations
 
         import json
@@ -2871,7 +3111,7 @@ def create_custom_parser_session_isolation_consumer(consumer: ConsumerProject) -
 
         Path("session-results.json").write_text(json.dumps(exit_codes), encoding="utf-8")
         sys.exit(0 if exit_codes == [0, 0] else 1)
-        '''
+        """
     )
     (consumer.path / "run_parser_sessions.py").write_text(runner, encoding="utf-8")
     consumer.env["PYTEST_CUKE_INVOCATION_LOG"] = str(consumer.path / "parser-invocations.json")
@@ -4016,17 +4256,13 @@ def autoload_only_scenario_needs_no_mirror_wrapper(consumer: ConsumerProject) ->
 @given("the consumer uses a non-default autoload feature root for migration audit")
 def consumer_with_non_default_autoload_feature_root(consumer: ConsumerProject) -> None:
     (consumer.path / "pyproject.toml").write_text(
-        "[tool.pytest.ini_options]\n"
-        'cuke_features_dir = "spec/features"\n'
-        "cuke_autoload = true\n",
+        '[tool.pytest.ini_options]\ncuke_features_dir = "spec/features"\ncuke_autoload = true\n',
         encoding="utf-8",
     )
     feature = consumer.path / "spec" / "features" / "orders.feature"
     feature.parent.mkdir(parents=True, exist_ok=True)
     feature.write_text(
-        "Feature: Order management\n"
-        "  Scenario: Submit order\n"
-        "    Given an order is ready\n",
+        "Feature: Order management\n  Scenario: Submit order\n    Given an order is ready\n",
         encoding="utf-8",
     )
 
