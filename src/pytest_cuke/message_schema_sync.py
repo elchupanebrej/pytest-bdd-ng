@@ -185,7 +185,10 @@ def _read_directory_schemas(
             )
         original_names[normalized_name] = relative.as_posix()
         try:
-            content = path.read_bytes()
+            if path.stat().st_size > MAX_SCHEMA_BYTES:
+                raise SchemaSyncError(f"schema file {normalized_name!r} exceeds the {MAX_SCHEMA_BYTES} byte size limit")
+            with path.open("rb") as schema_file:
+                content = schema_file.read(MAX_SCHEMA_BYTES + 1)
         except OSError as error:
             raise SchemaSyncError(f"cannot read schema file {path}: {error}") from error
         schemas[normalized_name] = _validate_schema_content(normalized_name, content)
@@ -320,8 +323,9 @@ def _schemas_from_archive(archive: tarfile.TarFile, release: UpstreamRelease) ->
     for member in archive.getmembers():
         if not member.isfile():
             continue
-        parts = PurePosixPath(member.name).parts
-        if PurePosixPath(member.name).is_absolute() or ".." in parts:
+        archive_path = PurePosixPath(member.name)
+        parts = archive_path.parts
+        if archive_path.is_absolute() or ".." in parts or "\\" in member.name or ":" in member.name:
             raise SchemaSyncError(f"pinned schema archive contains an unsafe path: {member.name!r}")
         try:
             schema_index = parts.index("jsonschema")
@@ -378,7 +382,15 @@ def _replace_schema_tree(destination: Path, schemas: Mapping[str, bytes]) -> Non
     preserve_backup = False
     try:
         for name, content in sorted(schemas.items()):
-            target = stage.joinpath(*PurePosixPath(name).parts)
+            relative = PurePosixPath(name)
+            parts = relative.parts
+            if not parts or relative.is_absolute() or ".." in parts or "\\" in name or ":" in name:
+                raise SchemaSyncError(f"refusing to write schema outside the output directory: {name!r}")
+            target = stage.joinpath(*parts)
+            try:
+                target.relative_to(stage)
+            except ValueError as error:
+                raise SchemaSyncError(f"refusing to write schema outside the output directory: {name!r}") from error
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(content)
 
