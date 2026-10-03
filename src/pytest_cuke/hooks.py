@@ -73,7 +73,7 @@ def pytest_cuke_step_error(
     step: Step,
     step_func: Any,
     step_func_args: tuple[Any, ...],
-    exception: Exception,
+    exception: BaseException,
     step_definition: Any,
 ) -> None:
     """Called when step function failed to execute."""

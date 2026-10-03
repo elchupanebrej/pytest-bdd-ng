@@ -4398,3 +4398,247 @@ def compatibility_diagnostics_are_stderr_only(consumer: ConsumerProject) -> None
     assert result is not None, "a compatibility command has not run"
     assert result.stdout == "", f"diagnostic output leaked to stdout:\n{result.stdout}"
     assert result.stderr.strip(), "expected an actionable diagnostic on stderr"
+
+
+def _background_messages_artifact(relative_path: str, consumer: ConsumerProject) -> list[dict[str, object]]:
+    artifact = consumer.path / relative_path
+    lines = artifact.read_text(encoding="utf-8").splitlines()
+    assert lines, f"Cucumber Messages artifact is empty: {artifact}"
+    envelopes = [json.loads(line) for line in lines]
+    for envelope in envelopes:
+        Envelope.model_validate(envelope)
+    return envelopes
+
+
+def _assert_background_message_references(envelopes: list[dict[str, object]]) -> None:
+    pickles = {pickle["id"]: pickle for envelope in envelopes if (pickle := envelope.get("pickle")) is not None}
+    cases = {case["id"]: case for envelope in envelopes if (case := envelope.get("testCase")) is not None}
+    starts = {
+        started["id"]: started for envelope in envelopes if (started := envelope.get("testCaseStarted")) is not None
+    }
+    case_finishes = [finished for envelope in envelopes if (finished := envelope.get("testCaseFinished")) is not None]
+    step_starts = [started for envelope in envelopes if (started := envelope.get("testStepStarted")) is not None]
+    step_finishes = [finished for envelope in envelopes if (finished := envelope.get("testStepFinished")) is not None]
+    run_finishes = [finished for envelope in envelopes if (finished := envelope.get("testRunFinished")) is not None]
+
+    assert pickles, "the Messages stream has no expanded pickle records"
+    assert len(cases) == len(pickles), (cases, pickles)
+    assert len(starts) == len(cases), (starts, cases)
+    assert len(case_finishes) == len(starts), (case_finishes, starts)
+    assert {finished["testCaseStartedId"] for finished in case_finishes} == set(starts)
+    assert len(run_finishes) == 1, run_finishes
+
+    test_step_case_ids: dict[str, set[str]] = {}
+    test_step_ids: list[str] = []
+    for case in cases.values():
+        pickle_id = case["pickleId"]
+        assert pickle_id in pickles, f"test case references missing pickle {pickle_id!r}"
+        pickle_step_ids = [step["id"] for step in pickles[pickle_id]["steps"]]
+        test_steps = case["testSteps"]
+        assert [step["pickleStepId"] for step in test_steps] == pickle_step_ids, (case, pickles[pickle_id])
+        assert len({step["id"] for step in test_steps}) == len(test_steps), case
+        for test_step in test_steps:
+            test_step_ids.append(test_step["id"])
+            test_step_case_ids.setdefault(test_step["id"], set()).add(case["id"])
+    assert len(test_step_ids) == len(set(test_step_ids)), test_step_ids
+
+    started_by_case = {started["testCaseId"]: started for started in starts.values()}
+    assert len(started_by_case) == len(starts), started_by_case
+    for event in step_starts:
+        case_started = starts.get(event["testCaseStartedId"])
+        assert case_started is not None, f"test step start references missing run {event!r}"
+        case = cases[case_started["testCaseId"]]
+        valid_test_step_ids = {step["id"] for step in case["testSteps"]}
+        assert event["testStepId"] in valid_test_step_ids, (event, case)
+
+    finished_references: list[tuple[str, str]] = []
+    for event in step_finishes:
+        case_started = starts.get(event["testCaseStartedId"])
+        assert case_started is not None, f"test step finish references missing run {event!r}"
+        case_id = case_started["testCaseId"]
+        assert event["testStepId"] in test_step_case_ids, event
+        assert case_id in test_step_case_ids[event["testStepId"]], (event, case_id)
+        finished_references.append((event["testCaseStartedId"], event["testStepId"]))
+
+    started_references = [(event["testCaseStartedId"], event["testStepId"]) for event in step_starts]
+    assert len(finished_references) == len(set(finished_references)), finished_references
+    assert set(finished_references) == set(started_references), (started_references, finished_references)
+
+
+def _background_step_statuses(envelopes: list[dict[str, object]], pickle_id: str) -> list[tuple[str, str]]:
+    pickle = next(envelope["pickle"] for envelope in envelopes if envelope.get("pickle", {}).get("id") == pickle_id)
+    case = next(
+        envelope["testCase"] for envelope in envelopes if envelope.get("testCase", {}).get("pickleId") == pickle_id
+    )
+    case_started = next(
+        envelope["testCaseStarted"]
+        for envelope in envelopes
+        if envelope.get("testCaseStarted", {}).get("testCaseId") == case["id"]
+    )
+    finishes = {
+        envelope["testStepFinished"]["testStepId"]: envelope["testStepFinished"]["testStepResult"]["status"]
+        for envelope in envelopes
+        if envelope.get("testStepFinished", {}).get("testCaseStartedId") == case_started["id"]
+    }
+    return [
+        (pickle_step["text"], finishes[test_step["id"]])
+        for pickle_step, test_step in zip(pickle["steps"], case["testSteps"], strict=True)
+        if test_step["id"] in finishes
+    ]
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should preserve the two-row feature Background step identities'
+    )
+)
+def consumer_two_row_feature_background_messages(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _background_messages_artifact(relative_path, consumer)
+    _assert_background_message_references(envelopes)
+
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    starts = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    finishes = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
+    assert len(pickles) == len(cases) == len(starts) == 2
+    assert len(finishes) == 6, finishes
+    assert {finish["testStepResult"]["status"] for finish in finishes} == {"PASSED"}
+    assert next(envelope["testRunFinished"]["success"] for envelope in envelopes if "testRunFinished" in envelope)
+
+    expected_steps = {
+        "I add 2 credits": ["the total starts at 10", "I add 2 credits", "the total is 12"],
+        "I add 7 credits": ["the total starts at 10", "I add 7 credits", "the total is 17"],
+    }
+    actual_steps = {pickle["steps"][1]["text"]: [step["text"] for step in pickle["steps"]] for pickle in pickles}
+    assert actual_steps == expected_steps, actual_steps
+    assert len({step["id"] for pickle in pickles for step in pickle["steps"]}) == 6, pickles
+    for pickle in pickles:
+        statuses = _background_step_statuses(envelopes, pickle["id"])
+        assert statuses == [(text, "PASSED") for text in expected_steps[pickle["steps"][1]["text"]]], statuses
+
+
+@then(
+    re.compile(
+        r'consumer artifacts "(?P<messages_path>[^\"]+)" and "(?P<json_path>[^\"]+)" '
+        r"should agree on both successful Background rows"
+    )
+)
+def consumer_background_json_and_messages_agree(messages_path: str, json_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _background_messages_artifact(messages_path, consumer)
+    _assert_background_message_references(envelopes)
+    json_report = json.loads((consumer.path / json_path).read_text(encoding="utf-8"))
+    assert len(json_report) == 1, json_report
+    elements = json_report[0]["elements"]
+    assert len(elements) == 2, elements
+
+    json_rows: dict[str, list[tuple[str, str]]] = {}
+    for element in elements:
+        steps = [(step["name"], step["result"]["status"].lower()) for step in element["steps"]]
+        action = next(name for name, _ in steps if name.startswith("I add "))
+        assert action not in json_rows, json_rows
+        json_rows[action] = steps
+
+    messages_rows: dict[str, list[tuple[str, str]]] = {}
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    for pickle in pickles:
+        action = next(step["text"] for step in pickle["steps"] if step["text"].startswith("I add "))
+        assert action not in messages_rows, messages_rows
+        messages_rows[action] = [
+            (name, status.lower()) for name, status in _background_step_statuses(envelopes, pickle["id"])
+        ]
+    assert messages_rows == json_rows, (messages_rows, json_rows)
+    assert set(json_rows) == {"I add 2 credits", "I add 7 credits"}, json_rows
+    assert all(status == "passed" for row in json_rows.values() for _, status in row), json_rows
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^\"]+)" should report both Background rows as passed'))
+def consumer_background_json_rows_passed(relative_path: str, consumer: ConsumerProject) -> None:
+    report = json.loads((consumer.path / relative_path).read_text(encoding="utf-8"))
+    assert len(report) == 1, report
+    elements = report[0]["elements"]
+    assert len(elements) == 2, elements
+    rows: dict[str, list[tuple[str, str]]] = {}
+    for element in elements:
+        steps = [(step["name"], step["result"]["status"].lower()) for step in element["steps"]]
+        action = next(name for name, _ in steps if name.startswith("I add "))
+        rows[action] = steps
+    assert set(rows) == {"I add 2 credits", "I add 7 credits"}, rows
+    assert rows == {
+        "I add 2 credits": [
+            ("the total starts at 10", "passed"),
+            ("I add 2 credits", "passed"),
+            ("the total is 12", "passed"),
+        ],
+        "I add 7 credits": [
+            ("the total starts at 10", "passed"),
+            ("I add 7 credits", "passed"),
+            ("the total is 17", "passed"),
+        ],
+    }
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should preserve repeated feature and Rule Background step identities'
+    )
+)
+def consumer_rule_background_message_identities(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _background_messages_artifact(relative_path, consumer)
+    _assert_background_message_references(envelopes)
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    finishes = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
+    assert len(pickles) == 2, pickles
+    assert len(finishes) == 10, finishes
+    assert {finish["testStepResult"]["status"] for finish in finishes} == {"PASSED"}
+
+    rows = {}
+    duplicate_ids = []
+    for pickle in pickles:
+        texts = [step["text"] for step in pickle["steps"]]
+        action = next(text for text in texts if text.startswith("I add "))
+        assert texts.count("the total starts at 10") == 3, texts
+        assert len({step["id"] for step in pickle["steps"]}) == len(pickle["steps"]), pickle
+        duplicate_ids.extend(step["id"] for step in pickle["steps"] if step["text"] == "the total starts at 10")
+        statuses = _background_step_statuses(envelopes, pickle["id"])
+        assert [status for _, status in statuses] == ["PASSED"] * 5, statuses
+        rows[action] = [text for text, _ in statuses]
+    assert set(rows) == {"I add 2 credits", "I add 7 credits"}, rows
+    assert all(texts.count("the total starts at 10") == 3 for texts in rows.values()), rows
+    assert len(duplicate_ids) == len(set(duplicate_ids)) == 6, duplicate_ids
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should close the Background lifecycle with statuses '
+        r'"(?P<statuses>[a-z, ]+)" and an? (?P<run_result>successful|unsuccessful) run'
+    )
+)
+def consumer_background_lifecycle_messages(
+    relative_path: str, statuses: str, run_result: str, consumer: ConsumerProject
+) -> None:
+    envelopes = _background_messages_artifact(relative_path, consumer)
+    _assert_background_message_references(envelopes)
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    starts = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    finishes = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    assert len(pickles) == len(cases) == len(starts) == len(run_finished) == 1
+    expected_statuses = [status.strip().upper() for status in statuses.split(",")]
+    actual_statuses = [finish["testStepResult"]["status"] for finish in finishes]
+    assert actual_statuses == expected_statuses, (actual_statuses, expected_statuses)
+    assert bool(run_finished[0]["success"]) is (run_result == "successful"), run_finished
+    assert len([envelope for envelope in envelopes if "testCaseFinished" in envelope]) == 1
+
+
+@then(
+    re.compile(r'consumer artifact "(?P<relative_path>[^\"]+)" should report the Background failure and skipped steps')
+)
+def consumer_background_failure_json(relative_path: str, consumer: ConsumerProject) -> None:
+    report = json.loads((consumer.path / relative_path).read_text(encoding="utf-8"))
+    assert len(report) == 1, report
+    elements = report[0]["elements"]
+    assert len(elements) == 1, elements
+    statuses = [step["result"]["status"].lower() for step in elements[0]["steps"]]
+    assert statuses == ["failed", "skipped", "skipped", "skipped"], statuses
+    assert "passed" not in statuses, statuses
