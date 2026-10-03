@@ -4761,3 +4761,49 @@ def consumer_schema_sync_output_lists_sorted_drift(consumer: ConsumerProject) ->
 
     assert list(groups.values()) == list(expected.values()), (groups, expected, output)
     assert heading_positions == sorted(heading_positions) and len(heading_positions) == 3, (heading_positions, output)
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<artifact>[^"]+)" should contain exactly one valid ParseError for feature '
+        r'"(?P<feature>[^"]+)" at line (?P<line>\d+) column (?P<column>\d+)'
+    )
+)
+def consumer_artifact_has_one_valid_parse_error(
+    artifact: str,
+    feature: str,
+    line: str,
+    column: str,
+    consumer: ConsumerProject,
+) -> None:
+    from messages import Envelope
+
+    artifact_path = Path(artifact)
+    feature_path = Path(feature)
+    if artifact_path.is_absolute() or ".." in artifact_path.parts:
+        raise ValueError("consumer artifact paths must stay inside the consumer project")
+    if feature_path.is_absolute() or ".." in feature_path.parts:
+        raise ValueError("consumer feature paths must stay inside the consumer project")
+
+    artifact_file = consumer.path / artifact_path
+    raw_lines = artifact_file.read_text(encoding="utf-8").splitlines()
+    assert raw_lines, f"consumer artifact {artifact!r} is empty"
+    envelopes = [Envelope.model_validate(json.loads(raw_line)) for raw_line in raw_lines]
+    parse_errors = [envelope.parse_error for envelope in envelopes if envelope.parse_error is not None]
+    assert len(parse_errors) == 1, f"expected one ParseError envelope, got {len(parse_errors)}: {raw_lines!r}"
+    assert all(envelope.pickle is None and envelope.test_case is None for envelope in envelopes), (
+        "a parse failure must not fabricate a successful Pickle or TestCase"
+    )
+
+    parse_error = parse_errors[0]
+    assert parse_error.message.strip(), "ParseError must explain the syntax failure"
+    source = parse_error.source
+    assert source is not None, "ParseError must include a SourceReference"
+    assert source.uri, "ParseError source URI must be non-empty"
+    expected_uri = f"file:{feature_path.name}"
+    assert source.uri == expected_uri, f"expected ParseError source URI {expected_uri!r}, got {source.uri!r}"
+
+    location = source.location
+    assert location is not None, "ParseError must include a SourceReference location"
+    assert location.line == int(line), f"expected parse error on line {line}, got {location.line}"
+    assert location.column == int(column), f"expected one-based column {column}, got {location.column}"
