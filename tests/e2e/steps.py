@@ -10,6 +10,7 @@ import subprocess
 import string
 import sys
 import tarfile
+import time
 import venv
 import zipfile
 from collections import defaultdict
@@ -78,6 +79,10 @@ class ConsumerProject:
     custom_parser_selection_records: list[list[dict[str, object]]] | None = None
     custom_parser_selection_reports: list[dict[str, object]] | None = None
     custom_parser_session_result: subprocess.CompletedProcess[str] | None = None
+    pytest_watchdog_expired: bool = False
+    second_group_started_before_release: bool | None = None
+    concurrent_group_results: list[subprocess.CompletedProcess[str]] | None = None
+    concurrent_group_events: list[dict[str, object]] | None = None
 
 
 @fixture(scope="session")
@@ -1346,6 +1351,444 @@ def _consumer_batch_node_ids(result: subprocess.CompletedProcess[str]) -> list[s
 def _consumer_batch_fallback_reported(result: subprocess.CompletedProcess[str]) -> bool:
     output = _consumer_batch_output(result).lower()
     return "falling back" in output and any(word in output for word in ("serial", "sync", "synchronous"))
+
+
+@fixture(scope="session")
+def _pytest_cuke_group_wheel(request, tmp_path_factory) -> Path:
+    project_root = Path(request.config.rootpath)
+    artifact_dir = tmp_path_factory.mktemp("pytest-cuke-group-wheel")
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "the test-group consumer contract requires uv to build the product wheel"
+    build_environment = os.environ.copy()
+    build_environment["PYTEST_CUKE_BUILD_GO"] = "off"
+    result = subprocess.run(
+        [uv_executable, "build", "--wheel", "--out-dir", str(artifact_dir), str(project_root)],
+        cwd=project_root,
+        env=build_environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"could not build the pytest-cuke wheel:\n{result.stdout}\n{result.stderr}"
+    wheels = list(artifact_dir.glob("pytest_cuke-*.whl"))
+    assert len(wheels) == 1, f"expected one pytest-cuke wheel, found {wheels}"
+    return wheels[0]
+
+
+@fixture(scope="session")
+def _pytest_cuke_xdist_environment(_pytest_cuke_group_wheel: Path, tmp_path_factory):
+    """Install the built wheel and xdist into an isolated external-consumer environment."""
+    environment_path = tmp_path_factory.mktemp("pytest-cuke-group-venv")
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "the test-group consumer contract requires uv to create an isolated environment"
+    consumer_interpreter = sys.executable
+    create_environment = subprocess.run(
+        [uv_executable, "venv", "--python", consumer_interpreter, str(environment_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert create_environment.returncode == 0, (
+        f"could not create the test-group consumer environment:\n"
+        f"{create_environment.stdout}\n{create_environment.stderr}"
+    )
+
+    binary_dir = _consumer_binary_dir(environment_path)
+    python_path = _consumer_executable(binary_dir, "python")
+    install = subprocess.run(
+        [
+            uv_executable,
+            "pip",
+            "install",
+            "--python",
+            str(python_path),
+            str(_pytest_cuke_group_wheel),
+            "pytest-xdist",
+            "pytest-order",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert install.returncode == 0, (
+        f"could not install the pytest-cuke wheel, pytest-xdist, and pytest-order:\n{install.stdout}\n{install.stderr}"
+    )
+    return environment_path
+
+
+@given(
+    "the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer",
+    target_fixture="consumer",
+)
+def install_pytest_cuke_test_group_consumer(
+    _pytest_cuke_xdist_environment, _pytest_cuke_group_wheel: Path, tmp_path_factory
+):
+    project_path = tmp_path_factory.mktemp("pytest-cuke-group-consumer")
+    project_path.joinpath("pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\ncuke_autoload = false\ntestpaths = ['tests']\n",
+        encoding="utf-8",
+    )
+    project_path.joinpath("tests").mkdir()
+
+    binary_dir = _consumer_binary_dir(_pytest_cuke_xdist_environment)
+    consumer_home = project_path / ".home"
+    consumer_home.mkdir()
+    environment = os.environ.copy()
+    for name in (
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "MYPYPATH",
+        "MYPY_CONFIG_FILE_DIR",
+        "PYTEST_ADDOPTS",
+        "PYTEST_PLUGINS",
+        "PYTEST_CURRENT_TEST",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+    ):
+        environment.pop(name, None)
+    environment.update(
+        {
+            "HOME": str(consumer_home),
+            "PATH": f"{binary_dir}{os.pathsep}{os.defpath}",
+            "PYTHONNOUSERSITE": "1",
+        }
+    )
+    if os.name == "nt":
+        environment["USERPROFILE"] = str(consumer_home)
+    return ConsumerProject(
+        path=project_path,
+        python=_consumer_executable(binary_dir, "python"),
+        pytest=_consumer_executable(binary_dir, "pytest"),
+        cuke=_consumer_executable(binary_dir, "cuke"),
+        env=environment,
+        artifact=_pytest_cuke_group_wheel,
+    )
+
+
+@given("the consumer records monotonic test start and terminal events")
+def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> None:
+    event_support = consumer.path / "group_events.py"
+    event_support.write_text(
+        dedent(
+            """\
+            from __future__ import annotations
+
+            import hashlib
+            import json
+            import os
+            import time
+            from pathlib import Path
+
+
+            EVENT_DIRECTORY = Path(".pytest-cuke-group-events")
+
+
+            def record_event(phase, *, nodeid, group, outcome=None, when=None):
+                timestamp = time.monotonic_ns()
+                worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+                record = {
+                    "phase": phase,
+                    "nodeid": nodeid,
+                    "group": group,
+                    "outcome": outcome,
+                    "when": when,
+                    "worker": worker,
+                    "run_id": os.environ.get("PYTEST_CUKE_RUN_ID", "single"),
+                    "timestamp_ns": timestamp,
+                }
+                token = hashlib.sha256(f"{phase}:{nodeid}:{worker}:{timestamp}".encode()).hexdigest()
+                EVENT_DIRECTORY.mkdir(exist_ok=True)
+                (EVENT_DIRECTORY / f"{phase}-{token}.json").write_text(json.dumps(record), encoding="utf-8")
+
+
+            def record_start(nodeid, group):
+                record_event("start", nodeid=nodeid, group=group)
+
+
+            def signal(name):
+                EVENT_DIRECTORY.mkdir(exist_ok=True)
+                run_id = os.environ.get("PYTEST_CUKE_RUN_ID", "single")
+                (EVENT_DIRECTORY / f"signal-{run_id}-{name}").write_text("ready", encoding="utf-8")
+
+
+            def wait_for_signal(name, timeout=20):
+                deadline = time.monotonic() + timeout
+                run_id = os.environ.get("PYTEST_CUKE_RUN_ID", "single")
+                signal_path = EVENT_DIRECTORY / f"signal-{run_id}-{name}"
+                while not signal_path.exists():
+                    if time.monotonic() >= deadline:
+                        raise AssertionError(f"timed out waiting for event signal {name!r}")
+                    time.sleep(0.01)
+            """
+        ),
+        encoding="utf-8",
+    )
+    (consumer.path / "conftest.py").write_text(
+        dedent(
+            """\
+            import pytest
+
+            from group_events import record_event
+
+
+            @pytest.hookimpl(hookwrapper=True)
+            def pytest_runtest_makereport(item, call):
+                outcome = yield
+                report = outcome.get_result()
+                is_terminal_call = report.when == "call"
+                is_terminal_setup = report.when == "setup" and report.outcome in {"failed", "skipped"}
+                if not (is_terminal_call or is_terminal_setup):
+                    return
+
+                raw_groups = item.config.getini("cuke_test_group_order")
+                groups = (
+                    raw_groups.split()
+                    if isinstance(raw_groups, str)
+                    else [name for line in raw_groups for name in str(line).split()]
+                )
+                group_markers = {mark.name for mark in item.iter_markers() if mark.name in groups}
+                group = next((name for name in reversed(groups) if name in group_markers), None)
+                record_event(
+                    "terminal",
+                    nodeid=item.nodeid,
+                    group=group,
+                    outcome=report.outcome,
+                    when=report.when,
+                )
+            """
+        ),
+        encoding="utf-8",
+    )
+
+
+@when(
+    re.compile(
+        r'I run installed pytest with a (?P<watchdog_seconds>\d+)-second watchdog and arguments "(?P<arguments>[^\"]*)"'
+    ),
+    target_fixture="pytest_result",
+)
+def run_consumer_pytest_with_watchdog(watchdog_seconds, arguments, consumer: ConsumerProject):
+    command = [str(consumer.pytest), *shlex.split(arguments)]
+    try:
+        result = subprocess.run(
+            command,
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=int(watchdog_seconds),
+        )
+    except subprocess.TimeoutExpired as error:
+        consumer.pytest_watchdog_expired = True
+        result = subprocess.CompletedProcess(
+            command,
+            124,
+            error.stdout.decode() if isinstance(error.stdout, bytes) else error.stdout or "",
+            error.stderr.decode() if isinstance(error.stderr, bytes) else error.stderr or "",
+        )
+    else:
+        consumer.pytest_watchdog_expired = False
+    consumer.pytest_result = result
+    return result
+
+
+@when("I run two independent consumer suites through their local xdist group barriers")
+def run_independent_consumer_group_workflows(consumer: ConsumerProject) -> None:
+    command = [
+        str(consumer.pytest),
+        "-c",
+        "pytest.ini",
+        "-n2",
+        "--dist=loadfile",
+        "--order-scope=session",
+        "--cuke-no-autoload",
+        "-q",
+    ]
+    event_directory = consumer.path / ".pytest-cuke-group-events"
+    event_directory.mkdir(exist_ok=True)
+    processes: dict[str, subprocess.Popen[str]] = {}
+    output_paths: dict[str, Path] = {}
+
+    def events_for(run_id: str) -> list[dict[str, object]]:
+        records = _read_consumer_test_group_events(consumer) if event_directory.is_dir() else []
+        return [event for event in records if event.get("run_id") == run_id]
+
+    def wait_for_event(run_id: str, phase: str, group: str, deadline: float) -> None:
+        while time.monotonic() < deadline:
+            if any(event.get("phase") == phase and event.get("group") == group for event in events_for(run_id)):
+                return
+            finished = [name for name, process in processes.items() if process.poll() is not None]
+            if finished:
+                diagnostics = {
+                    name: output_paths[name].read_text(encoding="utf-8")
+                    for name in finished
+                    if output_paths[name].is_file()
+                }
+                raise AssertionError(f"consumer run ended before {phase} for {run_id}/{group}: {diagnostics}")
+            time.sleep(0.01)
+        raise AssertionError(f"consumer run did not record {phase} for {run_id}/{group} before the watchdog")
+
+    try:
+        for run_id in ("first", "second"):
+            output_path = consumer.path / f"group-run-{run_id}.log"
+            output_paths[run_id] = output_path
+            run_environment = consumer.env.copy()
+            run_environment["PYTEST_CUKE_RUN_ID"] = run_id
+            with output_path.open("w", encoding="utf-8") as output_file:
+                processes[run_id] = subprocess.Popen(
+                    command,
+                    cwd=consumer.path,
+                    env=run_environment,
+                    stdout=output_file,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
+
+        watchdog = time.monotonic() + 45
+        wait_for_event("first", "start", "unit", watchdog)
+        wait_for_event("second", "start", "unit", watchdog)
+
+        (event_directory / "signal-first-release-unit").write_text("ready", encoding="utf-8")
+        wait_for_event("first", "start", "integration", watchdog)
+        second_started_integration_early = any(
+            event.get("phase") == "start" and event.get("group") == "integration" for event in events_for("second")
+        )
+        consumer.second_group_started_before_release = second_started_integration_early
+
+        (event_directory / "signal-second-release-unit").write_text("ready", encoding="utf-8")
+        results: list[subprocess.CompletedProcess[str]] = []
+        for run_id, process in processes.items():
+            return_code = process.wait(timeout=max(1, int(watchdog - time.monotonic())))
+            results.append(
+                subprocess.CompletedProcess(
+                    command,
+                    return_code,
+                    output_paths[run_id].read_text(encoding="utf-8"),
+                    "",
+                )
+            )
+        consumer.concurrent_group_results = results
+        consumer.concurrent_group_events = _read_consumer_test_group_events(consumer)
+    finally:
+        for process in processes.values():
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=5)
+
+
+@then("both independent consumer runs should pass without sharing barrier state")
+def independent_consumer_runs_use_isolated_barrier_state(consumer: ConsumerProject) -> None:
+    results = consumer.concurrent_group_results
+    assert results is not None and len(results) == 2, "the independent consumer runs have not completed"
+    for index, result in enumerate(results, start=1):
+        assert result.returncode == 0, f"consumer run {index} failed:\n{result.stdout}\n{result.stderr}"
+    assert consumer.second_group_started_before_release is False, (
+        "the second run entered its later group before that run's earlier group was released"
+    )
+
+    events = consumer.concurrent_group_events
+    assert events is not None, "the independent consumer group events were not captured"
+    for run_id in ("first", "second"):
+        unit_terminals = [
+            int(event["timestamp_ns"])
+            for event in events
+            if event.get("run_id") == run_id and event.get("phase") == "terminal" and event.get("group") == "unit"
+        ]
+        integration_starts = [
+            int(event["timestamp_ns"])
+            for event in events
+            if event.get("run_id") == run_id and event.get("phase") == "start" and event.get("group") == "integration"
+        ]
+        assert unit_terminals and integration_starts, f"incomplete barrier events for run {run_id!r}: {events}"
+        assert max(unit_terminals) < min(integration_starts), (
+            f"run {run_id!r} began integration before all unit items settled"
+        )
+
+
+@then("the installed pytest run should finish before its watchdog")
+def consumer_pytest_finished_before_watchdog(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    details = "" if result is None else f"\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    assert not consumer.pytest_watchdog_expired, f"installed pytest hung until the external watchdog{details}"
+
+
+@then(re.compile(r'consumer start events should follow "(?P<expected>[^"]+)"'))
+def consumer_start_events_follow_order(expected, consumer: ConsumerProject) -> None:
+    events = _read_consumer_test_group_events(consumer)
+    starts = sorted((event for event in events if event["phase"] == "start"), key=itemgetter("timestamp_ns"))
+    actual = [str(event["nodeid"]).rsplit("::", 1)[-1] for event in starts]
+    expected_names = [name.strip() for name in expected.split(",") if name.strip()]
+    assert actual == expected_names, f"consumer start order was {actual}; expected {expected_names}"
+
+
+@then(re.compile(r'every selected "(?P<earlier>[^\"]+)" test should settle before any "(?P<later>[^\"]+)" test starts'))
+def consumer_test_groups_obey_terminal_barrier(earlier, later, consumer: ConsumerProject) -> None:
+    events = _read_consumer_test_group_events(consumer)
+    earlier_terminals = [
+        event["timestamp_ns"] for event in events if event["phase"] == "terminal" and event["group"] == earlier
+    ]
+    later_starts = [event["timestamp_ns"] for event in events if event["phase"] == "start" and event["group"] == later]
+    assert earlier_terminals, f"the consumer recorded no terminal events for group {earlier!r}"
+    assert later_starts, f"the consumer recorded no start events for group {later!r}"
+    assert max(earlier_terminals) < min(later_starts), (
+        f"group {later!r} started before every selected {earlier!r} item settled: "
+        f"latest terminal={max(earlier_terminals)}, earliest start={min(later_starts)}"
+    )
+
+
+@then(re.compile(r"consumer terminal outcomes should include (?P<outcomes>[a-z, ]+)"))
+def consumer_terminal_outcomes_include(outcomes, consumer: ConsumerProject) -> None:
+    events = _read_consumer_test_group_events(consumer)
+    actual = {str(event["outcome"]) for event in events if event["phase"] == "terminal"}
+    expected = {value.strip() for value in outcomes.split(",") if value.strip()}
+    assert expected <= actual, f"terminal outcomes were {sorted(actual)}; expected at least {sorted(expected)}"
+
+
+@then("the consumer should have no recorded test-group events")
+def consumer_has_no_test_group_events(consumer: ConsumerProject) -> None:
+    event_directory = consumer.path / ".pytest-cuke-group-events"
+    records = list(event_directory.glob("*.json")) if event_directory.is_dir() else []
+    assert not records, f"pytest unexpectedly recorded test-group events: {records}"
+
+
+@then("the consumer should have no test-group barrier state root")
+def consumer_has_no_test_group_barrier_state_root(consumer: ConsumerProject) -> None:
+    state_root = consumer.path / ".pytest_cache" / "pytest-cuke-test-groups"
+    assert not state_root.exists(), f"the default workflow created a test-group barrier state root: {state_root}"
+
+
+@then(re.compile(r"at least (?P<count>two|four|\d+) xdist workers should have recorded group events"))
+def consumer_group_events_show_multiple_workers(count: str, consumer: ConsumerProject) -> None:
+    events = _read_consumer_test_group_events(consumer)
+    workers = {str(event["worker"]) for event in events if event.get("worker") != "master"}
+    required_workers = int(count) if count.isdecimal() else {"two": 2, "four": 4}[count]
+    assert len(workers) >= required_workers, (
+        f"expected events from at least {required_workers} xdist workers, got {sorted(workers)}"
+    )
+
+
+@then(re.compile(r'pytest output should include "(?P<expected>[^"]+)"'))
+def consumer_pytest_output_includes(expected, consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert expected.casefold() in output.casefold(), f"pytest output did not include {expected!r}:\n{output}"
+
+
+@then(re.compile(r'pytest output should not include "(?P<unexpected>[^"]+)"'))
+def consumer_pytest_output_excludes(unexpected, consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert unexpected.casefold() not in output.casefold(), (
+        f"pytest output unexpectedly included {unexpected!r}:\n{output}"
+    )
+
+
+def _read_consumer_test_group_events(consumer: ConsumerProject) -> list[dict[str, object]]:
+    event_directory = consumer.path / ".pytest-cuke-group-events"
+    assert event_directory.is_dir(), f"consumer test-group events were not recorded: {event_directory}"
+    return [json.loads(path.read_text(encoding="utf-8")) for path in event_directory.glob("*.json") if path.is_file()]
 
 
 def _normalized_cucumber_messages(consumer: ConsumerProject, relative_path: str) -> list[object]:
