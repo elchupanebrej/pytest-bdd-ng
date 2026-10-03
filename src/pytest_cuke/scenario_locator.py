@@ -246,6 +246,13 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                                 encoding=self.encoding,
                                 _pytest_cuke_parse_args=self.parse_args,
                             )
+                            has_temporary_filename = (
+                                feature.filename is not None
+                                and Path(feature.filename).resolve() == source_path.resolve()
+                            )
+                            if has_temporary_filename:
+                                # The legacy result points at the temporary download, which is deleted on exit.
+                                feature = evolve(feature, filename=None)
                     else:
                         parser_options = _parser_backend_options(p, config)
                         feature = p.parse_text(content, uri=url, **parser_options)

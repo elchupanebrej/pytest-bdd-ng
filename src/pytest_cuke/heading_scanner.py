@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path, PurePath
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from attrs import frozen
 from gherkin.dialect import Dialect
@@ -167,6 +167,7 @@ def run_heading_validation_scan(
     include_patterns: Iterable[str] | None = None,
     policy: HeadingValidationPolicy | None = None,
     parser_registry: ParserRegistry | None = None,
+    config: Any = None,
 ) -> HeadingValidationRun:
     """Scan parsed source in deterministic document and violation order."""
     started_at = datetime.now(timezone.utc)
@@ -182,7 +183,7 @@ def run_heading_validation_scan(
             if parser is None:
                 raise HeadingValidationScanError("parse_error", path.as_posix(), "no parser is registered")
             if isinstance(parser, ParserRegistration):
-                parser = parser.resolve()
+                parser = parser.resolve(config)
             feature = parser.parse(path)
         except HeadingValidationScanError:
             raise
@@ -220,6 +221,7 @@ def build_baseline_audit(
     include_patterns: Iterable[str] | None = None,
     policy: HeadingValidationPolicy | None = None,
     parser_registry: ParserRegistry | None = None,
+    config: Any = None,
 ) -> BaselineAuditSummary:
     """Build the historical compact baseline record from one full parsed scan."""
     active_policy = default_heading_validation_policy() if policy is None else policy
@@ -228,6 +230,7 @@ def build_baseline_audit(
         include_patterns=include_patterns,
         policy=active_policy,
         parser_registry=parser_registry,
+        config=config,
     )
     return BaselineAuditSummary(
         record_id=f"baseline-audit-{validation_run.run_id}",
