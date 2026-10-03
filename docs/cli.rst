@@ -13,8 +13,9 @@ settings use the ``--cuke-*`` command-line namespace and ``cuke_*`` ini keys.
 For example, feature autoload can be selected with ``--cuke-autoload`` and the
 feature root can be changed with ``--cuke-features-dir=features``.
 
-The built-in commands are ``validate <features-dir>``, ``generate steps``, and
-``convert allure``. ``validate`` recursively scans ``.feature``, ``.gherkin``,
+The built-in commands are ``validate <features-dir>``, ``generate steps``,
+``sync messages schemas``, and ``convert allure``. ``validate`` recursively
+scans ``.feature``, ``.gherkin``,
 ``.feature.md`` and ``.gherkin.md`` files using the same parser registry as
 feature collection. It checks parsed Feature, Scenario and Scenario Outline
 titles after trimming whitespace. Empty Background and Rule titles are not
@@ -171,6 +172,36 @@ scenario bindings appended to an existing test module. The executable
 consumer contract in ``features/generation/transactional-step-generation.feature``
 covers preview, update, rollback, keep-on-error, and generated-project
 collection.
+
+Synchronizing Cucumber Messages schemas
+---------------------------------------
+
+``sync messages schemas`` synchronizes vendored wire schemas for the exact
+installed ``cuke-messages`` contract version. The tool maps each supported
+distribution version to an upstream release and immutable commit. An unknown
+version fails with an instruction to add an explicit mapping. Before a remote
+sync, the tool verifies that the release tag still resolves to its recorded
+commit. The command normalizes upstream ``.json`` names to the packaged
+``.schema.json`` form.
+
+Pass ``--schema-path`` to select the managed output directory. ``--check`` is
+read-only and exits non-zero when schemas are changed, missing, or extra. A
+local source directory can be supplied for deterministic tests and CI; without
+it, the tool downloads the pinned upstream archive. Failed downloads or invalid
+source trees return actionable errors and leave the existing output tree
+untouched.
+
+.. code-block:: console
+
+   cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas
+   cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas --check
+   cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas \
+     --source-dir tests/fixtures/message-schemas-v24-0-1 --check
+
+Schema assets are included in the wheel and available to runtime code through
+package resources. Package imports never start synchronization or access the
+network. See ``message-schema-provenance.rst`` for the exact upstream source
+pin.
 
 ``convert allure`` remains reserved and returns a non-zero exit status with an
 explicit not-implemented message.
