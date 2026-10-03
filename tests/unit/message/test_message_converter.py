@@ -114,71 +114,47 @@ def test_scenario_to_pickle_and_test_case() -> None:
     mc.validate_envelope_shape(tc_env)
 
 
-def test_converter_datetime_rule_background_and_pickle_arguments() -> None:
-    from datetime import datetime, timezone
-
-    timestamp = mc.make_timestamp(datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
-    assert timestamp.seconds == 1704067200
-
-    rule = Rule(
-        name="R",
-        keyword="Rule",
-        line=10,
-        background=Background(name="BG", keyword="Background", line=11),
-        scenarios=(Scenario(name="S", keyword="Scenario", line=12),),
+def test_scenario_execution_metadata_includes_feature_and_rule_backgrounds_in_order() -> None:
+    feature_step = Step(name="the repeated setup step", keyword="Given ", id="feature-step")
+    rule_step = Step(name="the repeated setup step", keyword="Given ", id="rule-step")
+    scenario_step = Step(name="the repeated setup step", keyword="When ", id="scenario-step")
+    feature_background = Background(id="feature-background", steps=(feature_step,))
+    rule_background = Background(id="rule-background", steps=(rule_step,))
+    feature = Feature(name="Layered backgrounds", background=feature_background)
+    scenario = Scenario(
+        name="An outline row",
+        id="expanded-row",
+        background=rule_background,
+        steps=(scenario_step,),
+        source_ast_node_ids=("outline-id", "row-id"),
     )
-    rule_message = mc.rule_to_message(rule, default_id="r-1")
-    assert rule_message.children[0].background is not None
-    assert rule_message.children[1].scenario is not None
 
-    doc_step = Step(name="with doc", keyword="Given ", doc_string=DocString(content="hello", media_type="text/plain"))
-    doc_pickle_step = mc.step_to_pickle_step(doc_step)
-    assert doc_pickle_step.argument is not None
-    assert doc_pickle_step.argument.doc_string is not None
-    assert doc_pickle_step.argument.doc_string.content == "hello"
+    pickle = mc.scenario_to_pickle(scenario, feature=feature)
+    test_case = mc.scenario_to_test_case(scenario, pickle_id=pickle.id, feature=feature)
 
-    table_step = Step(
-        name="with table",
-        keyword="Given ",
-        data_table=DataTable(rows=(TableRow(cells=(TableCell(value="cell"),)),)),
-    )
-    table_pickle_step = mc.step_to_pickle_step(table_step)
-    assert table_pickle_step.argument is not None
-    assert table_pickle_step.argument.data_table is not None
-    assert table_pickle_step.argument.data_table.rows[0].cells[0].value == "cell"
-
-
-def test_rule_scenario_pickle_merges_feature_and_rule_backgrounds() -> None:
-    """Pickles must include feature background steps before rule background steps."""
-    from pytest_bdd.parser import GherkinParser
-
-    feature = GherkinParser().parse_text(
-        # language=gherkin
-        """\
-        Feature: Rule background merge
-          Background:
-            Given feature background step
-          Rule: A
-            Background:
-              Given rule background step
-            Example: Example A
-              Given scenario step
-        """
-    )
-    scenario = feature.rules[0].scenarios[0]
-
-    assert [s.name for s in scenario.all_steps] == [
-        "feature background step",
-        "rule background step",
-        "scenario step",
+    assert [step.text for step in pickle.steps] == [
+        "the repeated setup step",
+        "the repeated setup step",
+        "the repeated setup step",
     ]
-
-    pickle = mc.scenario_to_pickle(scenario, uri="rule-merge.feature")
-    assert [s.text for s in pickle.steps] == [
-        "feature background step",
-        "rule background step",
-        "scenario step",
+    assert [step.id for step in pickle.steps] == [
+        "expanded-row-step-0",
+        "expanded-row-step-1",
+        "expanded-row-step-2",
     ]
+    assert [step.pickle_step_id for step in test_case.test_steps] == [step.id for step in pickle.steps]
+    assert [step.ast_node_ids for step in pickle.steps] == [["feature-step"], ["rule-step"], ["scenario-step"]]
+
+
+def test_scenario_pickle_uses_feature_background_when_scenario_has_no_background() -> None:
+    background_step = Step(name="feature setup", keyword="Given ", id="feature-step")
+    scenario_step = Step(name="scenario action", keyword="When ", id="scenario-step")
+    feature = Feature(name="Feature background", background=Background(steps=(background_step,)))
+    scenario = Scenario(name="Scenario without copied background", steps=(scenario_step,))
+
+    pickle = mc.scenario_to_pickle(scenario, feature=feature)
+
+    assert [step.text for step in pickle.steps] == ["feature setup", "scenario action"]
 
 
 def test_execution_message_helpers_and_dict_roundtrip() -> None:

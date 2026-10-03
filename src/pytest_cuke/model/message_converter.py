@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 import messages
+from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_extension import has_single_payload
 
 if TYPE_CHECKING:
@@ -247,12 +248,18 @@ def step_to_pickle_step(step: Step, default_id: str = "", *, force_generated_id:
     )
 
 
-def scenario_to_pickle(scenario: Scenario, uri: str = "", default_id: str = "") -> messages.Pickle:
+def scenario_to_pickle(
+    scenario: Scenario,
+    uri: str = "",
+    default_id: str = "",
+    *,
+    feature: Feature | None = None,
+) -> messages.Pickle:
     sc_id = scenario_message_id(scenario, uri=uri, default_id=default_id)
     outline_row = bool(scenario.source_ast_node_ids)
     steps = [
         step_to_pickle_step(s, f"{sc_id}-step-{i}", force_generated_id=outline_row)
-        for i, s in enumerate(scenario.all_steps)
+        for i, s in enumerate(execution_steps(feature, scenario) if feature is not None else scenario.all_steps)
     ]
     tags = [messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in scenario.tags]
     ast_node_ids = list(scenario.source_ast_node_ids) or [scenario_message_id(scenario, uri=uri)]
@@ -274,7 +281,13 @@ def pickle_to_envelope(pickle: cucumber_messages.Pickle) -> cucumber_messages.En
     return cucumber_messages.Envelope(pickle=pickle)
 
 
-def scenario_to_test_case(scenario: Scenario, pickle_id: str | None = None, default_id: str = "") -> messages.TestCase:
+def scenario_to_test_case(
+    scenario: Scenario,
+    pickle_id: str | None = None,
+    default_id: str = "",
+    *,
+    feature: Feature | None = None,
+) -> messages.TestCase:
     tc_id = scenario_message_id(scenario, default_id=default_id)
     p_id = pickle_id or scenario_message_id(scenario, default_id=default_id)
     test_steps = [
@@ -282,7 +295,7 @@ def scenario_to_test_case(scenario: Scenario, pickle_id: str | None = None, defa
             id=f"{tc_id}-step-{i}",
             pickle_step_id=(f"{p_id}-step-{i}" if scenario.source_ast_node_ids else (s.id or f"{p_id}-step-{i}")),
         )
-        for i, s in enumerate(scenario.all_steps)
+        for i, s in enumerate(execution_steps(feature, scenario) if feature is not None else scenario.all_steps)
     ]
     return cucumber_messages.TestCase(id=tc_id, pickle_id=p_id, test_steps=test_steps)
 
