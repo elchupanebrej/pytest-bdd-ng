@@ -23,5 +23,13 @@ def test_exception_hierarchy() -> None:
 def test_feature_concrete_parse_error() -> None:
     err = FeatureConcreteParseError("Error", 10, "Given step", "foo.feature")
     assert str(err) == "Error.\nLine number: 10.\nLine: Given step.\nFile: foo.feature"
+    assert err.args == ("Error", 10, "Given step", "foo.feature")
+    assert (err.parse_message, err.line, err.line_text, err.source_uri, err.column) == (
+        "Error",
+        10,
+        "Given step",
+        "foo.feature",
+        1,
+    )
     with pytest.raises(FeatureParseError):
         raise err

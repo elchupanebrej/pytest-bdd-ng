@@ -48,6 +48,23 @@ class FeatureConcreteParseError(FeatureParseError):
 
     message = "{0}.\nLine number: {1}.\nLine: {2}.\nFile: {3}"
 
+    def __init__(
+        self,
+        message: str,
+        line: int,
+        line_text: str,
+        uri: str,
+        *,
+        column: int = 1,
+    ) -> None:
+        """Keep the legacy exception args and expose source details for Messages."""
+        super().__init__(message, line, line_text, uri)
+        self.parse_message = message
+        self.line = line
+        self.line_text = line_text
+        self.source_uri = uri
+        self.column = column
+
     def __str__(self) -> str:
         """String representation."""
         return self.message.format(*self.args)

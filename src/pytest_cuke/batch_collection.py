@@ -14,7 +14,9 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 from attrs import evolve
 
 from pytest_cuke.compatibility.parser import LegacyParserAdapter
+from pytest_cuke.exceptions import FeatureConcreteParseError
 from pytest_cuke.external_examples import has_external_examples_reference
+from pytest_cuke.model.message_converter import parse_error_to_envelope
 from pytest_cuke.model.stash_access import SessionStash, StashKey
 from pytest_cuke.parser import BaseParser, GherkinParser, MarkdownGherkinParser, ParserProtocol
 
@@ -78,10 +80,42 @@ class _WorkerJob:
 
 
 @dataclass(frozen=True, slots=True)
+class _ParseErrorDetails:
+    message: str
+    line: int
+    line_text: str
+    uri: str
+    column: int
+
+
+@dataclass(frozen=True, slots=True)
 class _WorkerOutcome:
     feature: Feature | None = None
     error_type: str | None = None
     error_message: str | None = None
+    parse_error: _ParseErrorDetails | None = None
+
+
+def _parse_error_details(error: Exception) -> _ParseErrorDetails | None:
+    if not isinstance(error, FeatureConcreteParseError):
+        return None
+    return _ParseErrorDetails(
+        message=error.parse_message,
+        line=error.line,
+        line_text=error.line_text,
+        uri=error.source_uri,
+        column=error.column,
+    )
+
+
+def _parse_error_from_details(details: _ParseErrorDetails) -> FeatureConcreteParseError:
+    return FeatureConcreteParseError(
+        details.message,
+        details.line,
+        details.line_text,
+        details.uri,
+        column=details.column,
+    )
 
 
 def _parse_worker(job: _WorkerJob, content: str) -> _WorkerOutcome:
@@ -103,6 +137,7 @@ def _parse_worker(job: _WorkerJob, content: str) -> _WorkerOutcome:
         return _WorkerOutcome(
             error_type=type(error).__name__,
             error_message=str(error),
+            parse_error=_parse_error_details(error),
         )
     return _WorkerOutcome(feature=feature)
 
@@ -177,10 +212,11 @@ class CollectionBatchService:
         "Cached feature parse results and pending batch reads for one pytest session.",
     )
 
-    def __init__(self, threshold: int) -> None:
+    def __init__(self, threshold: int, config: Any = None) -> None:
         if threshold < 1:
             raise ValueError("feature collection batch threshold must be at least 1")
         self.threshold = threshold
+        self.config = config
         self.pending: dict[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], BatchFeatureRequest] = {}
         self.results: dict[
             tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], Feature | Exception
@@ -199,8 +235,10 @@ class CollectionBatchService:
         stash = SessionStash.from_session(session)
         service = stash.get(cls.STASH_KEY)
         if not isinstance(service, cls):
-            service = cls(resolve_batch_threshold(config))
+            service = cls(resolve_batch_threshold(config), config=config)
             stash[cls.STASH_KEY] = service
+        else:
+            service.config = config
         setattr(config, _BATCH_SERVICE_CONFIG_ATTRIBUTE, service)
         return service
 
@@ -359,8 +397,10 @@ class CollectionBatchService:
                 # disguise an exception raised inside user code.
                 self.results[key] = error
             else:
-                self.results[key] = BatchFeatureCollectionError(
-                    f"Failed to parse feature file '{request.path}': {type(error).__name__}: {error}"
+                self._store_collection_failure(
+                    key,
+                    f"Failed to parse feature file '{request.path}': {type(error).__name__}: {error}",
+                    error,
                 )
         else:
             self.results[key] = feature
@@ -397,9 +437,14 @@ class CollectionBatchService:
                     if outcome.feature is not None:
                         self.results[job.key] = outcome.feature
                     else:
-                        self.results[job.key] = BatchFeatureCollectionError(
+                        parse_error = (
+                            _parse_error_from_details(outcome.parse_error) if outcome.parse_error is not None else None
+                        )
+                        self._store_collection_failure(
+                            job.key,
                             f"Failed to parse feature file '{request.path}' in batch worker "
-                            f"({outcome.error_type or 'ParserError'}): {outcome.error_message or 'unknown error'}"
+                            f"({outcome.error_type or 'ParserError'}): {outcome.error_message or 'unknown error'}",
+                            parse_error,
                         )
         except Exception as error:
             logger.warning(
@@ -409,6 +454,27 @@ class CollectionBatchService:
             for request, job, _ in worker_jobs:
                 if job.key in self.pending:
                     self._parse_serial(request.key)
+
+    def _store_collection_failure(
+        self,
+        key: tuple[str, str, str, str, str, tuple[tuple[str, str], ...]],
+        message: str,
+        cause: Exception | None,
+    ) -> None:
+        if isinstance(cause, FeatureConcreteParseError):
+            self._emit_parse_error(cause)
+        collection_error = BatchFeatureCollectionError(message)
+        if cause is not None:
+            collection_error.__cause__ = cause
+        self.results[key] = collection_error
+
+    def _emit_parse_error(self, error: FeatureConcreteParseError) -> None:
+        """Send one parser diagnostic through pytest's public message hook."""
+        if error.line < 1 or not error.source_uri:
+            return
+        hook = getattr(getattr(self.config, "hook", None), "pytest_cuke_message", None)
+        if hook is not None:
+            hook(config=self.config, message=parse_error_to_envelope(error))
 
 
 def _worker_parser_kind(parser: ParserProtocol) -> str | None:
