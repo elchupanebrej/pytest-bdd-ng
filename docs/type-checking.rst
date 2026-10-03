@@ -6,6 +6,36 @@ The runtime-source scope is declared in ``pyproject.toml`` and applies to new
 modules automatically. Tests, scripts, and documentation are checked by their
 own quality gates.
 
+Installed consumer typing
+--------------------------
+
+The wheel and source distribution include the PEP 561 marker at
+``pytest_cuke/py.typed``. Type checkers can therefore use the annotations from
+an installed package instead of treating ``pytest_cuke`` as untyped. The
+supported typed entry points are the seven-name ``pytest_cuke`` facade and its
+``pytest_cuke.parsers`` facade, including decorators, parsers, and scenario
+bindings. For example:
+
+.. code-block:: python
+
+   from pytest_cuke import given, parsers, scenario
+
+   @given(parsers.parse("I have {count:d} items"), target_fixture="count")
+   def set_count(count: int) -> int:
+       return count
+
+   @scenario("features/inventory.feature", "Items are counted")
+   def test_items_are_counted() -> None: ...
+
+Mypy 2.3.1 is the blocking primary checker. Pyright is an advisory local
+check; the project does not promise that it reports an identical diagnostic
+set. The base facade imports do not require optional integrations such as
+Allure; code that imports optional integration modules must install their
+corresponding extra. The installed-consumer contract checks wheel and sdist
+installations without a checkout path or local stubs, and requires no
+``type: ignore`` for the public example above. If a downstream integration
+needs a suppression, scope it to the specific checker error and explain why.
+
 Install the pinned checker and required typing support with the ``testtypes``
 extra, then run the canonical local command:
 
