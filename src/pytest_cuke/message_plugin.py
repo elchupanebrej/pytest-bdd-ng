@@ -46,6 +46,7 @@ from cucumber_messages import (
     TestStepResultStatus,
     TestStepStarted,
     Timestamp,
+    UndefinedParameterType,
 )
 from messages import Envelope as Message
 from pytest_cuke.compatibility.path import relpath
@@ -565,22 +566,24 @@ class MessagePlugin:
                     previous_step=previous_step,
                 )
             except Matcher.MatchNotFoundError:
-                pass
+                step_definition_ids = []
             else:
-                test_step = TestStep(
-                    id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
-                    pickle_step_id=(
-                        f"{scenario_id}-step-{step_index}"
-                        if scenario.source_ast_node_ids
-                        else step.id or f"{scenario_id}-step-{step_index}"
-                    ),
-                    step_definition_ids=[step_definition.as_message(config).id],
-                )
-                test_steps.append(test_step)
-                self.current_test_case_step_order.append(test_step)
-                self.current_test_case_step_id_to_step_mapping[id(step)] = test_step
+                step_definition_ids = [step_definition.as_message(config).id]
             finally:
                 previous_step = step
+
+            test_step = TestStep(
+                id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
+                pickle_step_id=(
+                    f"{scenario_id}-step-{step_index}"
+                    if scenario.source_ast_node_ids
+                    else step.id or f"{scenario_id}-step-{step_index}"
+                ),
+                step_definition_ids=step_definition_ids,
+            )
+            test_steps.append(test_step)
+            self.current_test_case_step_order.append(test_step)
+            self.current_test_case_step_id_to_step_mapping[id(step)] = test_step
 
         current_test_case = TestCase(
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
@@ -755,6 +758,79 @@ class MessagePlugin:
                 status=Status.skipped,
             )
 
+    def pytest_cuke_step_func_lookup_error(
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Any,
+        step: Step,
+        exception: Exception,
+    ) -> None:
+        if self.is_disabled:
+            return
+        config = request.config
+        current_test_case_start = self._get_current_test_case_start()
+        test_step = self.current_test_case_step_id_to_step_mapping[id(step)]
+
+        for expression, name in self._undefined_parameter_types_from(exception):
+            config.hook.pytest_cuke_message(
+                config=config,
+                message=Message(undefined_parameter_type=UndefinedParameterType(expression=expression, name=name)),
+            )
+
+        start_timestamp = self.current_test_step_start_timestamps.get(test_step.id)
+        if start_timestamp is None:
+            start_timestamp = self._start_test_step(
+                config=config,
+                test_case_started=current_test_case_start,
+                test_step=test_step,
+            )
+        self._finish_test_step(
+            config=config,
+            test_case_started=current_test_case_start,
+            test_step=test_step,
+            start_timestamp=start_timestamp,
+            status=Status.undefined,
+            message=str(exception),
+        )
+
+    @staticmethod
+    def _undefined_parameter_types_from(exception: BaseException) -> tuple[tuple[str, str], ...]:
+        diagnostics: dict[tuple[str, str], None] = {}
+        pending: list[BaseException] = [exception]
+        visited: set[int] = set()
+        while pending:
+            current = pending.pop()
+            if id(current) in visited:
+                continue
+            visited.add(id(current))
+
+            for diagnostic in getattr(current, "undefined_parameter_types", ()):
+                if (
+                    isinstance(diagnostic, tuple)
+                    and len(diagnostic) == 2
+                    and isinstance(diagnostic[0], str)
+                    and isinstance(diagnostic[1], str)
+                    and diagnostic[1]
+                ):
+                    diagnostics.setdefault(diagnostic, None)
+
+            chained_diagnostic = getattr(current, "_pytest_cuke_undefined_parameter_type", None)
+            if (
+                isinstance(chained_diagnostic, tuple)
+                and len(chained_diagnostic) == 2
+                and isinstance(chained_diagnostic[0], str)
+                and isinstance(chained_diagnostic[1], str)
+                and chained_diagnostic[1]
+            ):
+                diagnostics.setdefault(chained_diagnostic, None)
+
+            cause = current.__cause__ or current.__context__
+            if cause is not None:
+                pending.append(cause)
+
+        return tuple(diagnostics)
+
     def _start_test_step(self, *, config: Config, test_case_started: TestCaseStarted, test_step: TestStep) -> Timestamp:
         timestamp = self.get_timestamp()
         self.current_test_step_start_timestamps[test_step.id] = timestamp
@@ -778,6 +854,7 @@ class MessagePlugin:
         test_step: TestStep,
         start_timestamp: Timestamp,
         status: Status,
+        message: str | None = None,
     ) -> None:
         finish_timestamp = self.get_timestamp()
         duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
@@ -793,7 +870,7 @@ class MessagePlugin:
                     test_case_started_id=test_case_started.id,
                     timestamp=finish_timestamp,
                     test_step_id=test_step.id,
-                    test_step_result=TestStepResult(duration=duration, status=status),
+                    test_step_result=TestStepResult(duration=duration, status=status, message=message),
                 )
             ),
         )
