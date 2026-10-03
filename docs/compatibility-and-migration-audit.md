@@ -1,0 +1,111 @@
+# Compatibility matrix and migration audit
+
+The installed `cuke` and `pytest-cuke` commands share `cuke compatibility`.
+The command reads the closest active `pyproject.toml` while walking up from
+the current directory. Pass `--config PATH` to inspect another TOML project
+configuration or a legacy tox INI file.
+
+## Compatibility inspection
+
+The project matrix is configured in `pyproject.toml`:
+
+    [tool.pytest-cuke.compatibility]
+    python-factors = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    pytest-factors = ["7.0", "8.0", "9.0", "latest"]
+    execution-targets = ["lin", "mac", "win"]
+    tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
+    compatibility-source = "pytest-metadata"
+
+`python-factors` and `pytest-factors` accept dotted versions or tox-style
+factors. `latest` is an explicit policy entry resolved through the pinned
+compatibility bounds in `pytest_cuke.compatibility.runtime_compat`; the command
+does not query an installed pytest or infer runtime support from an environment
+name. Update those bounds deliberately when adding a pytest release line.
+`tox-env-template` must include `{python}`, `{pytest}`, and either `{target}` or
+`{platform}`. Expansion emits names only for pairs accepted by both upstream
+compatibility bounds and the project's minimum supported Python/pytest versions.
+
+Examples:
+
+    cuke compatibility --list
+    cuke compatibility --compatible-only --json
+    cuke compatibility --python 3.12 --pytest latest --json
+    cuke compatibility --expand-tox
+
+The JSON matrix is an object with a stable `entries` array. Each entry reports
+`pythonVersion`, `pytestVersion`, `isCompatible`, `isSupported`, `reasonCode`,
+`executionTargets`, `compatibilitySource`, and optional `toxEnvName`.
+`isCompatible` reports the selected upstream pytest policy. `isSupported`
+reports whether both version factors meet the project's support floors. A pair
+check succeeds only when both flags are true. Unsupported/EOL factors and
+upstream-incompatible pairs retain distinct reason codes.
+
+For a diagnostic against a legacy tox configuration, pass an explicit INI:
+
+    [tox]
+    env_list =
+        py{312,313}-pytest{80,90}-coverage-{lin,win}
+
+    [pytest-cuke-migration-audit]
+    feature_patterns = **/*.feature, **/*.feature.md
+    test_registration_patterns = **/*.py
+    threshold_percent = 80
+
+The INI reader expands tox brace factors, keeps only concrete configured
+environments in `--expand-tox`, and supports the optional
+`[pytest-cuke-compatibility]` keys `execution_targets` and
+`compatibility_source`. INI input is diagnostic only; the active project default
+is TOML.
+
+## Migration audit
+
+Configure an explicit inventory in the active `pyproject.toml`:
+
+    [tool.pytest-cuke.migration-audit]
+    feature-patterns = ["features/**/*.feature", "features/**/*.feature.md"]
+    test-registration-patterns = ["tests/**/*.py"]
+    threshold-percent = 80
+
+The feature root defaults to `PROJECT/<cuke_features_dir>` from the active
+`[tool.pytest.ini_options]` (or `PROJECT/features` when unset); the test root
+defaults to `PROJECT/tests`. Configured patterns are applied beneath their
+respective roots. A leading `features/` or `tests/` segment is removed, so the
+default patterns work when the feature directory is customized. Root-relative
+patterns such as `**/*.feature` also work. Override roots with `--features-root`
+or `--tests-root`; the same configured patterns apply beneath those roots.
+Missing default directories are treated as empty inventories, while an
+explicitly supplied missing root or a path that is not a directory is an error.
+
+Feature identities represent parsed scenario nodes and use the form
+`relative/feature-path::normalized scenario title`. Paths are project-relative
+when possible, use forward slashes, and are case-folded. Titles are Unicode
+NFKC-normalized, case-folded, and have repeated whitespace collapsed. Scenario
+outlines count as one identity per outline, not one per examples row.
+
+Python registrations are discovered from literal `scenario(...)`,
+`scenarios(...)`, or `pytest.mark.scenarios(...)` calls imported from
+`pytest-cuke` or `pytest-bdd`. The audit reads Python ASTs and does not import or
+execute test modules. Only static feature paths and static scenario titles can
+be mapped; dynamic arguments are omitted. Registrations inside function bodies
+are ignored, while top-level function and class-method decorators count.
+Quoted examples, comments, and documentation strings are not registrations.
+
+The denominator is the union of unique feature identities and unique Python
+registration identities. Feature scenarios count even when autoload collects
+them without mirror test files. Matching explicit wrappers do not increase the
+denominator. Coverage is `feature identity count / union identity count`; a
+valid empty inventory is 100%. `duplicatesInTests` counts repeated normalized
+Python registration occurrences beyond the first for an identity. Duplicates
+fail the audit even when coverage meets its threshold.
+
+Run the audit and machine-readable equivalent:
+
+    cuke compatibility --audit-migration
+    cuke compatibility --audit-migration --threshold-percent 95 --json
+    cuke compatibility --audit-migration --features-root docs/features --tests-root tests/e2e
+
+An audit returns status 1 when coverage is below threshold or duplicate
+registrations remain. Invalid thresholds, unreadable or malformed feature and
+Python files, invalid explicit roots, and malformed config return actionable
+diagnostics on stderr with status 2. JSON output is written to stdout without
+diagnostic text.
