@@ -6,6 +6,7 @@ from itertools import zip_longest
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, cast
 
+import pytest
 from pytest import hookimpl
 
 from pytest_cuke import exceptions
@@ -15,6 +16,7 @@ from pytest_cuke.compatibility.pytest import (
     call_fixture_func,
     inject_fixture,
 )
+from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.steps.manager import StepDefinitionManager
 from pytest_cuke.steps.matcher import Matcher
 from pytest_cuke.utils import DefaultMapping, get_args
@@ -138,12 +140,11 @@ class StepRunner:
             hook_kwargs["step_func"] = step_definition.func
             hook_kwargs["step_definition"] = step_definition
 
-        request.config.hook.pytest_cuke_before_step(**hook_kwargs)
-
-        step_params = (
-            step_definition.get_parameters(request, step) if hasattr(step_definition, "get_parameters") else {}
-        )
         try:
+            request.config.hook.pytest_cuke_before_step(**hook_kwargs)
+            step_params = (
+                step_definition.get_parameters(request, step) if hasattr(step_definition, "get_parameters") else {}
+            )
             self.inject_step_parameters_as_fixtures(
                 request,
                 step_params=step_params,
@@ -169,7 +170,7 @@ class StepRunner:
             self.inject_target_fixtures(request, step_definition, step_result)
             request.config.hook.pytest_cuke_after_step(**hook_kwargs)
             return step_result
-        except Exception as exception:
+        except (Exception, pytest.skip.Exception, pytest.fail.Exception, pytest.xfail.Exception) as exception:
             hook_kwargs["exception"] = exception
             request.config.hook.pytest_cuke_step_error(**hook_kwargs)
             raise
@@ -193,10 +194,10 @@ class ScenarioRunner:
             if self.feature is None or self.scenario is None:
                 return
             self.plugin_manager = self.request.config.hook
-            self.plugin_manager.pytest_cuke_before_scenario(
-                request=self.request, feature=self.feature, scenario=self.scenario
-            )
             try:
+                self.plugin_manager.pytest_cuke_before_scenario(
+                    request=self.request, feature=self.feature, scenario=self.scenario
+                )
                 self.plugin_manager.pytest_cuke_run_scenario(
                     request=self.request,
                     feature=self.feature,
@@ -216,14 +217,7 @@ class ScenarioRunner:
         """Execute the scenario steps."""
         __tracebackhide__ = True
         steps: deque[Step] = request.getfixturevalue("steps_left")
-        scenario_background = scenario.background
-        if scenario_background is not None:
-            bg_steps = scenario_background.steps
-        else:
-            feature_background = feature.background
-            bg_steps = feature_background.steps if feature_background is not None else ()
-        all_steps = tuple(bg_steps) + tuple(getattr(scenario, "steps", ()))
-        steps.extend(all_steps)
+        steps.extend(execution_steps(feature, scenario))
         step_dispatcher = request.config.hook.pytest_cuke_get_step_dispatcher(
             request=request, feature=feature, scenario=scenario
         )

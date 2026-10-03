@@ -219,12 +219,14 @@ class LogBDDCucumberJSON:
         :return: `dict` in form {"status": "<passed|failed|skipped>", ["error_message": "<error_message>"]}
         """
         result: dict[str, Any] = {}
-        if report.skipped:
+        if step.get("skipped", False) or step.get("status") == "skipped":
             result = {"status": "skipped"}
-        elif report.failed and step.get("failed", False):
+        elif step.get("status") == "failed" or (report.failed and step.get("failed", False)):
             result = {"status": "failed", "error_message": str(report.longrepr) if error_message else ""}
-        elif report.passed or not step.get("failed", False):  # ignore setup/teardown
+        elif step.get("status") == "passed" or report.passed or not step.get("failed", False):  # ignore setup/teardown
             result = {"status": "passed"}
+        elif report.skipped:
+            result = {"status": "skipped"}
         else:
             result = {"status": "unknown"}
         result["duration"] = math.floor((10**9) * step.get("duration", 0.0))  # nanosec
@@ -249,7 +251,7 @@ class LogBDDCucumberJSON:
             # skip if scenario has no steps
             return
 
-        if report.when != "call" and not (report.skipped and report.when in ("setup", "call")):
+        if report.when not in ("call", "setup") or (report.when == "setup" and not (report.skipped or report.failed)):
             return
 
         def stepmap(step: dict[str, Any]) -> dict[str, Any]:

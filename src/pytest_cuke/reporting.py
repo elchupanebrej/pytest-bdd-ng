@@ -13,24 +13,26 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from attr import Factory, attrib, attrs
 
+from pytest_cuke.model.execution_steps import execution_steps
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
 
-    from messages import Pickle, PickleStep
     from pytest_cuke.compatibility.pytest import CallInfo, FixtureRequest, Item, Parser, TerminalReporter
-    from pytest_cuke.model import Feature
+    from pytest_cuke.model import Feature, Scenario, Step
 
 
 class StepReport:
     """Step execution report."""
 
     failed: bool = False
+    skipped: bool = False
     stopped: float | None = None
 
-    def __init__(self, step: PickleStep) -> None:
+    def __init__(self, step: Step) -> None:
         """Step report constructor.
 
-        :param step: PickleStep.
+        :param step: Scenario step.
         """
         self.step = step
         self.started = time.perf_counter()
@@ -57,17 +59,20 @@ class StepReport:
             "keyword": step_kw,
             "line_number": step_line,
             "failed": self.failed,
+            "skipped": self.skipped,
+            "status": "failed" if self.failed else "skipped" if self.skipped else "passed",
             "duration": self.duration,
         }
         return serialized
 
-    def finalize(self, failed: bool) -> None:
+    def finalize(self, failed: bool, skipped: bool = False) -> None:
         """Stop collecting information and finalize the report.
 
         :param failed: Whether the step execution failed.
         """
         self.stopped = time.perf_counter()
         self.failed = failed
+        self.skipped = skipped
 
     @property
     def duration(self) -> float:
@@ -86,7 +91,7 @@ class ScenarioReport:
     """Pickle execution report."""
 
     feature: Feature = attrib()
-    scenario: Pickle = attrib()
+    scenario: Scenario = attrib()
     step_reports: list[StepReport] = attrib(default=Factory(list))
 
     @property
@@ -133,7 +138,7 @@ class ScenarioReport:
                     "failed": False,
                     "duration": 0.0,
                 }
-                for s in getattr(pickle, "all_steps", getattr(pickle, "steps", ()))
+                for s in execution_steps(feature, pickle)
             ]
         )
 
@@ -163,14 +168,36 @@ class ScenarioReport:
 
     def fail(self) -> None:
         """Stop collecting information and finalize the report as failed."""
-        self.current_step_report.finalize(failed=True)
-        scenario_steps = getattr(self.scenario, "all_steps", getattr(self.scenario, "steps", ()))
+        scenario_steps = execution_steps(self.feature, self.scenario)
+        if self.step_reports:
+            if not any(report.failed for report in self.step_reports):
+                self.current_step_report.finalize(failed=True)
+        elif scenario_steps:
+            report = StepReport(step=scenario_steps[0])
+            report.finalize(failed=True)
+            self.add_step_report(report)
         remaining_steps = scenario_steps[len(self.step_reports) :]
 
-        # Fail the rest of the steps and make reports.
+        # The current step failed; later steps did not run.
         for step in remaining_steps:
             report = StepReport(step=step)
-            report.finalize(failed=True)
+            report.finalize(failed=False, skipped=True)
+            self.add_step_report(report)
+
+    def skip(self) -> None:
+        """Finalize the current step and all later steps as skipped."""
+        scenario_steps = execution_steps(self.feature, self.scenario)
+        if self.step_reports:
+            self.current_step_report.finalize(failed=False, skipped=True)
+        else:
+            for step in scenario_steps:
+                report = StepReport(step=step)
+                report.finalize(failed=False, skipped=True)
+                self.add_step_report(report)
+        remaining_steps = scenario_steps[len(self.step_reports) :]
+        for step in remaining_steps:
+            report = StepReport(step=step)
+            report.finalize(failed=False, skipped=True)
             self.add_step_report(report)
 
 
@@ -182,22 +209,38 @@ class ScenarioReporterPlugin:
     def pytest_runtest_makereport(self, item: Item, call: CallInfo[Any]) -> Generator[Any, Any, None]:
         outcome = yield
         rep = outcome.get_result()
-        if call.when != "setup":
+        if call.when == "call":
             scenario_report: ScenarioReport | None = self.current_report
-            if scenario_report is not None:
-                rep.scenario = scenario_report.serialize()
-                rep.item = {"name": item.name}
-        elif rep.skipped:
+            is_scenario = item.get_closest_marker("pytest_cuke_scenario") is not None
+            try:
+                if is_scenario and scenario_report is not None:
+                    if not scenario_report.step_reports:
+                        if rep.skipped:
+                            scenario_report.skip()
+                        elif rep.failed:
+                            scenario_report.fail()
+                    elif rep.failed and not any(step_report.failed for step_report in scenario_report.step_reports):
+                        scenario_report.fail()
+                    rep.scenario = scenario_report.serialize()
+                    rep.item = {"name": item.name}
+            finally:
+                self.current_report = None
+        elif rep.skipped or rep.failed:
             callspec = getattr(item, "callspec", None)
             params = getattr(callspec, "params", {}) if callspec else {}
             feature = params.get("feature") or getattr(item, "feature", None)
             scenario = params.get("scenario") or getattr(item, "scenario", None)
             if feature is not None and scenario is not None:
-                rep.scenario = ScenarioReport(feature=feature, scenario=scenario).serialize()
+                scenario_report = ScenarioReport(feature=feature, scenario=scenario)
+                if rep.skipped:
+                    scenario_report.skip()
+                else:
+                    scenario_report.fail()
+                rep.scenario = scenario_report.serialize()
                 rep.item = {"name": item.name}
 
     @pytest.hookimpl(tryfirst=True)
-    def pytest_cuke_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Pickle) -> None:
+    def pytest_cuke_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario) -> None:
         """Create scenario report for the item."""
         self.current_report = ScenarioReport(feature=feature, scenario=scenario)
 
@@ -206,23 +249,26 @@ class ScenarioReporterPlugin:
         self,
         request: FixtureRequest,
         feature: Feature,
-        scenario: Pickle,
-        step: PickleStep,
+        scenario: Scenario,
+        step: Step,
         step_func: Callable[..., Any],
         step_func_args: dict[str, Any],
-        exception: Exception,
+        exception: BaseException,
     ) -> None:
         """Finalize the step report as failed."""
         if self.current_report is not None:
-            self.current_report.fail()
+            if isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
+                self.current_report.skip()
+            else:
+                self.current_report.fail()
 
     @pytest.hookimpl(tryfirst=True)
     def pytest_cuke_before_step(
         self,
         request: FixtureRequest,
         feature: Feature,
-        scenario: Pickle,
-        step: PickleStep,
+        scenario: Scenario,
+        step: Step,
         step_func: Callable[..., Any],
     ) -> None:
         """Store step start time."""
@@ -234,8 +280,8 @@ class ScenarioReporterPlugin:
         self,
         request: FixtureRequest,
         feature: Feature,
-        scenario: Pickle,
-        step: PickleStep,
+        scenario: Scenario,
+        step: Step,
         step_func: Callable[..., Any],
         step_func_args: dict[str, Any],
     ) -> None:

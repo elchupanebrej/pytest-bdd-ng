@@ -62,6 +62,7 @@ from pytest_cuke.compatibility.pytest import (
     get_metafunc_call_arg,
     is_set,
 )
+from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_message_id, scenario_to_pickle
 from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_cuke.packaging import get_distribution_version
@@ -83,9 +84,10 @@ class MessagePlugin:
     config: Config = attrib()
     current_test_case: TestCase | None = attrib(default=None)
     current_test_case_step_id_to_step_mapping: dict[int, TestStep] = attrib(factory=dict)
+    current_test_case_step_order: list[TestStep] = attrib(factory=list)
+    current_finished_test_step_ids: set[str] = attrib(factory=set)
+    current_test_step_start_timestamps: dict[str, Timestamp] = attrib(factory=dict)
     current_test_case_start: TestCaseStarted | None = attrib(default=None)
-    current_test_case_step_start_timestamp: Timestamp | None = attrib(default=None)
-    current_test_case_step_finish_timestamp: Timestamp | None = attrib(default=None)
     parameter_type_registry: ClassVar[set[int]] = set()
     hook_registry: ClassVar[set[int]] = set()
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
@@ -332,6 +334,7 @@ class MessagePlugin:
                                 scenario,
                                 uri=feature_uri,
                                 default_id=f"{feature_uri}#{call.id}",
+                                feature=feature if is_set(feature) else None,
                             )
                         ),
                     )
@@ -351,16 +354,6 @@ class MessagePlugin:
         if self.current_test_case_start is None:
             raise RuntimeError("There is no active pytest-cuke test case start event.")
         return self.current_test_case_start
-
-    def _get_current_step_start_timestamp(self) -> Timestamp:
-        if self.current_test_case_step_start_timestamp is None:
-            raise RuntimeError("There is no active pytest-cuke step start event.")
-        return self.current_test_case_step_start_timestamp
-
-    def _get_current_step_finish_timestamp(self) -> Timestamp:
-        if self.current_test_case_step_finish_timestamp is None:
-            raise RuntimeError("There is no active pytest-cuke step finish event.")
-        return self.current_test_case_step_finish_timestamp
 
     def pytest_runtestloop(self, session: Session) -> None:
         if self.is_disabled:
@@ -534,12 +527,15 @@ class MessagePlugin:
         previous_step = None
 
         self.current_test_case_step_id_to_step_mapping = {}
+        self.current_test_case_step_order = []
+        self.current_finished_test_step_ids = set()
+        self.current_test_step_start_timestamps = {}
         feature_uri = feature.uri or feature.filename or feature.name
         callspec_id = getattr(getattr(request.node, "callspec", None), "id", "")
         fallback_id = f"{feature_uri}#{callspec_id}" if callspec_id else ""
         scenario_id = scenario_message_id(scenario, uri=feature_uri, default_id=fallback_id)
 
-        for step_index, step in enumerate(scenario.all_steps):
+        for step_index, step in enumerate(execution_steps(feature, scenario)):
             try:
                 step_definition = hook_handler.pytest_cuke_match_step_definition_to_step(
                     request=request,
@@ -561,6 +557,7 @@ class MessagePlugin:
                     step_definition_ids=[step_definition.as_message(config).id],
                 )
                 test_steps.append(test_step)
+                self.current_test_case_step_order.append(test_step)
                 self.current_test_case_step_id_to_step_mapping[id(step)] = test_step
             finally:
                 previous_step = step
@@ -602,20 +599,51 @@ class MessagePlugin:
             return
         config = request.config
 
-        hook_handler = config.hook
-        current_test_case_start = self._get_current_test_case_start()
+        current_test_case_start = self.current_test_case_start
+        if current_test_case_start is None:
+            self._reset_current_test_case()
+            return
 
-        hook_handler.pytest_cuke_message(
-            config=config,
-            message=Message(
-                test_case_finished=TestCaseFinished(
-                    test_case_started_id=current_test_case_start.id,
-                    timestamp=self.get_timestamp(),
-                    will_be_retried=False,
+        try:
+            for test_step in self.current_test_case_step_order:
+                if test_step.id in self.current_finished_test_step_ids:
+                    continue
+                start_timestamp = self.current_test_step_start_timestamps.get(test_step.id)
+                status = Status.failed if start_timestamp is not None else Status.skipped
+                if start_timestamp is None:
+                    start_timestamp = self._start_test_step(
+                        config=config,
+                        test_case_started=current_test_case_start,
+                        test_step=test_step,
+                    )
+                self._finish_test_step(
+                    config=config,
+                    test_case_started=current_test_case_start,
+                    test_step=test_step,
+                    start_timestamp=start_timestamp,
+                    status=status,
                 )
-            ),
-        )
+
+            config.hook.pytest_cuke_message(
+                config=config,
+                message=Message(
+                    test_case_finished=TestCaseFinished(
+                        test_case_started_id=current_test_case_start.id,
+                        timestamp=self.get_timestamp(),
+                        will_be_retried=False,
+                    )
+                ),
+            )
+        finally:
+            self._reset_current_test_case()
+
+    def _reset_current_test_case(self) -> None:
         self.current_test_case = None
+        self.current_test_case_start = None
+        self.current_test_case_step_id_to_step_mapping = {}
+        self.current_test_case_step_order = []
+        self.current_finished_test_step_ids = set()
+        self.current_test_step_start_timestamps = {}
 
     def pytest_cuke_before_step(
         self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any
@@ -623,23 +651,14 @@ class MessagePlugin:
         if self.is_disabled:
             return
         config = request.config
-        hook_handler = config.hook
         current_test_case_start = self._get_current_test_case_start()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
 
-        start_timestamp = self.get_timestamp()
-        self.current_test_case_step_start_timestamp = start_timestamp
-
-        hook_handler.pytest_cuke_message(
+        self._start_test_step(
             config=config,
-            message=Message(
-                test_step_started=TestStepStarted(
-                    test_case_started_id=current_test_case_start.id,
-                    timestamp=start_timestamp,
-                    test_step_id=step_definition.id,
-                )
-            ),
+            test_case_started=current_test_case_start,
+            test_step=step_definition,
         )
 
     def pytest_cuke_after_step(
@@ -648,35 +667,15 @@ class MessagePlugin:
         if self.is_disabled:
             return
         config = request.config
-        hook_handler = config.hook
         current_test_case_start = self._get_current_test_case_start()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
-        finish_timestamp = self.get_timestamp()
-        self.current_test_case_step_finish_timestamp = finish_timestamp
-        start_timestamp = self._get_current_step_start_timestamp()
-
-        current_test_case_step_duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
-            start_timestamp.seconds * 10**9 + start_timestamp.nanos
-        )
-        current_test_case_step_duration_seconds = current_test_case_step_duration_total_nanos // 10**9
-        current_test_case_step_duration_nanos = (
-            current_test_case_step_duration_total_nanos - current_test_case_step_duration_seconds * 10**9
-        )
-        current_test_case_step_duration = Duration(
-            seconds=current_test_case_step_duration_seconds, nanos=current_test_case_step_duration_nanos
-        )
-
-        hook_handler.pytest_cuke_message(
+        self._finish_test_step(
             config=config,
-            message=Message(
-                test_step_finished=TestStepFinished(
-                    test_case_started_id=current_test_case_start.id,
-                    timestamp=finish_timestamp,
-                    test_step_id=step_definition.id,
-                    test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.passed),
-                )
-            ),
+            test_case_started=current_test_case_start,
+            test_step=step_definition,
+            start_timestamp=self.current_test_step_start_timestamps[step_definition.id],
+            status=Status.passed,
         )
 
     def pytest_cuke_step_error(
@@ -687,42 +686,97 @@ class MessagePlugin:
         step: Step,
         step_func: Any,
         step_func_args: dict[str, Any],
-        exception: Exception,
+        exception: BaseException,
         step_definition: Any,
     ) -> None:
         if self.is_disabled:
             return
         config = request.config
-        hook_handler = config.hook
         current_test_case_start = self._get_current_test_case_start()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
-        finish_timestamp = self.get_timestamp()
-        self.current_test_case_step_finish_timestamp = finish_timestamp
-        start_timestamp = self._get_current_step_start_timestamp()
+        status = (
+            Status.skipped if isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)) else Status.failed
+        )
+        start_timestamp = self.current_test_step_start_timestamps.get(step_definition.id)
+        if start_timestamp is None:
+            start_timestamp = self._start_test_step(
+                config=config,
+                test_case_started=current_test_case_start,
+                test_step=step_definition,
+            )
+        self._finish_test_step(
+            config=config,
+            test_case_started=current_test_case_start,
+            test_step=step_definition,
+            start_timestamp=start_timestamp,
+            status=status,
+        )
+        failed_step_index = next(
+            index
+            for index, ordered_step in enumerate(self.current_test_case_step_order)
+            if ordered_step is step_definition
+        )
+        for skipped_step in self.current_test_case_step_order[failed_step_index + 1 :]:
+            if skipped_step.id in self.current_finished_test_step_ids:
+                continue
+            skipped_start = self._start_test_step(
+                config=config,
+                test_case_started=current_test_case_start,
+                test_step=skipped_step,
+            )
+            self._finish_test_step(
+                config=config,
+                test_case_started=current_test_case_start,
+                test_step=skipped_step,
+                start_timestamp=skipped_start,
+                status=Status.skipped,
+            )
 
-        current_test_case_step_duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
-            start_timestamp.seconds * 10**9 + start_timestamp.nanos
-        )
-        current_test_case_step_duration_seconds = current_test_case_step_duration_total_nanos // 10**9
-        current_test_case_step_duration_nanos = (
-            current_test_case_step_duration_total_nanos - current_test_case_step_duration_seconds * 10**9
-        )
-        current_test_case_step_duration = Duration(
-            seconds=current_test_case_step_duration_seconds, nanos=current_test_case_step_duration_nanos
-        )
-
-        hook_handler.pytest_cuke_message(
+    def _start_test_step(self, *, config: Config, test_case_started: TestCaseStarted, test_step: TestStep) -> Timestamp:
+        timestamp = self.get_timestamp()
+        self.current_test_step_start_timestamps[test_step.id] = timestamp
+        config.hook.pytest_cuke_message(
             config=config,
             message=Message(
-                test_step_finished=TestStepFinished(
-                    test_case_started_id=current_test_case_start.id,
-                    timestamp=finish_timestamp,
-                    test_step_id=step_definition.id,
-                    test_step_result=TestStepResult(duration=current_test_case_step_duration, status=Status.failed),
+                test_step_started=TestStepStarted(
+                    test_case_started_id=test_case_started.id,
+                    timestamp=timestamp,
+                    test_step_id=test_step.id,
                 )
             ),
         )
+        return timestamp
+
+    def _finish_test_step(
+        self,
+        *,
+        config: Config,
+        test_case_started: TestCaseStarted,
+        test_step: TestStep,
+        start_timestamp: Timestamp,
+        status: Status,
+    ) -> None:
+        finish_timestamp = self.get_timestamp()
+        duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
+            start_timestamp.seconds * 10**9 + start_timestamp.nanos
+        )
+        duration_seconds = duration_total_nanos // 10**9
+        duration_nanos = duration_total_nanos - duration_seconds * 10**9
+        duration = Duration(seconds=duration_seconds, nanos=duration_nanos)
+        config.hook.pytest_cuke_message(
+            config=config,
+            message=Message(
+                test_step_finished=TestStepFinished(
+                    test_case_started_id=test_case_started.id,
+                    timestamp=finish_timestamp,
+                    test_step_id=test_step.id,
+                    test_step_result=TestStepResult(duration=duration, status=status),
+                )
+            ),
+        )
+        self.current_test_step_start_timestamps.pop(test_step.id, None)
+        self.current_finished_test_step_ids.add(test_step.id)
 
     def pytest_cuke_attach(
         self,
