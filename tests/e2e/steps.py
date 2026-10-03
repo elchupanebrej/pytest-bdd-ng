@@ -4642,3 +4642,122 @@ def consumer_background_failure_json(relative_path: str, consumer: ConsumerProje
     statuses = [step["result"]["status"].lower() for step in elements[0]["steps"]]
     assert statuses == ["failed", "skipped", "skipped", "skipped"], statuses
     assert "passed" not in statuses, statuses
+
+
+def _consumer_schema_directory(consumer: ConsumerProject, relative_path: str) -> Path:
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("schema sync paths must stay inside the consumer project")
+    return consumer.path / destination
+
+
+def _schema_directory_snapshot(directory: Path) -> dict[str, object]:
+    if not directory.exists():
+        return {"exists": False, "entries": []}
+
+    entries: list[dict[str, str]] = []
+    for path in sorted(directory.rglob("*"), key=lambda item: item.relative_to(directory).as_posix()):
+        relative_path = path.relative_to(directory).as_posix()
+        if path.is_dir():
+            entries.append({"path": relative_path, "kind": "directory"})
+        elif path.is_file():
+            entries.append(
+                {
+                    "path": relative_path,
+                    "kind": "file",
+                    "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                }
+            )
+    return {"exists": True, "entries": entries}
+
+
+@when(re.compile(r'I snapshot consumer directory "(?P<relative_path>[^\"]+)" for schema sync'))
+def snapshot_consumer_schema_directory(relative_path: str, consumer: ConsumerProject) -> None:
+    directory = _consumer_schema_directory(consumer, relative_path)
+    snapshot_path = consumer.path / ".schema-sync-snapshot.json"
+    snapshot_path.write_text(
+        json.dumps(_schema_directory_snapshot(directory), sort_keys=True),
+        encoding="utf-8",
+    )
+
+
+@then(re.compile(r'consumer directory "(?P<relative_path>[^\"]+)" should match its schema sync snapshot'))
+def consumer_schema_directory_matches_snapshot(relative_path: str, consumer: ConsumerProject) -> None:
+    directory = _consumer_schema_directory(consumer, relative_path)
+    snapshot_path = consumer.path / ".schema-sync-snapshot.json"
+    expected = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    actual = _schema_directory_snapshot(directory)
+    assert actual == expected, f"schema directory changed during a read-only or failed sync: {actual!r} != {expected!r}"
+
+
+@given("a local schema sync fixture has sorted changed, missing, and extra entries")
+def consumer_with_schema_sync_drift_fixture(consumer: ConsumerProject) -> None:
+    source = consumer.path / "schema-fixture" / "jsonschema"
+    source.mkdir(parents=True, exist_ok=True)
+    envelope = {"$id": "Envelope.json", "type": "object"}
+    (source / "Envelope.json").write_text(json.dumps(envelope, sort_keys=True), encoding="utf-8")
+    for name in ("zeta", "gamma", "alpha", "beta"):
+        schema = {"$id": f"{name}.json", "type": "object", "source": name}
+        (source / f"{name}.json").write_text(json.dumps(schema, sort_keys=True), encoding="utf-8")
+
+    destination = consumer.path / "schema-output"
+    destination.mkdir(parents=True, exist_ok=True)
+    (destination / "Envelope.schema.json").write_text(json.dumps(envelope, sort_keys=True), encoding="utf-8")
+    for name in ("zeta", "alpha", "epsilon", "delta"):
+        existing = {"$id": f"{name}.json", "type": "object", "source": "stale"}
+        (destination / f"{name}.schema.json").write_text(json.dumps(existing, sort_keys=True), encoding="utf-8")
+
+
+@then("schema sync output should name cuke-messages 0.1.0 and upstream tag v24.0.1")
+def consumer_schema_sync_output_has_pinned_versions(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a schema sync command has not run"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert "cuke-messages==0.1.0" in output, output
+    assert "v24.0.1" in output, output
+
+
+@then(re.compile(r'schema output "(?P<destination>[^\"]+)" should match source tree "(?P<source>[^\"]+)"'))
+def consumer_schema_sync_output_matches_fixture(destination: str, source: str, consumer: ConsumerProject) -> None:
+    source_root = _consumer_schema_directory(consumer, source) / "jsonschema"
+    destination_root = _consumer_schema_directory(consumer, destination)
+    expected: dict[str, object] = {}
+    for path in source_root.glob("*.json"):
+        if path.is_file():
+            expected[f"{path.stem}.schema.json"] = json.loads(path.read_text(encoding="utf-8"))
+
+    assert expected, f"the fixture has no JSON schemas: {source_root}"
+    assert destination_root.is_dir(), f"schema sync did not create its output directory: {destination_root}"
+    actual_paths = sorted(path.name for path in destination_root.iterdir())
+    assert actual_paths == sorted(expected), actual_paths
+    for name, expected_schema in expected.items():
+        actual_schema = json.loads((destination_root / name).read_text(encoding="utf-8"))
+        assert actual_schema == expected_schema, (name, actual_schema, expected_schema)
+
+
+@then("schema sync output should list changed, missing, and extra files in sorted groups")
+def consumer_schema_sync_output_lists_sorted_drift(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a schema sync check has not run"
+    output = f"{result.stdout}\n{result.stderr}"
+    lines = output.splitlines()
+    expected = {
+        "changed": ["alpha.schema.json", "zeta.schema.json"],
+        "missing": ["beta.schema.json", "gamma.schema.json"],
+        "extra": ["delta.schema.json", "epsilon.schema.json"],
+    }
+    groups: dict[str, list[str]] = {name: [] for name in expected}
+    current_group: str | None = None
+    heading_positions: list[int] = []
+    schema_name = re.compile(r"[a-z0-9._-]+\.schema\.json", re.IGNORECASE)
+    for line_number, line in enumerate(lines):
+        heading = re.match(r"\s*(changed|missing|extra)\s*:\s*(.*)$", line, re.IGNORECASE)
+        if heading is not None:
+            current_group = heading.group(1).lower()
+            heading_positions.append(line_number)
+            groups[current_group].extend(name.lower() for name in schema_name.findall(heading.group(2)))
+        elif current_group is not None:
+            groups[current_group].extend(name.lower() for name in schema_name.findall(line))
+
+    assert list(groups.values()) == list(expected.values()), (groups, expected, output)
+    assert heading_positions == sorted(heading_positions) and len(heading_positions) == 3, (heading_positions, output)
