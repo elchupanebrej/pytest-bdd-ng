@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
+from unittest.mock import MagicMock
 
 from attrs import evolve
 from gherkin.ast_builder import AstBuilder
@@ -17,6 +18,7 @@ from pytest_cuke.gherkin_builder import build_feature_from_dict
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import Feature
 from pytest_cuke.parser import GherkinParser, ParserRegistration, ParserRegistry
+from pytest_cuke.scenario_locator import UrlScenarioLocator
 from pytest_cuke.utils import IdGenerator
 
 LEGACY_SOURCE = """@feature-tag
@@ -310,6 +312,52 @@ def test_distinct_legacy_providers_do_not_share_a_batch_cache_entry(tmp_path: Pa
     second = BatchFeatureRequest(path, "file:same.custom", "utf-8", second_parser, None, ())
 
     assert first.key != second.key
+
+
+def test_url_legacy_parser_does_not_retain_its_temporary_download_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://example.com/remote.custom"
+    response = MagicMock()
+    response.headers.get_content_type.return_value = "text/x-legacy"
+    response.read.return_value = LEGACY_SOURCE.encode("utf-8")
+    response.__enter__.return_value = response
+    response.__exit__.return_value = False
+    monkeypatch.setattr("pytest_cuke.scenario_locator.urlopen", lambda _url: response)
+
+    class TempPathLegacyParser(_RecordingLegacyParser):
+        def parse(
+            self,
+            config: object,
+            path: Path,
+            uri: str,
+            *args: object,
+            **kwargs: object,
+        ) -> ParsedFeature:
+            result = super().parse(config, path, uri, *args, **kwargs)
+            return ParsedFeature(result.gherkin_document, path.as_posix(), result.raw_data)
+
+    parser = TempPathLegacyParser()
+    registry = ParserRegistry()
+    registry.register("text/x-legacy", ParserRegistration.legacy(parser))
+    config = SimpleNamespace(pytest_cuke_id_generator=IdGenerator())
+
+    features = list(UrlScenarioLocator(url_paths=[url]).resolve_features(config, registry))
+
+    assert len(features) == 1
+    assert features[0].filename is None
+    assert features[0].uri == url
+    parsed_path = parser.calls[0][1]
+    assert not parsed_path.exists()
+
+
+def test_legacy_adapter_requires_pytest_config(tmp_path: Path) -> None:
+    source = tmp_path / "needs-config.custom"
+    source.write_text(LEGACY_SOURCE, encoding="utf-8")
+    adapter = LegacyParserAdapter(parser=_RecordingLegacyParser(), config=None)
+
+    with pytest.raises(ValueError, match="pytest Config is required"):
+        adapter.parse(source)
 
 
 def test_unsupported_schema_marker_is_actionable(tmp_path: Path) -> None:

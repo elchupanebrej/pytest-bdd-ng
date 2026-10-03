@@ -64,6 +64,12 @@ class LegacyParserAdapter:
     ) -> Feature:
         source_path = Path(path)
         resolved_uri = uri or source_path.as_posix()
+        if self.config is None:
+            raise _contract_error(
+                self.identity,
+                source_path,
+                "a pytest Config is required for the historical parse(config, path, uri, ...) protocol",
+            )
         parse_args = kwargs.pop("_pytest_cuke_parse_args", None)
         positional_args, explicit_kwargs = _parse_args_parts(parse_args, self.identity, source_path)
         legacy_kwargs: dict[str, Any] = {"encoding": encoding, **kwargs}
