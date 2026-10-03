@@ -1,5 +1,9 @@
 from pathlib import Path, PureWindowsPath
+from types import SimpleNamespace
 
+from gherkin.ast_builder import AstBuilder
+from gherkin.parser import Parser
+from messages import GherkinDocument
 import pytest
 
 from pytest_cuke.heading_scanner import (
@@ -18,6 +22,9 @@ from pytest_cuke.heading_validation import (
     heading_validation_policy_payload,
     validate_heading_records,
 )
+from pytest_cuke.compatibility.parser import ParsedFeature
+from pytest_cuke.parser import ParserRegistration, ParserRegistry
+from pytest_cuke.utils import IdGenerator
 
 
 def test_default_policy_payload_keeps_the_public_field_names() -> None:
@@ -135,3 +142,55 @@ def test_scan_distinguishes_parse_and_io_failures(tmp_path: Path) -> None:
         run_heading_validation_scan(root)
 
     assert io_error.value.kind == "io_error"
+
+
+def test_heading_scan_passes_pytest_config_to_legacy_parser(tmp_path: Path) -> None:
+    root = tmp_path / "features"
+    root.mkdir()
+    source = "Feature:   \n  Scenario: \n"
+    feature_path = root / "invalid.feature"
+    feature_path.write_text(source, encoding="utf-8")
+    config = SimpleNamespace(pytest_cuke_id_generator=IdGenerator())
+    calls: list[tuple[object, Path, str]] = []
+
+    class ConfigAwareLegacyParser:
+        id_generator: IdGenerator | None = None
+
+        def parse(self, parser_config: object, path: Path, uri: str, **kwargs: object) -> ParsedFeature:
+            calls.append((parser_config, path, uri))
+            document = Parser(AstBuilder(id_generator=self.id_generator)).parse(path.read_text(encoding="utf-8"))
+            document["uri"] = uri
+            return ParsedFeature(
+                gherkin_document=GherkinDocument.model_validate(document),
+                filename=path.as_posix(),
+                raw_data=path.read_text(encoding="utf-8"),
+            )
+
+    registry = ParserRegistry()
+    registry.register(".feature", ParserRegistration.legacy(ConfigAwareLegacyParser))
+
+    run = run_heading_validation_scan(root, parser_registry=registry, config=config)
+
+    assert run.documents_scanned == 1
+    assert run.status == "fail"
+    assert calls == [(config, feature_path, feature_path.as_posix())]
+
+
+def test_heading_scan_reports_missing_config_for_legacy_parser(tmp_path: Path) -> None:
+    root = tmp_path / "features"
+    root.mkdir()
+    (root / "feature.feature").write_text("Feature: Name\n", encoding="utf-8")
+
+    class ConfigAwareLegacyParser:
+        id_generator: IdGenerator | None = None
+
+        def parse(self, parser_config: object, path: Path, uri: str, **kwargs: object) -> ParsedFeature:
+            raise AssertionError("legacy parser must not be called without pytest Config")
+
+    registry = ParserRegistry()
+    registry.register(".feature", ParserRegistration.legacy(ConfigAwareLegacyParser))
+
+    with pytest.raises(HeadingValidationScanError, match="pytest Config is required") as error:
+        run_heading_validation_scan(root, parser_registry=registry)
+
+    assert error.value.kind == "parse_error"
