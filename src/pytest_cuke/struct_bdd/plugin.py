@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Generator
-from contextlib import suppress
 from functools import partial
 from inspect import getmembers
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -9,7 +8,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 import pytest
 
 from pytest_cuke.compatibility.pytest import PYTEST7, Module
-from pytest_cuke.mimetypes import Mimetype
+from pytest_cuke.mimetypes import STRUCT_BDD_FORMATS, struct_bdd_format_for_mimetype, struct_bdd_format_for_path
 from pytest_cuke.struct_bdd.model import StepPrototype
 from pytest_cuke.struct_bdd.parser import StructBDDParser
 
@@ -20,41 +19,22 @@ if TYPE_CHECKING:
 
 
 class StructBDDPlugin:
-    extension_to_mimetype: ClassVar[dict[Any, Mimetype]] = {
-        StructBDDParser.KIND.YAML: Mimetype.struct_bdd_yaml,
-        StructBDDParser.KIND.HOCON: Mimetype.struct_bdd_hocon,
-        StructBDDParser.KIND.JSON5: Mimetype.struct_bdd_json5,
-        StructBDDParser.KIND.JSON: Mimetype.struct_bdd_json,
-        StructBDDParser.KIND.HJSON: Mimetype.struct_bdd_hjson,
-        StructBDDParser.KIND.TOML: Mimetype.struct_bdd_toml,
+    extension_to_mimetype: ClassVar[dict[str, str]] = {
+        format_.suffix: format_.mimetype.value for format_ in STRUCT_BDD_FORMATS
     }
 
     def pytest_cuke_get_parser(self, config: Config, mimetype: str) -> Any:
-        with suppress(KeyError):
-            return partial(
-                StructBDDParser,
-                kind={
-                    Mimetype.struct_bdd_yaml.value: StructBDDParser.KIND.YAML.value,
-                    Mimetype.struct_bdd_hocon.value: StructBDDParser.KIND.HOCON.value,
-                    Mimetype.struct_bdd_json5.value: StructBDDParser.KIND.JSON5.value,
-                    Mimetype.struct_bdd_json.value: StructBDDParser.KIND.JSON.value,
-                    Mimetype.struct_bdd_hjson.value: StructBDDParser.KIND.HJSON.value,
-                    Mimetype.struct_bdd_toml.value: StructBDDParser.KIND.TOML.value,
-                }[mimetype],
-            )
-        return None
+        format_ = struct_bdd_format_for_mimetype(mimetype)
+        if format_ is None:
+            return None
+        return partial(StructBDDParser, kind=format_.kind)
 
     def pytest_cuke_get_mimetype(self, config: Config, path: Path) -> str | None:
-        for extension_suffix, mimetype in self.extension_to_mimetype.items():
-            if str(path).endswith(f".bdd.{extension_suffix.value}"):
-                return mimetype.value
-        return None
+        format_ = struct_bdd_format_for_path(path)
+        return format_.mimetype.value if format_ is not None else None
 
     def pytest_cuke_is_collectible(self, config: Config, path: Path) -> bool | None:
-        for extension_suffix, _ in self.extension_to_mimetype.items():
-            if str(path).endswith(f".bdd.{extension_suffix.value}"):
-                return True
-        return None
+        return True if struct_bdd_format_for_path(path) is not None else None
 
     def _pytest_pycollect_makemodule(self) -> Generator[Any, Any, Any]:
         outcome = yield

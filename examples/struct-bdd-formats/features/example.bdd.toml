@@ -1,0 +1,9 @@
+Name = "StructBDD formats"
+
+[[Steps]]
+[Steps.Step]
+Name = "A TOML file is collected"
+Steps = [
+    {Given = "the StructBDD format example is runnable"},
+    {Then = "the StructBDD format example passes"},
+]

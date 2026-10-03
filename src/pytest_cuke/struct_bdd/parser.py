@@ -4,11 +4,13 @@ from collections.abc import Callable
 from enum import Enum
 from functools import partial
 from importlib import import_module
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from attrs import define
 
 from pytest_cuke.exceptions import FeatureConcreteParseError
+from pytest_cuke.mimetypes import STRUCT_BDD_FORMATS
 from pytest_cuke.parser import BaseParser, default_parser_registry
 from pytest_cuke.struct_bdd.model import Step
 from pytest_cuke.struct_bdd.model_builder import StepToFeatureASTBuilder
@@ -36,6 +38,21 @@ class StructBDDParser(BaseParser):
         if self.kind is None:
             self.kind = StructBDDKind.YAML.value
 
+    def parse(self, path: Path | str, uri: str | None = None, encoding: str = "utf-8", **kwargs: Any) -> Feature:
+        resolved_path = Path(path).resolve()
+        kwargs.setdefault("filename", str(resolved_path))
+        try:
+            return super().parse(path, uri=uri, encoding=encoding, **kwargs)
+        except FeatureConcreteParseError:
+            raise
+        except OSError as err:
+            raise FeatureConcreteParseError(
+                f"Failed to read structured BDD ({self.kind or 'custom'}): {err}",
+                0,
+                "",
+                str(resolved_path),
+            ) from err
+
     def parse_text(
         self,
         content: str,
@@ -52,19 +69,19 @@ class StructBDDParser(BaseParser):
             return StepToFeatureASTBuilder(model=step).build_feature(uri=uri or "", filename=filename)
         except Exception as err:
             error_constructor = cast("Callable[..., FeatureConcreteParseError]", FeatureConcreteParseError)
+            source_path = filename or uri or "<structured BDD text>"
             raise error_constructor(
                 f"Failed to parse structured BDD ({self.kind or 'custom'}): {err}",
                 0,
                 "",
-                filename or uri or "",
+                source_path,
             ) from err
 
     def build_loader(self) -> Callable[..., Any]:
         if self.kind == StructBDDKind.YAML.value:
-            from yaml import FullLoader
-            from yaml import load as load_yaml
+            yaml = self._load_optional("yaml")
 
-            return partial(load_yaml, Loader=FullLoader)
+            return partial(yaml.load, Loader=yaml.FullLoader)
         if self.kind == StructBDDKind.TOML.value:
             from pytest_cuke.compatibility.tomllib import loads as load_toml
 
@@ -74,15 +91,13 @@ class StructBDDParser(BaseParser):
 
             return load_json
         if self.kind == StructBDDKind.JSON5.value:
-            from json5 import loads as load_json5
-
-            return load_json5
+            return cast("Callable[..., Any]", self._load_optional("json5").loads)
         if self.kind == StructBDDKind.HJSON.value:
-            return cast("Callable[..., Any]", import_module("hjson").loads)
+            return cast("Callable[..., Any]", self._load_optional("hjson").loads)
         if self.kind == StructBDDKind.HOCON.value:
             from json import loads
 
-            pyhocon = import_module("pyhocon")
+            pyhocon = self._load_optional("pyhocon")
 
             def load_hocon(s: str, *args: Any, **kwargs: Any) -> Any:
                 return loads(pyhocon.HOCONConverter.to_json(config=pyhocon.ConfigFactory.parse_string(s)))
@@ -92,19 +107,34 @@ class StructBDDParser(BaseParser):
         msg = f"Unsupported struct BDD kind: {self.kind}"
         raise ValueError(msg)
 
+    @staticmethod
+    def _load_optional(module_name: str) -> Any:
+        try:
+            return import_module(module_name)
+        except ImportError as error:
+            msg = (
+                f"Optional StructBDD parser loader '{module_name}' could not be imported. "
+                'Install the optional parsers with `pip install "pytest-cuke[struct-bdd]"`. '
+                f"Import error: {error}"
+            )
+            raise ImportError(msg) from error
 
-# Register default parsers
+
+# Register every supported compound suffix and media type from the shared
+# format table. Plain .yaml/.json files intentionally remain outside this
+# registry so they cannot be mistaken for features.
+for _format in STRUCT_BDD_FORMATS:
+    default_parser_registry.register(
+        _format.suffix,
+        partial(StructBDDParser, kind=_format.kind),
+    )
+    default_parser_registry.register(
+        _format.mimetype.value,
+        partial(StructBDDParser, kind=_format.kind),
+    )
+
 yaml_parser = StructBDDParser(kind=StructBDDKind.YAML.value)
 toml_parser = StructBDDParser(kind=StructBDDKind.TOML.value)
 json_parser = StructBDDParser(kind=StructBDDKind.JSON.value)
-
-for _key in [".bdd.yaml", ".bdd.yml", ".yaml", ".yml", "application/x-yaml", "text/yaml"]:
-    default_parser_registry.register(_key, yaml_parser)
-
-for _key in [".bdd.toml", ".toml", "application/toml"]:
-    default_parser_registry.register(_key, toml_parser)
-
-for _key in [".bdd.json", ".json", "application/json"]:
-    default_parser_registry.register(_key, json_parser)
 
 __all__ = ["StructBDDKind", "StructBDDParser", "json_parser", "toml_parser", "yaml_parser"]
