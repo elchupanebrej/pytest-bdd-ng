@@ -17,6 +17,7 @@ from pathvalidate import is_valid_filepath
 
 from pytest_cuke import cucumber_json, generation, gherkin_terminal_reporter, given, hooks, steps, then, when
 from pytest_cuke.allure_logging import AllurePytestBDD
+from pytest_cuke.batch_collection import CollectionBatchService, get_batch_service
 from pytest_cuke.collector import FeatureFileModule as FeatureFileCollector
 from pytest_cuke.collector import Module as ModuleCollector
 from pytest_cuke.compatibility.pytest import (
@@ -162,6 +163,15 @@ def pytest_addoption(parser: Parser) -> None:
         default=None,
         help="select the Gherkin parser backend: python, auto, or go",
     )
+    feature_group.addoption(
+        "--cuke-batch-threshold",
+        action="store",
+        dest="cuke_batch_threshold",
+        metavar="COUNT",
+        type=_positive_integer,
+        default=None,
+        help="feature count at which collection switches to spawn-based batch parsing",
+    )
     steps.add_options(parser)
     scenario_add_options(parser)
     cucumber_json.add_options(parser)
@@ -176,6 +186,12 @@ def add_bdd_ini(parser: Parser) -> None:
     parser.addini("cuke_features_base_url", "Base features URL.", default="", type="string")
     parser.addini("cuke_parser", "Gherkin parser backend: python, auto, or go.", default="auto", type="string")
     parser.addini(
+        "cuke_batch_threshold",
+        "Feature count at which collection switches to spawn-based batch parsing.",
+        default=None,
+        type="int",
+    )
+    parser.addini(
         "cuke_strict", "Reject empty parsed Feature and Scenario titles during collection.", default=False, type="bool"
     )
 
@@ -184,6 +200,16 @@ def _non_empty_path(value: str) -> str:
     if not value.strip():
         raise ArgumentTypeError("feature directory must not be empty")
     return value
+
+
+def _positive_integer(value: str) -> int:
+    try:
+        threshold = int(value)
+    except ValueError as error:
+        raise ArgumentTypeError("batch threshold must be a positive integer") from error
+    if threshold < 1:
+        raise ArgumentTypeError("batch threshold must be a positive integer")
+    return threshold
 
 
 @pytest.mark.trylast
@@ -209,8 +235,23 @@ def pytest_configure(config: Config) -> None:
         config.pluginmanager.register(StructBDDPlugin())
 
 
+def pytest_sessionstart(session: Any) -> None:
+    """Create the batch cache for the current collection session."""
+    CollectionBatchService.for_session(session, session.config)
+
+
+def pytest_sessionfinish(session: Any, exitstatus: int) -> None:
+    """Release the session cache once collection and execution are complete."""
+    service = get_batch_service(session.config)
+    if service is not None:
+        service.close()
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_unconfigure(config: Config) -> None:
+    service = get_batch_service(config)
+    if service is not None:
+        service.close()
     config.pluginmanager.unregister(name="pytest_cuke_messages")
     config.pluginmanager.unregister(name="pytest_cuke_summary")
     with suppress(AttributeError):
