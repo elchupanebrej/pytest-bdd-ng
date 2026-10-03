@@ -98,14 +98,21 @@ def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, st
     if pytest_version is not None and pytest_version < MIN_SUPPORTED_PYTEST:
         return False, REASON_EOL_PYTEST
 
-    bounds = PYTEST_COMPATIBILITY_BOUNDS.get(pytest_factor)
-    if bounds is None:
+    compatible = _is_python_version_supported_by_pytest(py, pytest_factor)
+    if compatible is None:
         return False, REASON_PYTEST_UNAVAILABLE
-
-    min_version, max_version = bounds
-    if py < min_version or (max_version is not None and py > max_version):
+    if not compatible:
         return False, REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST
     return True, REASON_COMPATIBLE
+
+
+def _is_python_version_supported_by_pytest(python_version: tuple[int, int], pytest_factor: str) -> bool | None:
+    """Return upstream Python support for a known pytest factor, or None if unknown."""
+    bounds = PYTEST_COMPATIBILITY_BOUNDS.get(pytest_factor)
+    if bounds is None:
+        return None
+    minimum_python, maximum_python = bounds
+    return python_version >= minimum_python and (maximum_python is None or python_version <= maximum_python)
 
 
 __all__ = [
@@ -122,6 +129,7 @@ __all__ = [
     "MigrationCoverageSummary",
     "_format_pytest_version",
     "_format_python_version",
+    "_is_python_version_supported_by_pytest",
     "_parse_pytest_factor",
     "_parse_python_factor",
     "is_pair_compatible",

@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 from typing import cast
 
+from pytest_cuke.compatibility_cli import configure_compatibility_parser, run_compatibility_command
 from pytest_cuke.generation_command import configure_generate_steps_parser, run_generate_steps
 from pytest_cuke.heading_validation_cli import configure_validation_parser, run_validation_command
 from pytest_cuke.packaging import get_distribution_version
@@ -125,6 +126,13 @@ def _build_registry() -> CommandRegistry:
         None,
         parser_configurer=configure_generate_steps_parser,
         namespace_handler=run_generate_steps,
+    )
+    registry.add(
+        ("compatibility",),
+        "inspect supported Python/pytest pairs and audit migration coverage",
+        None,
+        parser_configurer=configure_compatibility_parser,
+        namespace_handler=run_compatibility_command,
     )
     registry.add(("convert", "allure"), "convert Allure results", _unimplemented("convert allure"))
 
