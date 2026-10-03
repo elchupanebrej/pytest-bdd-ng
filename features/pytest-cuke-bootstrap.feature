@@ -446,7 +446,7 @@ Feature: Installed pytest-cuke product bootstrap
       | pytest-cuke |
       | cuke        |
 
-  Scenario: Standalone dispatchers expose validation and reserve remaining work honestly
+  Scenario: Standalone dispatchers expose validation and generation options
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     When I run command "cuke" with arguments "--help"
     Then the command should exit with code 0
@@ -463,9 +463,13 @@ Feature: Installed pytest-cuke product bootstrap
     When I run command "cuke" with arguments "validate consumer-features"
     Then the command should exit with a non-zero code
     And the command output should contain "invalid feature root"
+    When I run command "cuke" with arguments "generate steps --help"
+    Then the command should exit with code 0
+    And the command output should contain "--feature"
+    And the command output should contain "--target"
     When I run command "cuke" with arguments "generate steps"
     Then the command should exit with a non-zero code
-    And the unimplemented command should report that it is not implemented
+    And the command output should contain "--feature"
     When I run command "cuke" with arguments "convert allure"
     Then the command should exit with a non-zero code
     And the unimplemented command should report that it is not implemented
