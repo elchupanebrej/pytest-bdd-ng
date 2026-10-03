@@ -4,7 +4,7 @@ from functools import partial, reduce
 from hashlib import sha256
 from itertools import filterfalse
 from operator import methodcaller, truediv
-from os.path import commonpath
+from os.path import commonpath, normcase
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 from urllib.parse import urljoin
@@ -14,7 +14,7 @@ from attrs import define, evolve, field
 
 from pytest_cuke.batch_collection import BatchFeatureRequest, get_batch_service
 from pytest_cuke.heading_scanner import enforce_feature_heading_policy
-from pytest_cuke.mimetypes import Mimetype
+from pytest_cuke.mimetypes import STRUCT_BDD_FORMATS, Mimetype
 from pytest_cuke.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
 from pytest_cuke.parser import GherkinParser, MarkdownParser, ParserRegistry, default_parser_registry
 from pytest_cuke.parser_backend import resolve_parser_backend
@@ -223,16 +223,24 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                 continue
 
 
-DEFAULT_FEATURE_PATTERNS = (
-    "**/*.feature",
-    "**/*.gherkin",
-    "**/*.feature.md",
-    "**/*.gherkin.md",
-    "**/*.bdd.yaml",
-    "**/*.bdd.yml",
-    "**/*.bdd.json",
-    "**/*.bdd.toml",
+DEFAULT_FEATURE_SUFFIXES = (
+    ".feature",
+    ".gherkin",
+    ".feature.md",
+    ".gherkin.md",
+    *(format_.suffix for format_ in STRUCT_BDD_FORMATS),
 )
+DEFAULT_FEATURE_PATTERNS = tuple(f"**/*{suffix}" for suffix in DEFAULT_FEATURE_SUFFIXES)
+
+
+def _iter_default_feature_paths(root: Path) -> Iterable[Path]:
+    """Yield supported feature files recursively with platform-stable suffix matching."""
+    for candidate in root.rglob("*"):
+        matches_supported_suffix = any(
+            candidate.name.casefold().endswith(suffix) for suffix in DEFAULT_FEATURE_SUFFIXES
+        )
+        if candidate.is_file() and matches_supported_suffix:
+            yield candidate
 
 
 @define
@@ -271,8 +279,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                     feature_pathlike if feature_pathlike.is_absolute() else features_base_dir / feature_pathlike
                 )
                 if feature_path.is_dir():
-                    for pat in DEFAULT_FEATURE_PATTERNS:
-                        yield from filter(methodcaller("is_file"), feature_path.glob(pat))
+                    yield from _iter_default_feature_paths(feature_path)
                 elif feature_path.is_file():
                     yield feature_path
             else:
@@ -280,8 +287,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                 path_obj = Path(raw_str)
                 if path_obj.is_absolute():
                     if path_obj.is_dir():
-                        for pat in DEFAULT_FEATURE_PATTERNS:
-                            yield from filter(methodcaller("is_file"), path_obj.glob(pat))
+                        yield from _iter_default_feature_paths(path_obj)
                     elif path_obj.is_file():
                         yield path_obj
                     else:
@@ -290,15 +296,13 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                             path_obj.parent.glob(path_obj.name),
                         )
                 elif raw_str in (".", ""):
-                    for pat in DEFAULT_FEATURE_PATTERNS:
-                        yield from filter(methodcaller("is_file"), features_base_dir.glob(pat))
+                    yield from _iter_default_feature_paths(features_base_dir)
                 elif any(c in raw_str for c in ("*", "?", "[")):
                     yield from filter(methodcaller("is_file"), features_base_dir.glob(raw_str))
                 else:
                     target = features_base_dir / path_obj
                     if target.is_dir():
-                        for pat in DEFAULT_FEATURE_PATTERNS:
-                            yield from filter(methodcaller("is_file"), target.glob(pat))
+                        yield from _iter_default_feature_paths(target)
                     elif target.is_file():
                         yield target
                     else:
@@ -332,7 +336,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
 
         paths = feature_paths if feature_paths is not None else self._gen_feature_paths(base_dir)
         for feature_path in paths:
-            canon_key = str(feature_path.resolve())
+            canon_key = normcase(str(feature_path.resolve()))
             if canon_key in seen:
                 continue
             seen.add(canon_key)
