@@ -45,6 +45,14 @@ from pytest_cuke.utils import compose
 from tests.support.testing_utils import data_table_to_dicts
 
 
+def _consumer_binary_dir(environment_path: Path) -> Path:
+    return environment_path / ("Scripts" if os.name == "nt" else "bin")
+
+
+def _consumer_executable(binary_dir: Path, name: str) -> Path:
+    return binary_dir / (f"{name}.exe" if os.name == "nt" else name)
+
+
 @dataclass
 class ConsumerProject:
     """An isolated installed-package consumer used by bootstrap contracts."""
@@ -57,6 +65,7 @@ class ConsumerProject:
     artifact: Path
     pytest_result: subprocess.CompletedProcess[str] | None = None
     command_result: subprocess.CompletedProcess[str] | None = None
+    native_parity_result: subprocess.CompletedProcess[str] | None = None
     validation_findings: list[dict[str, object]] | None = None
 
 
@@ -66,9 +75,12 @@ def _pytest_cuke_artifacts(request, tmp_path_factory):
     artifact_dir = tmp_path_factory.mktemp("pytest-cuke-artifacts")
     uv_executable = shutil.which("uv")
     assert uv_executable, "the installed-consumer contract requires uv to build distributions"
+    build_environment = os.environ.copy()
+    build_environment["PYTEST_CUKE_BUILD_GO"] = "off"
     result = subprocess.run(
         [uv_executable, "build", "--sdist", "--wheel", "--out-dir", str(artifact_dir), str(project_root)],
         cwd=project_root,
+        env=build_environment,
         check=False,
         capture_output=True,
         text=True,
@@ -86,8 +98,8 @@ def _pytest_cuke_artifacts(request, tmp_path_factory):
 @fixture(scope="session")
 def _pytest_cuke_environments(_pytest_cuke_artifacts, tmp_path_factory):
     environment_root = tmp_path_factory.mktemp("pytest-cuke-venvs")
-    consumer_interpreter = shutil.which("python3.10")
-    assert consumer_interpreter, "the installed-consumer contract requires Python 3.10 or newer"
+    assert sys.version_info >= (3, 10), "the installed-consumer contract requires Python 3.10 or newer"
+    consumer_interpreter = sys.executable
     uv_executable = shutil.which("uv")
     assert uv_executable, "the installed-consumer contract requires uv to create isolated environments"
     environments = {}
@@ -104,7 +116,7 @@ def _pytest_cuke_environments(_pytest_cuke_artifacts, tmp_path_factory):
             f"could not create {distribution} consumer environment:\n"
             f"{create_environment.stdout}\n{create_environment.stderr}"
         )
-        python_path = environment_path / "bin" / "python"
+        python_path = _consumer_executable(_consumer_binary_dir(environment_path), "python")
         install = subprocess.run(
             [uv_executable, "pip", "install", "--python", str(python_path), str(artifact)],
             check=False,
@@ -129,7 +141,7 @@ def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, _pytes
         encoding="utf-8",
     )
     environment_path = _pytest_cuke_environments[distribution]
-    binary_dir = environment_path / "bin"
+    binary_dir = _consumer_binary_dir(environment_path)
     consumer_home = project_path / ".home"
     consumer_home.mkdir()
     environment = os.environ.copy()
@@ -149,14 +161,129 @@ def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, _pytes
             "PYTHONNOUSERSITE": "1",
         }
     )
+    if os.name == "nt":
+        environment["USERPROFILE"] = str(consumer_home)
     return ConsumerProject(
         path=project_path,
-        python=binary_dir / "python",
-        pytest=binary_dir / "pytest",
-        cuke=binary_dir / "cuke",
+        python=_consumer_executable(binary_dir, "python"),
+        pytest=_consumer_executable(binary_dir, "pytest"),
+        cuke=_consumer_executable(binary_dir, "cuke"),
         env=environment,
         artifact=_pytest_cuke_artifacts["paths"][distribution],
     )
+
+
+@given("a host-built native pytest-cuke wheel is installed when supplied", target_fixture="consumer")
+def install_host_built_native_consumer(tmp_path_factory):
+    native_wheel = os.environ.get("PYTEST_CUKE_NATIVE_WHEEL", "").strip()
+    if not native_wheel:
+        from pytest import skip
+
+        skip(
+            "provide PYTEST_CUKE_NATIVE_WHEEL with an actual wheel built for this host; "
+            "native package loading cannot be accepted with a mocked library"
+        )
+
+    artifact = Path(native_wheel).expanduser().resolve()
+    if artifact.suffix != ".whl" or not artifact.is_file():
+        raise AssertionError(f"PYTEST_CUKE_NATIVE_WHEEL must name an existing wheel: {artifact}")
+
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "the installed-consumer contract requires uv to create isolated environments"
+    assert sys.version_info >= (3, 10), "the installed-consumer contract requires Python 3.10 or newer"
+    consumer_interpreter = sys.executable
+
+    project_path = tmp_path_factory.mktemp("pytest-cuke-native-consumer")
+    (project_path / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\ncuke_features_dir = 'features'\ncuke_autoload = true\n",
+        encoding="utf-8",
+    )
+    environment_path = tmp_path_factory.mktemp("pytest-cuke-native-venv")
+    create_environment = subprocess.run(
+        [uv_executable, "venv", "--python", consumer_interpreter, str(environment_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert create_environment.returncode == 0, (
+        f"could not create native consumer environment:\n{create_environment.stdout}\n{create_environment.stderr}"
+    )
+
+    binary_dir = _consumer_binary_dir(environment_path)
+    python_path = _consumer_executable(binary_dir, "python")
+    install = subprocess.run(
+        [uv_executable, "pip", "install", "--python", str(python_path), str(artifact)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert install.returncode == 0, f"could not install native wheel:\n{install.stdout}\n{install.stderr}"
+
+    consumer_home = project_path / ".home"
+    consumer_home.mkdir()
+    environment = os.environ.copy()
+    for name in (
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "PYTEST_ADDOPTS",
+        "PYTEST_PLUGINS",
+        "PYTEST_CURRENT_TEST",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+    ):
+        environment.pop(name, None)
+    environment.update(
+        {
+            "HOME": str(consumer_home),
+            "PATH": f"{binary_dir}{os.pathsep}{os.defpath}",
+            "PYTHONNOUSERSITE": "1",
+        }
+    )
+    if os.name == "nt":
+        environment["USERPROFILE"] = str(consumer_home)
+    return ConsumerProject(
+        path=project_path,
+        python=python_path,
+        pytest=_consumer_executable(binary_dir, "pytest"),
+        cuke=_consumer_executable(binary_dir, "cuke"),
+        env=environment,
+        artifact=artifact,
+    )
+
+
+@when("I run the native parser model parity test in the installed consumer")
+def run_native_parser_model_parity_test(consumer: ConsumerProject) -> None:
+    checkout_root = Path(__file__).resolve().parents[2]
+    source_test = checkout_root / "tests" / "unit" / "parser" / "test_native_go_model_parity.py"
+    consumer_test = consumer.path / "test_native_go_model_parity.py"
+    shutil.copy2(source_test, consumer_test)
+    try:
+        consumer.native_parity_result = subprocess.run(
+            [
+                str(consumer.pytest),
+                "-q",
+                "-p",
+                "no:cuke",
+                "--rootdir",
+                str(consumer.path),
+                str(consumer_test),
+            ],
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    finally:
+        consumer_test.unlink(missing_ok=True)
+
+
+@then("the installed native wheel preserves the Python Feature model")
+def installed_native_wheel_preserves_model(consumer: ConsumerProject) -> None:
+    result = consumer.native_parity_result
+    assert result is not None, "the installed native parser parity test has not been run"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, f"native parser model parity failed:\n{output}"
+    assert re.search(r"\b3 passed\b", output), f"native parser model parity did not run:\n{output}"
 
 
 @step(
@@ -931,7 +1058,7 @@ def run_typecheck_adapter_without_mypy(request, tmp_path):
     project_root = Path(request.config.rootpath)
     environment = tmp_path / "without-mypy"
     venv.EnvBuilder(with_pip=False).create(environment)
-    python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    python = _consumer_executable(_consumer_binary_dir(environment), "python")
     return subprocess.run(
         [str(python), str(project_root / "scripts" / "check_types.py")],
         cwd=project_root,

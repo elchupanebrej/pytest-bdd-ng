@@ -22,6 +22,7 @@ from pytest_cuke.gherkin_builder import build_feature_from_dict
 from pytest_cuke.markdown_token_matcher import MarkdownTokenMatcher
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import Feature
+from pytest_cuke.parser_backend import parse_gherkin_document
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -156,23 +157,12 @@ class GherkinParser(BaseParser):
         uri: str | None = None,
         **kwargs: Any,
     ) -> Feature:
-        parser = _new_gherkin_parser(self.id_generator)
-        try:
-            raw_dict = parser.parse(content)
-        except CompositeParserException as e:
-            first_err = e.errors[0] if hasattr(e, "errors") and e.errors else None
-            loc = getattr(first_err, "location", None) or {}
-            line = loc.get("line", 0)
-            line_text = ""
-            lines = content.splitlines()
-            if 1 <= line <= len(lines):
-                line_text = lines[line - 1]
-            raise FeatureConcreteParseError(
-                str(e),
-                line,
-                line_text,
-                uri or "",
-            ) from e
+        raw_dict = parse_gherkin_document(
+            content,
+            kwargs.get("parser_mode"),
+            markdown=False,
+            python_parser=lambda: _parse_python_document(content, uri, self.id_generator, markdown=False),
+        )
         return build_feature_from_dict(raw_dict, uri=uri or "")
 
 
@@ -193,26 +183,46 @@ class MarkdownParser(BaseParser):
         uri: str | None = None,
         **kwargs: Any,
     ) -> Feature:
-        matcher = MarkdownTokenMatcher()
-        scanner = cast("Callable[[str], Any]", TokenScanner)(content)
-        parser = _new_gherkin_parser(self.id_generator)
-        try:
-            raw_dict = parser.parse(scanner, token_matcher=matcher)
-        except CompositeParserException as e:
-            first_err = e.errors[0] if hasattr(e, "errors") and e.errors else None
-            loc = getattr(first_err, "location", None) or {}
-            line = loc.get("line", 0)
-            line_text = ""
-            lines = content.splitlines()
-            if 1 <= line <= len(lines):
-                line_text = lines[line - 1]
-            raise FeatureConcreteParseError(
-                str(e),
-                line,
-                line_text,
-                uri or "",
-            ) from e
+        raw_dict = parse_gherkin_document(
+            content,
+            kwargs.get("parser_mode"),
+            markdown=True,
+            python_parser=lambda: _parse_python_document(content, uri, self.id_generator, markdown=True),
+        )
         return build_feature_from_dict(raw_dict, uri=uri or "")
+
+
+def _parse_python_document(
+    content: str,
+    uri: str | None,
+    id_generator: Any,
+    *,
+    markdown: bool,
+) -> dict[str, Any]:
+    parser = _new_gherkin_parser(id_generator)
+    if markdown:
+        token_scanner = cast("Callable[[str], Any]", TokenScanner)(content)
+        token_matcher: Any = MarkdownTokenMatcher()
+        parser_input: Any = token_scanner
+    else:
+        token_matcher = None
+        parser_input = content
+
+    try:
+        if markdown:
+            raw_document = parser.parse(parser_input, token_matcher=token_matcher)
+        else:
+            raw_document = parser.parse(parser_input)
+    except CompositeParserException as exc:
+        first_error = exc.errors[0] if getattr(exc, "errors", None) else None
+        location = getattr(first_error, "location", None) or {}
+        line = location.get("line", 0)
+        lines = content.splitlines()
+        line_text = lines[line - 1] if isinstance(line, int) and 1 <= line <= len(lines) else ""
+        raise FeatureConcreteParseError(str(exc), line, line_text, uri or "") from exc
+    if not isinstance(raw_document, dict):
+        raise FeatureConcreteParseError("Gherkin parser returned an invalid document", 0, "", uri or "")
+    return raw_document
 
 
 # Aliases for backwards compatibility
