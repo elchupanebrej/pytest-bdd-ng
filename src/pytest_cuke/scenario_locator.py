@@ -6,17 +6,25 @@ from itertools import filterfalse
 from operator import methodcaller, truediv
 from os.path import commonpath, normcase
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from urllib.request import urlopen
 
 from attrs import define, evolve, field
 
 from pytest_cuke.batch_collection import BatchFeatureRequest, get_batch_service
+from pytest_cuke.compatibility.parser import LegacyParserAdapter
 from pytest_cuke.heading_scanner import enforce_feature_heading_policy
 from pytest_cuke.mimetypes import STRUCT_BDD_FORMATS, Mimetype
 from pytest_cuke.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
-from pytest_cuke.parser import GherkinParser, MarkdownParser, ParserRegistry, default_parser_registry
+from pytest_cuke.parser import (
+    GherkinParser,
+    MarkdownParser,
+    ParserRegistration,
+    ParserRegistry,
+    default_parser_registry,
+)
 from pytest_cuke.parser_backend import resolve_parser_backend
 from pytest_cuke.utils import is_local_url
 
@@ -153,7 +161,7 @@ class ScenarioLocatorFilterMixin:
             yield from self.filter_scenarios(feature, config)
 
 
-def _parser_from_config_hook(config: Any, path: Path, mimetype: str | None) -> ParserProtocol | None:
+def _parser_from_config_hook(config: Any, path: Path, mimetype: str | None) -> Any:
     hook = getattr(config, "hook", None)
     if hook is None:
         return None
@@ -162,13 +170,20 @@ def _parser_from_config_hook(config: Any, path: Path, mimetype: str | None) -> P
     if resolved_mimetype is None:
         return None
 
-    parser_factory = cast(
-        "ParserProtocol | Callable[[], ParserProtocol] | None",
-        hook.pytest_cuke_get_parser(config=config, mimetype=resolved_mimetype),
-    )
-    if parser_factory is None:
+    parser_provider = hook.pytest_cuke_get_parser(config=config, mimetype=resolved_mimetype)
+    if parser_provider is None:
         return None
-    return parser_factory() if callable(parser_factory) else parser_factory
+    return _resolve_parser_provider(parser_provider, config)
+
+
+def _resolve_parser_provider(parser_provider: Any, config: Any) -> ParserProtocol | None:
+    if isinstance(parser_provider, ParserRegistration):
+        return parser_provider.resolve(config)
+    if isinstance(parser_provider, type):
+        return cast("ParserProtocol", parser_provider())
+    if callable(parser_provider) and not callable(getattr(parser_provider, "parse", None)):
+        return cast("ParserProtocol", parser_provider())
+    return cast("ParserProtocol | None", parser_provider)
 
 
 @define
@@ -179,6 +194,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
     mimetype: str | None = None
     parser_type: type[ParserProtocol] | None = None
     parser: ParserProtocol | None = None
+    parse_args: Any = None
 
     def resolve_features(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[Feature]:
         reg = registry or default_parser_registry
@@ -192,6 +208,7 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
             )
 
         for url in urls:
+            p: Any = self.parser
             try:
                 with urlopen(url) as resp:  # noqa: S310
                     content_type = resp.headers.get_content_type()
@@ -202,16 +219,36 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                 if p is None:
                     if self.parser_type is not None:
                         p = self.parser_type()
-                    elif media_type:
-                        p = reg.get_parser_for_mimetype(media_type)
+                    elif registry is not None:
+                        if media_type:
+                            p = reg.get_parser_for_mimetype(media_type)
+                        if p is None:
+                            p = reg.get_parser_for_path(url)
+                        if p is None:
+                            p = _parser_from_config_hook(config, Path(url), self.mimetype or content_type)
                     else:
-                        p = reg.get_parser_for_path(url)
-                    if p is None:
                         p = _parser_from_config_hook(config, Path(url), self.mimetype or content_type)
+                        if p is None and media_type:
+                            p = reg.get_parser_for_mimetype(media_type)
+                        if p is None:
+                            p = reg.get_parser_for_path(url)
+                p = _resolve_parser_provider(p, config)
 
                 if p is not None:
-                    parser_options = _parser_backend_options(p, config)
-                    feature = p.parse_text(content, uri=url, **parser_options)
+                    if isinstance(p, LegacyParserAdapter):
+                        source_name = Path(urlparse(url).path).name or "remote.feature"
+                        with TemporaryDirectory() as temp_dir:
+                            source_path = Path(temp_dir) / source_name
+                            source_path.write_text(content, encoding=self.encoding)
+                            feature = p.parse(
+                                source_path,
+                                uri=url,
+                                encoding=self.encoding,
+                                _pytest_cuke_parse_args=self.parse_args,
+                            )
+                    else:
+                        parser_options = _parser_backend_options(p, config)
+                        feature = p.parse_text(content, uri=url, **parser_options)
                     if feature.source_content is None:
                         feature = evolve(
                             feature,
@@ -219,7 +256,9 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                             source_media_type=feature.source_media_type or media_type or Mimetype.gherkin_plain.value,
                         )
                     yield feature
-            except Exception:  # noqa: S112
+            except Exception:
+                if isinstance(p, LegacyParserAdapter):
+                    raise
                 continue
 
 
@@ -251,6 +290,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
     mimetype: str | None = None
     parser_type: type[ParserProtocol] | None = None
     parser: ParserProtocol | None = None
+    parse_args: Any = None
 
     def _resolve_features_base_dir(self, config: Any = None) -> Path:
         if self.features_base_dir is not None:
@@ -342,19 +382,28 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
             seen.add(canon_key)
 
             uri = self._build_file_uri(base_dir, feature_path)
-            p = self.parser
+            p: Any = self.parser
             if p is None:
                 if self.parser_type is not None:
                     p = self.parser_type()
                 elif self.mimetype is not None:
                     p = reg.get_parser_for_mimetype(self.mimetype)
-                else:
+                    if p is None:
+                        p = _parser_from_config_hook(config, feature_path, self.mimetype)
+                elif registry is not None:
                     p = reg.get_parser_for_path(feature_path)
-                if p is None:
-                    p = _parser_from_config_hook(config, feature_path, self.mimetype)
+                    if p is None:
+                        p = _parser_from_config_hook(config, feature_path, None)
+                else:
+                    p = _parser_from_config_hook(config, feature_path, None)
+                    if p is None:
+                        p = reg.get_parser_for_path(feature_path)
+            p = _resolve_parser_provider(p, config)
 
             if p is not None:
                 parser_options = _parser_backend_options(p, config)
+                if isinstance(p, LegacyParserAdapter):
+                    parser_options["_pytest_cuke_parse_args"] = self.parse_args
                 requests.append(
                     BatchFeatureRequest(
                         path=feature_path,

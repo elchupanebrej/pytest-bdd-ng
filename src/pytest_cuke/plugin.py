@@ -35,7 +35,7 @@ from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_cuke.message_plugin import MessagePlugin
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.npm_resource import check_npm, check_npm_package
-from pytest_cuke.parser import GherkinParser, MarkdownGherkinParser
+from pytest_cuke.parser import GherkinParser, MarkdownGherkinParser, clear_parser_registrations
 from pytest_cuke.parsers import cucumber_expression
 from pytest_cuke.reporting import ScenarioReporterPlugin, ScenarioSummaryPlugin, add_summary_options
 from pytest_cuke.runner import ScenarioRunner
@@ -252,6 +252,7 @@ def pytest_unconfigure(config: Config) -> None:
     service = get_batch_service(config)
     if service is not None:
         service.close()
+    clear_parser_registrations(config)
     config.pluginmanager.unregister(name="pytest_cuke_messages")
     config.pluginmanager.unregister(name="pytest_cuke_summary")
     with suppress(AttributeError):
@@ -351,6 +352,7 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
         features_base_dir=features_base_dir,
         mimetype=mark_arguments["features_mimetype"],
         parser_type=mark_arguments["parser_type"],
+        parse_args=mark_arguments["parse_args"],
     )
 
     locators_iterables.append([path_locator])
@@ -369,6 +371,7 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
         features_base_url=features_base_url,
         mimetype=mark_arguments["features_mimetype"],
         parser_type=mark_arguments["parser_type"],
+        parse_args=mark_arguments["parse_args"],
     )
 
     locators_iterables.append([url_locator])
