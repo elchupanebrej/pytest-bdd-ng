@@ -110,8 +110,39 @@ Python wheel or source distribution, or set it to ``required`` to fail the
 build unless the native library can be built. Source distributions include
 the Go source and module files so a native wheel can be built from the sdist.
 
-The ``generate steps`` and ``convert allure`` commands remain reserved and
-return a non-zero exit status with an explicit not-implemented message.
+Generating step definitions
+----------------------------
+
+``generate steps`` reads one or more feature files and prints missing step
+stubs when no target is selected. Pass ``--target`` to update an existing
+Python module. The command imports that module to inspect its registered step
+definitions, including parser-based definitions and aliased public decorators;
+it does not call step functions.
+
+.. code-block:: console
+
+   cuke generate steps --feature features/login.feature
+   cuke generate steps --feature features/login.feature --feature features/admin.feature \
+     --target tests/test_login.py --preview
+   cuke generate steps --feature features/login.feature --target tests/test_login.py
+
+Updates append only missing step definitions and preserve the original source
+bytes, encoding, and newline style. The generated fragment is formatted with
+Ruff when ``ruff`` is available on ``PATH`` and the complete result is checked
+as Python before the file changes. Formatting or validation errors restore the
+original bytes by default. ``--keep-on-error`` retains the attempted update
+while still returning a non-zero status. ``--preview`` prints a unified diff
+without writing. Repeating a successful update makes no further changes.
+
+Autoload remains the default collection model and does not create mirror test
+wrappers. Add ``--bind-scenarios`` with an explicit target when you want
+scenario bindings appended to an existing test module. The executable
+consumer contract in ``features/generation/transactional-step-generation.feature``
+covers preview, update, rollback, keep-on-error, and generated-project
+collection.
+
+``convert allure`` remains reserved and returns a non-zero exit status with an
+explicit not-implemented message.
 
 Registering command extensions
 ------------------------------
