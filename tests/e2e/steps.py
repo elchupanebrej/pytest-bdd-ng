@@ -65,8 +65,10 @@ class ConsumerProject:
     cuke: Path
     env: dict[str, str]
     artifact: Path
+    mypy: Path | None = None
     pytest_result: subprocess.CompletedProcess[str] | None = None
     command_result: subprocess.CompletedProcess[str] | None = None
+    typecheck_result: subprocess.CompletedProcess[str] | None = None
     native_parity_result: subprocess.CompletedProcess[str] | None = None
     validation_findings: list[dict[str, object]] | None = None
     struct_bdd_selection_runs: list[subprocess.CompletedProcess[str]] | None = None
@@ -137,6 +139,41 @@ def _pytest_cuke_environments(_pytest_cuke_artifacts, tmp_path_factory):
     return environments
 
 
+@fixture(scope="session")
+def _pytest_cuke_typing_environments(_pytest_cuke_artifacts, tmp_path_factory):
+    environment_root = tmp_path_factory.mktemp("pytest-cuke-typing-venvs")
+    assert sys.version_info >= (3, 10), "the installed-consumer contract requires Python 3.10 or newer"
+    consumer_interpreter = sys.executable
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "the installed-consumer contract requires uv to create isolated environments"
+    environments = {}
+    for distribution in ("wheel", "sdist"):
+        artifact = _pytest_cuke_artifacts["paths"][distribution]
+        environment_path = environment_root / distribution
+        create_environment = subprocess.run(
+            [uv_executable, "venv", "--python", consumer_interpreter, str(environment_path)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert create_environment.returncode == 0, (
+            f"could not create {distribution} typing consumer environment:\n"
+            f"{create_environment.stdout}\n{create_environment.stderr}"
+        )
+        python_path = _consumer_executable(_consumer_binary_dir(environment_path), "python")
+        install = subprocess.run(
+            [uv_executable, "pip", "install", "--python", str(python_path), str(artifact), "mypy==2.3.1"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert install.returncode == 0, (
+            f"could not install {distribution} and pinned Mypy:\n{install.stdout}\n{install.stderr}"
+        )
+        environments[distribution] = environment_path
+    return environments
+
+
 @given(
     re.compile(
         r"the pytest-cuke (?P<distribution>wheel|sdist) built from this checkout is installed in a fresh consumer project"
@@ -157,6 +194,8 @@ def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, _pytes
     for name in (
         "PYTHONPATH",
         "PYTHONHOME",
+        "MYPYPATH",
+        "MYPY_CONFIG_FILE_DIR",
         "PYTEST_ADDOPTS",
         "PYTEST_PLUGINS",
         "PYTEST_CURRENT_TEST",
@@ -179,6 +218,56 @@ def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, _pytes
         cuke=_consumer_executable(binary_dir, "cuke"),
         env=environment,
         artifact=_pytest_cuke_artifacts["paths"][distribution],
+    )
+
+
+@given(
+    re.compile(
+        r"the pytest-cuke (?P<distribution>wheel|sdist) built from this checkout is installed with pinned Mypy in a fresh consumer project"
+    ),
+    target_fixture="consumer",
+)
+def install_pytest_cuke_typing_consumer(
+    distribution, _pytest_cuke_typing_environments, _pytest_cuke_artifacts, tmp_path_factory
+):
+    project_path = tmp_path_factory.mktemp("pytest-cuke-typing-consumer")
+    (project_path / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\ncuke_features_dir = 'features'\ncuke_autoload = true\n",
+        encoding="utf-8",
+    )
+    environment_path = _pytest_cuke_typing_environments[distribution]
+    binary_dir = _consumer_binary_dir(environment_path)
+    consumer_home = project_path / ".home"
+    consumer_home.mkdir()
+    environment = os.environ.copy()
+    for name in (
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "MYPYPATH",
+        "MYPY_CONFIG_FILE_DIR",
+        "PYTEST_ADDOPTS",
+        "PYTEST_PLUGINS",
+        "PYTEST_CURRENT_TEST",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+    ):
+        environment.pop(name, None)
+    environment.update(
+        {
+            "HOME": str(consumer_home),
+            "PATH": f"{binary_dir}{os.pathsep}{os.defpath}",
+            "PYTHONNOUSERSITE": "1",
+        }
+    )
+    if os.name == "nt":
+        environment["USERPROFILE"] = str(consumer_home)
+    return ConsumerProject(
+        path=project_path,
+        python=_consumer_executable(binary_dir, "python"),
+        pytest=_consumer_executable(binary_dir, "pytest"),
+        cuke=_consumer_executable(binary_dir, "cuke"),
+        env=environment,
+        artifact=_pytest_cuke_artifacts["paths"][distribution],
+        mypy=_consumer_executable(binary_dir, "mypy"),
     )
 
 
@@ -465,11 +554,87 @@ def consumer_distribution_archive_is_runtime_only(consumer: ConsumerProject):
         "examples",
         "features",
         "pytest_cuke_testing",
+        "pytest_cuke_test_support",
+        "test_support",
+        "_test_support",
         "scripts",
         "tests",
     }
     leaked = [member for member in members if forbidden_parts.intersection(Path(member).parts)]
     assert not leaked, f"distribution archive contains non-runtime files: {leaked}"
+
+
+@then("the installed archive publishes type metadata for both public facades")
+def consumer_archive_publishes_public_type_metadata(consumer: ConsumerProject) -> None:
+    if consumer.artifact.suffix == ".whl":
+        with zipfile.ZipFile(consumer.artifact) as archive:
+            members = archive.namelist()
+    else:
+        with tarfile.open(consumer.artifact, "r:gz") as archive:
+            members = archive.getnames()
+
+    normalized_members = {PurePosixPath(member).as_posix() for member in members}
+    required_suffixes = (
+        "pytest_cuke/py.typed",
+        "pytest_cuke/__init__.py",
+        "pytest_cuke/parsers/__init__.py",
+    )
+    missing = [
+        suffix
+        for suffix in required_suffixes
+        if not any(member == suffix or member.endswith(f"/{suffix}") for member in normalized_members)
+    ]
+    assert not missing, f"installed {consumer.artifact.suffix} is missing public typed package files: {missing}"
+
+
+@when(
+    re.compile(r'I run pinned Mypy on consumer file "(?P<relative_path>[^"]+)"'),
+    target_fixture="consumer_mypy_result",
+)
+def run_pinned_mypy_on_consumer_file(relative_path: str, consumer: ConsumerProject):
+    if consumer.mypy is None:
+        raise AssertionError("the consumer environment does not include the pinned Mypy checker")
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer type-check paths must stay inside the consumer project")
+    result = subprocess.run(
+        [
+            str(consumer.mypy),
+            "--strict",
+            "--show-error-codes",
+            "--no-error-summary",
+            "--no-incremental",
+            "--python-executable",
+            str(consumer.python),
+            str(consumer.path / destination),
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    consumer.typecheck_result = result
+    return result
+
+
+@then("pinned Mypy should accept the typed canonical facade example")
+def consumer_mypy_accepts_public_facade_example(consumer: ConsumerProject) -> None:
+    result = consumer.typecheck_result
+    assert result is not None, "Mypy has not checked the installed consumer example"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, output
+
+
+@then("pinned Mypy should reject the invalid scenario facade argument")
+def consumer_mypy_rejects_invalid_scenario_facade_argument(consumer: ConsumerProject) -> None:
+    result = consumer.typecheck_result
+    assert result is not None, "Mypy has not checked the installed consumer example"
+    output = f"{result.stdout}\n{result.stderr}"
+    error_codes = re.findall(r"\[([a-z-]+)\]", output)
+    assert result.returncode != 0, f"Mypy accepted an invalid public facade call:\n{output}"
+    assert error_codes == ["arg-type"], f"Mypy reported unexpected diagnostics: {error_codes}\n{output}"
+    assert 'Argument 1 to "scenario"' in output, output
 
 
 @then("pytest terminal output should report 2 passed BDD scenarios")
@@ -486,6 +651,18 @@ def consumer_cucumber_json_artifact(relative_path, consumer: ConsumerProject):
     elements = report[0]["elements"]
     assert len(elements) == 2
     assert all(step["result"]["status"] == "passed" for scenario in elements for step in scenario["steps"])
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should report both explicitly bound scenarios'))
+def consumer_explicit_bindings_json_artifact(relative_path: str, consumer: ConsumerProject) -> None:
+    report = json.loads((consumer.path / relative_path).read_text(encoding="utf-8"))
+    assert len(report) == 1, report
+    scenarios = report[0]["elements"]
+    assert {scenario["name"] for scenario in scenarios} == {
+        "Bound with scenario",
+        "Bound with scenarios",
+    }, report
+    assert all(step["result"]["status"] == "passed" for scenario in scenarios for step in scenario["steps"]), report
 
 
 @then(
