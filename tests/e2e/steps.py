@@ -68,6 +68,8 @@ class ConsumerProject:
     native_parity_result: subprocess.CompletedProcess[str] | None = None
     validation_findings: list[dict[str, object]] | None = None
     struct_bdd_selection_runs: list[subprocess.CompletedProcess[str]] | None = None
+    struct_bdd_parity_domain_result: subprocess.CompletedProcess[str] | None = None
+    struct_bdd_parity_runs: list[subprocess.CompletedProcess[str]] | None = None
 
 
 @fixture(scope="session")
@@ -1643,6 +1645,138 @@ def overlapping_struct_bdd_locators_are_deduplicated(consumer: ConsumerProject) 
     assert result.returncode == 0, output
     assert len(items) == 1, output
     assert items[0][1] == "PASSED", output
+
+
+@given("the consumer has semantically equal Gherkin and YAML StructBDD features")
+def create_struct_bdd_gherkin_parity_pair(consumer: ConsumerProject) -> None:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    (feature_root / "parity.bdd.yaml").write_text(
+        "Name: Shared report\n"
+        "Steps:\n"
+        "  - Step:\n"
+        "      Name: Shared result\n"
+        "      Steps:\n"
+        "        - Given: the parity step passes\n",
+        encoding="utf-8",
+    )
+    (feature_root / "parity.feature").write_text(
+        "Feature: Shared report\n  Scenario: Shared result\n    Given the parity step passes\n",
+        encoding="utf-8",
+    )
+    (consumer.path / "conftest.py").write_text(
+        "from pytest_cuke import given\n\n@given('the parity step passes')\ndef parity_step():\n    pass\n",
+        encoding="utf-8",
+    )
+
+
+@when("I compare their immutable feature models and scenario reports")
+def compare_struct_bdd_gherkin_domains_and_reports(consumer: ConsumerProject) -> None:
+    compare_domain_script = """
+import sys
+from pytest_cuke.parser import GherkinParser
+from pytest_cuke.struct_bdd.parser import StructBDDParser
+
+structured_path, gherkin_path = sys.argv[1:]
+structured = StructBDDParser(kind="yaml").parse(structured_path, uri="parity.feature")
+gherkin = GherkinParser().parse(gherkin_path, uri="parity.feature")
+
+def normalize(feature):
+    return {
+        "name": feature.name,
+        "description": feature.description,
+        "tags": feature.tag_names,
+        "scenarios": [
+            {
+                "name": scenario.name,
+                "description": scenario.description,
+                "keyword": scenario.keyword,
+                "tags": scenario.tag_names,
+                "steps": [
+                    {
+                        "keyword": step.keyword.strip(),
+                        "name": step.name,
+                        "doc_string": step.doc_string.content if step.doc_string else None,
+                        "table": [
+                            [cell.value for cell in row.cells]
+                            for row in step.data_table.rows
+                        ] if step.data_table else None,
+                    }
+                    for step in scenario.steps
+                ],
+            }
+            for scenario in feature.scenarios
+        ],
+    }
+
+assert normalize(structured) == normalize(gherkin), (normalize(structured), normalize(gherkin))
+"""
+    consumer.struct_bdd_parity_domain_result = subprocess.run(
+        [
+            str(consumer.python),
+            "-c",
+            compare_domain_script,
+            "features/parity.bdd.yaml",
+            "features/parity.feature",
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    common_arguments = ["--rootdir=.", "--cuke-summary", "-q", "--color=no"]
+    consumer.struct_bdd_parity_runs = [
+        _run_consumer_batch_pytest(
+            consumer,
+            [*common_arguments, "--cuke-json=parity-struct-bdd.json", "features/parity.bdd.yaml"],
+        ),
+        _run_consumer_batch_pytest(
+            consumer,
+            [*common_arguments, "--cuke-json=parity-gherkin.json", "features/parity.feature"],
+        ),
+    ]
+
+
+@then("both formats should have matching normalized domains and Cucumber reports")
+def struct_bdd_gherkin_domain_and_reports_match(consumer: ConsumerProject) -> None:
+    domain_result = consumer.struct_bdd_parity_domain_result
+    assert domain_result is not None, "the immutable feature model comparison has not run"
+    assert domain_result.returncode == 0, f"{domain_result.stdout}\n{domain_result.stderr}"
+
+    runs = consumer.struct_bdd_parity_runs
+    assert runs is not None and len(runs) == 2, "the scenario report runs have not completed"
+    for result in runs:
+        output = _consumer_batch_output(result)
+        assert result.returncode == 0, output
+        assert "1 passed BDD scenarios, 0 failed, 0 skipped" in output, output
+
+    def normalize_report(relative_path: str) -> dict[str, object]:
+        report = json.loads((consumer.path / relative_path).read_text(encoding="utf-8"))
+        assert len(report) == 1, report
+        feature = report[0]
+        return {
+            "name": feature["name"],
+            "tags": sorted(tag["name"].lstrip("@") for tag in feature["tags"]),
+            "scenarios": [
+                {
+                    "name": scenario["name"],
+                    "tags": sorted(tag["name"].lstrip("@") for tag in scenario["tags"]),
+                    "steps": [
+                        {
+                            "keyword": step["keyword"].strip(),
+                            "name": step["name"],
+                            "status": step["result"]["status"],
+                        }
+                        for step in scenario["steps"]
+                    ],
+                }
+                for scenario in feature["elements"]
+            ],
+        }
+
+    assert normalize_report("parity-struct-bdd.json") == normalize_report("parity-gherkin.json")
 
 
 @given("the consumer has a core Gherkin feature, malformed structured data, and an optional JSON5 feature")

@@ -19,6 +19,13 @@ Feature: StructBDD autoload discovery
     Then pytest should exit with code 0
     And the overlapping locators should collect the structured scenario once
 
+  Scenario: StructBDD preserves equivalent Gherkin model and report output
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer installs the optional StructBDD loaders
+    And the consumer has semantically equal Gherkin and YAML StructBDD features
+    When I compare their immutable feature models and scenario reports
+    Then both formats should have matching normalized domains and Cucumber reports
+
   Scenario: Malformed data and a missing optional loader stay attributed while Gherkin runs
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer has a core Gherkin feature, malformed structured data, and an optional JSON5 feature
