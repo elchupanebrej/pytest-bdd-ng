@@ -44,6 +44,19 @@ def test_standalone_dispatcher_help_lists_reserved_commands(monkeypatch, capsys)
     assert "features-dir" in capsys.readouterr().out
 
 
+def test_generate_steps_help_exposes_transactional_update_modes(capsys) -> None:
+    with pytest.raises(SystemExit) as error:
+        cli.main(["generate", "steps", "--help"])
+
+    assert error.value.code == 0
+    help_text = capsys.readouterr().out
+    assert "--feature" in help_text
+    assert "--target" in help_text
+    assert "--preview" in help_text
+    assert "--keep-on-error" in help_text
+    assert "--bind-scenarios" in help_text
+
+
 def test_command_dispatch_passes_trailing_arguments_to_extension(monkeypatch) -> None:
     received: list[str] = []
     registry = cli.CommandRegistry()

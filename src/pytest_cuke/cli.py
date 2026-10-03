@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 from typing import cast
 
+from pytest_cuke.generation_command import configure_generate_steps_parser, run_generate_steps
 from pytest_cuke.heading_validation_cli import configure_validation_parser, run_validation_command
 from pytest_cuke.packaging import get_distribution_version
 
@@ -118,7 +119,13 @@ def _build_registry() -> CommandRegistry:
         parser_configurer=configure_validation_parser,
         namespace_handler=run_validation_command,
     )
-    registry.add(("generate", "steps"), "generate step definition stubs", _unimplemented("generate steps"))
+    registry.add(
+        ("generate", "steps"),
+        "generate step definition stubs",
+        None,
+        parser_configurer=configure_generate_steps_parser,
+        namespace_handler=run_generate_steps,
+    )
     registry.add(("convert", "allure"), "convert Allure results", _unimplemented("convert allure"))
 
     for extension in entry_points(group="pytest_cuke.commands"):

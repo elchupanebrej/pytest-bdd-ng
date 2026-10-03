@@ -2329,3 +2329,821 @@ def custom_parser_internal_type_error_is_preserved(consumer: ConsumerProject) ->
     assert "INTERNALERROR" not in output, output
     assert "TypeError: intentional legacy parser failure" in output, output
     assert "signature mismatch" not in output.lower(), output
+
+
+_GENERATION_EXISTING_FEATURE = """Feature: Existing bindings are reused
+  Scenario: The user-owned bindings still work
+    Given the existing setup is available
+    When I parse existing value \"café\"
+    Then the original checks still hold
+"""
+
+_GENERATION_MISSING_FEATURE = """Feature: A missing binding is generated
+  Scenario: The new hook is available
+    Then the generated hook is now available
+"""
+
+_GENERATION_LITERAL_STEP = 'the message is "Привіт "світе" from C:\\qa\\tests'
+_GENERATION_LITERAL_DOCSTRING = """first line: café
+second line says \"keep this quoted\"
+third line uses C:\\qa\\tests
+"""
+_GENERATION_LITERAL_FEATURE = f"""Feature: Escaped step text survives generation
+  Scenario: The generated step accepts its original multiline payload
+    Then {_GENERATION_LITERAL_STEP}
+      \"\"\"
+      first line: café
+      second line says \"keep this quoted\"
+      third line uses C:\\qa\\tests
+      \"\"\"
+"""
+
+
+def _write_step_generation_consumer(consumer: ConsumerProject, *, include_literal: bool = False) -> None:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    (feature_root / "existing-bindings.feature").write_text(_GENERATION_EXISTING_FEATURE, encoding="utf-8")
+    (feature_root / "missing-hook.feature").write_text(_GENERATION_MISSING_FEATURE, encoding="utf-8")
+    if include_literal:
+        (feature_root / "literal-generation.feature").write_text(_GENERATION_LITERAL_FEATURE, encoding="utf-8")
+    (consumer.path / "conftest.py").write_text('pytest_plugins = ["steps"]\n', encoding="utf-8")
+    (consumer.path / "steps.py").write_text(
+        """import json
+from pathlib import Path
+
+from pytest_cuke import given as setup, parsers, then as verify, when as parse_action
+
+USER_NOTE = "keep this user-owned module code"
+
+
+@setup("the existing setup is available", target_fixture="example_state")
+def existing_setup():
+    return {"note": USER_NOTE}
+
+
+@parse_action(parsers.parse('I parse existing value "{value}"'), target_fixture="parsed_value")
+def parse_existing_value(value):
+    return value
+
+
+@verify("the original checks still hold")
+def original_checks_still_hold(example_state, parsed_value):
+    assert example_state["note"] == USER_NOTE
+    assert parsed_value == "café"
+""",
+        encoding="utf-8",
+    )
+
+
+@given("the consumer has aliased parser bindings and two generation features")
+def consumer_with_aliased_parser_bindings_and_two_generation_features(consumer: ConsumerProject) -> None:
+    _write_step_generation_consumer(consumer)
+
+
+@given("the consumer has aliased parser bindings and a multiline literal feature")
+def consumer_with_aliased_parser_bindings_and_literal_feature(consumer: ConsumerProject) -> None:
+    _write_step_generation_consumer(consumer, include_literal=True)
+
+
+@given("the consumer has an existing test module for explicit scenario binding")
+def consumer_with_existing_test_module_for_scenario_binding(consumer: ConsumerProject) -> None:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    (feature_root / "explicit-bindings.feature").write_text(_GENERATION_EXISTING_FEATURE, encoding="utf-8")
+    (consumer.path / "test_explicit_scenario.py").write_text(
+        """from pytest_cuke import given as setup, parsers, scenario, then as verify, when as parse_action
+
+USER_NOTE = "keep this existing test module"
+
+
+@setup("the existing setup is available", target_fixture="example_state")
+def existing_setup():
+    return {"note": USER_NOTE}
+
+
+@parse_action(parsers.parse('I parse existing value "{value}"'), target_fixture="parsed_value")
+def parse_existing_value(value):
+    return value
+
+
+@verify("the original checks still hold")
+def original_checks_still_hold(example_state, parsed_value):
+    assert example_state["note"] == USER_NOTE
+    assert parsed_value == "café"
+""",
+        encoding="utf-8",
+    )
+
+
+@given("the consumer has a generation target and one valid feature")
+def consumer_with_generation_target_and_valid_feature(consumer: ConsumerProject) -> None:
+    (consumer.path / "features").mkdir(parents=True, exist_ok=True)
+    (consumer.path / "features" / "valid.feature").write_text(
+        "Feature: A valid generation source\n  Scenario: One missing definition\n    Then a new public binding is needed\n",
+        encoding="utf-8",
+    )
+    (consumer.path / "steps.py").write_text('USER_NOTE = "preserve this target"\n', encoding="utf-8")
+
+
+@given("the consumer has an invalid generation target and one valid feature")
+def consumer_with_invalid_generation_target_and_valid_feature(consumer: ConsumerProject) -> None:
+    (consumer.path / "features").mkdir(parents=True, exist_ok=True)
+    (consumer.path / "features" / "valid.feature").write_text(
+        "Feature: A valid generation source\n  Scenario: One missing definition\n    Then a new public binding is needed\n",
+        encoding="utf-8",
+    )
+    (consumer.path / "steps.py").write_bytes(b'USER_NOTE = "preserve original bytes"\n\ndef invalid(:\n')
+
+
+@given("the consumer PATH contains a formatter that fails")
+def consumer_path_contains_failing_formatter(consumer: ConsumerProject) -> None:
+    formatter_dir = consumer.path / ".test-bin"
+    formatter_dir.mkdir(exist_ok=True)
+    if os.name == "nt":
+        formatter = formatter_dir / "ruff.cmd"
+        formatter.write_text("@echo off\r\nexit /b 23\r\n", encoding="utf-8")
+    else:
+        formatter = formatter_dir / "ruff"
+        formatter.write_text("#!/bin/sh\nexit 23\n", encoding="utf-8")
+        formatter.chmod(0o755)
+    consumer.env["PATH"] = f"{formatter_dir}{os.pathsep}{consumer.env['PATH']}"
+
+
+@step(re.compile(r'I remember the exact bytes of consumer file "(?P<relative_path>[^\"]+)"'))
+def remember_consumer_file_bytes(relative_path: str, consumer: ConsumerProject) -> None:
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    target = consumer.path / destination
+    assert target.is_file(), f"consumer file {relative_path!r} does not exist"
+    snapshot_dir = consumer.path / ".generation-snapshots"
+    snapshot_dir.mkdir(exist_ok=True)
+    snapshot_name = hashlib.sha256(relative_path.encode("utf-8")).hexdigest()
+    (snapshot_dir / snapshot_name).write_bytes(target.read_bytes())
+
+
+@then(re.compile(r'consumer file "(?P<relative_path>[^\"]+)" should match its remembered bytes'))
+def consumer_file_matches_generation_snapshot(relative_path: str, consumer: ConsumerProject) -> None:
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    snapshot_name = hashlib.sha256(relative_path.encode("utf-8")).hexdigest()
+    snapshot = consumer.path / ".generation-snapshots" / snapshot_name
+    assert snapshot.is_file(), f"no byte snapshot was saved for {relative_path!r}"
+    actual = (consumer.path / destination).read_bytes()
+    expected = snapshot.read_bytes()
+    assert actual == expected, f"consumer file {relative_path!r} changed after the generation attempt"
+
+
+@then("the generated module should retain its existing aliases, parser binding, and user code")
+def generated_module_retains_existing_step_bindings(consumer: ConsumerProject) -> None:
+    import ast
+
+    target = consumer.path / "steps.py"
+    source = target.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(target))
+    compile(tree, str(target), "exec")
+    assert 'USER_NOTE = "keep this user-owned module code"' in source
+    facade_aliases = {
+        (alias.name, alias.asname or alias.name)
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "pytest_cuke"
+        for alias in node.names
+    }
+    assert {
+        ("given", "setup"),
+        ("parsers", "parsers"),
+        ("then", "verify"),
+        ("when", "parse_action"),
+    }.issubset(facade_aliases)
+    function_nodes = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+    assert {"existing_setup", "parse_existing_value", "original_checks_still_hold"}.issubset(function_nodes)
+    setup_decorators = function_nodes["existing_setup"].decorator_list
+    assert any(
+        isinstance(decorator, ast.Call)
+        and isinstance(decorator.func, ast.Name)
+        and decorator.func.id == "setup"
+        and decorator.args
+        and isinstance(decorator.args[0], ast.Constant)
+        and decorator.args[0].value == "the existing setup is available"
+        for decorator in setup_decorators
+    )
+    parser_decorators = function_nodes["parse_existing_value"].decorator_list
+    assert any(
+        isinstance(decorator, ast.Call)
+        and isinstance(decorator.func, ast.Name)
+        and decorator.func.id == "parse_action"
+        and decorator.args
+        and isinstance(decorator.args[0], ast.Call)
+        and isinstance(decorator.args[0].func, ast.Attribute)
+        and decorator.args[0].func.attr == "parse"
+        and decorator.args[0].args
+        and isinstance(decorator.args[0].args[0], ast.Constant)
+        and decorator.args[0].args[0].value == 'I parse existing value "{value}"'
+        for decorator in parser_decorators
+    )
+    existing_then_decorators = function_nodes["original_checks_still_hold"].decorator_list
+    assert any(
+        isinstance(decorator, ast.Call)
+        and isinstance(decorator.func, ast.Name)
+        and decorator.func.id == "verify"
+        and decorator.args
+        and isinstance(decorator.args[0], ast.Constant)
+        and decorator.args[0].value == "the original checks still hold"
+        for decorator in existing_then_decorators
+    )
+    generated_definitions = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if any(
+            isinstance(decorator, ast.Call)
+            and decorator.args
+            and isinstance(decorator.args[0], ast.Constant)
+            and decorator.args[0].value == "the generated hook is now available"
+            for decorator in node.decorator_list
+        ):
+            generated_definitions.append(node)
+    assert len(generated_definitions) == 1
+    assert (
+        len(
+            [
+                node
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef) and node.name == "original_checks_still_hold"
+            ]
+        )
+        == 1
+    )
+
+
+@then("default generation should not create scenario wrapper files")
+def default_generation_does_not_create_scenario_wrappers(consumer: ConsumerProject) -> None:
+    target = consumer.path / "steps.py"
+    source = target.read_text(encoding="utf-8")
+    assert not list(consumer.path.rglob("test_*.py")), "default step generation created a mirror test wrapper"
+    assert "@scenario(" not in source, source
+    assert "@scenarios(" not in source, source
+
+
+@then("the chosen module should retain its user code and bind the selected scenario")
+def chosen_module_retains_user_code_and_binds_scenario(consumer: ConsumerProject) -> None:
+    import ast
+
+    target = consumer.path / "test_explicit_scenario.py"
+    source = target.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(target))
+    assert 'USER_NOTE = "keep this existing test module"' in source
+    scenario_bindings = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        if any(
+            isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Name) and decorator.func.id == "scenario"
+            for decorator in node.decorator_list
+        ):
+            scenario_bindings.append(node)
+    assert len(scenario_bindings) == 1, source
+
+
+@then("the generator output should include the missing hook")
+def generation_output_includes_missing_hook(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "step generation has not run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert "the generated hook is now available" in output, output
+
+
+@then(re.compile(r'the generator error should identify "(?P<expected>[^\"]+)"'))
+def generation_error_identifies_input(expected: str, consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "step generation has not run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert expected in output, output
+
+
+@then(re.compile(r'the generator error should identify the invalid target "(?P<target>[^\"]+)"'))
+def generation_error_identifies_invalid_target(target: str, consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "step generation has not run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert target in output, output
+    assert any(marker in output.lower() for marker in ("invalid", "syntax", "parse")), output
+
+
+@then("the target should retain the attempted generated definition after formatter failure")
+def target_retains_attempted_generation_after_formatter_failure(consumer: ConsumerProject) -> None:
+    target = consumer.path / "steps.py"
+    source = target.read_text(encoding="utf-8")
+    assert 'USER_NOTE = "preserve this target"' in source
+    assert "a new public binding is needed" in source
+    compile(source, str(target), "exec")
+
+
+@then("the generated module should compile and preserve the exact escaped step text")
+def generated_module_compiles_and_preserves_literal_step(consumer: ConsumerProject) -> None:
+    import ast
+
+    target = consumer.path / "steps.py"
+    source = target.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(target))
+    compile(tree, str(target), "exec")
+    matching_definitions = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call) or not decorator.args:
+                continue
+            argument = decorator.args[0]
+            if isinstance(argument, ast.Constant) and argument.value == _GENERATION_LITERAL_STEP:
+                matching_definitions.append(node)
+    assert len(matching_definitions) == 1, source
+
+
+@when("I fill the generated step stubs to record their executions")
+def fill_generated_step_stubs_to_record_executions(consumer: ConsumerProject) -> None:
+    import ast
+
+    target = consumer.path / "steps.py"
+    source = target.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(target))
+    expected_phrases = {"the generated hook is now available", _GENERATION_LITERAL_STEP}
+    matching_definitions = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call) or not decorator.args:
+                continue
+            argument = decorator.args[0]
+            if isinstance(argument, ast.Constant) and argument.value in expected_phrases:
+                matching_definitions.append(node)
+                break
+    names = {node.name for node in matching_definitions}
+    assert len(names) == len(expected_phrases), f"not all generated stubs were found: {names}"
+
+    lines = source.splitlines(keepends=True)
+    for node in sorted(matching_definitions, key=lambda item: item.lineno, reverse=True):
+        replacement = [
+            f"def {node.name}(step):\n",
+            '    event_path = Path("generated-step-events.json")\n',
+            '    records = json.loads(event_path.read_text(encoding="utf-8")) if event_path.exists() else []\n',
+            '    doc_string = getattr(step, "doc_string", None)\n',
+            '    records.append({"text": step.text, "doc_string": None if doc_string is None else doc_string.content})\n',
+            '    event_path.write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")\n',
+            "",
+        ]
+        lines[node.lineno - 1 : node.end_lineno] = replacement
+    target.write_text("".join(lines), encoding="utf-8")
+    compile(target.read_text(encoding="utf-8"), str(target), "exec")
+
+
+@then("the generated literal step should have executed once with its original multiline payload")
+def generated_literal_step_executed_once_with_multiline_payload(consumer: ConsumerProject) -> None:
+    records = json.loads((consumer.path / "generated-step-events.json").read_text(encoding="utf-8"))
+    matching = [record for record in records if record["text"] == _GENERATION_LITERAL_STEP]
+    assert len(matching) == 1, records
+    assert matching[0]["doc_string"].rstrip("\n") == _GENERATION_LITERAL_DOCSTRING.rstrip("\n"), records
+
+
+@fixture(scope="session")
+def _step_generation_consumer_wheel(request, tmp_path_factory):
+    project_root = Path(request.config.rootpath)
+    artifact_dir = tmp_path_factory.mktemp("pytest-cuke-step-generation-wheel")
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "the installed step-generation contract requires uv to build a wheel"
+    build_environment = os.environ.copy()
+    build_environment["PYTEST_CUKE_BUILD_GO"] = "off"
+    build_result = subprocess.run(
+        [uv_executable, "build", "--wheel", "--out-dir", str(artifact_dir), str(project_root)],
+        cwd=project_root,
+        env=build_environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert build_result.returncode == 0, (
+        f"could not build the step-generation consumer wheel:\n{build_result.stdout}\n{build_result.stderr}"
+    )
+    wheels = list(artifact_dir.glob("pytest_cuke-*.whl"))
+    assert len(wheels) == 1, f"expected one pytest-cuke wheel, found {wheels}"
+
+    consumer_interpreter = sys.executable
+    environment_path = tmp_path_factory.mktemp("pytest-cuke-step-generation-venv")
+    create_environment = subprocess.run(
+        [uv_executable, "venv", "--python", consumer_interpreter, str(environment_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert create_environment.returncode == 0, (
+        f"could not create step-generation consumer environment:\n"
+        f"{create_environment.stdout}\n{create_environment.stderr}"
+    )
+    binary_dir = _consumer_binary_dir(environment_path)
+    python_path = _consumer_executable(binary_dir, "python")
+    install = subprocess.run(
+        [uv_executable, "pip", "install", "--python", str(python_path), str(wheels[0])],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert install.returncode == 0, (
+        f"could not install step-generation consumer wheel:\n{install.stdout}\n{install.stderr}"
+    )
+    return {"environment_path": environment_path, "wheel": wheels[0]}
+
+
+@given(
+    "the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project",
+    target_fixture="consumer",
+)
+def install_step_generation_consumer(_step_generation_consumer_wheel, tmp_path_factory):
+    project_path = tmp_path_factory.mktemp("pytest-cuke-step-generation-consumer")
+    (project_path / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\ncuke_features_dir = 'features'\ncuke_autoload = true\n",
+        encoding="utf-8",
+    )
+    environment_path = _step_generation_consumer_wheel["environment_path"]
+    binary_dir = _consumer_binary_dir(environment_path)
+    consumer_home = project_path / ".home"
+    consumer_home.mkdir()
+    environment = os.environ.copy()
+    for name in (
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "PYTEST_ADDOPTS",
+        "PYTEST_PLUGINS",
+        "PYTEST_CURRENT_TEST",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+    ):
+        environment.pop(name, None)
+    environment.update(
+        {
+            "HOME": str(consumer_home),
+            "PATH": f"{binary_dir}{os.pathsep}{os.defpath}",
+            "PYTHONNOUSERSITE": "1",
+        }
+    )
+    if os.name == "nt":
+        environment["USERPROFILE"] = str(consumer_home)
+    return ConsumerProject(
+        path=project_path,
+        python=_consumer_executable(binary_dir, "python"),
+        pytest=_consumer_executable(binary_dir, "pytest"),
+        cuke=_consumer_executable(binary_dir, "cuke"),
+        env=environment,
+        artifact=_step_generation_consumer_wheel["wheel"],
+    )
+
+
+@given("the consumer has a generation feature but no target module")
+def consumer_with_feature_but_missing_generation_target(consumer: ConsumerProject) -> None:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    (feature_root / "missing-target.feature").write_text(
+        "Feature: Missing target path\n  Scenario: Generate a missing step\n    Then a target would be useful\n",
+        encoding="utf-8",
+    )
+
+
+@given("the consumer has two ambiguous bindings for one generation feature")
+def consumer_with_ambiguous_bindings(consumer: ConsumerProject) -> None:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    (feature_root / "ambiguous-bindings.feature").write_text(
+        "Feature: Ambiguous bindings\n  Scenario: The step matches twice\n    Then the ambiguous value is ready\n",
+        encoding="utf-8",
+    )
+    (consumer.path / "steps.py").write_text(
+        """from pytest_cuke import parsers, then as verify
+
+USER_NOTE = "preserve both ambiguous bindings"
+
+
+@verify(parsers.parse("the ambiguous value is {value}"))
+def first_ambiguous_binding(value):
+    pass
+
+
+@verify(parsers.parse("the ambiguous value is {value}"))
+def second_ambiguous_binding(value):
+    pass
+""",
+        encoding="utf-8",
+    )
+
+
+@given("the consumer has an autouse fixture that fails during generation inspection")
+def consumer_with_failing_autouse_fixture(consumer: ConsumerProject) -> None:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    (feature_root / "fixture-failure.feature").write_text(
+        "Feature: Parser fixture setup failure\n  Scenario: The parser fixture fails\n    Then the fixture value is ready\n",
+        encoding="utf-8",
+    )
+    (consumer.path / "steps.py").write_text(
+        'USER_NOTE = "preserve this module when inspection fails"\n',
+        encoding="utf-8",
+    )
+    (consumer.path / "conftest.py").write_text(
+        """from pathlib import Path
+
+from pytest import fixture
+
+
+@fixture(autouse=True)
+def fail_generation_inspection(request):
+    request.addfinalizer(lambda: Path("fixture-cleanup.txt").write_text("cleaned", encoding="utf-8"))
+    raise RuntimeError("intentional generation fixture setup failure")
+""",
+        encoding="utf-8",
+    )
+
+
+@then("the generator should provide an actionable ambiguity error")
+def generation_reports_ambiguous_step_bindings(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "step generation has not run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert "ambiguous existing step definitions" in output.lower(), output
+    assert "the ambiguous value is ready" in output, output
+    assert "remove or narrow one matching parser" in output, output
+
+
+@then("the fixture setup failure should be reported and its cleanup finalizer should run")
+def parser_fixture_setup_failure_runs_finalizer(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "step generation has not run in this consumer"
+    assert result.returncode != 0, f"fixture setup unexpectedly succeeded:\n{result.stdout}\n{result.stderr}"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert "intentional generation fixture setup failure" in output, output
+    cleanup = consumer.path / "fixture-cleanup.txt"
+    assert cleanup.read_text(encoding="utf-8") == "cleaned", "pytest did not run the fixture finalizer"
+
+
+@given("the consumer has an aliased scenario binding that uses the configured feature directory")
+def consumer_with_aliased_scenario_binding_using_configured_feature_directory(consumer: ConsumerProject) -> None:
+    _write_step_generation_consumer(consumer)
+    feature_path = consumer.path / "features" / "explicit-bindings.feature"
+    feature_path.write_text(
+        "Feature: Explicit feature directory binding\n"
+        "  Scenario: Existing scenario\n"
+        "    Given the existing setup is available\n"
+        '    When I parse existing value "café"\n'
+        "    Then the original checks still hold\n",
+        encoding="utf-8",
+    )
+    step_module = (consumer.path / "steps.py").read_text(encoding="utf-8")
+    facade_import = "from pytest_cuke import given as setup, parsers, then as verify, when as parse_action"
+    aliased_facade_import = (
+        "from pytest_cuke import given as setup, parsers, scenario as bind_scenario, "
+        "then as verify, when as parse_action"
+    )
+    assert facade_import in step_module
+    test_module = step_module.replace(facade_import, aliased_facade_import, 1)
+    test_module += """
+
+
+@bind_scenario("explicit-bindings.feature", "Existing scenario")
+def test_existing_scenario_binding():
+    assert USER_NOTE == "keep this user-owned module code"
+"""
+    (consumer.path / "test_aliased_scenario.py").write_text(test_module, encoding="utf-8")
+
+
+@then("the existing aliased scenario binding should not be duplicated")
+def existing_aliased_scenario_binding_is_not_duplicated(consumer: ConsumerProject) -> None:
+    import ast
+
+    target = consumer.path / "test_aliased_scenario.py"
+    source = target.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(target))
+    bindings = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call) or not isinstance(decorator.func, ast.Name):
+                continue
+            if decorator.func.id in {"bind_scenario", "scenario"}:
+                bindings.append((node, decorator))
+    assert len(bindings) == 1, source
+    _, binding = bindings[0]
+    assert len(binding.args) >= 2
+    assert isinstance(binding.args[0], ast.Constant) and binding.args[0].value == "explicit-bindings.feature"
+    assert isinstance(binding.args[1], ast.Constant) and binding.args[1].value == "Existing scenario"
+
+
+@then("the preview output should include the diff without pytest collection output")
+def generation_preview_shows_diff_without_collection_output(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "step generation has not run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    lines = output.splitlines()
+    assert any(line.startswith("--- ") for line in lines), output
+    assert any(line.startswith("+++ ") for line in lines), output
+    assert any(line.startswith("@@") for line in lines), output
+    assert any(line.startswith("+") and "the generated hook is now available" in line for line in lines), output
+    assert "test_cuke_generation_" not in output, output
+
+
+@given("the consumer has an absolute scenarios glob binding for a generation feature")
+def consumer_with_absolute_scenarios_glob_binding(consumer: ConsumerProject) -> None:
+    _write_step_generation_consumer(consumer)
+    feature_root = consumer.path / "features"
+    (feature_root / "absolute-glob.feature").write_text(
+        "Feature: Absolute scenarios glob binding\n"
+        "  Scenario: The absolute glob already binds this feature\n"
+        "    Given the existing setup is available\n"
+        '    When I parse existing value "café"\n'
+        "    Then the original checks still hold\n",
+        encoding="utf-8",
+    )
+    target = consumer.path / "steps.py"
+    source = target.read_text(encoding="utf-8")
+    facade_import = "from pytest_cuke import given as setup, parsers, then as verify, when as parse_action"
+    scenarios_import = (
+        "from pytest_cuke import given as setup, parsers, scenarios, then as verify, when as parse_action"
+    )
+    assert facade_import in source
+    source = source.replace(facade_import, scenarios_import, 1)
+    absolute_pattern = str((feature_root / "*.feature").resolve())
+    source += f"""
+
+
+@scenarios({absolute_pattern!r}, return_test_decorator=True)
+def test_all_features_from_absolute_glob():
+    pass
+"""
+    target.write_text(source, encoding="utf-8")
+
+
+@then("the existing absolute scenarios glob binding should not be duplicated")
+def existing_absolute_scenarios_glob_is_not_duplicated(consumer: ConsumerProject) -> None:
+    import ast
+
+    target = consumer.path / "steps.py"
+    source = target.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(target))
+    glob_bindings = []
+    direct_scenario_bindings = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call) or not isinstance(decorator.func, ast.Name):
+                continue
+            if decorator.func.id == "scenarios":
+                glob_bindings.append(decorator)
+            elif decorator.func.id == "scenario":
+                direct_scenario_bindings.append(decorator)
+    assert len(glob_bindings) == 1, source
+    assert not direct_scenario_bindings, source
+    binding_path = glob_bindings[0].args[0]
+    assert isinstance(binding_path, ast.Constant) and isinstance(binding_path.value, str), source
+    expected_pattern = str((consumer.path / "features" / "*.feature").resolve())
+    assert binding_path.value == expected_pattern, source
+    assert Path(binding_path.value).is_absolute(), source
+
+
+@given("the consumer has a shallow scenarios glob and a nested generation feature")
+def consumer_with_shallow_scenarios_glob_and_nested_feature(consumer: ConsumerProject) -> None:
+    _write_step_generation_consumer(consumer)
+    nested_feature = consumer.path / "features" / "area" / "nested" / "nested-scenario.feature"
+    nested_feature.parent.mkdir(parents=True, exist_ok=True)
+    nested_feature.write_text(
+        "Feature: Nested feature outside shallow glob\n"
+        "  Scenario: Nested scenario\n"
+        "    Given the existing setup is available\n"
+        '    When I parse existing value "café"\n'
+        "    Then the original checks still hold\n",
+        encoding="utf-8",
+    )
+    target = consumer.path / "steps.py"
+    source = target.read_text(encoding="utf-8")
+    facade_import = "from pytest_cuke import given as setup, parsers, then as verify, when as parse_action"
+    scenarios_import = (
+        "from pytest_cuke import given as setup, parsers, scenarios, then as verify, when as parse_action"
+    )
+    assert facade_import in source
+    source = source.replace(facade_import, scenarios_import, 1)
+    source += """
+
+
+@scenarios("*/*.feature", filter_="Nested scenario", return_test_decorator=True)
+def test_nested_scenario_glob():
+    pass
+"""
+    target.write_text(source, encoding="utf-8")
+
+
+@then("the nested feature should have an explicit generated scenario binding")
+def nested_feature_has_generated_explicit_scenario_binding(consumer: ConsumerProject) -> None:
+    import ast
+
+    target = consumer.path / "steps.py"
+    source = target.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(target))
+    glob_bindings = []
+    explicit_bindings = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call) or not isinstance(decorator.func, ast.Name):
+                continue
+            if decorator.func.id == "scenarios":
+                glob_bindings.append(decorator)
+            elif decorator.func.id == "scenario":
+                explicit_bindings.append(decorator)
+
+    assert len(glob_bindings) == 1, source
+    glob_binding = glob_bindings[0]
+    assert glob_binding.args and isinstance(glob_binding.args[0], ast.Constant)
+    assert glob_binding.args[0].value == "*/*.feature", source
+    filter_value = next(keyword.value for keyword in glob_binding.keywords if keyword.arg == "filter_")
+    assert isinstance(filter_value, ast.Constant) and filter_value.value == "Nested scenario", source
+
+    assert len(explicit_bindings) == 1, source
+    explicit_binding = explicit_bindings[0]
+    assert len(explicit_binding.args) >= 2
+    path_literals = [node.value for node in ast.walk(explicit_binding.args[0]) if isinstance(node, ast.Constant)]
+    assert "features/area/nested/nested-scenario.feature" in path_literals, source
+    scenario_name = explicit_binding.args[1]
+    assert isinstance(scenario_name, ast.Constant) and scenario_name.value == "Nested scenario", source
+
+
+@given("the consumer has no pytest configuration and an aliased relative scenario binding")
+def consumer_without_pytest_configuration_and_with_relative_scenario_binding(consumer: ConsumerProject) -> None:
+    for name in ("pytest.ini", ".pytest.ini", "tox.ini", "setup.cfg", "pyproject.toml"):
+        (consumer.path / name).unlink(missing_ok=True)
+
+    feature_path = consumer.path / "features" / "relative.feature"
+    feature_path.parent.mkdir(parents=True, exist_ok=True)
+    feature_path.write_text(
+        "Feature: Relative scenario binding\n"
+        "  Scenario: Existing scenario\n"
+        "    Given the existing setup is available\n"
+        '    When I parse existing value "café"\n'
+        "    Then the original checks still hold\n",
+        encoding="utf-8",
+    )
+
+    target = consumer.path / "tests" / "test_bindings.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        """from pytest_cuke import given as setup, parsers, scenario as bind_scenario, then as verify, when as parse_action
+
+USER_NOTE = "preserve the existing relative binding module"
+
+
+@setup("the existing setup is available", target_fixture="example_state")
+def existing_setup():
+    return {"note": USER_NOTE}
+
+
+@parse_action(parsers.parse('I parse existing value "{value}"'), target_fixture="parsed_value")
+def parse_existing_value(value):
+    return value
+
+
+@verify("the original checks still hold")
+def original_checks_still_hold(example_state, parsed_value):
+    assert example_state["note"] == USER_NOTE
+    assert parsed_value == "café"
+
+
+@bind_scenario('relative.feature', 'Existing scenario')
+def test_existing_relative_binding():
+    assert USER_NOTE == "preserve the existing relative binding module"
+""",
+        encoding="utf-8",
+    )
+
+
+@then("the existing relative scenario binding should not be duplicated")
+def existing_relative_scenario_binding_is_not_duplicated(consumer: ConsumerProject) -> None:
+    import ast
+
+    target = consumer.path / "tests" / "test_bindings.py"
+    source = target.read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=str(target))
+    bindings = []
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call) or not isinstance(decorator.func, ast.Name):
+                continue
+            if decorator.func.id in {"bind_scenario", "scenario"}:
+                bindings.append(decorator)
+
+    assert len(bindings) == 1, source
+    binding = bindings[0]
+    assert len(binding.args) >= 2
+    assert isinstance(binding.args[0], ast.Constant) and binding.args[0].value == "relative.feature", source
+    assert isinstance(binding.args[1], ast.Constant) and binding.args[1].value == "Existing scenario", source
+    config_names = ("pytest.ini", ".pytest.ini", "tox.ini", "setup.cfg", "pyproject.toml")
+    assert not any((consumer.path / name).exists() for name in config_names)

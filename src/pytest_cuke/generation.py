@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import os.path
+import warnings
+from dataclasses import dataclass
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
@@ -19,6 +21,7 @@ from pytest_cuke.packaging import compare_distribution_version
 from pytest_cuke.scenario_locator import FileScenarioLocator
 from pytest_cuke.steps import Matcher
 from pytest_cuke.utils import make_python_name
+from pytest_cuke.warning_types import PytestBDDStepDefinitionWarning
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
@@ -46,6 +49,66 @@ STEP_TYPE_TO_STEP_METHOD_NAME = {
     StepType.context: "given",
     StepType.action: "when",
 }
+
+
+@dataclass(frozen=True)
+class StepDefinitionMatch:
+    """Result of matching one scenario step against registered definitions."""
+
+    step: PickleStep
+    matched: bool
+    ambiguous: bool
+
+
+class StepDefinitionInspectionError(RuntimeError):
+    """An existing step definition could not be inspected safely."""
+
+
+def iter_step_definition_matches(
+    request: FixtureRequest,
+    feature: Feature,
+    scenario: Any,
+    *,
+    detect_ambiguity: bool = False,
+) -> Iterable[StepDefinitionMatch]:
+    """Match scenario steps in order using pytest-cuke's active definition hook."""
+    previous_step: PickleStep | None = None
+    for step in scenario.steps:
+        ambiguous = False
+        try:
+            if detect_ambiguity:
+                with warnings.catch_warnings(record=True) as observed:
+                    warnings.simplefilter("always", PytestBDDStepDefinitionWarning)
+                    request.config.hook.pytest_cuke_match_step_definition_to_step(
+                        request=request,
+                        feature=feature,
+                        scenario=scenario,
+                        step=step,
+                        previous_step=previous_step,
+                    )
+                ambiguous = any(
+                    warning.category is PytestBDDStepDefinitionWarning
+                    and "Alternative step definitions" in str(warning.message)
+                    for warning in observed
+                )
+            else:
+                request.config.hook.pytest_cuke_match_step_definition_to_step(
+                    request=request,
+                    feature=feature,
+                    scenario=scenario,
+                    step=step,
+                    previous_step=previous_step,
+                )
+        except Matcher.MatchNotFoundError:
+            yield StepDefinitionMatch(step=step, matched=False, ambiguous=False)
+        except Exception as error:
+            raise StepDefinitionInspectionError(
+                f"could not inspect existing parser for {step.keyword.strip()} {step.text!r}: {error}"
+            ) from error
+        else:
+            yield StepDefinitionMatch(step=step, matched=True, ambiguous=ambiguous)
+        finally:
+            previous_step = step
 
 
 def check_existense(file_name: str) -> Path:
@@ -162,16 +225,9 @@ def generate_and_print_missing_code(config: Config) -> int | ExitCode:
 
             seen_feature_pickles_ids.add((feature.uri, pickle.name))
 
-            previous_step = None
-            for step in pickle.steps:
-                try:
-                    item_request.config.hook.pytest_cuke_match_step_definition_to_step(
-                        request=item_request, feature=feature, scenario=pickle, step=step, previous_step=previous_step
-                    )
-                except Matcher.MatchNotFoundError:
-                    non_matched_feature_pickle_steps.append(((feature, pickle), step))
-                finally:
-                    previous_step = step
+            for match in iter_step_definition_matches(item_request, feature, pickle):
+                if not match.matched:
+                    non_matched_feature_pickle_steps.append(((feature, pickle), match.step))
 
             item.session._setupstate.teardown_exact(  # type: ignore[call-arg]  # Pytest's private teardown signature varies by supported version.
                 *((item,) if is_legacy_pytest else ()), None
@@ -319,11 +375,9 @@ def print_missing_code(
 
 def make_python_docstring(string: str) -> str:
     """Make a python docstring literal out of a given string."""
-    escaped = string.replace('"""', '\\"\\"\\"')
-    return f'"""{escaped}."""'
+    return ascii(f"{string}.")
 
 
 def make_string_literal(string: str) -> str:
     """Make python string literal out of a given string."""
-    escaped = string.replace("'", "\\'")
-    return f"'{escaped}'"
+    return ascii(string)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -22,10 +23,11 @@ from pytest_cuke.model import StepType
 
 
 def test_generation_helpers() -> None:
-    assert make_python_docstring("simple") == '"""simple."""'
-    assert make_python_docstring('with """ quotes') == '"""with \\"\\"\\" quotes."""'
-    assert make_string_literal("hello") == "'hello'"
-    assert make_string_literal("it's fine") == "'it\\'s fine'"
+    assert ast.literal_eval(make_python_docstring("simple")) == "simple."
+    assert ast.literal_eval(make_python_docstring('with """ quotes')) == 'with """ quotes.'
+    assert ast.literal_eval(make_python_docstring("line one\nline two")) == "line one\nline two."
+    assert ast.literal_eval(make_string_literal("hello")) == "hello"
+    assert ast.literal_eval(make_string_literal("it's fine\\and café\nnext")) == "it's fine\\and café\nnext"
 
     assert STEP_TYPE_TO_STEP_PREFIX[StepType.context] == "Given"
     assert STEP_TYPE_TO_STEP_PREFIX[StepType.action] == "When"
