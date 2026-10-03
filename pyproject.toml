@@ -65,9 +65,8 @@ dependencies = [
   "parse_type>=0.6.6",
   "pathvalidate",
   "py",
-  # pydantic 2.13+ pulls pydantic-core>=2.46, which has no PyPy 3.10 wheels (PyO3 dropped pp310) - see #204
-  'pydantic>=2.0.3,<2.13; platform_python_implementation == "PyPy"',
-  'pydantic>=2.0.3; platform_python_implementation != "PyPy"',
+  "pydantic>=2.0.3",
+  "tomli;python_version<'3.11.0'",
   "pytest>=5.2",
   "cucumber-tag-expressions",
   "typing-extensions;python_version<'3.11.0'"
@@ -290,8 +289,18 @@ required_distributions = [
   "types-PyYAML==6.0.12.20260906",
 ]
 
-# Single source of pytest configuration. Do not re-add a root pytest.ini:
-# it would shadow this section (see #221).
+[tool.pytest-cuke.compatibility]
+python-factors = ["3.10", "3.11", "3.12", "3.13", "3.14"]
+pytest-factors = ["7.0", "8.0", "9.0", "latest"]
+execution-targets = ["lin", "mac", "win"]
+tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
+compatibility-source = "pytest-metadata"
+
+[tool.pytest-cuke.migration-audit]
+feature-patterns = ["features/**/*.feature", "features/**/*.gherkin", "features/**/*.feature.md", "features/**/*.gherkin.md"]
+test-registration-patterns = ["tests/**/*.py"]
+threshold-percent = 80
+
 [tool.pytest.ini_options]
 testpaths = ["tests", "features"]
 addopts = ["-m", "not typecheck"]

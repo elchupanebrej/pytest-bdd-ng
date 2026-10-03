@@ -3147,3 +3147,398 @@ def existing_relative_scenario_binding_is_not_duplicated(consumer: ConsumerProje
     assert isinstance(binding.args[1], ast.Constant) and binding.args[1].value == "Existing scenario", source
     config_names = ("pytest.ini", ".pytest.ini", "tox.ini", "setup.cfg", "pyproject.toml")
     assert not any((consumer.path / name).exists() for name in config_names)
+
+
+def _write_compatibility_pyproject(
+    consumer: ConsumerProject,
+    *,
+    python_factors: tuple[str, ...],
+    pytest_factors: tuple[str, ...],
+    execution_targets: tuple[str, ...],
+    tox_env_template: str = "py{python}-pytest{pytest}-{target}",
+) -> None:
+    python_values = ", ".join(json.dumps(value) for value in python_factors)
+    pytest_values = ", ".join(json.dumps(value) for value in pytest_factors)
+    target_values = ", ".join(json.dumps(value) for value in execution_targets)
+    (consumer.path / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\n"
+        'cuke_features_dir = "features"\n'
+        "cuke_autoload = true\n\n"
+        "[tool.pytest-cuke.compatibility]\n"
+        f"python-factors = [{python_values}]\n"
+        f"pytest-factors = [{pytest_values}]\n"
+        f"execution-targets = [{target_values}]\n"
+        f"tox-env-template = {json.dumps(tox_env_template)}\n",
+        encoding="utf-8",
+    )
+
+
+def _write_migration_audit_configuration(
+    consumer: ConsumerProject,
+    *,
+    threshold_percent: int,
+    feature_patterns: tuple[str, ...] = ("features/**/*.feature",),
+    test_registration_patterns: tuple[str, ...] = ("tests/**/*.py",),
+) -> None:
+    feature_values = ", ".join(json.dumps(value) for value in feature_patterns)
+    test_values = ", ".join(json.dumps(value) for value in test_registration_patterns)
+    (consumer.path / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\n"
+        'cuke_features_dir = "features"\n'
+        "cuke_autoload = true\n\n"
+        "[tool.pytest-cuke.migration-audit]\n"
+        f"feature-patterns = [{feature_values}]\n"
+        f"test-registration-patterns = [{test_values}]\n"
+        f"threshold-percent = {threshold_percent}\n",
+        encoding="utf-8",
+    )
+
+
+@given("the consumer has a compatibility matrix spanning supported and excluded pairs")
+def consumer_with_configured_compatibility_matrix(consumer: ConsumerProject) -> None:
+    _write_compatibility_pyproject(
+        consumer,
+        python_factors=("39", "310", "314"),
+        pytest_factors=("62", "80", "latest"),
+        execution_targets=("lin", "win"),
+    )
+
+
+@then("the compatibility matrix JSON should include each configured factor pairing")
+def compatibility_matrix_contains_configured_factor_pairs(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "the compatibility matrix command has not run"
+    payload = json.loads(result.stdout)
+    entries = payload["entries"]
+    assert len(entries) == 9, entries
+    actual_pairs = {(entry["pythonVersion"], entry["pytestVersion"]) for entry in entries}
+    assert actual_pairs == {
+        (python, pytest) for python in ("3.9", "3.10", "3.14") for pytest in ("6.2", "8.0", "latest")
+    }
+    expected_fields = {
+        "pythonVersion",
+        "pytestVersion",
+        "isCompatible",
+        "isSupported",
+        "reasonCode",
+        "executionTargets",
+        "compatibilitySource",
+        "toxEnvName",
+    }
+    assert all(expected_fields <= entry.keys() for entry in entries), entries
+    assert all(entry["executionTargets"] == ["lin", "win"] for entry in entries), entries
+    assert {entry["reasonCode"] for entry in entries} >= {
+        "compatible",
+        "eol_python",
+        "eol_pytest",
+        "python_not_supported_by_pytest",
+    }
+
+
+@then("the compatible-only matrix should contain no incompatible entries")
+def compatible_only_matrix_filters_incompatible_pairs(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "the compatible-only matrix command has not run"
+    entries = json.loads(result.stdout)["entries"]
+    assert entries, "the configured matrix should include compatible pairs"
+    assert all(entry["isCompatible"] for entry in entries), entries
+
+
+@then(
+    re.compile(
+        r'the compatibility pair should be (?P<compatibility>compatible|incompatible) with reason "(?P<reason>[^"]+)"'
+    )
+)
+def compatibility_pair_reports_expected_reason(compatibility: str, reason: str, consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a compatibility pair command has not run"
+    payload = json.loads(result.stdout)
+    assert payload["isCompatible"] is (compatibility == "compatible"), payload
+    assert payload["reasonCode"] == reason, payload
+
+
+@then(re.compile(r"the compatibility pair should be (?P<support>supported|unsupported) by the project"))
+def compatibility_pair_reports_project_support(support: str, consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a compatibility pair command has not run"
+    payload = json.loads(result.stdout)
+    assert payload["isSupported"] is (support == "supported"), payload
+
+
+@given("the consumer has active TOML and alternate INI and TOML compatibility configurations")
+def consumer_with_default_and_alternate_compatibility_configs(consumer: ConsumerProject) -> None:
+    _write_compatibility_pyproject(
+        consumer,
+        python_factors=("310", "311"),
+        pytest_factors=("80", "latest"),
+        execution_targets=("lin", "win"),
+    )
+    (consumer.path / "alternate.ini").write_text(
+        "[tox]\nenv_list =\n    py312-pytest90-lin\n    py312-pytest90-win\n",
+        encoding="utf-8",
+    )
+    (consumer.path / "alternate.toml").write_text(
+        "[tool.pytest-cuke.compatibility]\n"
+        'python-factors = ["314"]\n'
+        'pytest-factors = ["latest"]\n'
+        'execution-targets = ["mac"]\n'
+        'tox-env-template = "py{python}-pytest{pytest}-{target}"\n',
+        encoding="utf-8",
+    )
+
+
+@when("I run cuke compatibility tox expansion twice in the consumer project")
+def run_compatibility_tox_expansion_twice(consumer: ConsumerProject) -> None:
+    command = [str(consumer.cuke), "compatibility", "--expand-tox", "--json"]
+    runs = [
+        subprocess.run(
+            command,
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        for _ in range(2)
+    ]
+    consumer._compatibility_expansion_runs = runs
+    consumer.command_result = runs[-1]
+
+
+@then("the tox expansion should be deterministic and include all factor combinations")
+def tox_expansion_is_deterministic_and_complete(consumer: ConsumerProject) -> None:
+    runs = getattr(consumer, "_compatibility_expansion_runs", None)
+    assert runs is not None and len(runs) == 2, "the repeated compatibility expansion has not run"
+    assert all(run.returncode == 0 for run in runs), [(run.stdout, run.stderr) for run in runs]
+    assert runs[0].stdout == runs[1].stdout, "repeated tox expansion changed its JSON output"
+    names = json.loads(runs[-1].stdout)["toxEnvNames"]
+    assert len(names) == 8 and len(set(names)) == 8, names
+    assert set(names) == {
+        f"py{python}-pytest{pytest}-{target}"
+        for python in ("310", "311")
+        for pytest in ("80", "latest")
+        for target in ("lin", "win")
+    }
+
+
+@when(
+    re.compile(
+        r'I run cuke compatibility from outside the consumer with config "(?P<config>[^"]+)" '
+        r'and arguments "(?P<arguments>[^"]*)"'
+    )
+)
+def run_compatibility_from_outside_consumer(config: str, arguments: str, consumer: ConsumerProject) -> None:
+    config_path = consumer.path / config
+    result = subprocess.run(
+        [str(consumer.cuke), "compatibility", *shlex.split(arguments), "--config", str(config_path)],
+        cwd=consumer.path.parent,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    consumer.command_result = result
+
+
+@given("the consumer has a migration audit with one registration and one autoload-only feature scenario")
+def consumer_with_complete_autoload_migration_audit(consumer: ConsumerProject) -> None:
+    _write_migration_audit_configuration(consumer, threshold_percent=50)
+    feature = consumer.path / "features" / "accounts.feature"
+    feature.parent.mkdir(parents=True, exist_ok=True)
+    feature.write_text(
+        "Feature: Account management\n"
+        "  Scenario: Create account\n"
+        "    Given an account is ready\n"
+        "  Scenario: Delete account\n"
+        "    Given an account is ready\n",
+        encoding="utf-8",
+    )
+    tests = consumer.path / "tests"
+    tests.mkdir(parents=True, exist_ok=True)
+    (tests / "test_account_bindings.py").write_text(
+        "from pytest_cuke import scenario\n\n"
+        '@scenario("./features/./accounts.feature", "Create account")\n'
+        "def test_create_account():\n"
+        "    pass\n\n"
+        'DOCUMENTATION = \'@scenario("features/accounts.feature", "Delete account")\'\n\n'
+        "def nested_example():\n"
+        '    @scenario("features/accounts.feature", "Delete account")\n'
+        "    def test_nested_registration():\n"
+        "        pass\n",
+        encoding="utf-8",
+    )
+
+
+@then("the migration audit should report the configured identities and threshold")
+def migration_audit_reports_normalized_identities_and_threshold(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "the migration audit command has not run"
+    payload = json.loads(result.stdout)
+    assert payload["totalUserFacingScenarios"] == 2, payload
+    assert payload["userFacingInFeatures"] == 2, payload
+    assert payload["coveragePercent"] == 100.0, payload
+    assert payload["thresholdPercent"] == 50, payload
+    assert payload["thresholdMet"] is True, payload
+    assert payload["duplicatesInTests"] == 0, payload
+    assert payload["featureScenarioIds"] == [
+        "features/accounts.feature::create account",
+        "features/accounts.feature::delete account",
+    ], payload
+    assert payload["userFacingTestScenarioIds"] == ["features/accounts.feature::create account"], payload
+
+
+@then("the autoload-only scenario should not require a mirror wrapper file")
+def autoload_only_scenario_needs_no_mirror_wrapper(consumer: ConsumerProject) -> None:
+    assert not (consumer.path / "tests" / "test_delete_account.py").exists()
+    assert (consumer.path / "features" / "accounts.feature").is_file()
+
+
+@given("the consumer uses a non-default autoload feature root for migration audit")
+def consumer_with_non_default_autoload_feature_root(consumer: ConsumerProject) -> None:
+    (consumer.path / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\n"
+        'cuke_features_dir = "spec/features"\n'
+        "cuke_autoload = true\n",
+        encoding="utf-8",
+    )
+    feature = consumer.path / "spec" / "features" / "orders.feature"
+    feature.parent.mkdir(parents=True, exist_ok=True)
+    feature.write_text(
+        "Feature: Order management\n"
+        "  Scenario: Submit order\n"
+        "    Given an order is ready\n",
+        encoding="utf-8",
+    )
+
+
+@then("the migration audit should count the active autoload feature without a wrapper")
+def migration_audit_counts_active_autoload_feature_root(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "the migration audit command has not run"
+    payload = json.loads(result.stdout)
+    assert payload["totalUserFacingScenarios"] == 1, payload
+    assert payload["userFacingInFeatures"] == 1, payload
+    assert payload["coveragePercent"] == 100.0, payload
+    assert payload["thresholdMet"] is True, payload
+    assert payload["featureScenarioIds"] == ["spec/features/orders.feature::submit order"], payload
+    assert payload["userFacingTestScenarioIds"] == [], payload
+    assert not (consumer.path / "features" / "orders.feature").exists()
+    assert not (consumer.path / "tests" / "test_orders.py").exists()
+
+
+@given("the consumer has a non-string migration feature pattern")
+def consumer_with_non_string_migration_feature_pattern(consumer: ConsumerProject) -> None:
+    (consumer.path / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\n"
+        'cuke_features_dir = "features"\n'
+        "cuke_autoload = true\n\n"
+        "[tool.pytest-cuke.migration-audit]\n"
+        "feature-patterns = [42]\n"
+        'test-registration-patterns = ["tests/**/*.py"]\n'
+        "threshold-percent = 80\n",
+        encoding="utf-8",
+    )
+
+
+@given("the consumer has an empty migration audit inventory")
+def consumer_with_empty_migration_inventory(consumer: ConsumerProject) -> None:
+    _write_migration_audit_configuration(consumer, threshold_percent=80)
+
+
+@then("the migration audit should report an empty inventory as complete")
+def empty_migration_inventory_is_complete(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "the migration audit command has not run"
+    payload = json.loads(result.stdout)
+    assert payload["totalUserFacingScenarios"] == 0, payload
+    assert payload["userFacingInFeatures"] == 0, payload
+    assert payload["coveragePercent"] == 100.0, payload
+    assert payload["thresholdMet"] is True, payload
+    assert payload["duplicatesInTests"] == 0, payload
+
+
+@given("the consumer has duplicate normalized migration scenario registrations")
+def consumer_with_duplicate_normalized_migration_registrations(consumer: ConsumerProject) -> None:
+    _write_migration_audit_configuration(consumer, threshold_percent=100)
+    feature = consumer.path / "features" / "accounts.feature"
+    feature.parent.mkdir(parents=True, exist_ok=True)
+    feature.write_text(
+        "Feature: Account management\n  Scenario: Create account\n    Given an account is ready\n",
+        encoding="utf-8",
+    )
+    tests = consumer.path / "tests"
+    tests.mkdir(parents=True, exist_ok=True)
+    (tests / "test_account_bindings.py").write_text(
+        "from pytest_cuke import scenario\n\n"
+        '@scenario("./features/./accounts.feature", "Create account")\n'
+        "def test_create_account():\n"
+        "    pass\n\n"
+        '@scenario("features/accounts.feature", "Create account")\n'
+        "def test_create_account_again():\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+
+
+@then("the migration audit should report duplicate scenario registrations")
+def migration_audit_reports_duplicate_scenario_registrations(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "the migration audit command has not run"
+    payload = json.loads(result.stdout)
+    assert payload["duplicatesInTests"] > 0, payload
+    assert payload["coveragePercent"] == 100.0, payload
+    assert payload["thresholdMet"] is False, payload
+    duplicate_ids = payload.get("duplicateScenarioIds")
+    if duplicate_ids is not None:
+        assert "features/accounts.feature::create account" in duplicate_ids, payload
+
+
+@given("the consumer has one feature scenario and one unmatched registration with an eighty percent threshold")
+def consumer_with_migration_coverage_below_threshold(consumer: ConsumerProject) -> None:
+    _write_migration_audit_configuration(consumer, threshold_percent=80)
+    feature = consumer.path / "features" / "accounts.feature"
+    feature.parent.mkdir(parents=True, exist_ok=True)
+    feature.write_text(
+        "Feature: Account management\n  Scenario: Create account\n    Given an account is ready\n",
+        encoding="utf-8",
+    )
+    tests = consumer.path / "tests"
+    tests.mkdir(parents=True, exist_ok=True)
+    (tests / "test_account_bindings.py").write_text(
+        "from pytest_cuke import scenario\n\n"
+        '@scenario("features/accounts.feature", "Create account")\n'
+        "def test_create_account():\n"
+        "    pass\n\n"
+        '@scenario("features/accounts.feature", "Delete account")\n'
+        "def test_delete_account():\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
+
+
+@then("the migration audit should report fifty percent coverage below threshold")
+def migration_audit_reports_coverage_below_threshold(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "the migration audit command has not run"
+    payload = json.loads(result.stdout)
+    assert payload["totalUserFacingScenarios"] == 2, payload
+    assert payload["userFacingInFeatures"] == 1, payload
+    assert payload["coveragePercent"] == 50.0, payload
+    assert payload["thresholdPercent"] == 80, payload
+    assert payload["thresholdMet"] is False, payload
+    assert payload["duplicatesInTests"] == 0, payload
+
+
+@then(re.compile(r'compatibility stderr should contain "(?P<message>[^"]+)"'))
+def compatibility_diagnostic_is_actionable(message: str, consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a compatibility command has not run"
+    assert message in result.stderr, f"expected {message!r} in stderr:\n{result.stderr}"
+
+
+@then("command diagnostics should be stderr-only")
+def compatibility_diagnostics_are_stderr_only(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a compatibility command has not run"
+    assert result.stdout == "", f"diagnostic output leaked to stdout:\n{result.stdout}"
+    assert result.stderr.strip(), "expected an actionable diagnostic on stderr"
