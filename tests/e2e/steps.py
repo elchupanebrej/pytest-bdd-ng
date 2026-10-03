@@ -410,9 +410,12 @@ def consumer_invalid_external_examples_source(consumer: ConsumerProject):
         ("empty.feature", "empty.csv", "source is empty"),
         ("blank-header.feature", "blank-header.csv", "blank column"),
         ("invalid-encoding.feature", "invalid-encoding.csv", "UnicodeDecodeError"),
-        ("unreadable.feature", "unreadable.csv", "IsADirectoryError"),
+        ("unreadable.feature", "unreadable.csv", None),
     ):
-        assert diagnostic.lower() in output.lower(), output
+        if diagnostic is None:
+            assert any(error_name in output for error_name in ("IsADirectoryError", "PermissionError")), output
+        else:
+            assert diagnostic.lower() in output.lower(), output
         assert str((consumer.path / "features" / feature_name).resolve()) in output
         assert str((consumer.path / "features" / source_name).resolve()) in output
 
@@ -1093,3 +1096,361 @@ def typecheck_adapter_explains_missing_mypy(typecheck_result: subprocess.Complet
     assert typecheck_result.returncode == 2, output
     assert "Mypy is not installed for this Python interpreter" in output, output
     assert "testtypes extra" in output, output
+
+
+def _consumer_batch_output(result: subprocess.CompletedProcess[str]) -> str:
+    return f"{result.stdout}\n{result.stderr}"
+
+
+def _write_simple_consumer_features(consumer: ConsumerProject, count: int) -> list[Path]:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    paths: list[Path] = []
+    for index in range(count):
+        path = feature_root / f"batch-sample-{index:04d}.feature"
+        path.write_text(
+            f"Feature: Batch sample {index}\n  Scenario: Batch scenario {index}\n",
+            encoding="utf-8",
+        )
+        paths.append(path)
+    return paths
+
+
+def _run_consumer_batch_pytest(consumer: ConsumerProject, arguments: list[str]) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        [str(consumer.pytest), *arguments],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    consumer.pytest_result = result
+    return result
+
+
+def _consumer_batch_pass_count(result: subprocess.CompletedProcess[str]) -> int | None:
+    match = re.search(r"\b(\d+) passed BDD scenarios, 0 failed, 0 skipped\b", _consumer_batch_output(result))
+    return int(match.group(1)) if match else None
+
+
+def _consumer_batch_node_ids(result: subprocess.CompletedProcess[str]) -> list[str]:
+    node_ids: list[str] = []
+    for line in _consumer_batch_output(result).splitlines():
+        match = re.search(
+            r"(?P<node>[^\s].*?\.(?:feature|gherkin)(?:\.md)?::.*?)(?:\s+(?:PASSED|FAILED|SKIPPED)\b|$)",
+            line,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            node_ids.append(match.group("node").strip())
+    return node_ids
+
+
+def _consumer_batch_fallback_reported(result: subprocess.CompletedProcess[str]) -> bool:
+    output = _consumer_batch_output(result).lower()
+    return "falling back" in output and any(word in output for word in ("serial", "sync", "synchronous"))
+
+
+def _normalized_cucumber_messages(consumer: ConsumerProject, relative_path: str) -> list[object]:
+    report_path = consumer.path / relative_path
+    assert report_path.is_file(), f"pytest did not create the Messages report: {report_path}"
+
+    def normalize(value: object) -> object:
+        if isinstance(value, dict):
+            return {
+                key: normalize(item)
+                for key, item in value.items()
+                if key not in {"timestamp", "duration"}
+            }
+        if isinstance(value, list):
+            return [normalize(item) for item in value]
+        return value
+
+    lines = report_path.read_text(encoding="utf-8").splitlines()
+    return [normalize(json.loads(line)) for line in lines if line.strip()]
+
+
+@given(re.compile(r"I create (?P<count>\d+) simple consumer feature files?"))
+def create_simple_consumer_features(count: str, consumer: ConsumerProject) -> None:
+    _write_simple_consumer_features(consumer, int(count))
+
+
+@given("the consumer cannot start spawn workers")
+def prevent_consumer_spawn_pool_start(consumer: ConsumerProject) -> None:
+    sitecustomize = consumer.path / "sitecustomize.py"
+    sitecustomize.write_text(
+        """import multiprocessing
+
+_original_get_context = multiprocessing.get_context
+
+
+class _UnavailableSpawnContext:
+    def Pool(self, *args, **kwargs):
+        raise RuntimeError("simulated spawn pool startup failure")
+
+
+def _get_context(method=None):
+    if method == "spawn":
+        return _UnavailableSpawnContext()
+    return _original_get_context(method)
+
+
+multiprocessing.get_context = _get_context
+""",
+        encoding="utf-8",
+    )
+    consumer.env["PYTHONPATH"] = str(consumer.path)
+
+
+@when("I compare serial and spawn collection of the installed consumer suite")
+def compare_serial_and_spawn_collection(consumer: ConsumerProject) -> None:
+    feature_count = len(list((consumer.path / "features").glob("*.feature")))
+    assert feature_count > 0, "the consumer has no generated features to collect"
+    optional_reader = subprocess.run(
+        [
+            str(consumer.python),
+            "-c",
+            "import importlib.util; raise SystemExit(importlib.util.find_spec('aiofiles') is not None)",
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert optional_reader.returncode == 0, (
+        "the installed consumer unexpectedly has aiofiles; this scenario must exercise the sync-read fallback:\n"
+        f"{optional_reader.stdout}\n{optional_reader.stderr}"
+    )
+    common_arguments = [
+        "--rootdir=.",
+        "--cuke-autoload",
+        "--cuke-features-dir=features",
+        "--cuke-summary",
+        "-vv",
+        "--color=no",
+        "--log-cli-level=WARNING",
+    ]
+    serial = _run_consumer_batch_pytest(
+        consumer,
+        [
+            *common_arguments,
+            f"--cuke-batch-threshold={feature_count + 1}",
+            "--cuke-messages-ndjson=batch-serial.ndjson",
+        ],
+    )
+    parallel = _run_consumer_batch_pytest(
+        consumer,
+        [
+            *common_arguments,
+            "--cuke-batch-threshold=1",
+            "--cuke-messages-ndjson=batch-spawn.ndjson",
+        ],
+    )
+    setattr(consumer, "batch_collection_runs", [serial, parallel])
+
+
+@then("serial and spawn collection should have identical scenario identities, outcomes, and normalized messages")
+def serial_and_spawn_collections_match(consumer: ConsumerProject) -> None:
+    runs = getattr(consumer, "batch_collection_runs", None)
+    assert runs is not None and len(runs) == 2, "serial and spawn collection runs have not completed"
+    serial, spawn = runs
+    serial_output = _consumer_batch_output(serial)
+    spawn_output = _consumer_batch_output(spawn)
+    assert serial.returncode == 0, f"serial collection failed:\n{serial_output}"
+    assert spawn.returncode == 0, f"spawn collection failed:\n{spawn_output}"
+    serial_ids = _consumer_batch_node_ids(serial)
+    spawn_ids = _consumer_batch_node_ids(spawn)
+    assert serial_ids, f"serial collection did not report scenario identities:\n{serial_output}"
+    assert serial_ids == spawn_ids, (serial_ids, spawn_ids)
+    assert not _consumer_batch_fallback_reported(spawn), spawn_output
+    assert any("external-batch.feature" in node_id for node_id in serial_ids), serial_ids
+    expected_count = len(serial_ids)
+    assert _consumer_batch_pass_count(serial) == expected_count, serial_output
+    assert _consumer_batch_pass_count(spawn) == expected_count, spawn_output
+    serial_messages = _normalized_cucumber_messages(consumer, "batch-serial.ndjson")
+    spawn_messages = _normalized_cucumber_messages(consumer, "batch-spawn.ndjson")
+    assert serial_messages, "serial collection did not emit Cucumber Messages"
+    assert serial_messages == spawn_messages
+
+
+@when("I compare collection with and without a command-line threshold override")
+def compare_cli_and_configured_batch_thresholds(consumer: ConsumerProject) -> None:
+    common_arguments = [
+        "--rootdir=.",
+        "--cuke-autoload",
+        "--cuke-features-dir=features",
+        "--cuke-summary",
+        "--log-cli-level=WARNING",
+    ]
+    cli_override = _run_consumer_batch_pytest(consumer, [*common_arguments, "--cuke-batch-threshold=1"])
+    configured_value = _run_consumer_batch_pytest(consumer, common_arguments)
+    setattr(consumer, "batch_threshold_override_runs", [cli_override, configured_value])
+
+
+@then("the command-line threshold should select parallel collection over configuration")
+def cli_batch_threshold_overrides_configuration(consumer: ConsumerProject) -> None:
+    runs = getattr(consumer, "batch_threshold_override_runs", None)
+    assert runs is not None and len(runs) == 2, "the threshold comparison runs have not completed"
+    cli_override, configured_value = runs
+    cli_output = _consumer_batch_output(cli_override)
+    config_output = _consumer_batch_output(configured_value)
+    assert cli_override.returncode == 0, cli_output
+    assert configured_value.returncode == 0, config_output
+    assert _consumer_batch_fallback_reported(cli_override), cli_output
+    assert not _consumer_batch_fallback_reported(configured_value), config_output
+
+
+@then("both collection runs should pass every scenario")
+def both_threshold_collection_runs_pass(consumer: ConsumerProject) -> None:
+    runs = getattr(consumer, "batch_threshold_override_runs", None)
+    assert runs is not None and len(runs) == 2, "the threshold comparison runs have not completed"
+    for result in runs:
+        output = _consumer_batch_output(result)
+        assert _consumer_batch_pass_count(result) == 1, output
+
+
+@when(re.compile(r"I compare collection at (?P<below>\d+), (?P<equal>\d+), and (?P<above>\d+) feature files"))
+def compare_configured_batch_threshold_boundary(below: str, equal: str, above: str, consumer: ConsumerProject) -> None:
+    common_arguments = [
+        "--rootdir=.",
+        "--cuke-autoload",
+        "--cuke-features-dir=features",
+        "--cuke-summary",
+        "--log-cli-level=WARNING",
+    ]
+    results: list[subprocess.CompletedProcess[str]] = []
+    for count in (int(below), int(equal), int(above)):
+        _write_simple_consumer_features(consumer, count)
+        results.append(_run_consumer_batch_pytest(consumer, common_arguments))
+    setattr(consumer, "batch_threshold_boundary_runs", results)
+
+
+@then("collection should stay serial below the configured threshold and fall back at and above it")
+def configured_batch_threshold_boundary_is_respected(consumer: ConsumerProject) -> None:
+    results = getattr(consumer, "batch_threshold_boundary_runs", None)
+    assert results is not None and len(results) == 3, "the threshold boundary runs have not completed"
+    assert not _consumer_batch_fallback_reported(results[0]), _consumer_batch_output(results[0])
+    assert _consumer_batch_fallback_reported(results[1]), _consumer_batch_output(results[1])
+    assert _consumer_batch_fallback_reported(results[2]), _consumer_batch_output(results[2])
+
+
+@then("all three collection runs should pass every scenario")
+def all_configured_batch_threshold_runs_pass(consumer: ConsumerProject) -> None:
+    results = getattr(consumer, "batch_threshold_boundary_runs", None)
+    assert results is not None and len(results) == 3, "the threshold boundary runs have not completed"
+    for count, result in zip((2, 3, 4), results, strict=True):
+        output = _consumer_batch_output(result)
+        assert result.returncode == 0, output
+        assert _consumer_batch_pass_count(result) == count, output
+
+
+@when("I compare collection immediately below and at the platform default threshold")
+def compare_platform_default_batch_threshold(consumer: ConsumerProject) -> None:
+    threshold = 50 if os.name == "posix" else 1000
+    _write_simple_consumer_features(consumer, threshold - 1)
+    common_arguments = [
+        "--rootdir=.",
+        "--cuke-autoload",
+        "--cuke-features-dir=features",
+        "--cuke-summary",
+        "--log-cli-level=WARNING",
+    ]
+    below = _run_consumer_batch_pytest(consumer, common_arguments)
+    _write_simple_consumer_features(consumer, threshold)
+    equal = _run_consumer_batch_pytest(consumer, common_arguments)
+    setattr(consumer, "platform_default_threshold", threshold)
+    setattr(consumer, "platform_default_threshold_runs", [below, equal])
+
+
+@then("the platform default threshold should be 50 on POSIX and 1000 elsewhere")
+def platform_batch_threshold_matches_documented_default(consumer: ConsumerProject) -> None:
+    expected = 50 if os.name == "posix" else 1000
+    actual = getattr(consumer, "platform_default_threshold", None)
+    assert actual == expected, f"the host platform default should be {expected}, got {actual}"
+
+
+@then("collection should stay serial below the default and fall back at the default")
+def platform_default_batch_threshold_boundary_is_respected(consumer: ConsumerProject) -> None:
+    runs = getattr(consumer, "platform_default_threshold_runs", None)
+    assert runs is not None and len(runs) == 2, "the platform default threshold runs have not completed"
+    below, equal = runs
+    assert not _consumer_batch_fallback_reported(below), _consumer_batch_output(below)
+    assert _consumer_batch_fallback_reported(equal), _consumer_batch_output(equal)
+
+
+@then("both default-threshold collection runs should pass every scenario")
+def platform_default_batch_threshold_runs_pass(consumer: ConsumerProject) -> None:
+    runs = getattr(consumer, "platform_default_threshold_runs", None)
+    threshold = getattr(consumer, "platform_default_threshold", None)
+    assert runs is not None and len(runs) == 2 and isinstance(threshold, int), (
+        "the platform default threshold runs have not completed"
+    )
+    for count, result in zip((threshold - 1, threshold), runs, strict=True):
+        output = _consumer_batch_output(result)
+        assert result.returncode == 0, output
+        assert _consumer_batch_pass_count(result) == count, output
+
+
+@when(re.compile(r'I run independent collection processes before and after replacing "(?P<relative_path>[^"]+)" with:'))
+def run_independent_consumer_pytest_processes(relative_path: str, consumer: ConsumerProject, step) -> None:
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    file_path = consumer.path / destination
+    assert file_path.is_file(), f"the file to replace does not exist: {relative_path}"
+    arguments = [
+        "--rootdir=.",
+        "--cuke-autoload",
+        "--cuke-features-dir=features",
+        "--cuke-summary",
+        "--cuke-batch-threshold=1",
+        "-vv",
+        "--color=no",
+    ]
+    first = _run_consumer_batch_pytest(consumer, arguments)
+    file_path.write_text(step.doc_string.content, encoding="utf-8")
+    second = _run_consumer_batch_pytest(consumer, arguments)
+    setattr(consumer, "independent_batch_runs", [first, second])
+
+
+@then("the later pytest process should collect the edited feature and pass its scenario")
+def later_consumer_process_observes_feature_edit(consumer: ConsumerProject) -> None:
+    runs = getattr(consumer, "independent_batch_runs", None)
+    assert runs is not None and len(runs) == 2, "the independent pytest processes have not completed"
+    first, second = runs
+    first_output = _consumer_batch_output(first)
+    second_output = _consumer_batch_output(second)
+    assert first.returncode == 0, first_output
+    assert second.returncode == 0, second_output
+    assert _consumer_batch_pass_count(first) == 1, first_output
+    assert _consumer_batch_pass_count(second) == 1, second_output
+    assert "The first version is collected" in first_output, first_output
+    assert "The first version is collected" not in second_output, second_output
+    assert "The updated version is collected" in second_output, second_output
+
+
+@then("pytest output should identify the feature and external source for each batch error")
+def batch_collection_errors_keep_feature_and_source_paths(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = _consumer_batch_output(result)
+    for relative_path in (
+        "features/malformed.feature",
+        "features/broken.feature",
+        "features/broken.csv",
+        "features/unreadable.feature",
+        "features/unreadable.csv",
+    ):
+        assert str((consumer.path / relative_path).resolve()) in output, output
+    for feature_name, source_name in (
+        ("features/broken.feature", "features/broken.csv"),
+        ("features/unreadable.feature", "features/unreadable.csv"),
+    ):
+        feature_path = (consumer.path / feature_name).resolve()
+        source_path = (consumer.path / source_name).resolve()
+        association = f"Referenced source: {source_path}; feature: {feature_path}"
+        assert association in output, output
+    assert "row 2 has 1 columns; expected 2" in output, output
+    assert any(error_name in output for error_name in ("IsADirectoryError", "PermissionError")), output
