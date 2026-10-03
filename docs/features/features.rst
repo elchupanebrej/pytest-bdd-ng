@@ -150,6 +150,11 @@ tag
 load
 ####
 
+custom-parser-adapter
+!!!!!!!!!!!!!!!!!!!!!!
+
+.. include:: features/feature/load/custom-parser-adapter.rst
+
 autoload
 !!!!!!!!
 

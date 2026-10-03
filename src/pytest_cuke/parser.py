@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import mimetypes
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Protocol, cast, runtime_checkable
 
@@ -11,6 +12,7 @@ from gherkin.errors import CompositeParserException
 from gherkin.parser import Parser as CucumberIOBaseParser
 from gherkin.token_scanner import TokenScanner
 
+from pytest_cuke.compatibility.parser import LegacyParserAdapter
 from pytest_cuke.exceptions import FeatureConcreteParseError
 from pytest_cuke.external_examples import (
     attach_external_examples_sources,
@@ -42,6 +44,88 @@ def _new_gherkin_parser(id_generator: Any) -> _GherkinParserProtocol:
 class ParserProtocol(Protocol):
     def parse(self, path: Path | str, uri: str | None = None, encoding: str = "utf-8", **kwargs: Any) -> Feature: ...
     def parse_text(self, content: str, uri: str | None = None, **kwargs: Any) -> Feature: ...
+
+
+_PARSER_REGISTRATIONS_CONFIG_ATTRIBUTE = "_pytest_cuke_parser_registrations"
+
+
+@define(frozen=True)
+class ParserRegistration:
+    """Explicitly declare how a parser provider implements the parser contract.
+
+    Use :meth:`native` for the current path/URI/text -> ``Feature`` protocol and
+    :meth:`legacy` for the historical config-aware ``ParsedFeature`` protocol.
+    Classes and zero-argument factories are instantiated once per pytest config;
+    parser instances are reused as provided. The per-config cache keeps class- and
+    factory-created parsers isolated between independent pytest runs.
+    """
+
+    contract: str
+    provider: Any
+
+    @classmethod
+    def native(cls, provider: Any) -> ParserRegistration:
+        return cls("native", provider)
+
+    @classmethod
+    def legacy(cls, provider: Any) -> ParserRegistration:
+        return cls("legacy", provider)
+
+    def resolve(self, config: Any = None) -> ParserProtocol:
+        if config is None:
+            return self._build_parser(config)
+
+        cache = _registration_cache(config)
+        if cache is None:
+            return self._build_parser(config)
+
+        cache_key = (self.contract, id(self.provider))
+        cached = cache.get(cache_key)
+        if cached is not None and cached[0] is self.provider:
+            return cached[1]
+
+        parser = self._build_parser(config)
+        cache[cache_key] = (self.provider, parser)
+        return parser
+
+    def _build_parser(self, config: Any) -> ParserProtocol:
+        provider = self.provider
+        if isinstance(provider, type):
+            parser = provider()
+        elif callable(getattr(provider, "parse", None)):
+            parser = provider
+        elif callable(provider):
+            parser = provider()
+        else:
+            parser = provider
+
+        if not callable(getattr(parser, "parse", None)):
+            raise TypeError(
+                f"ParserRegistration.{self.contract} provider {provider!r} did not produce an object with parse()."
+            )
+        if self.contract == "legacy":
+            return cast("ParserProtocol", LegacyParserAdapter(parser=parser, config=config))
+        if self.contract == "native":
+            return cast("ParserProtocol", parser)
+        raise ValueError(f"Unknown parser contract {self.contract!r}; use ParserRegistration.native() or .legacy().")
+
+
+def _registration_cache(config: Any) -> dict[tuple[str, int], tuple[Any, ParserProtocol]] | None:
+    cache = getattr(config, _PARSER_REGISTRATIONS_CONFIG_ATTRIBUTE, None)
+    if cache is not None:
+        return cast("dict[tuple[str, int], tuple[Any, ParserProtocol]]", cache)
+    cache = {}
+    try:
+        config._pytest_cuke_parser_registrations = cache
+    except (AttributeError, TypeError):
+        return None
+    return cache
+
+
+def clear_parser_registrations(config: Any) -> None:
+    """Drop parser instances after pytest finishes this config's collection/run."""
+    with suppress(AttributeError):
+        delattr(config, _PARSER_REGISTRATIONS_CONFIG_ATTRIBUTE)
 
 
 @define
@@ -109,27 +193,35 @@ class BaseParser:
 
 @define
 class ParserRegistry:
-    _parsers_by_key: dict[str, ParserProtocol | type[ParserProtocol] | Callable[[], ParserProtocol]] = field(
+    _parsers_by_key: dict[
+        str, ParserProtocol | ParserRegistration | type[ParserProtocol] | Callable[[], ParserProtocol]
+    ] = field(
         factory=dict
     )
 
-    def register(self, key: str, parser: ParserProtocol | type[ParserProtocol] | Callable[[], ParserProtocol]) -> None:
+    def register(
+        self,
+        key: str,
+        parser: ParserProtocol | ParserRegistration | type[ParserProtocol] | Callable[[], ParserProtocol],
+    ) -> None:
         self._parsers_by_key[key.lower()] = parser
 
-    def get_parser(self, key: str) -> ParserProtocol | None:
+    def get_parser(self, key: str) -> ParserProtocol | ParserRegistration | None:
         entry = self._parsers_by_key.get(key.lower())
         if entry is None:
             return None
+        if isinstance(entry, ParserRegistration):
+            return entry
         if isinstance(entry, type):
             return cast("ParserProtocol", entry())
         if callable(entry):
             return entry()
         return entry
 
-    def get_parser_for_mimetype(self, mimetype: str) -> ParserProtocol | None:
+    def get_parser_for_mimetype(self, mimetype: str) -> ParserProtocol | ParserRegistration | None:
         return self.get_parser(mimetype)
 
-    def get_parser_for_path(self, path: Path | str) -> ParserProtocol | None:
+    def get_parser_for_path(self, path: Path | str) -> ParserProtocol | ParserRegistration | None:
         p = Path(path)
         name = p.name.lower()
         for key in sorted(self._parsers_by_key, key=len, reverse=True):
@@ -244,6 +336,8 @@ __all__ = [
     "MarkdownGherkinParser",
     "MarkdownParser",
     "ParserProtocol",
+    "ParserRegistration",
     "ParserRegistry",
+    "clear_parser_registrations",
     "default_parser_registry",
 ]

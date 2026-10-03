@@ -16,8 +16,10 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import reduce
 from operator import attrgetter, itemgetter
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+from textwrap import dedent
 from typing import TYPE_CHECKING
+from urllib.parse import unquote, urlsplit
 
 from pytest import fixture
 
@@ -70,6 +72,10 @@ class ConsumerProject:
     struct_bdd_selection_runs: list[subprocess.CompletedProcess[str]] | None = None
     struct_bdd_parity_domain_result: subprocess.CompletedProcess[str] | None = None
     struct_bdd_parity_runs: list[subprocess.CompletedProcess[str]] | None = None
+    custom_parser_selection_runs: list[subprocess.CompletedProcess[str]] | None = None
+    custom_parser_selection_records: list[list[dict[str, object]]] | None = None
+    custom_parser_selection_reports: list[dict[str, object]] | None = None
+    custom_parser_session_result: subprocess.CompletedProcess[str] | None = None
 
 
 @fixture(scope="session")
@@ -310,6 +316,16 @@ def write_consumer_file_with_bom_and_crlf(relative_path, consumer: ConsumerProje
     file_path.parent.mkdir(parents=True, exist_ok=True)
     content = step.doc_string.content.replace("\\t", "\t").replace("\r\n", "\n").replace("\r", "\n")
     file_path.write_bytes(b"\xef\xbb\xbf" + content.replace("\n", "\r\n").encode("utf-8"))
+
+
+@step(re.compile(r'consumer file "(?P<relative_path>[^\"]+)" contains text encoded as "(?P<encoding>[^\"]+)":'))
+def write_consumer_file_with_encoding(relative_path, encoding, consumer: ConsumerProject, step):
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer file paths must stay inside the consumer project")
+    file_path = consumer.path / destination
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(step.doc_string.content.encode(encoding))
 
 
 @step(re.compile(r'consumer empty file "(?P<relative_path>[^\"]+)" exists'))
@@ -1831,3 +1847,485 @@ def core_gherkin_passes_with_struct_bdd_collection_errors(consumer: ConsumerProj
         if "features/core.feature::" in line and re.search(r"\bPASSED(?:\s+\[\s*\d+%\])?\s*$", line):
             items.append(line.strip())
     assert len(items) == 1, _consumer_batch_output(result)
+
+
+def _custom_parser_example_root() -> Path:
+    return Path(__file__).resolve().parents[2] / "examples" / "custom-parser-adapter"
+
+
+def _copy_custom_parser_example(consumer: ConsumerProject) -> None:
+    example_root = _custom_parser_example_root()
+    assert example_root.is_dir(), f"the runnable custom parser example is missing: {example_root}"
+    ignored_names = {"pyproject.toml", "requirements.txt", "readme.md", "readme.rst", ".gitignore"}
+    ignored_parts = {".pytest_cache", "__pycache__", ".venv"}
+
+    copied: list[Path] = []
+    for source in sorted(example_root.rglob("*")):
+        if not source.is_file() or ignored_names.intersection(part.lower() for part in source.parts):
+            continue
+        relative = source.relative_to(example_root)
+        if ignored_parts.intersection(relative.parts):
+            continue
+        if source.suffix != ".py" and relative.parts[0] != "features":
+            continue
+        destination = consumer.path / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        copied.append(destination)
+
+    assert any(path.name == "conftest.py" for path in copied), "the custom parser example has no conftest.py"
+    feature_files = [path for path in copied if path.is_file() and path.suffix == ".feature"]
+    assert len(feature_files) == 1, f"expected one legacy feature in the example, found {feature_files}"
+    consumer.env["PYTEST_CUKE_INVOCATION_LOG"] = str(consumer.path / "parser-invocations.json")
+    consumer.env.pop("PYTEST_CUKE_LEGACY_MODE", None)
+
+
+@given("the consumer has the runnable custom parser example")
+def copy_custom_parser_example_to_consumer(consumer: ConsumerProject) -> None:
+    _copy_custom_parser_example(consumer)
+
+
+def _custom_parser_feature_path(consumer: ConsumerProject) -> Path:
+    feature_files = sorted((consumer.path / "features").rglob("*.feature"))
+    assert len(feature_files) == 1, f"expected one custom parser feature, found {feature_files}"
+    return feature_files[0]
+
+
+def _custom_parser_invocation_records(consumer: ConsumerProject) -> list[dict[str, object]]:
+    invocation_log = consumer.path / "parser-invocations.json"
+    assert invocation_log.is_file(), f"the custom parser did not write its invocation log: {invocation_log}"
+    records = json.loads(invocation_log.read_text(encoding="utf-8"))
+    assert isinstance(records, list) and all(isinstance(record, dict) for record in records), records
+    return records
+
+
+def _custom_parser_report(consumer: ConsumerProject, relative_path: str) -> dict[str, object]:
+    report_path = consumer.path / relative_path
+    assert report_path.is_file(), f"pytest did not create the custom parser report: {report_path}"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert isinstance(report, list) and len(report) == 1, report
+    feature_report = report[0]
+    assert isinstance(feature_report, dict), feature_report
+    return feature_report
+
+
+def _custom_parser_source_name(uri: object) -> str:
+    assert isinstance(uri, str), uri
+    parsed_uri = urlsplit(uri)
+    raw_path = parsed_uri.path if parsed_uri.scheme == "file" else uri
+    return PurePosixPath(unquote(raw_path)).name
+
+
+def _resolved_custom_parser_uri(uri: object, consumer: ConsumerProject, source_path: object | None = None) -> Path:
+    assert isinstance(uri, str), uri
+    parsed_uri = urlsplit(uri)
+    raw_path = unquote(parsed_uri.path if parsed_uri.scheme == "file" else uri)
+    uri_path = Path(raw_path)
+    if uri_path.is_absolute():
+        return uri_path.resolve()
+
+    candidates = []
+    if source_path is not None:
+        resolved_source = _resolved_consumer_path(source_path, consumer)
+        candidates.append(resolved_source.parent / uri_path)
+    candidates.extend((consumer.path / "features" / uri_path, consumer.path / uri_path))
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate.resolve()
+    return candidates[0].resolve()
+
+
+def _resolved_consumer_path(path_value: object, consumer: ConsumerProject) -> Path:
+    path = Path(str(path_value))
+    if not path.is_absolute():
+        path = consumer.path / path
+    return path.resolve()
+
+
+@then("the installed custom parser example should preserve its invocation inputs, source, and report identity")
+def installed_custom_parser_example_preserves_invocation_and_report(consumer: ConsumerProject) -> None:
+    feature_path = _custom_parser_feature_path(consumer).resolve()
+    records = _custom_parser_invocation_records(consumer)
+    assert len(records) == 1, records
+    record = records[0]
+    assert set(record) >= {"path", "uri", "config_sentinel", "encoding", "id_sample"}, record
+    assert _resolved_consumer_path(record["path"], consumer) == feature_path, record
+    assert _custom_parser_source_name(record["uri"]) == feature_path.name, record
+    assert record["config_sentinel"] is True, record
+    assert record["encoding"] == "utf-8", record
+    assert isinstance(record["id_sample"], str) and record["id_sample"], record
+
+    feature_report = _custom_parser_report(consumer, "legacy-report.json")
+    assert _resolved_custom_parser_uri(record["uri"], consumer, record["path"]) == _resolved_custom_parser_uri(
+        feature_report.get("uri"), consumer
+    ), (record, feature_report)
+    assert _resolved_custom_parser_uri(feature_report.get("uri"), consumer, record["path"]) == feature_path, feature_report
+    assert _custom_parser_source_name(feature_report.get("uri")) == feature_path.name, feature_report
+    elements = feature_report.get("elements")
+    assert isinstance(elements, list) and len(elements) == 1, feature_report
+    scenario_report = elements[0]
+    assert isinstance(scenario_report, dict), scenario_report
+    assert scenario_report.get("id"), scenario_report
+    steps = scenario_report.get("steps")
+    assert isinstance(steps, list), scenario_report
+    for step in steps:
+        assert isinstance(step, dict), step
+        step_result = step.get("result")
+        assert isinstance(step_result, dict), step
+        assert step_result.get("status") == "passed", step
+
+
+@when("I compare custom parser collection through explicit file, directory, and autoload selection")
+def compare_custom_parser_collection_modes(consumer: ConsumerProject) -> None:
+    feature_path = _custom_parser_feature_path(consumer).relative_to(consumer.path).as_posix()
+    selections = (
+        (
+            "explicit-file",
+            ["--cuke-autoload", "--cuke-features-dir=features", feature_path],
+        ),
+        (
+            "directory",
+            ["--cuke-autoload", "--cuke-features-dir=features", "features"],
+        ),
+        (
+            "autoload",
+            ["--cuke-autoload", "--cuke-features-dir=features"],
+        ),
+    )
+    runs: list[subprocess.CompletedProcess[str]] = []
+    invocation_records: list[list[dict[str, object]]] = []
+    feature_reports: list[dict[str, object]] = []
+    for name, selection_arguments in selections:
+        invocation_log = consumer.path / "parser-invocations.json"
+        invocation_log.unlink(missing_ok=True)
+        report_name = f"legacy-{name}.json"
+        result = _run_consumer_batch_pytest(
+            consumer,
+            [
+                "--rootdir=.",
+                *selection_arguments,
+                "--cuke-summary",
+                f"--cuke-json={report_name}",
+                "-vv",
+                "--color=no",
+            ],
+        )
+        runs.append(result)
+        invocation_records.append(_custom_parser_invocation_records(consumer))
+        feature_reports.append(_custom_parser_report(consumer, report_name))
+
+    consumer.custom_parser_selection_runs = runs
+    consumer.custom_parser_selection_records = invocation_records
+    consumer.custom_parser_selection_reports = feature_reports
+
+
+@then("all three custom parser collection runs should pass the same scenario once")
+def all_custom_parser_collection_modes_pass(consumer: ConsumerProject) -> None:
+    runs = consumer.custom_parser_selection_runs
+    records = consumer.custom_parser_selection_records
+    assert runs is not None and len(runs) == 3, "the custom parser selection runs have not completed"
+    assert records is not None and len(records) == 3, "the custom parser invocation logs have not been captured"
+    feature_path = _custom_parser_feature_path(consumer).resolve()
+    for index, (result, invocation_records) in enumerate(zip(runs, records, strict=True)):
+        output = _consumer_batch_output(result)
+        assert result.returncode == 0, output
+        assert _consumer_batch_pass_count(result) == 1, output
+        assert len(invocation_records) == 1, (index, invocation_records, output)
+        record = invocation_records[0]
+        assert _resolved_consumer_path(record.get("path"), consumer) == feature_path, record
+        assert _custom_parser_source_name(record.get("uri")) == feature_path.name, record
+        assert record.get("encoding") == "utf-8", record
+        assert isinstance(record.get("id_sample"), str) and record["id_sample"], record
+        assert record.get("config_sentinel") is True, record
+
+
+@then("all three custom parser reports should identify the same normalized source")
+def custom_parser_selection_reports_match(consumer: ConsumerProject) -> None:
+    reports = consumer.custom_parser_selection_reports
+    assert reports is not None and len(reports) == 3, "the custom parser reports have not been captured"
+
+    def normalize(report: dict[str, object]) -> dict[str, object]:
+        elements = report.get("elements")
+        assert isinstance(elements, list) and len(elements) == 1, report
+        scenario_report = elements[0]
+        assert isinstance(scenario_report, dict), scenario_report
+        steps = scenario_report.get("steps")
+        assert isinstance(steps, list), scenario_report
+        normalized_steps = []
+        for step in steps:
+            assert isinstance(step, dict), step
+            keyword = step.get("keyword", "")
+            result = step.get("result")
+            assert isinstance(keyword, str), step
+            assert isinstance(result, dict), step
+            normalized_steps.append((keyword.strip(), step.get("name"), result.get("status")))
+        return {
+            "source": _resolved_custom_parser_uri(report.get("uri"), consumer),
+            "feature": report.get("name"),
+            "scenario": scenario_report.get("name"),
+            "steps": normalized_steps,
+        }
+
+    normalized = [normalize(report) for report in reports]
+    assert normalized[1:] == normalized[:1] * 2, normalized
+
+
+@then("the custom encoding invocation should preserve the Unicode source path and URI")
+def custom_parser_encoding_and_unicode_path_are_preserved(consumer: ConsumerProject) -> None:
+    feature_path = (consumer.path / "features" / "café.feature").resolve()
+    records = _custom_parser_invocation_records(consumer)
+    assert len(records) == 1, records
+    record = records[0]
+    assert _resolved_consumer_path(record.get("path"), consumer) == feature_path, record
+    assert _resolved_custom_parser_uri(record.get("uri"), consumer, record.get("path")) == feature_path, record
+    assert _custom_parser_source_name(record.get("uri")) == feature_path.name, record
+    assert record.get("config_sentinel") is False, record
+    assert record.get("encoding") == "latin-1", record
+    assert isinstance(record.get("id_sample"), str) and record["id_sample"], record
+
+
+@given("the consumer has a native Gherkin feature and a custom parser with an absent optional codec")
+def create_consumer_optional_codec_contract(consumer: ConsumerProject) -> None:
+    feature_root = consumer.path / "features"
+    feature_root.mkdir(parents=True, exist_ok=True)
+    (feature_root / "core.feature").write_text(
+        "Feature: Native Gherkin stays available\n"
+        "  Scenario: The native parser runs without the custom codec\n"
+        "    Given the core parser step starts\n"
+        "    Then the core parser step completes\n",
+        encoding="utf-8",
+    )
+    (feature_root / "optional.legacy").write_text("The optional parser requests its codec.\n", encoding="utf-8")
+    (consumer.path / "conftest.py").write_text(
+        "from pytest_cuke import given, then\n"
+        "\n"
+        "pytest_plugins = ['optional_parser_plugin']\n"
+        "\n"
+        "@given('the core parser step starts', target_fixture='core_parser_started')\n"
+        "def core_parser_starts():\n"
+        "    return True\n"
+        "\n"
+        "@then('the core parser step completes')\n"
+        "def core_parser_completes(core_parser_started):\n"
+        "    assert core_parser_started is True\n",
+        encoding="utf-8",
+    )
+    (consumer.path / "optional_parser_plugin.py").write_text(
+        "from __future__ import annotations\n"
+        "\n"
+        "import importlib\n"
+        "from pathlib import Path\n"
+        "\n"
+        "from pytest import hookimpl\n"
+        "from pytest_cuke.parser import ParserRegistration\n"
+        "\n"
+        "OPTIONAL_MIMETYPE = 'application/x-optional-legacy-codec'\n"
+        "MISSING_CODEC = 'pytest_cuke_optional_custom_codec'\n"
+        "\n"
+        "class OptionalCodecParser:\n"
+        "    def parse(self, config, path: Path, uri: str, *args, **kwargs):\n"
+        "        try:\n"
+        "            importlib.import_module(MISSING_CODEC)\n"
+        "        except ModuleNotFoundError as error:\n"
+        "            if error.name != MISSING_CODEC:\n"
+        "                raise\n"
+        "            raise RuntimeError(\n"
+        "                f'Optional custom codec is missing for {path}; '\n"
+        "                'install consumer-parser-example[codec].'\n"
+        "            ) from error\n"
+        "        raise AssertionError('the optional codec unexpectedly exists')\n"
+        "\n"
+        "@hookimpl(tryfirst=True)\n"
+        "def pytest_cuke_is_collectible(config, path: Path):\n"
+        "    return True if path.name.casefold().endswith('.legacy') else None\n"
+        "\n"
+        "@hookimpl(tryfirst=True)\n"
+        "def pytest_cuke_get_mimetype(config, path: Path):\n"
+        "    return OPTIONAL_MIMETYPE if path.name.casefold().endswith('.legacy') else None\n"
+        "\n"
+        "@hookimpl(tryfirst=True)\n"
+        "def pytest_cuke_get_parser(config, mimetype: str):\n"
+        "    return ParserRegistration.legacy(OptionalCodecParser) if mimetype == OPTIONAL_MIMETYPE else None\n",
+        encoding="utf-8",
+    )
+
+
+@then("the native Gherkin scenario should pass while the optional codec error is actionable")
+def native_gherkin_survives_missing_optional_custom_codec(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = _consumer_batch_output(result)
+    assert "INTERNALERROR" not in output, output
+    assert "pytest_cuke_optional_custom_codec" in output, output
+    assert "consumer-parser-example[codec]" in output, output
+    assert str((consumer.path / "features" / "optional.legacy").resolve()) in output, output
+    assert _consumer_batch_pass_count(result) == 1, output
+    assert any(
+        "features/core.feature::" in line and re.search(r"\bPASSED(?:\s+\[\s*\d+%\])?\s*$", line)
+        for line in output.splitlines()
+    ), output
+
+
+@given("the consumer has two independent pytest configs using the same legacy parser provider")
+def create_custom_parser_session_isolation_consumer(consumer: ConsumerProject) -> None:
+    (consumer.path / "parser-invocations.json").unlink(missing_ok=True)
+    (consumer.path / "parser-session-state.json").unlink(missing_ok=True)
+    (consumer.path / "conftest.py").write_text("", encoding="utf-8")
+    for name in ("first", "second"):
+        feature_root = consumer.path / "features" / name
+        feature_root.mkdir(parents=True, exist_ok=True)
+        (feature_root / f"{name}.legacy").write_text(
+            f"Feature: {name.title()} parser session\n  Scenario: This config gets its own parser\n",
+            encoding="utf-8",
+        )
+
+    runner = dedent(
+        '''\
+        from __future__ import annotations
+
+        import json
+        import os
+        import sys
+        from pathlib import Path
+
+        import pytest
+        from pytest import hookimpl
+
+        from parser_plugin import LEGACY_MIMETYPE, LegacyFeatureParser
+        from pytest_cuke.parser import ParserRegistration
+
+
+        class SessionScopedLegacyParser(LegacyFeatureParser):
+            def __init__(self):
+                self.session_marker = None
+
+            def parse(self, config, path, uri, *args, **kwargs):
+                marker = config.getoption("custom_parser_session")
+                if self.session_marker is None:
+                    self.session_marker = marker
+                elif self.session_marker != marker:
+                    raise RuntimeError("legacy parser instance leaked across pytest configs")
+
+                state_path = Path(os.environ["CUSTOM_PARSER_SESSION_LOG"])
+                state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else []
+                state.append({"config_marker": marker, "instance_marker": self.session_marker})
+                state_path.write_text(json.dumps(state), encoding="utf-8")
+                return super().parse(config, path, uri, *args, **kwargs)
+
+
+        class SessionParserPlugin:
+            def __init__(self):
+                self.registration = ParserRegistration.legacy(SessionScopedLegacyParser)
+
+            @hookimpl
+            def pytest_addoption(self, parser):
+                parser.addoption("--custom-parser-session", action="store")
+
+            @hookimpl(tryfirst=True)
+            def pytest_cuke_is_collectible(self, config, path):
+                return True if path.name.casefold().endswith(".legacy") else None
+
+            @hookimpl(tryfirst=True)
+            def pytest_cuke_get_mimetype(self, config, path):
+                return LEGACY_MIMETYPE if path.name.casefold().endswith(".legacy") else None
+
+            @hookimpl(tryfirst=True)
+            def pytest_cuke_get_parser(self, config, mimetype):
+                return self.registration if mimetype == LEGACY_MIMETYPE else None
+
+
+        exit_codes = []
+        for marker in ("first", "second"):
+            exit_code = pytest.main(
+                [
+                    "--rootdir=.",
+                    "--cuke-autoload",
+                    f"--cuke-features-dir=features/{marker}",
+                    "--cuke-summary",
+                    "--custom-parser-session",
+                    marker,
+                ],
+                plugins=[SessionParserPlugin()],
+            )
+            exit_codes.append(int(exit_code))
+
+        Path("session-results.json").write_text(json.dumps(exit_codes), encoding="utf-8")
+        sys.exit(0 if exit_codes == [0, 0] else 1)
+        '''
+    )
+    (consumer.path / "run_parser_sessions.py").write_text(runner, encoding="utf-8")
+    consumer.env["PYTEST_CUKE_INVOCATION_LOG"] = str(consumer.path / "parser-invocations.json")
+    consumer.env["CUSTOM_PARSER_SESSION_LOG"] = str(consumer.path / "parser-session-state.json")
+
+
+@when("I run both custom parser sessions in one consumer process")
+def run_custom_parser_sessions_in_one_process(consumer: ConsumerProject) -> None:
+    consumer.custom_parser_session_result = subprocess.run(
+        [str(consumer.python), str(consumer.path / "run_parser_sessions.py")],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+@then("each pytest config should receive its own legacy parser instance and registration")
+def custom_parser_instances_are_scoped_to_pytest_config(consumer: ConsumerProject) -> None:
+    result = consumer.custom_parser_session_result
+    assert result is not None, "the in-process pytest sessions have not run"
+    output = _consumer_batch_output(result)
+    assert result.returncode == 0, output
+    assert output.count("1 passed BDD scenarios, 0 failed, 0 skipped") == 2, output
+    assert json.loads((consumer.path / "session-results.json").read_text(encoding="utf-8")) == [0, 0]
+
+    state = json.loads((consumer.path / "parser-session-state.json").read_text(encoding="utf-8"))
+    assert state == [
+        {"config_marker": "first", "instance_marker": "first"},
+        {"config_marker": "second", "instance_marker": "second"},
+    ], state
+
+    invocations = _custom_parser_invocation_records(consumer)
+    assert len(invocations) == 2, invocations
+    expected_sources = {
+        (consumer.path / "features" / "first" / "first.legacy").resolve(),
+        (consumer.path / "features" / "second" / "second.legacy").resolve(),
+    }
+    assert {_resolved_consumer_path(record.get("path"), consumer) for record in invocations} == expected_sources
+    assert {
+        _resolved_custom_parser_uri(record.get("uri"), consumer, record.get("path")) for record in invocations
+    } == expected_sources
+    assert all(record.get("config_sentinel") is True for record in invocations), invocations
+    assert all(record.get("encoding") == "utf-8" for record in invocations), invocations
+    assert all(isinstance(record.get("id_sample"), str) and record["id_sample"] for record in invocations), invocations
+
+
+@given("the legacy parser is configured to return a malformed result")
+def configure_custom_parser_malformed_result(consumer: ConsumerProject) -> None:
+    consumer.env["PYTEST_CUKE_LEGACY_MODE"] = "malformed"
+
+
+@given("the legacy parser is configured to raise an internal TypeError")
+def configure_custom_parser_internal_type_error(consumer: ConsumerProject) -> None:
+    consumer.env["PYTEST_CUKE_LEGACY_MODE"] = "type-error"
+
+
+@then("the legacy parser collection error should name the parser, source, and adapter remedy")
+def malformed_custom_parser_result_is_actionable(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = _consumer_batch_output(result)
+    assert "INTERNALERROR" not in output, output
+    assert "LegacyFeatureParser" in output, output
+    assert str(_custom_parser_feature_path(consumer).resolve()) in output, output
+    assert "ParserRegistration.legacy" in output, output
+
+
+@then("the original legacy parser TypeError should be preserved")
+def custom_parser_internal_type_error_is_preserved(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = _consumer_batch_output(result)
+    assert "INTERNALERROR" not in output, output
+    assert "TypeError: intentional legacy parser failure" in output, output
+    assert "signature mismatch" not in output.lower(), output

@@ -19,7 +19,7 @@ from pytest_cuke.heading_validation import (
     default_heading_validation_policy,
     validate_heading_records,
 )
-from pytest_cuke.parser import ParserRegistry, default_parser_registry
+from pytest_cuke.parser import ParserRegistration, ParserRegistry, default_parser_registry
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -181,6 +181,8 @@ def run_heading_validation_scan(
             parser = registry.get_parser_for_path(path)
             if parser is None:
                 raise HeadingValidationScanError("parse_error", path.as_posix(), "no parser is registered")
+            if isinstance(parser, ParserRegistration):
+                parser = parser.resolve()
             feature = parser.parse(path)
         except HeadingValidationScanError:
             raise

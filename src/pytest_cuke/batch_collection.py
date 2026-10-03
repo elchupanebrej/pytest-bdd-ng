@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from attrs import evolve
 
+from pytest_cuke.compatibility.parser import LegacyParserAdapter
 from pytest_cuke.external_examples import has_external_examples_reference
 from pytest_cuke.model.stash_access import SessionStash, StashKey
 from pytest_cuke.parser import BaseParser, GherkinParser, MarkdownGherkinParser, ParserProtocol
@@ -47,7 +48,11 @@ class BatchFeatureRequest:
     @property
     def key(self) -> tuple[str, str, str, str, str, tuple[tuple[str, str], ...]]:
         parser_type = type(self.parser)
-        parser_name = f"{parser_type.__module__}.{parser_type.__qualname__}"
+        parser_name = getattr(
+            self.parser,
+            "cache_identity",
+            f"{parser_type.__module__}.{parser_type.__qualname__}",
+        )
         id_generator = getattr(self.parser, "id_generator", None)
         if id_generator is not None:
             parser_name = f"{parser_name}@{id(id_generator):x}"
@@ -349,9 +354,14 @@ class CollectionBatchService:
                 **dict(request.parser_options),
             )
         except Exception as error:
-            self.results[key] = BatchFeatureCollectionError(
-                f"Failed to parse feature file '{request.path}': {type(error).__name__}: {error}"
-            )
+            if isinstance(request.parser, LegacyParserAdapter):
+                # Preserve extension exceptions as-is; adapting a parser must not
+                # disguise an exception raised inside user code.
+                self.results[key] = error
+            else:
+                self.results[key] = BatchFeatureCollectionError(
+                    f"Failed to parse feature file '{request.path}': {type(error).__name__}: {error}"
+                )
         else:
             self.results[key] = feature
 
