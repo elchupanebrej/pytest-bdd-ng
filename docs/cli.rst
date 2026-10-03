@@ -45,6 +45,37 @@ run by enabling ``--cuke-strict`` or ``cuke_strict = true`` in pytest
 configuration. It is opt-in and defaults to false, so ordinary collection
 does not change when the validation policy is installed.
 
+Feature source roots
+--------------------
+
+Select the local feature root for autoload and relative path bindings with
+``--cuke-features-dir`` or ``cuke_features_dir``. Select the base URL for
+URL-backed bindings with ``--cuke-features-base-url`` or
+``cuke_features_base_url``. The precedence for each setting is an explicit
+``scenarios(..., features_base_dir=...)`` or
+``scenarios(..., features_base_url=...)`` binding, then the command line, then
+pytest configuration. The local directory defaults to ``features``.
+
+Relative local roots are resolved from pytest's project root, including when
+pytest is started from another working directory. Relative feature paths under
+a URL base keep the base path prefix; a trailing slash on the base is optional.
+Absolute HTTP(S) feature URLs are used as given. URL bases must be absolute
+HTTP(S) URLs without a query or fragment, and URL-backed bindings fetch only
+the named feature paths.
+
+.. code-block:: console
+
+   pytest --cuke-features-dir=specs/features
+   pytest --cuke-features-base-url=https://example.test/project/features
+
+Project configuration can set the same roots:
+
+.. code-block:: ini
+
+   [pytest]
+   cuke_features_dir = specs/features
+   cuke_features_base_url = https://example.test/project/features
+
 Batch feature collection
 ------------------------
 

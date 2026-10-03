@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from functools import partial, reduce
+from functools import reduce
 from hashlib import sha256
-from itertools import filterfalse
 from operator import methodcaller, truediv
 from os.path import commonpath, normcase
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 from urllib.request import urlopen
 
 from attrs import define, evolve, field
 
 from pytest_cuke.batch_collection import BatchFeatureRequest, get_batch_service
 from pytest_cuke.compatibility.parser import LegacyParserAdapter
+from pytest_cuke.feature_sources import FeatureSourceError, resolve_feature_sources, resolve_feature_url
 from pytest_cuke.heading_scanner import enforce_feature_heading_policy
 from pytest_cuke.mimetypes import STRUCT_BDD_FORMATS, Mimetype
 from pytest_cuke.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
@@ -26,7 +26,6 @@ from pytest_cuke.parser import (
     default_parser_registry,
 )
 from pytest_cuke.parser_backend import resolve_parser_backend
-from pytest_cuke.utils import is_local_url
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -198,24 +197,20 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
     def resolve_features(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[Feature]:
         reg = registry or default_parser_registry
-        urls = list(filterfalse(is_local_url, self.url_paths))
-        if self.features_base_url is not None:
-            urls.extend(
-                map(
-                    partial(urljoin, f"{self.features_base_url}/"),
-                    filter(is_local_url, self.url_paths),
-                )
-            )
+        source_settings = resolve_feature_sources(config, features_base_url=self.features_base_url)
+        urls = [resolve_feature_url(path, source_settings.features_base_url) for path in self.url_paths]
 
         for url in urls:
-            p: Any = self.parser
             try:
                 with urlopen(url) as resp:  # noqa: S310
                     content_type = resp.headers.get_content_type()
                     content = resp.read().decode(self.encoding)
+            except Exception as error:
+                raise FeatureSourceError(f"Could not load feature source {url!r}: {error}") from error
 
+            try:
                 media_type = self.mimetype or content_type
-                p = self.parser
+                p: Any = self.parser
                 if p is None:
                     if self.parser_type is not None:
                         p = self.parser_type()
@@ -234,39 +229,39 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                             p = reg.get_parser_for_path(url)
                 p = _resolve_parser_provider(p, config)
 
-                if p is not None:
-                    if isinstance(p, LegacyParserAdapter):
-                        source_name = Path(urlparse(url).path).name or "remote.feature"
-                        with TemporaryDirectory() as temp_dir:
-                            source_path = Path(temp_dir) / source_name
-                            source_path.write_text(content, encoding=self.encoding)
-                            feature = p.parse(
-                                source_path,
-                                uri=url,
-                                encoding=self.encoding,
-                                _pytest_cuke_parse_args=self.parse_args,
-                            )
-                            has_temporary_filename = (
-                                feature.filename is not None
-                                and Path(feature.filename).resolve() == source_path.resolve()
-                            )
-                            if has_temporary_filename:
-                                # The legacy result points at the temporary download, which is deleted on exit.
-                                feature = evolve(feature, filename=None)
-                    else:
-                        parser_options = _parser_backend_options(p, config)
-                        feature = p.parse_text(content, uri=url, **parser_options)
-                    if feature.source_content is None:
-                        feature = evolve(
-                            feature,
-                            source_content=content,
-                            source_media_type=feature.source_media_type or media_type or Mimetype.gherkin_plain.value,
-                        )
-                    yield feature
-            except Exception:
+                if p is None:
+                    raise FeatureSourceError(f"No parser is registered for feature source {url!r}.")
                 if isinstance(p, LegacyParserAdapter):
+                    source_name = Path(urlparse(url).path).name or "remote.feature"
+                    with TemporaryDirectory() as temp_dir:
+                        source_path = Path(temp_dir) / source_name
+                        source_path.write_text(content, encoding=self.encoding)
+                        feature = p.parse(
+                            source_path,
+                            uri=url,
+                            encoding=self.encoding,
+                            _pytest_cuke_parse_args=self.parse_args,
+                        )
+                        has_temporary_filename = (
+                            feature.filename is not None and Path(feature.filename).resolve() == source_path.resolve()
+                        )
+                        if has_temporary_filename:
+                            # The legacy result points at the temporary download, which is deleted on exit.
+                            feature = evolve(feature, filename=None)
+                else:
+                    parser_options = _parser_backend_options(p, config)
+                    feature = p.parse_text(content, uri=url, **parser_options)
+                if feature.source_content is None:
+                    feature = evolve(
+                        feature,
+                        source_content=content,
+                        source_media_type=feature.source_media_type or media_type or Mimetype.gherkin_plain.value,
+                    )
+            except Exception as error:
+                if isinstance(error, FeatureSourceError):
                     raise
-                continue
+                raise FeatureSourceError(f"Could not parse feature source {url!r}: {error}") from error
+            yield feature
 
 
 DEFAULT_FEATURE_SUFFIXES = (
@@ -300,24 +295,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
     parse_args: Any = None
 
     def _resolve_features_base_dir(self, config: Any = None) -> Path:
-        if self.features_base_dir is not None:
-            base = self.features_base_dir
-            if callable(base):
-                base = base(config)
-            return Path(base).resolve()
-
-        if config is not None:
-            try:
-                ini_val = config.getini("cuke_features_dir")
-                if ini_val:
-                    return Path(ini_val).resolve()
-            except (AttributeError, ValueError, KeyError):
-                pass
-            root = getattr(config, "rootpath", getattr(config, "rootdir", None))
-            if root:
-                return Path(root).resolve()
-
-        return Path.cwd()
+        return resolve_feature_sources(config, features_base_dir=self.features_base_dir).features_base_dir
 
     def _gen_feature_paths(self, features_base_dir: Path) -> Iterable[Path]:
         for feature_pathlike in self.feature_paths:
@@ -382,6 +360,13 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         requests: list[BatchFeatureRequest] = []
 
         paths = feature_paths if feature_paths is not None else self._gen_feature_paths(base_dir)
+        if feature_paths is None and self.feature_paths and not base_dir.is_dir():
+            has_relative_source = any(not Path(str(path)).is_absolute() for path in self.feature_paths)
+            if has_relative_source:
+                raise FeatureSourceError(
+                    f"Local feature root {str(base_dir)!r}, selected by --cuke-features-dir or "
+                    "cuke_features_dir, does not exist."
+                )
         for feature_path in paths:
             canon_key = normcase(str(feature_path.resolve()))
             if canon_key in seen:

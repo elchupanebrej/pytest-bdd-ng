@@ -43,3 +43,13 @@ def test_pytest_addoption_calls_all_submodules() -> None:
     parser.addini.assert_any_call("cuke_features_dir", "Base features directory.", default="features", type="string")
     parser.addini.assert_any_call("cuke_features_base_url", "Base features URL.", default="", type="string")
     assert parser.getgroup.call_count >= 5
+    group = parser.getgroup.return_value
+    option_calls = [call.args[0] for call in group.addoption.call_args_list if call.args]
+    assert "--cuke-features-dir" in option_calls
+    assert "--cuke-features-base-url" in option_calls
+    option_kwargs = {call.args[0]: call.kwargs for call in group.addoption.call_args_list if call.args}
+    assert "cuke_features_dir" in option_kwargs["--cuke-features-dir"]["help"]
+    assert "pytest root" in option_kwargs["--cuke-features-dir"]["help"]
+    assert "binding, CLI, then ini" in option_kwargs["--cuke-features-dir"]["help"]
+    assert "cuke_features_base_url" in option_kwargs["--cuke-features-base-url"]["help"]
+    assert "binding, CLI, then ini" in option_kwargs["--cuke-features-base-url"]["help"]
