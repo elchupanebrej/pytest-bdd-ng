@@ -91,6 +91,7 @@ def test_run_context_tracks_step_transitions_attempt_and_teardown_snapshot() -> 
     context.set_test_case(
         test_case_id="test-case-1",
         test_step_ids=["message-step-1", "message-step-2"],
+        test_steps=["message-test-step"],
         test_case_started_id="attempt-1",
     )
     first_run = context.start_step(first_step)
@@ -116,6 +117,7 @@ def test_run_context_tracks_step_transitions_attempt_and_teardown_snapshot() -> 
     assert scenario_run.test_case_id == "test-case-1"
     assert scenario_run.test_case_started_id == "attempt-1"
     assert scenario_run.attempt_id == "attempt-1"
+    assert scenario_run.message_state.test_steps == ["message-test-step"]
     assert first_run.test_step_id == "message-step-1"
     assert second_run.test_step_id == "message-step-2"
     assert second_run.previous_step_run is first_run

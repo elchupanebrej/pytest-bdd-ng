@@ -51,8 +51,6 @@ class FeatureRuntimeBinding:
             document=GherkinDocument(uri=feature.uri, feature=feature),
         )
         binding._index_feature_tree()
-        for scenario in feature.all_scenarios:
-            binding.register_scenario(scenario)
         return binding
 
     def register_scenario(self, scenario: Scenario) -> None:
