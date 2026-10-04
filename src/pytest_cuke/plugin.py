@@ -184,6 +184,13 @@ def pytest_addoption(parser: Parser) -> None:
         help="reject empty parsed Feature and Scenario titles during collection",
     )
     feature_group.addoption(
+        "--cuke-mock-run",
+        action="store_true",
+        dest="cuke_mock_run",
+        default=None,
+        help="validate scenario step bindings without running BDD hooks or step bodies",
+    )
+    feature_group.addoption(
         "--cuke-parser",
         action="store",
         dest="cuke_parser",
@@ -241,6 +248,12 @@ def add_bdd_ini(parser: Parser) -> None:
     )
     parser.addini(
         "cuke_strict", "Reject empty parsed Feature and Scenario titles during collection.", default=False, type="bool"
+    )
+    parser.addini(
+        "cuke_mock_run",
+        "Validate scenario step bindings without running BDD hooks or step bodies.",
+        default=False,
+        type="bool",
     )
     parser.addini(
         "cuke_tolerant_status",

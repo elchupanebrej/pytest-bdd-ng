@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from pytest_cuke import exceptions
+from pytest_cuke.model.background import Background
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.scenario import Scenario
 from pytest_cuke.model.step import Step
@@ -194,3 +195,57 @@ def test_scenario_runner_init_and_context() -> None:
 
     with scen_runner.extended_step_context(feat, scen, step):
         pass
+
+
+def test_mock_run_aggregates_missing_steps_and_keeps_previous_step_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    background_step = Step(name="background binding", keyword="Given", line=2)
+    missing_first = Step(name="missing first", keyword="When", line=4)
+    matched = Step(name="matched middle", keyword="And", line=5)
+    missing_last = Step(name="missing last", keyword="Then", line=6)
+    feature = Feature(
+        name="Feature",
+        uri="feature.feature",
+        background=Background(steps=(background_step,)),
+    )
+    scenario = Scenario(name="Scenario", steps=(missing_first, matched, missing_last))
+    run_context = MagicMock()
+    run_context.get_scenario_run.return_value = object()
+    monkeypatch.setattr("pytest_cuke.runner.get_run_context", lambda _config: run_context)
+
+    step_runner = MagicMock()
+
+    def match_to_step(
+        _request: object,
+        _feature: Feature,
+        _scenario: Scenario,
+        step: Step,
+        _previous: Step | None,
+    ) -> object:
+        if step in (missing_first, missing_last):
+            raise exceptions.StepDefinitionNotFoundError(step.name)
+        return object()
+
+    step_runner.match_to_step.side_effect = match_to_step
+    request = MagicMock()
+    item = MagicMock()
+    item.nodeid = "test_module.py::test_scenario"
+    item.fixturenames = []
+
+    with pytest.raises(exceptions.StepDefinitionNotFoundError) as error:
+        ScenarioRunner(step_runner=step_runner)._verify_mock_run_bindings(item, request, feature, scenario)
+
+    assert "missing first" in str(error.value)
+    assert "missing last" in str(error.value)
+    assert [call.args[4] for call in step_runner.match_to_step.call_args_list] == [
+        None,
+        background_step,
+        missing_first,
+        matched,
+    ]
+    run_context.finish_active.assert_called_once_with(
+        status="undefined",
+        exception=error.value,
+        hook_phase="pytest_runtest_call",
+    )

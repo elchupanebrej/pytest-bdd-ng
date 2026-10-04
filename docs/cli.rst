@@ -46,6 +46,37 @@ run by enabling ``--cuke-strict`` or ``cuke_strict = true`` in pytest
 configuration. It is opt-in and defaults to false, so ordinary collection
 does not change when the validation policy is installed.
 
+Binding-only scenario validation
+--------------------------------
+
+Use ``--cuke-mock-run`` or ``cuke_mock_run = true`` to validate bindings for
+the selected collected scenarios without executing their Gherkin steps. This
+option is disabled by default. It keeps ordinary collection, explicit
+``@scenario`` bindings, autoload, ``-k``/``-m`` selection and the step
+registry. Validation visits compiled steps in execution order, including
+Feature and Rule backgrounds and expanded Scenario Outline rows, and passes
+each step's predecessor to the same matcher used during normal execution.
+
+Every missing step binding is reported before the scenario fails validation.
+Ambiguous matches retain the normal matcher behavior. Step bodies and the BDD
+scenario/step execution lifecycle hooks do not run. Pytest still imports test
+modules and plugins, builds the registry, sets up fixtures and refreshes
+test-function fixture arguments; after successful validation, the ordinary
+pytest test function also runs. This mode limits BDD execution while retaining
+pytest's normal collection and fixture behavior; it does not make collection
+side-effect free.
+
+.. code-block:: console
+
+   pytest --cuke-mock-run
+
+The same option can be enabled for a project in pytest configuration:
+
+.. code-block:: ini
+
+   [pytest]
+   cuke_mock_run = true
+
 Feature source roots
 --------------------
 
