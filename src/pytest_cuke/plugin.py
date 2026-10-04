@@ -35,6 +35,9 @@ from pytest_cuke.compatibility.pytest import (
     PytestPluginManager,
 )
 from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from pytest_cuke.debug_mcp.options import DebugMcpOptions
+from pytest_cuke.debug_mcp.options import add_options as add_debug_mcp_options
+from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin
 from pytest_cuke.feature_sources import resolve_feature_sources
 from pytest_cuke.message_plugin import MessagePlugin
 from pytest_cuke.mimetypes import Mimetype
@@ -244,6 +247,7 @@ def pytest_addoption(parser: Parser) -> None:
     gherkin_terminal_reporter.add_options(parser)
     MessagePlugin.add_options(parser)
     add_summary_options(parser)
+    add_debug_mcp_options(parser)
 
 
 def add_bdd_ini(parser: Parser) -> None:
@@ -510,6 +514,11 @@ def pytest_load_initial_conftests(early_config: Config) -> None:
 @pytest.mark.trylast
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
+    try:
+        debug_mcp_options = DebugMcpOptions.from_config(config)
+    except ValueError as error:
+        raise pytest.UsageError(str(error)) from error
+
     if _allure_messages_input(config) is not None:
         if _allure_output_path(config) is None:
             raise pytest.UsageError("--cuke-allure-messages-in requires --cuke-allure")
@@ -558,6 +567,11 @@ def pytest_configure(config: Config) -> None:
         config.pluginmanager.register(StructBDDPlugin())
     if config.getini("cuke_test_group_order"):
         config.pluginmanager.register(TestGroupPlugin(config), name="pytest_cuke_test_groups")
+    if debug_mcp_options.enabled:
+        config.pluginmanager.register(
+            DebugMcpPlugin(config, debug_mcp_options),
+            name="pytest_cuke_debug_mcp",
+        )
 
 
 def pytest_sessionstart(session: Any) -> None:

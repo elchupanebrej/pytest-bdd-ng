@@ -125,6 +125,11 @@ allure = [
   "allure-python-commons",
   "allure-pytest"
 ]
+debug-mcp = [
+  "mcp-pdb>=0.6,<0.7",
+  "mcp>=1.9,<2",
+  "uvicorn>=0.34"
+]
 doc-gen = [
   'docopt-ng',
   'pandoc',
