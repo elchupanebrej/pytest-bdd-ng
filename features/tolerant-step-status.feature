@@ -29,11 +29,13 @@ Feature: Tolerant step status policy
           And the second tolerant operation raises a RuntimeError
           Then the continuation records "first-order,second-order"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json --cuke-progress --cuke-summary -vv"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "first-order,second-order"
+    And pytest output should include "When the first tolerant operation raises an AssertionError (FAILED)"
     And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,FAILED,PASSED" and exception messages "first tolerant assertion sentinel,second tolerant runtime sentinel" for scenario "Both tolerant decorator orders continue" and TestRunFinished success "true"
+    And consumer artifact "cucumber.json" should report scenario "Both tolerant decorator orders continue" with step statuses "failed,failed,passed" and error messages "first tolerant assertion sentinel,second tolerant runtime sentinel"
 
   Scenario: A pytest marker overrides its conflicting Gherkin tag and policy
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
