@@ -203,8 +203,36 @@ package resources. Package imports never start synchronization or access the
 network. See ``message-schema-provenance.rst`` for the exact upstream source
 pin.
 
-``convert allure`` remains reserved and returns a non-zero exit status with an
-explicit not-implemented message.
+Converting saved Cucumber Messages to Allure
+---------------------------------------------
+
+``convert allure`` writes Allure result and container JSON from a completed
+Cucumber Messages NDJSON stream. It does not collect or execute the original
+tests, import their ``conftest.py`` files, or require Allure's pytest adapter.
+Input paths are resolved from the current working directory. The output
+directory defaults to ``allure-results`` and is created when needed.
+
+.. code-block:: console
+
+   cuke convert allure messages.ndjson
+   cuke convert allure messages.ndjson --output build/allure-results
+   pytest-cuke convert allure messages.ndjson --output build/allure-results
+
+The converter reads UTF-8, skips blank lines, and reports missing files,
+malformed JSON, invalid messages, and output errors with a non-zero exit code.
+Attachment references use relative paths inside the result directory so the
+directory can be moved as a unit.
+
+The pytest reporting mode can import an existing stream with
+``--cuke-allure-messages-in`` and write to the configured Allure result
+directory:
+
+.. code-block:: console
+
+   pytest --cuke-allure=allure-results --cuke-allure-messages-in=messages.ndjson
+
+This import path uses the same message-to-Allure mapping as the standalone
+command; it does not re-run the scenarios.
 
 Registering command extensions
 ------------------------------

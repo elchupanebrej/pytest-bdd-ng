@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import tempfile
+import traceback
 from base64 import b64encode
 from inspect import getfile, getsourcelines
 from io import BufferedIOBase, TextIOBase
@@ -32,6 +33,7 @@ from messages import (
     Ci,
     ContentEncoding,
     Duration,
+    ExceptionMessage,
     Hook,
     Location,
     Meta,
@@ -53,6 +55,7 @@ from messages import (
     UndefinedParameterType,
 )
 from messages import Envelope as Message
+from pytest_cuke.allure_conversion import AllureConversionError, convert_allure_messages
 from pytest_cuke.compatibility.path import relpath
 from pytest_cuke.compatibility.pytest import (
     Config,
@@ -83,11 +86,14 @@ if TYPE_CHECKING:
 @attrs(eq=False)
 class MessagePlugin:
     config: Config = attrib()
+    allure_output_path: Path | None = attrib(default=None)
     current_test_case: TestCase | None = attrib(default=None)
     current_test_case_step_id_to_step_mapping: dict[int, TestStep] = attrib(factory=dict)
     current_test_case_step_order: list[TestStep] = attrib(factory=list)
     current_finished_test_step_ids: set[str] = attrib(factory=set)
     current_test_step_start_timestamps: dict[str, Timestamp] = attrib(factory=dict)
+    current_active_test_step_id: str | None = attrib(default=None)
+    current_test_step_exception_traces: dict[str, str] = attrib(factory=dict)
     current_test_case_start: TestCaseStarted | None = attrib(default=None)
     parameter_type_registry: ClassVar[set[int]] = set()
     hook_registry: ClassVar[set[int]] = set()
@@ -103,10 +109,13 @@ class MessagePlugin:
     def __attrs_post_init__(self) -> None:
         messages_path = self._configured_output("cuke_messages_ndjson")
         html_path = self._configured_output("cuke_html")
+        allure_path = self._configured_output("cuke_allure")
+        self.allure_output_path = Path(allure_path) if allure_path is not None else None
         self.is_disabled = all(
             [
                 messages_path is None,
                 html_path is None,
+                allure_path is None,
             ]
         )
 
@@ -172,11 +181,22 @@ class MessagePlugin:
                             continue
 
                         try:
-                            Message.model_validate(json.loads(message_json))
-                        except ValidationError:
+                            payload = json.loads(message_json)
+                            validation_payload = json.loads(message_json)
+                            step_finished = validation_payload.get("testStepFinished")
+                            if isinstance(step_finished, dict):
+                                step_result = step_finished.get("testStepResult")
+                                if isinstance(step_result, dict):
+                                    exception = step_result.get("exception")
+                                    if isinstance(exception, dict) and "stackTrace" in exception:
+                                        stack_trace = exception.pop("stackTrace")
+                                        if not isinstance(stack_trace, str):
+                                            raise ValueError("exception stackTrace must be a string")
+                            Message.model_validate(validation_payload)
+                        except (ValidationError, ValueError):
                             logging.exception("Failed to parse:\n%s\n", pformat(message_json), exc_info=True)
                         else:
-                            lines.append(f"{message_json}\n")
+                            lines.append(f"{json.dumps(payload, ensure_ascii=False)}\n")
                         finally:
                             queue.task_done()
                         sleep(0)
@@ -213,6 +233,30 @@ class MessagePlugin:
             help="cucumber html report at given path.",
         )
         parser.addini("cuke_html", "Cucumber HTML report path.", default="", type="string")
+        group = parser.getgroup("cuke", "Allure reporting")
+        group.addoption(
+            "--cuke-allure",
+            action="store",
+            dest="cuke_allure",
+            metavar="dir",
+            default=None,
+            help="Allure result directory; write native results while pytest executes scenarios.",
+        )
+        parser.addini("cuke_allure", "Allure result directory for native pytest reporting.", default="", type="string")
+        group.addoption(
+            "--cuke-allure-messages-in",
+            action="store",
+            dest="cuke_allure_messages_in",
+            metavar="path",
+            default=None,
+            help="convert a saved Cucumber Messages NDJSON stream without collecting tests.",
+        )
+        parser.addini(
+            "cuke_allure_messages_in",
+            "Saved Cucumber Messages NDJSON input for pytest Allure conversion.",
+            default="",
+            type="string",
+        )
 
     def generate_html_report(self) -> None:
         if self.is_disabled:
@@ -343,7 +387,16 @@ class MessagePlugin:
     def pytest_cuke_message(self, config: Config, message: Message) -> None:
         if self.is_disabled:
             return
-        message_json = message.model_dump_json(exclude_none=True, by_alias=True)
+        message_data = message.model_dump(mode="json", exclude_none=True, by_alias=True)
+        if message.test_step_finished is not None:
+            step_id = message.test_step_finished.test_step_id
+            stack_trace = self.current_test_step_exception_traces.get(step_id)
+            if stack_trace:
+                result = message_data["testStepFinished"]["testStepResult"]
+                exception = result.get("exception")
+                if isinstance(exception, dict):
+                    exception["stackTrace"] = stack_trace
+        message_json = json.dumps(message_data, ensure_ascii=False)
         self.process_messages_io_queue.put_nowait(message_json)
 
     def _get_current_test_case(self) -> TestCase:
@@ -408,10 +461,18 @@ class MessagePlugin:
         )
 
         self.finish_process_messages_thread()
-        if self._configured_output("cuke_html") is not None:
-            self.generate_html_report()
-        if self.is_messages_file_temp:
-            os.unlink(self.messages_file_path)
+        try:
+            if self._configured_output("cuke_html") is not None:
+                self.generate_html_report()
+            if self.allure_output_path is not None:
+                try:
+                    convert_allure_messages(self.messages_file_path, self.allure_output_path)
+                except AllureConversionError as error:
+                    print(f"pytest-cuke Allure conversion failed: {error}", file=sys.stderr)
+                    session.exitstatus = ExitCode.USAGE_ERROR
+        finally:
+            if self.is_messages_file_temp and self.messages_file_path.exists():
+                os.unlink(self.messages_file_path)
 
     @hookimpl(hookwrapper=True)
     def pytest_fixture_setup(self, fixturedef: FixtureDef[Any], request: FixtureRequest) -> Generator[None, None, None]:
@@ -531,6 +592,8 @@ class MessagePlugin:
         self.current_test_case_step_order = []
         self.current_finished_test_step_ids = set()
         self.current_test_step_start_timestamps = {}
+        self.current_active_test_step_id = None
+        self.current_test_step_exception_traces = {}
         feature_uri = feature.uri or feature.filename or feature.name
         callspec_id = getattr(getattr(request.node, "callspec", None), "id", "")
         fallback_id = f"{feature_uri}#{callspec_id}" if callspec_id else ""
@@ -647,6 +710,8 @@ class MessagePlugin:
         self.current_test_case_step_order = []
         self.current_finished_test_step_ids = set()
         self.current_test_step_start_timestamps = {}
+        self.current_active_test_step_id = None
+        self.current_test_step_exception_traces = {}
 
     def pytest_cuke_before_step(
         self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any
@@ -714,6 +779,14 @@ class MessagePlugin:
             test_step=step_definition,
             start_timestamp=start_timestamp,
             status=status,
+            message=str(exception),
+            exception=ExceptionMessage(
+                type=type(exception).__name__,
+                message=str(exception),
+            ),
+            exception_stack_trace="".join(
+                traceback.format_exception(type(exception), exception, exception.__traceback__)
+            ),
         )
         failed_step_index = next(
             index
@@ -812,6 +885,7 @@ class MessagePlugin:
     def _start_test_step(self, *, config: Config, test_case_started: TestCaseStarted, test_step: TestStep) -> Timestamp:
         timestamp = self.get_timestamp()
         self.current_test_step_start_timestamps[test_step.id] = timestamp
+        self.current_active_test_step_id = test_step.id
         config.hook.pytest_cuke_message(
             config=config,
             message=Message(
@@ -833,6 +907,8 @@ class MessagePlugin:
         start_timestamp: Timestamp,
         status: Status,
         message: str | None = None,
+        exception: ExceptionMessage | None = None,
+        exception_stack_trace: str | None = None,
     ) -> None:
         finish_timestamp = self.get_timestamp()
         duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
@@ -841,18 +917,30 @@ class MessagePlugin:
         duration_seconds = duration_total_nanos // 10**9
         duration_nanos = duration_total_nanos - duration_seconds * 10**9
         duration = Duration(seconds=duration_seconds, nanos=duration_nanos)
-        config.hook.pytest_cuke_message(
-            config=config,
-            message=Message(
-                test_step_finished=TestStepFinished(
-                    test_case_started_id=test_case_started.id,
-                    timestamp=finish_timestamp,
-                    test_step_id=test_step.id,
-                    test_step_result=TestStepResult(duration=duration, status=status, message=message),
-                )
-            ),
-        )
+        if exception_stack_trace is not None:
+            self.current_test_step_exception_traces[test_step.id] = exception_stack_trace
+        try:
+            config.hook.pytest_cuke_message(
+                config=config,
+                message=Message(
+                    test_step_finished=TestStepFinished(
+                        test_case_started_id=test_case_started.id,
+                        timestamp=finish_timestamp,
+                        test_step_id=test_step.id,
+                        test_step_result=TestStepResult(
+                            duration=duration,
+                            status=status,
+                            message=message,
+                            exception=exception,
+                        ),
+                    )
+                ),
+            )
+        finally:
+            self.current_test_step_exception_traces.pop(test_step.id, None)
         self.current_test_step_start_timestamps.pop(test_step.id, None)
+        if self.current_active_test_step_id == test_step.id:
+            self.current_active_test_step_id = None
         self.current_finished_test_step_ids.add(test_step.id)
 
     def pytest_cuke_attach(
@@ -866,7 +954,11 @@ class MessagePlugin:
             return
         config = request.config
         hook_handler = config.hook
-        current_test_case = self._get_current_test_case()
+        self._get_current_test_case()
+        current_test_case_start = self._get_current_test_case_start()
+        active_test_step_id = self.current_active_test_step_id
+        if active_test_step_id not in self.current_test_step_start_timestamps:
+            active_test_step_id = None
 
         if isinstance(attachment, str | TextIOBase):
             content_encoding = ContentEncoding.identity
@@ -900,8 +992,8 @@ class MessagePlugin:
             config=config,
             message=Message(
                 attachment=Attachment(
-                    test_step_id=current_test_case.id,
-                    test_case_started_id=current_test_case.id,
+                    test_step_id=active_test_step_id,
+                    test_case_started_id=current_test_case_start.id,
                     media_type=_media_type,
                     **({"file_name": str(file_name)} if file_name is not None else {}),
                     content_encoding=content_encoding,
