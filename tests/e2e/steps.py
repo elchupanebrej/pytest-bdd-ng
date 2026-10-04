@@ -7415,6 +7415,20 @@ def install_debugger_failure_probe(consumer: ConsumerProject) -> None:
     )
 
 
+@given("the installed consumer has a small mcp-pdb debug target")
+def install_debug_mcp_debug_target(consumer: ConsumerProject) -> None:
+    (consumer.path / "debug-mcp-debugger-target.py").write_text(
+        dedent(
+            '''\
+            from pathlib import Path
+
+            Path("debugger-continuation-completed.txt").write_text("continued\\n", encoding="utf-8")
+            '''
+        ),
+        encoding="utf-8",
+    )
+
+
 @given("the consumer has a startup guard for MCP imports and child processes")
 def install_mcp_startup_guard(consumer: ConsumerProject) -> None:
     guard_directory = consumer.path / "startup-guard"
@@ -7623,6 +7637,100 @@ def _debug_mcp_sdk_client_script() -> str:
     )
 
 
+def _debug_mcp_debugger_continuation_client_script() -> str:
+    return dedent(
+        '''\
+        import asyncio
+        import json
+        import sys
+        from pathlib import Path
+
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
+
+        def tool_text(result):
+            assert not getattr(result, "isError", False), result
+            texts = [
+                block.text
+                for block in getattr(result, "content", [])
+                if isinstance(getattr(block, "text", None), str)
+            ]
+            assert texts, f"MCP debugger tool returned no text: {result!r}"
+            return "\\n".join(texts)
+
+        def tool_payload(result):
+            structured = getattr(result, "structuredContent", None)
+            if isinstance(structured, dict):
+                return structured
+            for block in getattr(result, "content", []):
+                text = getattr(block, "text", None)
+                if isinstance(text, str):
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(payload, dict):
+                        return payload
+            raise AssertionError(f"MCP inspection tool did not return structured JSON: {result!r}")
+
+        async def inspect(endpoint):
+            async with streamable_http_client(endpoint) as (read_stream, write_stream, _session_id):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    result = await session.call_tool("inspect_failure", {})
+                    assert not getattr(result, "isError", False), result
+                    return tool_payload(result)
+
+        async def main(debugger_endpoint, inspection_endpoint, target_path, output_path):
+            active_before = await inspect(inspection_endpoint)
+            failure = active_before.get("active_failure")
+            session_id = active_before.get("session_id")
+            assert isinstance(failure, dict), active_before
+            sequence = failure.get("sequence")
+            assert isinstance(session_id, str) and session_id, active_before
+            assert isinstance(sequence, int) and sequence > 0, active_before
+
+            async with streamable_http_client(debugger_endpoint, terminate_on_close=False) as (
+                read_stream,
+                write_stream,
+                _session_id,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    tools = await session.list_tools()
+                    names = {tool.name for tool in tools.tools}
+                    required = {"start_debug", "send_pdb_command"}
+                    assert required <= names, f"missing mcp-pdb debugger tools: {required - names}"
+
+                    start_result = await session.call_tool("start_debug", {"file_path": target_path})
+                    start_text = tool_text(start_result)
+                    assert "Debugging session started" in start_text, start_text
+
+                    continue_result = await session.call_tool("send_pdb_command", {"command": "continue"})
+                    continue_text = tool_text(continue_result)
+                    assert "Command output" in continue_text or "session" in continue_text.lower(), continue_text
+
+            Path(output_path).write_text(
+                json.dumps(
+                    {
+                        "debugger_endpoint": debugger_endpoint,
+                        "inspection_endpoint": inspection_endpoint,
+                        "tools": sorted(names),
+                        "active_before": active_before,
+                        "start_response": start_text,
+                        "continue_response": continue_text,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+        asyncio.run(main(*sys.argv[1:]))
+        '''
+    )
+
+
 def _mcp_read_discovery_record(consumer: ConsumerProject, timeout: float = 45) -> dict[str, object]:
     record_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "session.json"
     process = getattr(consumer, "_mcp_pytest_process")
@@ -7785,6 +7893,128 @@ def run_external_debug_mcp_client(consumer: ConsumerProject) -> None:
                 process.wait(timeout=3)
         if client_result is not None:
             setattr(consumer, "_mcp_client_result", client_result)
+
+
+@when("an external MCP client continues a session through the advertised debugger endpoint")
+def run_debugger_mcp_continuation_client(consumer: ConsumerProject) -> None:
+    process = getattr(consumer, "_mcp_pytest_process", None)
+    assert isinstance(process, subprocess.Popen), "the MCP pytest process has not been started"
+    command = getattr(consumer, "_mcp_pytest_command")
+    output_path = getattr(consumer, "_mcp_pytest_output_path")
+    client_path = consumer.path / "debug-mcp-continuation-client.py"
+    result_path = consumer.path / "debug-mcp-continuation-client-result.json"
+    target_path = consumer.path / "debug-mcp-debugger-target.py"
+    completion_path = consumer.path / "debugger-continuation-completed.txt"
+    client_result: subprocess.CompletedProcess[str] | None = None
+    try:
+        assert target_path.is_file(), target_path
+        client_path.write_text(_debug_mcp_debugger_continuation_client_script(), encoding="utf-8")
+        discovery = _mcp_read_discovery_record(consumer)
+        inspection_endpoint = discovery.get("inspection_endpoint")
+        debugger_endpoint = discovery.get("debugger_endpoint")
+        inspection_host, _inspection_port = _mcp_endpoint_port(inspection_endpoint)
+        debugger_host, _debugger_port = _mcp_endpoint_port(debugger_endpoint)
+        assert inspection_host == debugger_host == "127.0.0.1", discovery
+        assert isinstance(discovery.get("session_id"), str) and discovery["session_id"], discovery
+        initial_failure = discovery.get("active_failure")
+        assert isinstance(initial_failure, dict), discovery
+        _assert_debug_mcp_failure_context(initial_failure)
+        setattr(consumer, "_mcp_initial_discovery", discovery)
+
+        client_result = subprocess.run(
+            [
+                str(consumer.python),
+                str(client_path),
+                str(debugger_endpoint),
+                str(inspection_endpoint),
+                str(target_path),
+                str(result_path),
+            ],
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        setattr(consumer, "_mcp_debugger_client_result", client_result)
+        assert client_result.returncode == 0, (
+            f"external debugger MCP client failed ({client_result.returncode}):\n"
+            f"{client_result.stdout}\n{client_result.stderr}"
+        )
+        assert result_path.is_file(), f"debugger MCP client did not write its observation: {client_result.stdout}"
+        observation = json.loads(result_path.read_text(encoding="utf-8"))
+        assert observation.get("debugger_endpoint") == debugger_endpoint, observation
+        assert observation.get("inspection_endpoint") == inspection_endpoint, observation
+        assert {"start_debug", "send_pdb_command"} <= set(observation.get("tools", [])), observation
+        before = observation.get("active_before")
+        assert isinstance(before, dict), observation
+        assert before.get("session_id") == discovery["session_id"], observation
+        failure = before.get("active_failure")
+        assert isinstance(failure, dict), observation
+        assert failure == initial_failure, (failure, initial_failure)
+        assert completion_path.read_text(encoding="utf-8") == "continued\n", (
+            "the advertised mcp-pdb continue command did not run the debug target"
+        )
+        setattr(consumer, "_mcp_debugger_continuation_observation", observation)
+
+        try:
+            return_code = process.wait(timeout=15)
+        except subprocess.TimeoutExpired as error:
+            raise AssertionError("installed pytest did not resume after debugger continuation") from error
+        output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+        consumer.pytest_result = subprocess.CompletedProcess(command, return_code, output, "")
+        assert return_code != 0, f"debugger continuation changed the failed pytest outcome to success:\n{output}"
+
+        final_record_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "session.json"
+        final_record = (
+            json.loads(final_record_path.read_text(encoding="utf-8")) if final_record_path.is_file() else None
+        )
+        setattr(consumer, "_mcp_final_record", final_record)
+        assert isinstance(final_record, dict), "pytest did not retain the final Debug MCP discovery record"
+        assert final_record.get("status") == "closed", final_record
+        assert final_record.get("active_failure") is None, final_record
+        last_release = final_record.get("last_release")
+        assert isinstance(last_release, dict), final_record
+        assert last_release.get("session_id") == before.get("session_id"), (last_release, before)
+        assert last_release.get("sequence") == failure.get("sequence"), (last_release, failure)
+        assert last_release.get("reason") == "debugger_continuation", final_record
+        endpoints = [final_record.get("debugger_endpoint"), final_record.get("inspection_endpoint")]
+        assert endpoints == [None, None], final_record
+        setattr(consumer, "_mcp_advertised_endpoints_after_finish", endpoints)
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+        if client_result is not None:
+            setattr(consumer, "_mcp_debugger_client_result", client_result)
+
+
+@then("debugger continuation should release the exact advertised failure")
+def consumer_debugger_continuation_releases_exact_failure(consumer: ConsumerProject) -> None:
+    discovery = getattr(consumer, "_mcp_initial_discovery", None)
+    final_record = getattr(consumer, "_mcp_final_record", None)
+    observation = getattr(consumer, "_mcp_debugger_continuation_observation", None)
+    assert isinstance(discovery, dict), discovery
+    assert isinstance(final_record, dict), final_record
+    assert isinstance(observation, dict), observation
+    initial_failure = discovery.get("active_failure")
+    before = observation.get("active_before")
+    assert isinstance(initial_failure, dict) and isinstance(before, dict), observation
+    inspected_failure = before.get("active_failure")
+    last_release = final_record.get("last_release")
+    assert isinstance(inspected_failure, dict) and isinstance(last_release, dict), final_record
+    assert before.get("session_id") == discovery.get("session_id") == last_release.get("session_id"), final_record
+    assert inspected_failure == initial_failure, (inspected_failure, initial_failure)
+    assert inspected_failure.get("sequence") == last_release.get("sequence"), (
+        inspected_failure,
+        last_release,
+    )
+    assert last_release.get("reason") == "debugger_continuation", final_record
 
 
 @then("the consumer should report no MCP backend import or child process")

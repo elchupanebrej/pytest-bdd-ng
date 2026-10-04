@@ -102,9 +102,6 @@ class DebugMcpPlugin:
         inspection_port = allocate_port(self.options.host, excluding={debugger_port})
 
         session_id = self._session_id()
-        self.debugger = DebuggerMcpProcess(host=self.options.host, port=debugger_port)
-        self.debugger.start()
-
         self.queue = FailureQueue(
             session_id=session_id,
             timeout_seconds=self.options.timeout_seconds,
@@ -112,6 +109,13 @@ class DebugMcpPlugin:
         )
         self.inspection = InspectionMcpServer(queue=self.queue, host=self.options.host, port=inspection_port)
         self.inspection.start()
+
+        self.debugger = DebuggerMcpProcess(
+            host=self.options.host,
+            port=debugger_port,
+            inspection_endpoint=self.inspection.endpoint,
+        )
+        self.debugger.start()
 
         self.discovery = DiscoveryPublisher(
             path=cache_path,
@@ -166,7 +170,7 @@ class DebugMcpPlugin:
             return
         self._closed = True
         errors: list[Exception] = []
-        for service in (self.inspection, self.debugger):
+        for service in (self.debugger, self.inspection):
             if service is not None:
                 try:
                     service.close()

@@ -23,3 +23,16 @@ Feature: Debug MCP failure inspection
     And the MCP discovery record should no longer advertise a live endpoint
     And consumer artifact "report.json" should retain the failed debugger BDD scenario
     And consumer artifact "messages.ndjson" should retain the debugger failure evidence
+
+  Scenario: Continuing the advertised debugger session releases the exact held failure
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer has the optional debug MCP extra installed
+    And the installed consumer exposes a debugger failure BDD probe
+    And the installed consumer has a small mcp-pdb debug target
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=90s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
+    And an external MCP client continues a session through the advertised debugger endpoint
+    Then pytest should exit with a non-zero code
+    And debugger continuation should release the exact advertised failure
+    And the MCP discovery record should no longer advertise a live endpoint
+    And consumer artifact "report.json" should retain the failed debugger BDD scenario
+    And consumer artifact "messages.ndjson" should retain the debugger failure evidence
