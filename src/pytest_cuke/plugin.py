@@ -322,18 +322,24 @@ def _generation_mode_enabled(config: Config) -> bool:
     return False
 
 
-def _collection_step_registry(item: Any) -> Registry:
-    """Build the item's applicable step registry without setting up fixtures."""
+def _item_fixture_definitions(item: Any, name: str) -> Any:
+    """Return applicable fixture definitions without setting up the fixture."""
     fixture_manager = getattr(getattr(item, "session", None), "_fixturemanager", None)
     get_fixture_definitions = getattr(fixture_manager, "getfixturedefs", None)
-    fixture_definitions = get_fixture_definitions("step_registry", item) if get_fixture_definitions else None
+    if get_fixture_definitions is None:
+        return ()
+    return get_fixture_definitions(name, item) or ()
+
+
+def _collection_step_registry(item: Any) -> Registry:
+    """Build the item's applicable step registry without setting up fixtures."""
 
     registries: list[Registry] = []
     module_registry = getattr(getattr(item, "module", None), "__pytest_cuke_step_registry__", None)
     if isinstance(module_registry, Registry):
         registries.append(module_registry)
 
-    for fixture_definition in reversed(fixture_definitions or ()):
+    for fixture_definition in reversed(_item_fixture_definitions(item, "step_registry")):
         fixture_function = getattr(fixture_definition, "func", None)
         registry = getattr(fixture_function, "__pytest_cuke_step_registry__", None)
         if isinstance(registry, Registry) and all(registry is not existing for existing in registries):
@@ -353,20 +359,15 @@ class _CollectionMatchRequest:
         self.custom_parameter_registry = custom_parameter_registry
 
     def getfixturevalue(self, name: str) -> Any:
-        if name == "parameter_type_registry" and not self.custom_parameter_registry:
+        if name == "parameter_type_registry":
             return cucumber_expression.parameter_type_registry
         raise LookupError(f"fixture {name!r} is unavailable during scenario collection validation")
 
 
 def _has_custom_parameter_type_registry(item: Any) -> bool:
-    fixture_manager = getattr(getattr(item, "session", None), "_fixturemanager", None)
-    get_fixture_definitions = getattr(fixture_manager, "getfixturedefs", None)
-    if get_fixture_definitions is None:
-        return False
-    fixture_definitions = get_fixture_definitions("parameter_type_registry", item) or ()
     return any(
         getattr(fixture_definition, "func", None) is not parameter_type_registry
-        for fixture_definition in fixture_definitions
+        for fixture_definition in _item_fixture_definitions(item, "parameter_type_registry")
     )
 
 
@@ -389,6 +390,9 @@ def _scenario_has_matching_step(config: Config, item: Any, feature: Feature, sce
                 simplefilter("ignore", PytestBDDStepDefinitionWarning)
                 matcher(request, feature, scenario, step, previous_step, registry)  # type: ignore[arg-type]  # The collection request deliberately exposes no fixture setup API.
         except Matcher.MatchNotFoundError:
+            if request.custom_parameter_registry and matcher._undefined_parameter_types:
+                # Unknown custom expression types require their fixture value, which collection must not execute.
+                return True
             pass
         except LookupError:
             # A parser may need a user fixture. Leave that case to normal runtime matching.
