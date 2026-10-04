@@ -6209,3 +6209,363 @@ def consumer_tolerant_skip_and_undefined_messages(relative_path: str, consumer: 
     assert [result.get("status") for _, result in undefined_steps] == ["UNDEFINED", "SKIPPED"], undefined_steps
     assert all(result.get("status") != "PASSED" for _, result in (*skip_steps, *undefined_steps))
     assert run_success is False
+
+
+@given("the installed consumer exposes not-implemented steps and policy probes")
+def install_not_implemented_step_consumer_definitions(consumer: ConsumerProject) -> None:
+    (consumer.path / "conftest.py").write_text(
+        '''from pathlib import Path
+
+import os
+import pytest
+import pytest_cuke
+from pytest_cuke import parsers, then, when
+from pytest_cuke.steps import not_implemented
+
+
+assert not hasattr(pytest_cuke, "not_implemented"), "not_implemented must stay in pytest_cuke.steps"
+
+
+def _record_effect(value):
+    with Path("wip-effects.log").open("a", encoding="utf-8") as stream:
+        stream.write(value + "\\n")
+
+
+def _record_continuation(value):
+    with Path("continuations.log").open("a", encoding="utf-8") as stream:
+        stream.write(value + "\\n")
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    with Path(f"xdist-continuations-{worker}.log").open("a", encoding="utf-8") as stream:
+        stream.write(value + "\\n")
+
+
+@pytest.hookimpl
+def pytest_cuke_before_step(request, feature, scenario, step, step_func):
+    if "not-implemented" in step.name:
+        _record_effect("before-step")
+
+
+@pytest.hookimpl
+def pytest_cuke_before_step_call(
+    request, feature, scenario, step, step_func, step_func_args, step_definition
+):
+    if "not-implemented" in step.name:
+        _record_effect("before-call")
+
+
+@not_implemented
+@when(parsers.parse('the first not-implemented parameter step requests fixture injection for "{label}"'))
+def first_parameter_step(label, wip_fixture_that_is_not_defined):
+    _record_effect("body:first:" + label)
+
+
+@when(parsers.parse('the second not-implemented parameter step requests fixture injection for "{label}"'))
+@not_implemented
+def second_parameter_step(label, wip_fixture_that_is_not_defined):
+    _record_effect("body:second:" + label)
+
+
+@when(parsers.parse('a not-implemented outline step for "{row}" requests fixture injection'))
+@not_implemented
+def outline_parameter_step(row, wip_fixture_that_is_not_defined):
+    _record_effect("body:outline:" + row)
+
+
+@not_implemented
+@when(parsers.parse('a not-implemented body raises "{message}"'))
+def not_implemented_body_raises(message):
+    _record_effect("body:raise")
+    raise RuntimeError(message)
+
+
+@not_implemented
+@when("a not-implemented body succeeds")
+def not_implemented_body_succeeds():
+    _record_effect("body:success")
+
+
+@not_implemented
+@when("the not-implemented setup creates its target", target_fixture="wip_created_target")
+def not_implemented_target_setup():
+    _record_effect("body:target")
+    return "a value that must not be fabricated"
+
+
+@then(parsers.parse('a later step records "{label}"'))
+def record_wip_continuation(label):
+    _record_continuation(label)
+
+
+@then("the later step confirms the WIP target is None")
+def confirm_wip_target_is_none(wip_created_target):
+    assert wip_created_target is None
+    Path("target-observation.log").write_text("None\\n", encoding="utf-8")
+    _record_continuation("target-is-none")
+
+
+@when("an ordinary operation raises under WIP policy")
+def ordinary_wip_policy_operation():
+    _record_effect("body:ordinary")
+    raise RuntimeError("ordinary WIP exception sentinel")
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_collection_modifyitems(items):
+    for item in items:
+        if "A marker overrides its tag and the failed global policy" in item.name:
+            item.add_marker(pytest.mark.wip_status(" PASSED "))
+        if "An invalid marker falls through to the failed tag" in item.name:
+            item.add_marker(pytest.mark.wip_status(" UNKNOWN "))
+''',
+        encoding="utf-8",
+    )
+
+
+def _wip_scenario_step_results(
+    relative_path: str,
+    scenario_name: str,
+    consumer: ConsumerProject,
+) -> tuple[list[tuple[str, dict[str, object]]], bool]:
+    envelopes = _background_messages_artifact(relative_path, consumer)
+    _assert_background_message_references(envelopes)
+    pickles = [
+        envelope["pickle"]
+        for envelope in envelopes
+        if isinstance(envelope.get("pickle"), dict) and envelope["pickle"].get("name") == scenario_name
+    ]
+    assert len(pickles) == 1, f"expected one pickle for WIP scenario {scenario_name!r}, got {pickles!r}"
+    pickle = pickles[0]
+    cases = [
+        envelope["testCase"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCase"), dict) and envelope["testCase"].get("pickleId") == pickle["id"]
+    ]
+    assert len(cases) == 1, f"expected one test case for WIP scenario {scenario_name!r}, got {cases!r}"
+    test_case = cases[0]
+    starts = [
+        envelope["testCaseStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCaseStarted"), dict)
+        and envelope["testCaseStarted"].get("testCaseId") == test_case["id"]
+    ]
+    assert len(starts) == 1, f"expected one started attempt for WIP scenario {scenario_name!r}, got {starts!r}"
+    started_id = starts[0]["id"]
+    finishes = {
+        finish["testStepId"]: finish["testStepResult"]
+        for envelope in envelopes
+        if isinstance((finish := envelope.get("testStepFinished")), dict)
+        and finish.get("testCaseStartedId") == started_id
+    }
+    steps = [
+        (pickle_step["text"], finishes[test_step["id"]])
+        for pickle_step, test_step in zip(pickle["steps"], test_case["testSteps"], strict=True)
+        if test_step["id"] in finishes
+    ]
+    run_finishes = [
+        envelope["testRunFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunFinished"), dict)
+    ]
+    assert len(run_finishes) == 1, f"expected one TestRunFinished event, got {run_finishes!r}"
+    return steps, bool(run_finishes[0].get("success"))
+
+
+@then(
+    re.compile(
+        r'consumer artifacts "(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" should agree for WIP scenario '
+        r'"(?P<scenario_name>[^"]+)" with step statuses "(?P<statuses>[a-z, ]+)" and exception messages '
+        r'"(?P<messages>[^"]*)" and run success "(?P<run_success>true|false)"'
+    )
+)
+def consumer_wip_messages_and_json_agree(
+    messages_path: str,
+    json_path: str,
+    scenario_name: str,
+    statuses: str,
+    messages: str,
+    run_success: str,
+    consumer: ConsumerProject,
+) -> None:
+    steps, actual_run_success = _wip_scenario_step_results(messages_path, scenario_name, consumer)
+    expected_messages_statuses = [status.strip().upper() for status in statuses.split(",")]
+    actual_message_statuses = [result.get("status") for _, result in steps]
+    assert actual_message_statuses == expected_messages_statuses, (actual_message_statuses, expected_messages_statuses)
+    actual_messages = [
+        result["exception"].get("message")
+        for _, result in steps
+        if result.get("status") == "FAILED" and isinstance(result.get("exception"), dict)
+    ]
+    expected_messages = messages.split(",") if messages else []
+    assert actual_messages == expected_messages, (actual_messages, expected_messages)
+    assert actual_run_success is (run_success == "true"), (actual_run_success, run_success)
+
+    report = json.loads(_consumer_artifact_path(json_path, consumer).read_text(encoding="utf-8"))
+    scenarios = [
+        element
+        for feature in report
+        for element in feature.get("elements", [])
+        if element.get("name") == scenario_name
+    ]
+    assert len(scenarios) == 1, scenarios
+    json_steps = scenarios[0]["steps"]
+    json_statuses = [step["result"]["status"] for step in json_steps]
+    expected_json_statuses = [status.strip() for status in statuses.split(",")]
+    assert json_statuses == expected_json_statuses, (json_statuses, expected_json_statuses)
+    json_messages = [
+        step["result"]["error_message"]
+        for step in json_steps
+        if step["result"]["status"] == "failed" and step["result"].get("error_message")
+    ]
+    assert json_messages == expected_messages, (json_messages, expected_messages)
+
+
+@then(
+    re.compile(
+        r'consumer Messages artifact "(?P<relative_path>[^"]+)" should report WIP scenario '
+        r'"(?P<scenario_name>[^"]+)" with step statuses "(?P<statuses>[A-Z, ]+)" and exception messages '
+        r'"(?P<messages>[^"]*)"'
+    )
+)
+def consumer_wip_scenario_messages(
+    relative_path: str,
+    scenario_name: str,
+    statuses: str,
+    messages: str,
+    consumer: ConsumerProject,
+) -> None:
+    steps, _ = _wip_scenario_step_results(relative_path, scenario_name, consumer)
+    expected_statuses = [status.strip() for status in statuses.split(",")]
+    actual_statuses = [result.get("status") for _, result in steps]
+    assert actual_statuses == expected_statuses, (actual_statuses, expected_statuses, steps)
+    actual_messages = [
+        result["exception"].get("message")
+        for _, result in steps
+        if result.get("status") == "FAILED" and isinstance(result.get("exception"), dict)
+    ]
+    expected_messages = messages.split(",") if messages else []
+    assert actual_messages == expected_messages, (actual_messages, expected_messages, steps)
+
+
+@then(re.compile(r'consumer WIP side-effect artifact should list "(?P<effects>[^"]+)"'))
+def consumer_wip_side_effects(effects: str, consumer: ConsumerProject) -> None:
+    actual = _consumer_artifact_path("wip-effects.log", consumer).read_text(encoding="utf-8").splitlines()
+    expected = effects.split(",")
+    assert actual == expected, f"expected WIP side effects {expected!r}, got {actual!r}"
+
+
+@when(
+    re.compile(
+        r'I run installed pytest twice in one process with arguments "(?P<first_arguments>[^"]*)" and then '
+        r'"(?P<second_arguments>[^"]*)"'
+    )
+)
+def run_consumer_pytest_twice_in_one_process(
+    first_arguments: str,
+    second_arguments: str,
+    consumer: ConsumerProject,
+) -> None:
+    runner = consumer.path / "run_wip_sessions.py"
+    runner.write_text(
+        "from pathlib import Path\n"
+        "import sys\n"
+        "import pytest\n"
+        "separator = sys.argv.index('--pytest-cuke-next-session')\n"
+        "first = pytest.main(sys.argv[1:separator])\n"
+        "second = pytest.main(sys.argv[separator + 1:])\n"
+        "Path('repeat-session-exits.txt').write_text(f'{int(first)},{int(second)}\\n', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [
+            str(consumer.python),
+            str(runner),
+            *shlex.split(first_arguments),
+            "--pytest-cuke-next-session",
+            *shlex.split(second_arguments),
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    consumer.pytest_result = result
+
+
+@then(re.compile(r'consumer repeated pytest sessions should exit with codes "(?P<codes>[0-9,]+)"'))
+def consumer_repeated_pytest_sessions_exit(codes: str, consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "repeated pytest sessions have not been run"
+    assert result.returncode == 0, f"the session runner failed:\n{result.stdout}\n{result.stderr}"
+    actual = _consumer_artifact_path("repeat-session-exits.txt", consumer).read_text(encoding="utf-8").strip()
+    assert actual == codes, f"expected repeated pytest exit codes {codes!r}, got {actual!r}"
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<messages_path>[^"]+)" should contain 2 coherent passed WIP outline attempts '
+        r'matching "(?P<json_path>[^"]+)"'
+    )
+)
+def consumer_wip_outline_messages_match_json(
+    messages_path: str,
+    json_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    envelopes = _background_messages_artifact(messages_path, consumer)
+    _assert_background_message_references(envelopes)
+    pickles = [
+        envelope["pickle"]
+        for envelope in envelopes
+        if isinstance(envelope.get("pickle"), dict)
+        and any("not-implemented outline step" in step["text"] for step in envelope["pickle"]["steps"])
+    ]
+    assert len(pickles) == 2, pickles
+    cases = {
+        envelope["testCase"]["pickleId"]: envelope["testCase"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCase"), dict)
+    }
+    starts = {
+        envelope["testCaseStarted"]["testCaseId"]: envelope["testCaseStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCaseStarted"), dict)
+    }
+    assert len(cases) == len(starts) == 2, (cases, starts)
+    assert len([envelope for envelope in envelopes if isinstance(envelope.get("testCaseFinished"), dict)]) == 2
+    finished_steps = {
+        (finish["testCaseStartedId"], finish["testStepId"]): finish["testStepResult"]
+        for envelope in envelopes
+        if isinstance((finish := envelope.get("testStepFinished")), dict)
+    }
+    message_rows: dict[tuple[str, ...], tuple[str, ...]] = {}
+    for pickle in pickles:
+        case = cases[pickle["id"]]
+        started = starts[case["id"]]
+        texts = tuple(step["text"] for step in pickle["steps"])
+        statuses = tuple(
+            finished_steps[(started["id"], test_step["id"])]["status"]
+            for test_step in case["testSteps"]
+        )
+        assert statuses == ("PASSED",) * len(texts), (texts, statuses)
+        assert texts not in message_rows, message_rows
+        message_rows[texts] = statuses
+
+    run_finishes = [
+        envelope["testRunFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunFinished"), dict)
+    ]
+    assert len(run_finishes) == 1 and run_finishes[0].get("success") is True, run_finishes
+
+    report = json.loads(_consumer_artifact_path(json_path, consumer).read_text(encoding="utf-8"))
+    elements = [element for feature in report for element in feature.get("elements", [])]
+    assert len(elements) == 2, elements
+    json_rows = {
+        tuple(step["name"] for step in element["steps"]): tuple(
+            step["result"]["status"].upper() for step in element["steps"]
+        )
+        for element in elements
+    }
+    assert len(json_rows) == 2, json_rows
+    assert message_rows == json_rows, (message_rows, json_rows)

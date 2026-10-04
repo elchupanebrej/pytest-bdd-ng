@@ -40,12 +40,16 @@ def test_pytest_configure_lifecycle() -> None:
     config.option.cuke_progress = False
     config.option.cuke_summary = False
     config.option.cuke_tolerant_status = None
-    config.getini.side_effect = lambda name: "failed" if name == "cuke_tolerant_status" else ""
+    config.option.cuke_wip_status = None
+    config.getini.side_effect = lambda name: "failed" if name in {"cuke_tolerant_status", "cuke_wip_status"} else ""
 
     pytest_configure(config)
 
     config.addinivalue_line.assert_any_call("markers", "pytest_cuke_scenario: marker to identify pytest_cuke tests")
     config.addinivalue_line.assert_any_call("markers", "scenarios: marker to provide scenarios locator")
+    config.addinivalue_line.assert_any_call(
+        "markers", "wip_status(value): override the not-implemented step status for this scenario"
+    )
     assert IdGenerator.pytest_cuke_id_generator in config.stash
     assert IdGenerator.from_stash(config.stash).namespace == RunContext.from_config(config).run_id
     assert config.pluginmanager.register.call_count >= 2
