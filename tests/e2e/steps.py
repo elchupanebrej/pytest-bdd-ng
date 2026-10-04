@@ -6569,3 +6569,581 @@ def consumer_wip_outline_messages_match_json(
     }
     assert len(json_rows) == 2, json_rows
     assert message_rows == json_rows, (message_rows, json_rows)
+
+
+_IDE_LAUNCH_MEDIA_TYPE = "application/vnd.pytest-bdd.launch+json"
+_IDE_STEP_BINDING_MEDIA_TYPE = "application/vnd.pytest-bdd.step-binding+json"
+_IDE_DIAGNOSTIC_MEDIA_TYPE = "application/vnd.pytest-bdd.diagnostic+json"
+
+
+def _ide_binding_envelopes(relative_path: str, consumer: ConsumerProject) -> list[dict[str, object]]:
+    artifact = _consumer_artifact_path(relative_path, consumer)
+    lines = artifact.read_text(encoding="utf-8").splitlines()
+    envelopes = [json.loads(line) for line in lines if line.strip()]
+    assert all(isinstance(envelope, dict) for envelope in envelopes), envelopes
+    return envelopes
+
+
+def _ide_binding_payloads(
+    envelopes: list[dict[str, object]], media_type: str
+) -> list[dict[str, object]]:
+    payloads: list[dict[str, object]] = []
+    for envelope in envelopes:
+        attachment = envelope.get("attachment")
+        if not isinstance(attachment, dict) or attachment.get("mediaType") != media_type:
+            continue
+        body = attachment.get("body")
+        assert isinstance(body, str), attachment
+        payload = json.loads(body)
+        assert isinstance(payload, dict), payload
+        payloads.append(payload)
+    return payloads
+
+
+def _ide_source_path(uri: object, consumer: ConsumerProject) -> Path:
+    assert isinstance(uri, str) and uri, f"source URI must be a non-empty string, got {uri!r}"
+    parsed = urlsplit(uri)
+    if parsed.scheme == "file":
+        from urllib.request import url2pathname
+
+        path_text = url2pathname(unquote(parsed.path))
+        if parsed.netloc and parsed.netloc != "localhost":
+            path_text = f"//{parsed.netloc}{path_text}"
+        elif os.name == "nt" and re.match(r"^/[A-Za-z]:", path_text):
+            path_text = path_text[1:]
+        path = Path(path_text)
+    else:
+        assert not parsed.scheme, f"source URI must be a file URI or consumer-relative path: {uri!r}"
+        path = Path(unquote(uri))
+        if not path.is_absolute():
+            path = consumer.path / path
+    resolved = path.resolve()
+    assert resolved.is_file(), f"source URI {uri!r} did not resolve to a file: {resolved}"
+    return resolved
+
+
+def _ide_assert_source_identity(
+    identity: object,
+    consumer: ConsumerProject,
+    *,
+    suffix: str | None = None,
+) -> tuple[Path, int]:
+    assert isinstance(identity, dict), f"source identity must be an object, got {identity!r}"
+    line = identity.get("line")
+    assert type(line) is int and line > 0, identity
+    source_path = _ide_source_path(identity.get("uri"), consumer)
+    source_lines = source_path.read_text(encoding="utf-8").splitlines()
+    assert line <= len(source_lines), f"source line {line} is outside {source_path}"
+    if suffix is not None:
+        assert source_path.name.endswith(suffix), (source_path, suffix)
+    return source_path, line
+
+
+def _ide_assert_file_source_reference(
+    reference: object,
+    consumer: ConsumerProject,
+    *,
+    suffix: str | None = None,
+) -> tuple[Path, int]:
+    assert isinstance(reference, dict), f"source reference must be an object, got {reference!r}"
+    uri = reference.get("uri")
+    assert isinstance(uri, str) and urlsplit(uri).scheme == "file", reference
+    return _ide_assert_source_identity(reference, consumer, suffix=suffix)
+
+
+def _ide_nested_source_references(value: object) -> list[dict[str, object]]:
+    references: list[dict[str, object]] = []
+    if isinstance(value, dict):
+        if isinstance(value.get("uri"), str) and "line" in value:
+            references.append(value)
+        for child in value.values():
+            references.extend(_ide_nested_source_references(child))
+    elif isinstance(value, list):
+        for child in value:
+            references.extend(_ide_nested_source_references(child))
+    return references
+
+
+def _ide_collected_nodeids(consumer: ConsumerProject) -> set[str]:
+    path = _consumer_artifact_path("collected-nodeids.txt", consumer)
+    return {line for line in path.read_text(encoding="utf-8").splitlines() if line}
+
+
+def _ide_case_records(
+    envelopes: list[dict[str, object]],
+) -> tuple[dict[str, dict[str, object]], dict[str, dict[str, object]]]:
+    test_cases = {
+        case["id"]: case
+        for envelope in envelopes
+        if isinstance((case := envelope.get("testCase")), dict) and isinstance(case.get("id"), str)
+    }
+    pickles = {
+        pickle["id"]: pickle
+        for envelope in envelopes
+        if isinstance((pickle := envelope.get("pickle")), dict) and isinstance(pickle.get("id"), str)
+    }
+    return test_cases, pickles
+
+
+def _ide_case_step_results(
+    envelopes: list[dict[str, object]], test_case: dict[str, object]
+) -> dict[str, str]:
+    case_id = test_case.get("id")
+    case_steps = test_case.get("testSteps")
+    assert isinstance(case_id, str) and isinstance(case_steps, list), test_case
+    starts_by_id = {
+        start["id"]: start
+        for envelope in envelopes
+        if isinstance((start := envelope.get("testCaseStarted")), dict)
+        and start.get("testCaseId") == case_id
+        and isinstance(start.get("id"), str)
+    }
+    test_step_ids = {step.get("id") for step in case_steps if isinstance(step, dict)}
+    results: dict[str, str] = {}
+    for envelope in envelopes:
+        finish = envelope.get("testStepFinished")
+        if not isinstance(finish, dict):
+            continue
+        if finish.get("testCaseStartedId") not in starts_by_id or finish.get("testStepId") not in test_step_ids:
+            continue
+        result = finish.get("testStepResult")
+        assert isinstance(result, dict) and isinstance(result.get("status"), str), finish
+        results[finish["testStepId"]] = result["status"]
+    return results
+
+
+@given("the consumer project root includes a Unicode character")
+def consumer_project_root_includes_unicode(consumer: ConsumerProject) -> None:
+    old_path = consumer.path
+    unicode_path = old_path.with_name(f"{old_path.name}-café")
+    assert not unicode_path.exists(), unicode_path
+    old_path.rename(unicode_path)
+    consumer.path = unicode_path
+    consumer.env["HOME"] = str(unicode_path / ".home")
+    if os.name == "nt":
+        consumer.env["USERPROFILE"] = str(unicode_path / ".home")
+
+
+@when(
+    re.compile(
+        r'I run installed pytest with an absolute consumer feature root and Messages file "(?P<relative_path>[^"]+)"'
+    )
+)
+def run_consumer_pytest_with_absolute_feature_root(relative_path: str, consumer: ConsumerProject) -> None:
+    output_path = _consumer_artifact_path(relative_path, consumer)
+    result = subprocess.run(
+        [
+            str(consumer.pytest),
+            "--rootdir=.",
+            "--cuke-autoload",
+            "--cuke-parser=python",
+            f"--cuke-features-dir={consumer.path / 'features'}",
+            f"--cuke-messages-ndjson={output_path}",
+            "--cuke-summary",
+            "-q",
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    consumer.pytest_result = result
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should report the five parser bindings with real source identities'
+    )
+)
+def consumer_ide_parser_bindings_have_real_sources(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _ide_binding_envelopes(relative_path, consumer)
+    launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    assert len(launches) == 1, launches
+    launch = launches[0]
+    case_id = launch.get("testCaseId")
+    pickle_id = launch.get("pickleId")
+    nodeid = launch.get("nodeid")
+    assert isinstance(case_id, str) and case_id, launch
+    assert isinstance(pickle_id, str) and pickle_id, launch
+    assert isinstance(nodeid, str) and nodeid in _ide_collected_nodeids(consumer), launch
+    feature_path, _ = _ide_assert_source_identity(launch.get("sourceIdentity"), consumer, suffix=".feature")
+    assert feature_path == (consumer.path / "features/parser-bindings.feature").resolve(), feature_path
+
+    test_cases, pickles = _ide_case_records(envelopes)
+    test_case = test_cases[case_id]
+    assert test_case.get("pickleId") == pickle_id, (launch, test_case)
+    pickle = pickles[pickle_id]
+    steps = pickle.get("steps")
+    assert isinstance(steps, list), pickle
+    step_text_by_id = {step["id"]: step["text"] for step in steps if isinstance(step, dict)}
+    expected_arguments = {
+        "the literal binding is selected": [],
+        "I parse the name Alice": [("name", "Alice")],
+        "I cfparse the name Bohdan": [("name", "Bohdan")],
+        "I match the regex name Ira": [("name", "Ira")],
+        "I match the expression name Olena": [("name", "Olena")],
+        "all five parser bindings ran": [],
+    }
+    matches = [
+        payload
+        for payload in _ide_binding_payloads(envelopes, _IDE_STEP_BINDING_MEDIA_TYPE)
+        if payload.get("testCaseId") == case_id
+    ]
+    assert len(matches) == len(expected_arguments), matches
+    actual_arguments: dict[str, list[tuple[str, object]]] = {}
+    step_definition_ids: set[str] = set()
+    for match in matches:
+        step_id = match.get("pickleStepId")
+        definition_id = match.get("stepDefinitionId")
+        assert isinstance(step_id, str) and step_id in step_text_by_id, match
+        assert isinstance(definition_id, str) and definition_id, match
+        arguments = match.get("matchArguments")
+        assert isinstance(arguments, list), match
+        actual_arguments[step_text_by_id[step_id]] = [
+            (argument.get("name"), argument.get("value"))
+            for argument in arguments
+            if isinstance(argument, dict)
+        ]
+        reference_path, _ = _ide_assert_file_source_reference(
+            match.get("sourceReference"), consumer, suffix="conftest.py"
+        )
+        assert reference_path == (consumer.path / "conftest.py").resolve(), reference_path
+        step_definition_ids.add(definition_id)
+    assert actual_arguments == expected_arguments, (actual_arguments, expected_arguments)
+    assert len(step_definition_ids) == len(expected_arguments), step_definition_ids
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should report the missing step and both ambiguous candidates'))
+def consumer_ide_missing_and_ambiguous_diagnostics(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _ide_binding_envelopes(relative_path, consumer)
+    launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    assert len(launches) == 2, launches
+    nodeids = _ide_collected_nodeids(consumer)
+    launches_by_case = {launch.get("testCaseId"): launch for launch in launches}
+    assert len(launches_by_case) == 2 and None not in launches_by_case, launches
+    assert all(launch.get("nodeid") in nodeids for launch in launches), launches
+
+    diagnostics = _ide_binding_payloads(envelopes, _IDE_DIAGNOSTIC_MEDIA_TYPE)
+    missing = [diagnostic for diagnostic in diagnostics if diagnostic.get("kind") == "missing-step"]
+    ambiguous = [diagnostic for diagnostic in diagnostics if diagnostic.get("kind") == "ambiguous-step"]
+    assert len(missing) == len(ambiguous) == 1, diagnostics
+    missing_diagnostic = missing[0]
+    ambiguous_diagnostic = ambiguous[0]
+    assert missing_diagnostic.get("severity") == ambiguous_diagnostic.get("severity") == "warning"
+    assert missing_diagnostic.get("unmatchedStepText") == "the unique missing phrase is needle-73", missing_diagnostic
+    missing_case_id = missing_diagnostic.get("testCaseId")
+    missing_step_id = missing_diagnostic.get("pickleStepId")
+    assert missing_case_id in launches_by_case and isinstance(missing_step_id, str), missing_diagnostic
+    available = missing_diagnostic.get("availableStepDefinitions")
+    assert isinstance(available, list) and available, missing_diagnostic
+    available_references = _ide_nested_source_references(available)
+    assert available_references, available
+    resolved_available = [
+        _ide_assert_file_source_reference(reference, consumer, suffix="conftest.py")[0]
+        for reference in available_references
+    ]
+    assert all(path == (consumer.path / "conftest.py").resolve() for path in resolved_available), resolved_available
+
+    candidates = ambiguous_diagnostic.get("candidates")
+    assert isinstance(candidates, list) and len(candidates) == 2, ambiguous_diagnostic
+    candidate_ids: list[str] = []
+    candidate_lines: list[int] = []
+    for candidate in candidates:
+        assert isinstance(candidate, dict), candidate
+        assert candidate.get("pattern") == "the ambiguous operation is selected", candidate
+        definition_id = candidate.get("stepDefinitionId")
+        assert isinstance(definition_id, str) and definition_id, candidate
+        candidate_ids.append(definition_id)
+        path, line = _ide_assert_file_source_reference(candidate.get("sourceReference"), consumer, suffix="conftest.py")
+        assert path == (consumer.path / "conftest.py").resolve(), path
+        candidate_lines.append(line)
+    assert len(set(candidate_ids)) == 2, candidate_ids
+    assert len(set(candidate_lines)) == 2, candidate_lines
+    ambiguous_case_id = ambiguous_diagnostic.get("testCaseId")
+    ambiguous_step_id = ambiguous_diagnostic.get("pickleStepId")
+    assert ambiguous_case_id in launches_by_case and isinstance(ambiguous_step_id, str), ambiguous_diagnostic
+
+    test_cases, pickles = _ide_case_records(envelopes)
+    missing_case = test_cases[missing_case_id]
+    missing_pickle = pickles[missing_case["pickleId"]]
+    missing_step_texts = {
+        step["id"]: step["text"] for step in missing_pickle["steps"] if isinstance(step, dict)
+    }
+    assert missing_step_texts[missing_step_id] == missing_diagnostic["unmatchedStepText"], missing_diagnostic
+    missing_test_step = next(
+        step for step in missing_case["testSteps"] if isinstance(step, dict) and step.get("pickleStepId") == missing_step_id
+    )
+    missing_statuses = _ide_case_step_results(envelopes, missing_case)
+    assert missing_statuses.get(missing_test_step["id"]) == "UNDEFINED", missing_statuses
+
+    ambiguous_case = test_cases[ambiguous_case_id]
+    ambiguous_pickle = pickles[ambiguous_case["pickleId"]]
+    ambiguous_step_texts = {
+        step["id"]: step["text"] for step in ambiguous_pickle["steps"] if isinstance(step, dict)
+    }
+    ambiguous_step_match = next(
+        match
+        for match in _ide_binding_payloads(envelopes, _IDE_STEP_BINDING_MEDIA_TYPE)
+        if match.get("testCaseId") == ambiguous_case_id and match.get("pickleStepId") == ambiguous_step_id
+    )
+    assert ambiguous_step_texts[ambiguous_step_id] == "the ambiguous operation is selected", ambiguous_step_match
+    assert ambiguous_step_match.get("stepDefinitionId") == candidate_ids[0], ambiguous_step_match
+    ambiguous_test_step = next(
+        step
+        for step in ambiguous_case["testSteps"]
+        if isinstance(step, dict) and step.get("pickleStepId") == ambiguous_step_id
+    )
+    ambiguous_statuses = _ide_case_step_results(envelopes, ambiguous_case)
+    assert ambiguous_statuses.get(ambiguous_test_step["id"]) == "PASSED", ambiguous_statuses
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should report unbound and duplicate scenario bindings with real node and case IDs'
+    )
+)
+def consumer_ide_collection_binding_diagnostics(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _ide_binding_envelopes(relative_path, consumer)
+    launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    assert len(launches) == 2, launches
+    nodeids = _ide_collected_nodeids(consumer)
+    launch_by_case = {
+        launch.get("testCaseId"): launch
+        for launch in launches
+        if isinstance(launch.get("testCaseId"), str)
+    }
+    assert len(launch_by_case) == 2, launches
+    assert all(launch.get("nodeid") in nodeids for launch in launches), launches
+    diagnostics = _ide_binding_payloads(envelopes, _IDE_DIAGNOSTIC_MEDIA_TYPE)
+    unbound = [diagnostic for diagnostic in diagnostics if diagnostic.get("kind") == "unbound-scenario"]
+    duplicates = [diagnostic for diagnostic in diagnostics if diagnostic.get("kind") == "duplicate-bindings"]
+    assert len(unbound) == len(duplicates) == 1, diagnostics
+    assert unbound[0].get("severity") == duplicates[0].get("severity") == "warning"
+    unbound_path, unbound_line = _ide_assert_source_identity(
+        unbound[0].get("sourceIdentity"), consumer, suffix="collection-bindings.feature"
+    )
+    duplicate_path, duplicate_line = _ide_assert_source_identity(
+        duplicates[0].get("sourceIdentity"), consumer, suffix="collection-bindings.feature"
+    )
+    assert unbound_path == duplicate_path == (consumer.path / "features/collection-bindings.feature").resolve()
+    assert unbound_line != duplicate_line, (unbound_line, duplicate_line)
+
+    bindings = duplicates[0].get("bindings")
+    assert isinstance(bindings, list) and len(bindings) == 2, duplicates[0]
+    binding_nodeids: set[str] = set()
+    binding_case_ids: set[str] = set()
+    for binding in bindings:
+        assert isinstance(binding, dict), binding
+        nodeid = binding.get("nodeid")
+        case_id = binding.get("testCaseId")
+        assert isinstance(nodeid, str) and nodeid in nodeids, binding
+        assert "test_first_collection_binding" in nodeid or "test_second_collection_binding" in nodeid, nodeid
+        assert isinstance(case_id, str) and case_id in launch_by_case, binding
+        assert launch_by_case[case_id].get("nodeid") == nodeid, (binding, launch_by_case[case_id])
+        binding_nodeids.add(nodeid)
+        binding_case_ids.add(case_id)
+    assert len(binding_nodeids) == len(binding_case_ids) == 2, bindings
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should report distinct source lines for both outline rows'))
+def consumer_ide_outline_row_identities(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _ide_binding_envelopes(relative_path, consumer)
+    launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    assert len(launches) == 3, launches
+    test_cases, pickles = _ide_case_records(envelopes)
+    rows: dict[str, tuple[dict[str, object], dict[str, object], Path, int]] = {}
+    for launch in launches:
+        case_id = launch.get("testCaseId")
+        pickle_id = launch.get("pickleId")
+        nodeid = launch.get("nodeid")
+        assert isinstance(case_id, str) and isinstance(pickle_id, str) and isinstance(nodeid, str), launch
+        test_case = test_cases[case_id]
+        pickle = pickles[pickle_id]
+        step_texts = [step.get("text") for step in pickle.get("steps", []) if isinstance(step, dict)]
+        matching_row = next((value for value in ("11", "22", "33") if f"the source row is {value}" in step_texts), None)
+        assert matching_row is not None, (launch, step_texts)
+        assert matching_row not in rows, rows
+        source_path, source_line = _ide_assert_source_identity(launch.get("sourceIdentity"), consumer)
+        assert source_path.name.endswith(("outline-rows.feature", "narrative-cafe.feature.md")), source_path
+        assert nodeid in _ide_collected_nodeids(consumer), launch
+        rows[matching_row] = (test_case, pickle, source_path, source_line)
+
+    assert set(rows) == {"11", "22", "33"}, rows
+    outline_rows = [rows[value] for value in ("11", "22")]
+    assert all(row[2] == (consumer.path / "features/outline-rows.feature").resolve() for row in outline_rows)
+    assert outline_rows[0][1]["id"] != outline_rows[1][1]["id"], outline_rows
+    assert outline_rows[0][0]["id"] != outline_rows[1][0]["id"], outline_rows
+    assert outline_rows[0][3] != outline_rows[1][3], outline_rows
+    assert outline_rows[0][1]["id"] != rows["33"][1]["id"], rows
+    assert rows["33"][2] == (consumer.path / "features/narrative/narrative-cafe.feature.md").resolve(), rows
+    assert "café" in str(rows["33"][2].resolve()), rows["33"]
+
+    matches = _ide_binding_payloads(envelopes, _IDE_STEP_BINDING_MEDIA_TYPE)
+    assert len(matches) == 3, matches
+    case_to_arguments = {
+        match["testCaseId"]: match.get("matchArguments")
+        for match in matches
+        if isinstance(match.get("testCaseId"), str)
+    }
+    for value, (test_case, pickle, _source_path, _source_line) in rows.items():
+        step = pickle["steps"][0]
+        test_step = test_case["testSteps"][0]
+        assert step["text"] == f"the source row is {value}", step
+        assert case_to_arguments[test_case["id"]] == [{"name": "value", "value": int(value)}], case_to_arguments
+        assert test_step.get("pickleStepId") == step["id"], test_step
+        match = next(item for item in matches if item.get("testCaseId") == test_case["id"])
+        _ide_assert_file_source_reference(match.get("sourceReference"), consumer, suffix="conftest.py")
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should contain only the current narrative source identity'))
+def consumer_ide_current_narrative_identity(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _ide_binding_envelopes(relative_path, consumer)
+    launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    assert len(launches) == 1, launches
+    launch = launches[0]
+    test_cases, pickles = _ide_case_records(envelopes)
+    case_id = launch.get("testCaseId")
+    pickle_id = launch.get("pickleId")
+    assert isinstance(case_id, str) and isinstance(pickle_id, str), launch
+    assert case_id in test_cases and pickle_id in pickles, launch
+    assert test_cases[case_id].get("pickleId") == pickle_id, launch
+    source_path, _ = _ide_assert_source_identity(launch.get("sourceIdentity"), consumer, suffix="narrative-cafe.feature.md")
+    assert source_path == (consumer.path / "features/narrative/narrative-cafe.feature.md").resolve()
+    pickle_texts = [step.get("text") for step in pickles[pickle_id].get("steps", []) if isinstance(step, dict)]
+    assert pickle_texts == ["the source row is 33"], pickle_texts
+    nodeid = launch.get("nodeid")
+    assert isinstance(nodeid, str) and nodeid in _ide_collected_nodeids(consumer), launch
+    matches = [
+        match
+        for match in _ide_binding_payloads(envelopes, _IDE_STEP_BINDING_MEDIA_TYPE)
+        if match.get("testCaseId") == case_id
+    ]
+    assert len(matches) == 1 and matches[0].get("matchArguments") == [{"name": "value", "value": 33}], matches
+    _ide_assert_file_source_reference(matches[0].get("sourceReference"), consumer, suffix="conftest.py")
+    assert not any(
+        diagnostic.get("kind") == "duplicate-bindings"
+        for diagnostic in _ide_binding_payloads(envelopes, _IDE_DIAGNOSTIC_MEDIA_TYPE)
+    ), envelopes
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should keep both worker source identities separate'))
+def consumer_ide_xdist_source_identities(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _ide_binding_envelopes(relative_path, consumer)
+    launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    assert len(launches) == 2, launches
+    test_cases, _ = _ide_case_records(envelopes)
+    pickle_messages = [
+        pickle
+        for envelope in envelopes
+        if isinstance((pickle := envelope.get("pickle")), dict)
+    ]
+    seen_sources: dict[str, dict[str, object]] = {}
+    for launch in launches:
+        case_id = launch.get("testCaseId")
+        pickle_id = launch.get("pickleId")
+        nodeid = launch.get("nodeid")
+        assert isinstance(case_id, str) and isinstance(pickle_id, str) and isinstance(nodeid, str), launch
+        source_path, _ = _ide_assert_source_identity(launch.get("sourceIdentity"), consumer)
+        assert source_path.name in {"north-source.feature", "south-source.feature"}, source_path
+        assert source_path.name not in seen_sources, seen_sources
+        case = test_cases[case_id]
+        expected_value = "north" if source_path.name == "north-source.feature" else "south"
+        expected_name = "The north source is collected" if expected_value == "north" else "The south source is collected"
+        assert case.get("pickleId") == pickle_id, (launch, case)
+        matching_pickles = [
+            pickle
+            for pickle in pickle_messages
+            if pickle.get("id") == pickle_id and pickle.get("name") == expected_name
+        ]
+        assert matching_pickles, (launch, pickle_messages)
+        assert case.get("testSteps"), case
+        assert all(
+            isinstance(pickle.get("steps"), list)
+            and pickle["steps"][0].get("text") == f"the worker source is {expected_value}"
+            for pickle in matching_pickles
+        ), (source_path, matching_pickles)
+        assert source_path.name.split("-")[0] in nodeid, nodeid
+        seen_sources[source_path.name] = launch
+    assert set(seen_sources) == {"north-source.feature", "south-source.feature"}, seen_sources
+    assert len({launch["testCaseId"] for launch in launches}) == 2, launches
+
+    matches = _ide_binding_payloads(envelopes, _IDE_STEP_BINDING_MEDIA_TYPE)
+    assert len(matches) == 2, matches
+    matched_cases = {match.get("testCaseId"): match for match in matches}
+    assert set(matched_cases) == {launch.get("testCaseId") for launch in launches}, (matched_cases, launches)
+    for source_name, launch in ((name, payload) for name, payload in seen_sources.items()):
+        match = matched_cases[launch["testCaseId"]]
+        expected_value = "north" if source_name == "north-source.feature" else "south"
+        assert match.get("matchArguments") == [{"name": "value", "value": expected_value}], match
+        _ide_assert_file_source_reference(match.get("sourceReference"), consumer, suffix="conftest.py")
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should contain one complete duplicate binding diagnostic '
+        r'for both worker modules'
+    )
+)
+def consumer_ide_split_worker_duplicate_bindings(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _ide_binding_envelopes(relative_path, consumer)
+    launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    assert len(launches) == 2, launches
+
+    launches_by_nodeid: dict[str, dict[str, object]] = {}
+    for launch in launches:
+        nodeid = launch.get("nodeid")
+        case_id = launch.get("testCaseId")
+        assert isinstance(nodeid, str) and nodeid, launch
+        assert isinstance(case_id, str) and case_id, launch
+        assert nodeid not in launches_by_nodeid, launches
+        source_path, _ = _ide_assert_source_identity(
+            launch.get("sourceIdentity"), consumer, suffix="split-worker-bindings.feature"
+        )
+        assert source_path == (consumer.path / "features/split-worker-bindings.feature").resolve(), source_path
+        launches_by_nodeid[nodeid] = launch
+
+    assert len({launch.get("testCaseId") for launch in launches}) == 2, launches
+    assert {"test_north_duplicate_binding.py", "test_south_duplicate_binding.py"} == {
+        next(name for name in ("test_north_duplicate_binding.py", "test_south_duplicate_binding.py") if name in nodeid)
+        for nodeid in launches_by_nodeid
+    }, launches_by_nodeid
+
+    worker_lines = _consumer_artifact_path("worker-nodeids.txt", consumer).read_text(encoding="utf-8").splitlines()
+    worker_pairs = [tuple(line.split("\t", maxsplit=1)) for line in worker_lines]
+    assert len(worker_pairs) == 2 and all(len(pair) == 2 for pair in worker_pairs), worker_pairs
+    workers_by_nodeid = {nodeid: worker for nodeid, worker in worker_pairs}
+    assert set(workers_by_nodeid) == set(launches_by_nodeid), (workers_by_nodeid, launches_by_nodeid)
+    assert len(set(workers_by_nodeid.values())) == 2, workers_by_nodeid
+
+    diagnostics = [
+        diagnostic
+        for diagnostic in _ide_binding_payloads(envelopes, _IDE_DIAGNOSTIC_MEDIA_TYPE)
+        if diagnostic.get("kind") == "duplicate-bindings"
+    ]
+    assert len(diagnostics) == 1, diagnostics
+    diagnostic = diagnostics[0]
+    assert diagnostic.get("severity") == "warning", diagnostic
+    source_path, _ = _ide_assert_source_identity(
+        diagnostic.get("sourceIdentity"), consumer, suffix="split-worker-bindings.feature"
+    )
+    assert source_path == (consumer.path / "features/split-worker-bindings.feature").resolve(), diagnostic
+
+    bindings = diagnostic.get("bindings")
+    assert isinstance(bindings, list) and len(bindings) == 2, diagnostic
+    actual_pairs: set[tuple[str, str]] = set()
+    for binding in bindings:
+        assert isinstance(binding, dict), binding
+        nodeid = binding.get("nodeid")
+        case_id = binding.get("testCaseId")
+        assert isinstance(nodeid, str) and nodeid in launches_by_nodeid, binding
+        assert isinstance(case_id, str) and case_id, binding
+        launch = launches_by_nodeid[nodeid]
+        assert launch.get("testCaseId") == case_id, (binding, launch)
+        actual_pairs.add((nodeid, case_id))
+    expected_pairs = {
+        (nodeid, launch["testCaseId"])
+        for nodeid, launch in launches_by_nodeid.items()
+        if isinstance(launch.get("testCaseId"), str)
+    }
+    assert actual_pairs == expected_pairs, (actual_pairs, expected_pairs)
