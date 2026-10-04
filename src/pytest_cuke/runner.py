@@ -12,6 +12,7 @@ from pytest import hookimpl
 
 from pytest_cuke import exceptions
 from pytest_cuke.compatibility.pytest import (
+    Config,
     FixtureRequest,
     Item,
     call_fixture_func,
@@ -280,6 +281,9 @@ class ScenarioRunner:
             scenario = request.getfixturevalue("scenario")
             if feature is None or scenario is None:
                 return
+            if self._mock_run_enabled(request.config):
+                self._verify_mock_run_bindings(item, request, feature, scenario)
+                return
             context = get_run_context(request.config) or RunContext.from_config(request.config)
             scenario_run = context.get_scenario_run(item.nodeid)
             if scenario_run is None:
@@ -314,10 +318,64 @@ class ScenarioRunner:
                     status = self._status_for_exception(error) if error is not None else "passed"
                     context.finish_active(status=status, exception=error)
 
-            # Allow test function to use updated fixtures directly
-            fixturenames = getattr(item, "fixturenames", [])
-            for argname in fixturenames:
-                item.funcargs[argname] = request.getfixturevalue(argname)  # type: ignore[attr-defined]  # Pytest populates this private request for late fixture injection.
+            self._refresh_test_function_fixtures(item, request)
+
+    @staticmethod
+    def _mock_run_enabled(config: Config) -> bool:
+        option = getattr(getattr(config, "option", None), "cuke_mock_run", None)
+        if option is not None:
+            return bool(option)
+        return bool(config.getini("cuke_mock_run"))
+
+    @staticmethod
+    def _refresh_test_function_fixtures(item: Item, request: FixtureRequest) -> None:
+        """Keep late fixture values available to the ordinary pytest test function."""
+        for argname in getattr(item, "fixturenames", []):
+            item.funcargs[argname] = request.getfixturevalue(argname)  # type: ignore[attr-defined]  # Pytest populates this private request for late fixture injection.
+
+    def _verify_mock_run_bindings(
+        self,
+        item: Item,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Scenario,
+    ) -> None:
+        """Check every executable scenario step without entering BDD lifecycle hooks."""
+        context = get_run_context(request.config) or RunContext.from_config(request.config)
+        if context.get_scenario_run(item.nodeid) is None:
+            scenario_run = context.start_scenario(
+                nodeid=item.nodeid,
+                feature=feature,
+                scenario=scenario,
+                attempt=getattr(item, "execution_count", 0),
+            )
+            set_scenario_run(item, scenario_run)
+
+        missing: list[exceptions.StepDefinitionNotFoundError] = []
+        previous_step: Step | None = None
+        try:
+            for step in execution_steps(feature, scenario):
+                try:
+                    self.step_runner.match_to_step(request, feature, scenario, step, previous_step)
+                except exceptions.StepDefinitionNotFoundError as error:
+                    missing.append(error)
+                previous_step = step
+
+            if missing:
+                detail = "\n".join(f"- {error}" for error in missing)
+                raise exceptions.StepDefinitionNotFoundError(
+                    f"Scenario has steps without matching step definitions:\n{detail}"
+                )
+
+            self._refresh_test_function_fixtures(item, request)
+        except BaseException as error:
+            context.finish_active(
+                status=self._status_for_exception(error),
+                exception=error,
+                hook_phase="pytest_runtest_call",
+            )
+            raise
+        context.finish_active(status="passed", hook_phase="pytest_runtest_call")
 
     @staticmethod
     def _status_for_exception(

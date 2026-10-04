@@ -6900,6 +6900,107 @@ def consumer_ide_missing_and_ambiguous_diagnostics(relative_path: str, consumer:
 
 @then(
     re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should link mock-run launches to bound and missing source identities'
+    )
+)
+def consumer_ide_mock_run_source_identities(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _ide_binding_envelopes(relative_path, consumer)
+    launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    assert len(launches) == 2, launches
+
+    nodeids = _ide_collected_nodeids(consumer)
+    test_cases, pickles = _ide_case_records(envelopes)
+    launch_by_case: dict[str, tuple[dict[str, object], dict[str, object], dict[str, object]]] = {}
+    feature_path = (consumer.path / "features/mock-run-messages.feature").resolve()
+    for launch in launches:
+        case_id = launch.get("testCaseId")
+        pickle_id = launch.get("pickleId")
+        nodeid = launch.get("nodeid")
+        assert isinstance(case_id, str) and case_id, launch
+        assert isinstance(pickle_id, str) and pickle_id, launch
+        assert isinstance(nodeid, str) and nodeid in nodeids, launch
+        test_case = test_cases[case_id]
+        pickle = pickles[pickle_id]
+        assert test_case.get("pickleId") == pickle_id, (launch, test_case)
+        source_path, source_line = _ide_assert_source_identity(launch.get("sourceIdentity"), consumer)
+        assert source_path == feature_path, (launch, source_path)
+        source_text = source_path.read_text(encoding="utf-8").splitlines()[source_line - 1]
+        assert source_text.strip().startswith("Scenario:"), (source_line, source_text)
+        assert case_id not in launch_by_case, launches
+        launch_by_case[case_id] = (launch, test_case, pickle)
+
+    case_by_first_step: dict[str, str] = {}
+    for case_id, (_launch, _test_case, pickle) in launch_by_case.items():
+        steps = pickle.get("steps")
+        assert isinstance(steps, list) and steps, pickle
+        first_text = steps[0].get("text") if isinstance(steps[0], dict) else None
+        assert isinstance(first_text, str), pickle
+        case_by_first_step[first_text] = case_id
+    bound_step_text = "the IDE mock-run match is available"
+    missing_step_texts = {
+        "the first missing IDE message step is absent",
+        "the second missing IDE message step is absent",
+    }
+    bound_case_id = case_by_first_step[bound_step_text]
+    missing_case_id = next(
+        case_id for first_text, case_id in case_by_first_step.items() if first_text in missing_step_texts
+    )
+    assert bound_case_id != missing_case_id, case_by_first_step
+    missing_case_steps = launch_by_case[missing_case_id][2].get("steps")
+    assert isinstance(missing_case_steps, list), launch_by_case[missing_case_id][2]
+    missing_text_by_step_id = {
+        step["id"]: step["text"]
+        for step in missing_case_steps
+        if isinstance(step, dict) and isinstance(step.get("id"), str) and isinstance(step.get("text"), str)
+    }
+    assert set(missing_text_by_step_id.values()) == missing_step_texts, missing_text_by_step_id
+
+    matches = _ide_binding_payloads(envelopes, _IDE_STEP_BINDING_MEDIA_TYPE)
+    assert len(matches) == 1, matches
+    match = matches[0]
+    assert match.get("testCaseId") == bound_case_id, match
+    bound_steps = launch_by_case[bound_case_id][2].get("steps")
+    assert isinstance(bound_steps, list) and len(bound_steps) == 1, bound_steps
+    bound_step_id = bound_steps[0].get("id")
+    assert isinstance(bound_step_id, str) and match.get("pickleStepId") == bound_step_id, match
+    assert isinstance(match.get("stepDefinitionId"), str) and match["stepDefinitionId"], match
+    assert match.get("matchArguments") == [], match
+    definition_path, _ = _ide_assert_file_source_reference(match.get("sourceReference"), consumer, suffix="conftest.py")
+    assert definition_path == (consumer.path / "conftest.py").resolve(), definition_path
+
+    diagnostics = _ide_binding_payloads(envelopes, _IDE_DIAGNOSTIC_MEDIA_TYPE)
+    missing_diagnostics = [diagnostic for diagnostic in diagnostics if diagnostic.get("kind") == "missing-step"]
+    assert len(diagnostics) == len(missing_diagnostics) == 2, diagnostics
+    reported_texts: set[str] = set()
+    feature_lines = feature_path.read_text(encoding="utf-8").splitlines()
+    for diagnostic in missing_diagnostics:
+        assert diagnostic.get("severity") == "warning", diagnostic
+        assert diagnostic.get("testCaseId") == missing_case_id, diagnostic
+        step_id = diagnostic.get("pickleStepId")
+        unmatched_text = diagnostic.get("unmatchedStepText")
+        assert isinstance(step_id, str) and missing_text_by_step_id.get(step_id) == unmatched_text, diagnostic
+        assert isinstance(unmatched_text, str) and unmatched_text in missing_step_texts, diagnostic
+        reported_texts.add(unmatched_text)
+        source_lines = [
+            index
+            for index, line in enumerate(feature_lines, start=1)
+            if unmatched_text in line
+        ]
+        assert len(source_lines) == 1 and source_lines[0] > 0, (unmatched_text, source_lines)
+        available = diagnostic.get("availableStepDefinitions")
+        assert isinstance(available, list) and available, diagnostic
+        references = _ide_nested_source_references(available)
+        assert references, available
+        available_paths = [
+            _ide_assert_file_source_reference(reference, consumer, suffix="conftest.py")[0]
+            for reference in references
+        ]
+        assert all(path == (consumer.path / "conftest.py").resolve() for path in available_paths), available_paths
+    assert reported_texts == missing_step_texts, (reported_texts, missing_diagnostics)
+
+
+@then(
+    re.compile(
         r'consumer artifact "(?P<relative_path>[^"]+)" should report unbound and duplicate scenario bindings with real node and case IDs'
     )
 )
@@ -7147,3 +7248,35 @@ def consumer_ide_split_worker_duplicate_bindings(relative_path: str, consumer: C
         if isinstance(launch.get("testCaseId"), str)
     }
     assert actual_pairs == expected_pairs, (actual_pairs, expected_pairs)
+
+
+@then(re.compile(r'consumer marker artifact "(?P<relative_path>[^"]+)" should contain the normal BDD execution markers'))
+def consumer_mock_run_normal_execution_markers(relative_path: str, consumer: ConsumerProject) -> None:
+    marker_path = _consumer_artifact_path(relative_path, consumer)
+    assert marker_path.is_file(), f"consumer execution marker artifact does not exist: {marker_path}"
+    actual = marker_path.read_text(encoding="utf-8").splitlines()
+    expected = [
+        "after-scenario",
+        "after-step",
+        "before-scenario",
+        "before-step",
+        "before-step-call",
+        "run-scenario",
+        "step-body",
+        "test-function-body",
+    ]
+    assert sorted(actual) == sorted(expected), (actual, expected)
+
+
+@then(
+    re.compile(
+        r'consumer marker artifact "(?P<relative_path>[^"]+)" should contain only (?P<count>\d+) '
+        r'instances? of the pytest test-function body marker'
+    )
+)
+def consumer_mock_run_only_test_function_markers(relative_path: str, count: str, consumer: ConsumerProject) -> None:
+    marker_path = _consumer_artifact_path(relative_path, consumer)
+    assert marker_path.is_file(), f"the ordinary pytest function body did not run: {marker_path}"
+    actual = marker_path.read_text(encoding="utf-8").splitlines()
+    expected = ["test-function-body"] * int(count)
+    assert actual == expected, (actual, expected)

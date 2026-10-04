@@ -18,6 +18,7 @@ RuntimeStage = Literal["inactive", "collection", "setup", "running", "step", "te
 RuntimeHookPhase = Literal[
     "inactive",
     "pytest_collection",
+    "pytest_runtest_call",
     "pytest_runtest_setup",
     "pytest_cuke_before_scenario",
     "pytest_cuke_run_scenario",
@@ -160,6 +161,7 @@ class RunContext(StashBound):
         *,
         status: Literal["passed", "failed", "skipped", "undefined"],
         exception: BaseException | None = None,
+        hook_phase: RuntimeHookPhase = "pytest_cuke_after_scenario",
     ) -> None:
         scenario_run = self.active_scenario_run
         if scenario_run is None:
@@ -170,7 +172,7 @@ class RunContext(StashBound):
         scenario_run.finish(status=status, duration=duration, exception=exception)
         if exception is not None:
             self.last_error = exception
-        self.transition(stage="finished", hook_phase="pytest_cuke_after_scenario", status=status)
+        self.transition(stage="finished", hook_phase=hook_phase, status=status)
 
     def enter_teardown(self) -> None:
         self.transition(stage="teardown", hook_phase="pytest_runtest_teardown", status=self._active_status())

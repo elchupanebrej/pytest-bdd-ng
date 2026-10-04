@@ -14,6 +14,8 @@ from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.model.step import Step
 from pytest_cuke.model.table import DataTable, TableCell, TableRow
 
+pytestmark = pytest.mark.unit
+
 
 def test_feature_binding_indexes_source_tree_and_outline_row(tmp_path: Path) -> None:
     data_table = DataTable(
@@ -131,3 +133,20 @@ def test_run_context_tracks_step_transitions_attempt_and_teardown_snapshot() -> 
     assert context.stage == "inactive"
     assert context.status == "inactive"
     assert context.transition_index > final_snapshot_transition
+
+
+def test_mock_run_finish_phase_does_not_claim_bdd_after_scenario_hook() -> None:
+    feature = Feature(name="Validation", uri="validation.feature")
+    scenario = Scenario(name="Binding validation")
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="validation.feature::Binding validation",
+        feature=feature,
+        scenario=scenario,
+    )
+
+    context.finish_active(status="passed", hook_phase="pytest_runtest_call")
+
+    assert context.hook_phase == "pytest_runtest_call"
+    assert scenario_run.hook_phase == "pytest_runtest_call"
+    assert scenario_run.status == "passed"
