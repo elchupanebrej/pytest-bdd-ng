@@ -20,7 +20,7 @@ def test_parse_duration_accepts_positive_finite_seconds(value: str, expected: fl
     assert parse_duration(value) == expected
 
 
-@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "-inf", "nonsense"])
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "-inf", "nonsense", "1sec", "2min", "1hr"])
 def test_parse_duration_rejects_non_positive_or_non_finite_values(value: str) -> None:
     with pytest.raises(ValueError, match="positive finite"):
         parse_duration(value)
@@ -115,6 +115,12 @@ def test_debug_mcp_options_reject_invalid_ini_values() -> None:
 
 def test_bracketed_ipv6_host_is_normalized_for_bind_and_url_use() -> None:
     assert _host("[::1]") == "::1"
+
+
+@pytest.mark.parametrize("value", ["0.0.0.0", "::"])
+def test_wildcard_host_is_rejected_because_it_cannot_be_advertised(value: str) -> None:
+    with pytest.raises(ValueError, match=r"wildcard.*advertised"):
+        _host(value)
 
 
 @pytest.mark.parametrize("value", ["[localhost]", "[::1", "::1]"])

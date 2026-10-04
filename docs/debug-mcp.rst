@@ -26,6 +26,9 @@ The debugger port accepts ``auto`` or a fixed value from 1 through 65535.
 Command-line values take precedence over pytest configuration.
 
 Binding to a host other than loopback prints a trusted-environment warning.
+Wildcard addresses such as ``0.0.0.0`` and ``::`` are rejected because clients
+cannot connect to an advertised wildcard endpoint; choose a specific interface
+address that the MCP client can reach.
 The optional mcp-pdb server exposes tools that execute Python debugger
 commands, so use it only in an environment you trust; see the
 `mcp-pdb security note <https://pypi.org/project/mcp-pdb/>`_.
@@ -60,8 +63,11 @@ available while the failed report is held. It exposes these tools:
 
 ``release_failure(session_id, sequence, reason="explicit")``
    Resume pytest for the matching failure. ``reason`` can be ``explicit`` or
-   ``debugger_continuation``. Timeout and lease expiration release the hold
-   automatically. Releasing a hold never changes the failed pytest outcome.
+   ``debugger_continuation``. Continuing with ``c`` or ``continue`` through the
+   mcp-pdb ``send_pdb_command`` tool releases the exact active failure captured
+   for that debugger command after a short response grace period. Timeout and
+   lease expiration release the hold automatically. Releasing a hold never
+   changes the failed pytest outcome.
 
 Failure and BDD context
 -----------------------

@@ -67,4 +67,5 @@ L7 = { order = 9, name = "bootstrap", allowed_imports = ["L0", "L1", "L2a", "L2b
 "pytest_cuke.message_plugin" = "L6"
 "pytest_cuke.generation" = "L6"
 "pytest_cuke.plugin" = "L6"
+"pytest_cuke.debug_mcp" = "L6"
 "pytest_cuke.__init__" = "L7"
