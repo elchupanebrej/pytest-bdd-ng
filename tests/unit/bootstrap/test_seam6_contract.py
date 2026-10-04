@@ -61,7 +61,20 @@ def test_seam6_plugin_lifecycle_and_stash_contract() -> None:
     config.option.cuke_summary = False
     config.option.cuke_tolerant_status = None
     config.option.cuke_wip_status = None
-    config.getini.side_effect = lambda name: "failed" if name in {"cuke_tolerant_status", "cuke_wip_status"} else ""
+    config.option.cuke_mcp_on_fail = None
+    config.option.cuke_mcp_timeout = None
+    config.option.cuke_mcp_lease = None
+    config.option.cuke_mcp_host = None
+    config.option.cuke_mcp_port = None
+    config.getini.side_effect = lambda name: {
+        "cuke_tolerant_status": "failed",
+        "cuke_wip_status": "failed",
+        "cuke_mcp_on_fail": False,
+        "cuke_mcp_timeout": "30s",
+        "cuke_mcp_lease": "10s",
+        "cuke_mcp_host": "127.0.0.1",
+        "cuke_mcp_port": "auto",
+    }.get(name, "")
 
     pytest_configure(config)
 

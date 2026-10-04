@@ -321,3 +321,5 @@ The extension declares the registration callable in its package metadata:
 Command paths are shown in help in a stable alphabetical order. Duplicate
 paths and paths that conflict with an existing command are rejected during
 registration.
+
+Optional Debug MCP failure inspection is documented in :doc:`debug-mcp`.
