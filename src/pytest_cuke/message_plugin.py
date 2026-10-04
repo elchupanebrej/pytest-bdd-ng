@@ -104,76 +104,77 @@ class MessagePlugin:
 
     def _get_scenario_state(self, name: str, default: Any) -> Any:
         scenario_run = self._active_scenario_run()
-        return getattr(scenario_run, name, default) if scenario_run is not None else default
+        message_state = scenario_run.message_state if scenario_run is not None else None
+        return getattr(message_state, name, default) if message_state is not None else default
 
     def _set_scenario_state(self, name: str, value: Any) -> None:
         scenario_run = self._active_scenario_run()
         if scenario_run is not None:
-            setattr(scenario_run, name, value)
+            setattr(scenario_run.message_state, name, value)
 
     @property
     def current_test_case(self) -> TestCase | None:
-        return cast("TestCase | None", self._get_scenario_state("message_test_case", None))
+        return cast("TestCase | None", self._get_scenario_state("test_case", None))
 
     @current_test_case.setter
     def current_test_case(self, value: TestCase | None) -> None:
-        self._set_scenario_state("message_test_case", value)
+        self._set_scenario_state("test_case", value)
 
     @property
     def current_test_case_step_id_to_step_mapping(self) -> dict[int, TestStep]:
-        return cast("dict[int, TestStep]", self._get_scenario_state("message_test_steps_by_identity", {}))
+        return cast("dict[int, TestStep]", self._get_scenario_state("test_steps_by_identity", {}))
 
     @current_test_case_step_id_to_step_mapping.setter
     def current_test_case_step_id_to_step_mapping(self, value: dict[int, TestStep]) -> None:
-        self._set_scenario_state("message_test_steps_by_identity", value)
+        self._set_scenario_state("test_steps_by_identity", value)
 
     @property
     def current_test_case_step_order(self) -> list[TestStep]:
-        return cast("list[TestStep]", self._get_scenario_state("message_test_steps", []))
+        return cast("list[TestStep]", self._get_scenario_state("test_steps", []))
 
     @current_test_case_step_order.setter
     def current_test_case_step_order(self, value: list[TestStep]) -> None:
-        self._set_scenario_state("message_test_steps", value)
+        self._set_scenario_state("test_steps", value)
 
     @property
     def current_finished_test_step_ids(self) -> set[str]:
-        return cast("set[str]", self._get_scenario_state("message_finished_test_step_ids", set()))
+        return cast("set[str]", self._get_scenario_state("finished_test_step_ids", set()))
 
     @current_finished_test_step_ids.setter
     def current_finished_test_step_ids(self, value: set[str]) -> None:
-        self._set_scenario_state("message_finished_test_step_ids", value)
+        self._set_scenario_state("finished_test_step_ids", value)
 
     @property
     def current_test_step_start_timestamps(self) -> dict[str, Timestamp]:
-        return cast("dict[str, Timestamp]", self._get_scenario_state("message_test_step_start_timestamps", {}))
+        return cast("dict[str, Timestamp]", self._get_scenario_state("test_step_start_timestamps", {}))
 
     @current_test_step_start_timestamps.setter
     def current_test_step_start_timestamps(self, value: dict[str, Timestamp]) -> None:
-        self._set_scenario_state("message_test_step_start_timestamps", value)
+        self._set_scenario_state("test_step_start_timestamps", value)
 
     @property
     def current_active_test_step_id(self) -> str | None:
-        return cast("str | None", self._get_scenario_state("message_active_test_step_id", None))
+        return cast("str | None", self._get_scenario_state("active_test_step_id", None))
 
     @current_active_test_step_id.setter
     def current_active_test_step_id(self, value: str | None) -> None:
-        self._set_scenario_state("message_active_test_step_id", value)
+        self._set_scenario_state("active_test_step_id", value)
 
     @property
     def current_test_step_exception_traces(self) -> dict[str, str]:
-        return cast("dict[str, str]", self._get_scenario_state("message_test_step_exception_traces", {}))
+        return cast("dict[str, str]", self._get_scenario_state("test_step_exception_traces", {}))
 
     @current_test_step_exception_traces.setter
     def current_test_step_exception_traces(self, value: dict[str, str]) -> None:
-        self._set_scenario_state("message_test_step_exception_traces", value)
+        self._set_scenario_state("test_step_exception_traces", value)
 
     @property
     def current_test_case_start(self) -> TestCaseStarted | None:
-        return cast("TestCaseStarted | None", self._get_scenario_state("message_test_case_started", None))
+        return cast("TestCaseStarted | None", self._get_scenario_state("test_case_started", None))
 
     @current_test_case_start.setter
     def current_test_case_start(self, value: TestCaseStarted | None) -> None:
-        self._set_scenario_state("message_test_case_started", value)
+        self._set_scenario_state("test_case_started", value)
 
     def __attrs_post_init__(self) -> None:
         messages_path = self._configured_output("cuke_messages_ndjson")

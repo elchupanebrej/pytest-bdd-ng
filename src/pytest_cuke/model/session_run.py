@@ -214,7 +214,7 @@ class RunContext(StashBound):
         scenario_run = self._require_active_scenario()
         scenario_run.test_case_id = test_case_id
         scenario_run.test_step_ids = list(test_step_ids)
-        scenario_run.message_test_steps = list(test_steps or ())
+        scenario_run.message_state.test_steps = list(test_steps or ())
         if test_case_started_id is not None:
             scenario_run.test_case_started_id = test_case_started_id
             scenario_run.attempt_id = test_case_started_id
