@@ -470,9 +470,9 @@ Feature: Installed pytest-cuke product bootstrap
     When I run command "cuke" with arguments "generate steps"
     Then the command should exit with a non-zero code
     And the command output should contain "--feature"
-    When I run command "cuke" with arguments "convert allure"
+    When I run command "cuke" with arguments "convert allure missing.ndjson"
     Then the command should exit with a non-zero code
-    And the unimplemented command should report that it is not implemented
+    And the command output should contain "cannot read input"
 
   Scenario: Heading validation scans parsed Gherkin and reports stable baseline data
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

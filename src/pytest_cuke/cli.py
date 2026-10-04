@@ -15,6 +15,10 @@ from dataclasses import dataclass, field
 from importlib.metadata import entry_points
 from typing import cast
 
+from pytest_cuke.allure_conversion_command import (
+    configure_allure_conversion_parser,
+    run_allure_conversion_command,
+)
 from pytest_cuke.compatibility_cli import configure_compatibility_parser, run_compatibility_command
 from pytest_cuke.generation_command import configure_generate_steps_parser, run_generate_steps
 from pytest_cuke.heading_validation_cli import configure_validation_parser, run_validation_command
@@ -135,7 +139,13 @@ def _build_registry() -> CommandRegistry:
         parser_configurer=configure_compatibility_parser,
         namespace_handler=run_compatibility_command,
     )
-    registry.add(("convert", "allure"), "convert Allure results", _unimplemented("convert allure"))
+    registry.add(
+        ("convert", "allure"),
+        "convert saved Cucumber Messages to Allure results",
+        None,
+        parser_configurer=configure_allure_conversion_parser,
+        namespace_handler=run_allure_conversion_command,
+    )
     registry.add(
         ("sync", "messages", "schemas"),
         "sync or check vendored Cucumber Messages schemas",
