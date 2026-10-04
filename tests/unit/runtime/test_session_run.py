@@ -68,7 +68,7 @@ def test_feature_binding_indexes_source_tree_and_outline_row(tmp_path: Path) -> 
     assert binding.ast_nodes_by_id["examples-row-1"] is scenario
 
     with pytest.raises(FrozenInstanceError):
-        setattr(step, "runtime", object())
+        step.name = "mutated"
 
 
 def test_run_context_tracks_step_transitions_attempt_and_teardown_snapshot() -> None:
@@ -133,6 +133,40 @@ def test_run_context_tracks_step_transitions_attempt_and_teardown_snapshot() -> 
     assert context.stage == "inactive"
     assert context.status == "inactive"
     assert context.transition_index > final_snapshot_transition
+
+
+def test_runtime_attempt_ids_exist_without_messages_and_are_isolated() -> None:
+    context = RunContext()
+    feature = Feature(name="Runtime attempts", uri="attempts.feature")
+    first = Scenario(name="First row", id="pickle-first")
+    second = Scenario(name="Second row", id="pickle-second")
+
+    first_run = context.start_scenario(
+        nodeid="attempts.feature::First row",
+        feature=feature,
+        scenario=first,
+    )
+    first_attempt_id = first_run.attempt_id
+    assert first_attempt_id
+    assert not first_run.test_case_started_id
+    context.finish_active(status="passed")
+    context.clear_active()
+
+    second_run = context.start_scenario(
+        nodeid="attempts.feature::Second row",
+        feature=feature,
+        scenario=second,
+    )
+
+    assert second_run.attempt_id
+    assert second_run.attempt_id != first_attempt_id
+    assert not second_run.test_case_started_id
+    assert second_run.steps == []
+    assert second_run.current_step_run is None
+    assert second_run.previous_step_run is None
+    assert first_run.attempt_id == first_attempt_id
+    assert context.get_scenario_run(first_run.nodeid, attempt=0) is first_run
+    assert context.get_scenario_run(second_run.nodeid, attempt=0) is second_run
 
 
 def test_mock_run_finish_phase_does_not_claim_bdd_after_scenario_hook() -> None:

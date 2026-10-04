@@ -20,7 +20,7 @@ from pytest_cuke.compatibility.pytest import (
 )
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.run_access import get_run_context, set_scenario_run
-from pytest_cuke.model.scenario_run import ScenarioRun, StepRun
+from pytest_cuke.model.scenario_run import ScenarioRun
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.steps.manager import StepDefinitionManager
 from pytest_cuke.steps.matcher import Matcher
@@ -304,19 +304,14 @@ class ScenarioRunner:
                 error = exception
                 raise
             finally:
+                status = self._status_for_exception(error) if error is not None else "passed"
+                context.finish_active(status=status, exception=error)
                 try:
-                    context.transition(
-                        stage="running",
-                        hook_phase="pytest_cuke_after_scenario",
-                        status=self._status_for_exception(error) if error is not None else "running",
-                    )
                     request.config.hook.pytest_cuke_after_scenario(request=request, feature=feature, scenario=scenario)
                 except BaseException as after_exception:
                     error = after_exception
+                    context.finish_active(status=self._status_for_exception(error), exception=error)
                     raise
-                finally:
-                    status = self._status_for_exception(error) if error is not None else "passed"
-                    context.finish_active(status=status, exception=error)
 
             self._refresh_test_function_fixtures(item, request)
 
@@ -394,7 +389,9 @@ class ScenarioRunner:
         """Expose teardown state, retain its error, and always release active item references."""
         context = get_run_context(item.config)
         scenario_run = context.get_scenario_run(item.nodeid) if context is not None else None
-        is_active_scenario = scenario_run is not None and context is not None and context.active_scenario_run is scenario_run
+        is_active_scenario = (
+            scenario_run is not None and context is not None and context.active_scenario_run is scenario_run
+        )
         if context is not None and is_active_scenario:
             context.enter_teardown()
         outcome = yield
