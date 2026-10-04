@@ -95,6 +95,18 @@ class StepRun:
 
 
 @define(slots=True)
+class ScenarioMessageState:
+    test_case: Any = None
+    test_case_started: Any = None
+    test_steps: list[Any] = field(factory=list)
+    test_steps_by_identity: dict[int, Any] = field(factory=dict)
+    finished_test_step_ids: set[str] = field(factory=set)
+    test_step_start_timestamps: dict[str, Any] = field(factory=dict)
+    active_test_step_id: str | None = None
+    test_step_exception_traces: dict[str, str] = field(factory=dict)
+
+
+@define(slots=True)
 class ScenarioRun(StashBound):
     STASH_KEY: ClassVar[str] = "pytest_cuke_scenario_run"
 
@@ -110,14 +122,7 @@ class ScenarioRun(StashBound):
     test_case_id: str = ""
     test_case_started_id: str = ""
     test_step_ids: list[str] = field(factory=list)
-    message_test_case: Any = None
-    message_test_case_started: Any = None
-    message_test_steps: list[Any] = field(factory=list)
-    message_test_steps_by_identity: dict[int, Any] = field(factory=dict)
-    message_finished_test_step_ids: set[str] = field(factory=set)
-    message_test_step_start_timestamps: dict[str, Any] = field(factory=dict)
-    message_active_test_step_id: str | None = None
-    message_test_step_exception_traces: dict[str, str] = field(factory=dict)
+    message_state: ScenarioMessageState = field(factory=ScenarioMessageState)
     current_step_run: StepRun | None = None
     previous_step_run: StepRun | None = None
     status: str = "pending"

@@ -64,8 +64,8 @@ def test_message_plugin_pytest_cuke_attach() -> None:
         feature=Feature(name="Attachment", uri="attachment.feature"),
         scenario=Scenario(name="Attachment"),
     )
-    scenario_run.message_test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=[])
-    scenario_run.message_test_case_started = TestCaseStarted(
+    scenario_run.message_state.test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=[])
+    scenario_run.message_state.test_case_started = TestCaseStarted(
         attempt=0,
         id="tcs-1",
         test_case_id="tc-1",
