@@ -28,8 +28,14 @@ class AllureConversionError(Exception):
 
 def convert_allure_messages(input_path: Path, output_dir: Path) -> None:
     """Convert every completed scenario attempt in one Cucumber Messages run."""
-    envelopes, exception_traces, raw_extensions = _read_envelopes(input_path)
+    envelopes, exception_traces, run_finished_trace, raw_extensions = _read_envelopes(input_path)
     converted, attachments = _convert_scenarios(envelopes, exception_traces)
+    _attach_run_diagnostics(
+        converted,
+        attachments,
+        _one(envelopes, "test_run_finished"),
+        run_finished_trace,
+    )
     _attach_raw_extensions(converted, attachments, raw_extensions)
     artifacts = _render_artifacts(converted, attachments)
 
@@ -43,7 +49,7 @@ def convert_allure_messages(input_path: Path, output_dir: Path) -> None:
 
 def _read_envelopes(
     input_path: Path,
-) -> tuple[list[messages.Envelope], dict[tuple[str, str], str], list[bytes]]:
+) -> tuple[list[messages.Envelope], dict[tuple[str, str], str], str | None, list[bytes]]:
     try:
         raw_content = input_path.read_bytes()
     except OSError as exc:
@@ -55,6 +61,7 @@ def _read_envelopes(
 
     envelopes: list[messages.Envelope] = []
     exception_traces: dict[tuple[str, str], str] = {}
+    run_finished_trace: str | None = None
     raw_extensions: list[bytes] = []
     known_payload_names = _known_payload_names()
     raw_lines = raw_content.split(b"\n")
@@ -79,7 +86,7 @@ def _read_envelopes(
                 f"invalid Cucumber message in {input_path} at line {line_number}: "
                 f"unknown top-level payload field(s) {names}"
             )
-        validation_payload, stack_trace = _without_exception_stack_trace(payload)
+        validation_payload, stack_trace, run_trace = _without_exception_stack_trace(payload)
         try:
             envelope = envelope_from_dict(validation_payload)
         except (TypeError, ValueError, ValidationError) as exc:
@@ -97,10 +104,18 @@ def _read_envelopes(
             if key in exception_traces:
                 raise AllureConversionError(f"duplicate exception stack trace in {input_path} at line {line_number}")
             exception_traces[key] = stack_trace
+        if run_trace is not None:
+            if envelope.test_run_finished is None:
+                raise AllureConversionError(
+                    f"run exception stack trace in {input_path} at line {line_number} has no test run finish"
+                )
+            if run_finished_trace is not None:
+                raise AllureConversionError(f"duplicate run exception stack trace in {input_path} at line {line_number}")
+            run_finished_trace = run_trace
 
     if not envelopes:
         raise AllureConversionError(f"input contains no Cucumber messages: {input_path}")
-    return envelopes, exception_traces, raw_extensions
+    return envelopes, exception_traces, run_finished_trace, raw_extensions
 
 
 def _known_payload_names() -> set[str]:
@@ -114,30 +129,73 @@ def _camel_payload_name(kind: str) -> str:
     return first + "".join(part.title() for part in rest)
 
 
-def _without_exception_stack_trace(payload: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
+def _without_exception_stack_trace(payload: dict[str, Any]) -> tuple[dict[str, Any], str | None, str | None]:
     """Keep schema-valid stackTrace data despite the older generated messages model."""
-    test_step_finished = payload.get("testStepFinished")
-    if not isinstance(test_step_finished, dict):
-        return payload, None
-    test_step_result = test_step_finished.get("testStepResult")
-    if not isinstance(test_step_result, dict):
-        return payload, None
-    exception = test_step_result.get("exception")
-    if not isinstance(exception, dict) or "stackTrace" not in exception:
-        return payload, None
+    step_trace: str | None = None
+    run_trace: str | None = None
+    validation_payload = payload
+
+    for event_key in ("testStepFinished", "test_step_finished"):
+        test_step_finished = payload.get(event_key)
+        if not isinstance(test_step_finished, dict):
+            continue
+        for result_key in ("testStepResult", "test_step_result"):
+            test_step_result = test_step_finished.get(result_key)
+            if not isinstance(test_step_result, dict):
+                continue
+            exception = test_step_result.get("exception")
+            if isinstance(exception, dict) and "stackTrace" in exception:
+                step_trace = _stack_trace_value(exception)
+                validation_payload = _payload_without_stack_trace(
+                    payload,
+                    event_key,
+                    exception,
+                    nested_result_key=result_key,
+                )
+                break
+        break
+
+    for event_key in ("testRunFinished", "test_run_finished"):
+        test_run_finished = payload.get(event_key)
+        if not isinstance(test_run_finished, dict):
+            continue
+        exception = test_run_finished.get("exception")
+        if isinstance(exception, dict) and "stackTrace" in exception:
+            run_trace = _stack_trace_value(exception)
+            validation_payload = _payload_without_stack_trace(payload, event_key, exception)
+        break
+
+    return validation_payload, step_trace, run_trace
+
+
+def _stack_trace_value(exception: dict[str, Any]) -> str:
     stack_trace = exception.get("stackTrace")
     if not isinstance(stack_trace, str):
         raise AllureConversionError("Cucumber exception stackTrace must be a string")
+    return stack_trace
 
+
+def _payload_without_stack_trace(
+    payload: dict[str, Any], event_key: str, exception: dict[str, Any], nested_result_key: str | None = None
+) -> dict[str, Any]:
     validation_payload = dict(payload)
-    validation_step_finished = dict(test_step_finished)
-    validation_result = dict(test_step_result)
+    event = payload[event_key]
+    if not isinstance(event, dict):
+        raise AllureConversionError(f"Cucumber message payload {event_key!r} must be an object")
+    validation_event = dict(event)
     validation_exception = dict(exception)
     del validation_exception["stackTrace"]
-    validation_result["exception"] = validation_exception
-    validation_step_finished["testStepResult"] = validation_result
-    validation_payload["testStepFinished"] = validation_step_finished
-    return validation_payload, stack_trace
+    if nested_result_key is None:
+        validation_event["exception"] = validation_exception
+    else:
+        nested_result = validation_event.get(nested_result_key)
+        if not isinstance(nested_result, dict):
+            raise AllureConversionError(f"Cucumber test step result {nested_result_key!r} must be an object")
+        validation_result = dict(nested_result)
+        validation_result["exception"] = validation_exception
+        validation_event[nested_result_key] = validation_result
+    validation_payload[event_key] = validation_event
+    return validation_payload
 
 
 def _validation_summary(error: Exception) -> str:
@@ -308,6 +366,7 @@ def _validate_run_lifecycle(
         if missing_finishes:
             raise AllureConversionError(f"test attempts did not finish: {missing_finishes!r}")
         raise AllureConversionError(f"test case finishes refer to unknown attempts: {unknown_finishes!r}")
+    _validate_retry_sequences(attempts, case_finishes)
 
     if set(step_starts) != set(step_finishes):
         missing_step_finishes = sorted(set(step_starts) - set(step_finishes), key=lambda key: (key[0], key[1]))
@@ -388,6 +447,66 @@ def _validate_run_lifecycle(
                 f"{envelope.attachment.test_case_started_id!r}"
             )
     return attempts
+
+
+def _validate_retry_sequences(
+    attempts: dict[str, dict[str, Any]],
+    case_finishes: dict[str, tuple[int, Any]],
+) -> None:
+    attempts_by_case: dict[str, list[tuple[int, str, int, Any]]] = {}
+    for attempt_id, attempt in attempts.items():
+        started = attempt["started"]
+        attempt_number = started.attempt
+        if not isinstance(attempt_number, int) or isinstance(attempt_number, bool) or attempt_number < 0:
+            raise AllureConversionError(
+                f"test attempt {attempt_id!r} has invalid attempt number {attempt_number!r}"
+            )
+        finish_position, finished = case_finishes[attempt_id]
+        attempts_by_case.setdefault(started.test_case_id, []).append(
+            (attempt_number, attempt_id, attempt["start_position"], (finish_position, finished))
+        )
+
+    for test_case_id, case_attempts in attempts_by_case.items():
+        case_attempts.sort(key=lambda item: item[0])
+        observed_numbers: set[int] = set()
+        for expected_number, (attempt_number, attempt_id, start_position, finish_data) in enumerate(case_attempts):
+            if attempt_number in observed_numbers:
+                raise AllureConversionError(
+                    f"test case {test_case_id!r} has duplicate retry attempt number {attempt_number}"
+                )
+            observed_numbers.add(attempt_number)
+            if attempt_number != expected_number:
+                raise AllureConversionError(
+                    f"test case {test_case_id!r} retry attempts must be contiguous from 0; "
+                    f"expected {expected_number}, found {attempt_number}"
+                )
+
+            finish_position, finished = finish_data
+            has_next = expected_number + 1 < len(case_attempts)
+            if has_next:
+                if not finished.will_be_retried:
+                    raise AllureConversionError(
+                        f"non-final attempt {attempt_id!r} for test case {test_case_id!r} "
+                        "has willBeRetried=false"
+                    )
+                next_attempt_number, next_attempt_id, next_start_position, _ = case_attempts[expected_number + 1]
+                if next_start_position <= finish_position:
+                    raise AllureConversionError(
+                        f"retry attempt {next_attempt_number} for test case {test_case_id!r} "
+                        f"started before attempt {attempt_number} finished"
+                    )
+                previous_finish_time = _timestamp_nanos(finished.timestamp)
+                next_start_time = _timestamp_nanos(attempts[next_attempt_id]["started"].timestamp)
+                if next_start_time < previous_finish_time:
+                    raise AllureConversionError(
+                        f"retry attempt {next_attempt_number} for test case {test_case_id!r} "
+                        f"has a timestamp before attempt {attempt_number} finished"
+                    )
+            elif finished.will_be_retried:
+                raise AllureConversionError(
+                    f"test case {test_case_id!r} attempt {attempt_number} declares a retry, "
+                    f"but attempt {attempt_number + 1} is missing at end of stream"
+                )
 
 
 def _validate_exception_traces(
@@ -546,12 +665,19 @@ def _step_message(
 def _status_details(test_step_result: messages.TestStepResult, stack_trace: str | None) -> dict[str, str]:
     details: dict[str, str] = {}
     exception = test_step_result.exception
-    message = test_step_result.message or (exception.message if exception is not None else None)
-    if message:
-        details["message"] = message
+    result_message = test_step_result.message
     if stack_trace is None and exception is not None:
         stack_trace = getattr(exception, "stack_trace", None)
-    if stack_trace:
+    if exception is not None:
+        messages: list[str] = []
+        for message in (exception.message, result_message):
+            if message and message not in messages:
+                messages.append(message)
+        if messages:
+            details["message"] = "\n\n".join(messages)
+    elif result_message:
+        details["message"] = result_message
+    if stack_trace is not None:
         details["trace"] = stack_trace
     return details
 
@@ -663,6 +789,43 @@ def _attach_raw_extensions(
             }
         )
         attachments.append((source, raw_json))
+
+
+def _attach_run_diagnostics(
+    converted: list[tuple[dict[str, Any], dict[str, Any]]],
+    attachments: list[tuple[str, bytes]],
+    run_finished: Any,
+    raw_stack_trace: str | None,
+) -> None:
+    """Attach run-level diagnostics without changing scenario outcome statuses."""
+    message = run_finished.message
+    exception = run_finished.exception
+    success = run_finished.success
+    if success and message is None and exception is None:
+        return
+    if not converted:
+        raise AllureConversionError("cannot attach run diagnostics without a completed scenario")
+
+    diagnostics: dict[str, Any] = {"success": success}
+    if message is not None:
+        diagnostics["message"] = message
+    if exception is not None:
+        exception_data: dict[str, str] = {"type": exception.type}
+        if exception.message is not None:
+            exception_data["message"] = exception.message
+        if raw_stack_trace is not None:
+            exception_data["stackTrace"] = raw_stack_trace
+        diagnostics["exception"] = exception_data
+
+    source = f"attachments/{uuid4()}.attach"
+    converted[0][0].setdefault("attachments", []).append(
+        {
+            "name": "Cucumber test run diagnostics",
+            "source": source,
+            "type": "application/json",
+        }
+    )
+    attachments.append((source, _json_bytes(diagnostics)))
 
 
 def _render_artifacts(
