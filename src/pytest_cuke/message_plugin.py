@@ -61,11 +61,22 @@ from pytest_cuke.compatibility.pytest import (
     get_config_root_path,
     get_metafunc_call_arg,
 )
+from pytest_cuke.ide_bindings import (
+    IDE_BINDING_WORKER_OUTPUT_KEY,
+    IDE_DIAGNOSTIC_MEDIA_TYPE,
+    IDE_LAUNCH_MEDIA_TYPE,
+    IDE_STEP_BINDING_MEDIA_TYPE,
+    IdeBindingCollection,
+    definition_reference,
+    match_arguments,
+    source_identity,
+)
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_message_id, scenario_to_pickle
 from pytest_cuke.model.run_access import get_run_context
 from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_cuke.packaging import get_distribution_version
+from pytest_cuke.scenario_locator import ScenarioLocatorFilterMixin
 from pytest_cuke.steps import Matcher
 from pytest_cuke.utils import PytestBDDIdGeneratorHandler, deepattrgetter
 
@@ -89,6 +100,7 @@ class MessagePlugin:
     allure_output_path: Path | None = attrib(default=None)
     parameter_type_registry: set[int] = attrib(factory=set)
     hook_registry: set[int] = attrib(factory=set)
+    ide_bindings: IdeBindingCollection = attrib(factory=IdeBindingCollection)
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
 
     def _configured_output(self, name: str) -> str | None:
@@ -439,8 +451,10 @@ class MessagePlugin:
             for call in metafunc._calls:
                 feature = get_metafunc_call_arg(call, "feature")
                 scenario = get_metafunc_call_arg(call, "scenario")
+                feature_is_set = feature is not None and is_set(feature)
+                scenario_is_set = scenario is not None and is_set(scenario)
 
-                if is_set(feature) and feature.uri not in feature_registry:
+                if feature_is_set and feature.uri not in feature_registry:
                     feature_registry.add(feature.uri)
                     if feature.source_content is not None:
                         config.hook.pytest_cuke_message(
@@ -461,9 +475,9 @@ class MessagePlugin:
                             )
                         ),
                     )
-                if is_set(scenario) and id(scenario) not in pickle_registry:
+                if scenario_is_set and id(scenario) not in pickle_registry:
                     pickle_registry.add(id(scenario))
-                    feature_uri = feature.uri or feature.filename or feature.name if is_set(feature) else ""
+                    feature_uri = feature.uri or feature.filename or feature.name if feature_is_set else ""
                     config.hook.pytest_cuke_message(
                         config=config,
                         message=Message(
@@ -471,7 +485,7 @@ class MessagePlugin:
                                 scenario,
                                 uri=feature_uri,
                                 default_id=f"{feature_uri}#{call.id}",
-                                feature=feature if is_set(feature) else None,
+                                feature=feature if feature_is_set else None,
                             )
                         ),
                     )
@@ -490,6 +504,65 @@ class MessagePlugin:
                     exception["stackTrace"] = stack_trace
         message_json = json.dumps(message_data, ensure_ascii=False)
         self.process_messages_io_queue.put_nowait(message_json)
+
+    def _emit_ide_attachment(self, config: Config, media_type: str, payload: dict[str, Any]) -> None:
+        config.hook.pytest_cuke_message(
+            config=config,
+            message=Message(
+                attachment=Attachment(
+                    body=json.dumps(payload, ensure_ascii=False),
+                    content_encoding=ContentEncoding.identity,
+                    media_type=media_type,
+                )
+            ),
+        )
+
+    @staticmethod
+    def _item_source(item: Item) -> tuple[Any, Any] | None:
+        callspec = getattr(item, "callspec", None)
+        params = getattr(callspec, "params", {})
+        if not isinstance(params, dict):
+            return None
+        feature = params.get("feature")
+        scenario = params.get("scenario")
+        return (feature, scenario) if feature is not None and scenario is not None else None
+
+    @hookimpl(trylast=True)
+    def pytest_collection_modifyitems(self, config: Config, items: list[Item]) -> None:
+        """Index scenario source rows and pytest bindings once collection is complete."""
+        if self.is_disabled:
+            return
+
+        run_context = get_run_context(config)
+        if run_context is None:
+            return
+
+        for item in items:
+            item_source = self._item_source(item)
+            if item_source is None:
+                continue
+            feature, scenario = item_source
+            binding = run_context.bind_feature(feature)
+            binding.register_scenario(scenario)
+            identity = source_identity(feature, scenario, binding)
+            self.ide_bindings.register_source(identity, item.nodeid)
+
+        for binding in run_context.feature_bindings_by_uri.values():
+            for feature, scenario in ScenarioLocatorFilterMixin().filter_scenarios(binding.feature):
+                identity = source_identity(feature, scenario, binding)
+                self.ide_bindings.register_source(identity)
+
+    def _emit_source_binding_diagnostics(self, session: Session) -> None:
+        config = session.config
+        for diagnostic in self.ide_bindings.diagnostics():
+            self._emit_ide_attachment(config, IDE_DIAGNOSTIC_MEDIA_TYPE, diagnostic)
+
+    @hookimpl(optionalhook=True)
+    def pytest_testnodedown(self, node: Any) -> None:
+        """Merge worker collection and execution identities on the xdist controller."""
+        worker_output = getattr(node, "workeroutput", None)
+        if isinstance(worker_output, dict):
+            self.ide_bindings.merge_worker_output(worker_output.get(IDE_BINDING_WORKER_OUTPUT_KEY))
 
     def _get_current_test_case(self) -> TestCase:
         if self.current_test_case is None:
@@ -542,6 +615,12 @@ class MessagePlugin:
             return
         config = session.config
         hook_handler = config.hook
+
+        worker_output = getattr(config, "workeroutput", None)
+        if isinstance(worker_output, dict):
+            worker_output[IDE_BINDING_WORKER_OUTPUT_KEY] = self.ide_bindings.to_worker_output()
+        else:
+            self._emit_source_binding_diagnostics(session)
 
         is_testrun_success = (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is ExitCode.OK
         hook_handler.pytest_cuke_message(
@@ -629,10 +708,12 @@ class MessagePlugin:
 
         step_registry = request.getfixturevalue("step_registry")
         seen_steps = set()
+        available_step_definitions = []
         while step_registry is not None:
             for step_definition in step_registry:
                 if id(step_definition) not in seen_steps:
                     seen_steps.add(id(step_definition))
+                    available_step_definitions.append(step_definition)
                     hook_handler.pytest_cuke_message(
                         config=config, message=Message(step_definition=step_definition.as_message(config=config))
                     )
@@ -692,8 +773,15 @@ class MessagePlugin:
         callspec_id = getattr(getattr(request.node, "callspec", None), "id", "")
         fallback_id = f"{feature_uri}#{callspec_id}" if callspec_id else ""
         scenario_id = scenario_message_id(scenario, uri=feature_uri, default_id=fallback_id)
+        step_binding_records: list[tuple[Step, Any | None, tuple[Any, ...]]] = []
 
         for step_index, step in enumerate(execution_steps(feature, scenario)):
+            try:
+                step_matcher = request.getfixturevalue("step_matcher")
+            except Exception:
+                step_matcher = None
+            if hasattr(step_matcher, "last_matches"):
+                step_matcher.last_matches = ()
             try:
                 step_definition = hook_handler.pytest_cuke_match_step_definition_to_step(
                     request=request,
@@ -703,11 +791,15 @@ class MessagePlugin:
                     previous_step=previous_step,
                 )
             except Matcher.MatchNotFoundError:
+                step_definition = None
                 step_definition_ids = []
             else:
                 step_definition_ids = [step_definition.as_message(config).id]
             finally:
                 previous_step = step
+
+            step_matches = tuple(getattr(step_matcher, "last_matches", ()))
+            step_binding_records.append((step, step_definition, step_matches))
 
             test_step = TestStep(
                 id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
@@ -742,6 +834,67 @@ class MessagePlugin:
             config=config,
             message=Message(test_case=current_test_case),
         )
+
+        run_context = get_run_context(config)
+        binding = run_context.bind_feature(feature) if run_context is not None else None
+        if binding is not None:
+            binding.register_scenario(scenario)
+        identity = source_identity(feature, scenario, binding)
+        self.ide_bindings.register_source(identity, request.node.nodeid)
+        self.ide_bindings.record_test_case(request.node.nodeid, current_test_case.id)
+
+        self._emit_ide_attachment(
+            config,
+            IDE_LAUNCH_MEDIA_TYPE,
+            {
+                "testCaseId": current_test_case.id,
+                "pickleId": current_test_case.pickle_id,
+                "nodeid": request.node.nodeid,
+                "sourceIdentity": identity,
+            },
+        )
+
+        available_definitions = [definition_reference(definition, config) for definition in available_step_definitions]
+        for test_step, (step, definition, candidates) in zip(test_steps, step_binding_records, strict=True):
+            if definition is None:
+                self._emit_ide_attachment(
+                    config,
+                    IDE_DIAGNOSTIC_MEDIA_TYPE,
+                    {
+                        "kind": "missing-step",
+                        "severity": "warning",
+                        "testCaseId": current_test_case.id,
+                        "pickleStepId": test_step.pickle_step_id,
+                        "unmatchedStepText": step.name,
+                        "availableStepDefinitions": available_definitions,
+                    },
+                )
+                continue
+
+            matched_definition = definition_reference(definition, config)
+            self._emit_ide_attachment(
+                config,
+                IDE_STEP_BINDING_MEDIA_TYPE,
+                {
+                    "testCaseId": current_test_case.id,
+                    "pickleStepId": test_step.pickle_step_id,
+                    "stepDefinitionId": matched_definition["stepDefinitionId"],
+                    "sourceReference": matched_definition["sourceReference"],
+                    "matchArguments": match_arguments(definition, request, step),
+                },
+            )
+            if len(candidates) > 1:
+                self._emit_ide_attachment(
+                    config,
+                    IDE_DIAGNOSTIC_MEDIA_TYPE,
+                    {
+                        "kind": "ambiguous-step",
+                        "severity": "warning",
+                        "testCaseId": current_test_case.id,
+                        "pickleStepId": test_step.pickle_step_id,
+                        "candidates": [definition_reference(candidate, config) for candidate in candidates],
+                    },
+                )
 
     def pytest_cuke_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
         if self.is_disabled:

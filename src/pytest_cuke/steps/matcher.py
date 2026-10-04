@@ -42,6 +42,7 @@ class Matcher:
         self.step_type_context: StepType | str | None = None
         self._undefined_parameter_types: dict[tuple[str, str], BaseException | None] = {}
         self._undefined_parameter_type_causes: list[BaseException] = []
+        self.last_matches: tuple[Definition, ...] = ()
 
     def __call__(
         self,
@@ -56,6 +57,7 @@ class Matcher:
         self.step, self.previous_step, self.step_registry = step, previous_step, step_registry
         self._undefined_parameter_types = {}
         self._undefined_parameter_type_causes = []
+        self.last_matches = ()
         step_type = self.step.type
         if isinstance(step_type, StepType):
             step_type_str = step_type.value.lower()
@@ -94,6 +96,7 @@ class Matcher:
             )
         matchers = (self.strict_matcher, self.unspecified_matcher, self.liberal_matcher)
         matches = list(self.find_step_definition_matches(self.step_registry, matchers))
+        self.last_matches = tuple(matches)
         if matches:
             if len(matches) > 1:
                 warn(PytestBDDStepDefinitionWarning(f"Alternative step definitions are found: {matches}"), stacklevel=2)

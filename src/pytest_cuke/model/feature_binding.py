@@ -17,10 +17,17 @@ def normalize_feature_uri(feature: Feature) -> str:
     if uri:
         parsed = urlsplit(uri)
         if parsed.scheme == "file":
-            file_path = Path(unquote(parsed.path)).resolve()
+            file_path = Path(unquote(parsed.path))
+            if not file_path.is_absolute() and not parsed.netloc and feature.filename:
+                file_path = Path(feature.filename)
+            file_path = file_path.resolve()
             return file_path.as_uri()
         if parsed.scheme:
-            return urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), parsed.path, parsed.query, parsed.fragment))
+            return urlunsplit(
+                (parsed.scheme.lower(), parsed.netloc.lower(), parsed.path, parsed.query, parsed.fragment)
+            )
+        if feature.filename:
+            return Path(feature.filename).resolve().as_uri()
         return Path(uri).resolve().as_uri()
     if feature.filename:
         return Path(feature.filename).resolve().as_uri()
