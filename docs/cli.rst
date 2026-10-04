@@ -100,7 +100,9 @@ are unaffected, and this option does not relax title validation.
 
 The collection check uses the same matcher and applicable module/conftest step
 registries as runtime matching. It does not set up fixtures or execute step
-bodies.
+bodies. A parser that depends on a user fixture value unavailable during
+collection is left to ordinary runtime matching rather than setting up that
+fixture.
 
 Feature source roots
 --------------------

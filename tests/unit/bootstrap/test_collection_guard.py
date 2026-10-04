@@ -22,10 +22,13 @@ class _StringParser:
     last_undefined_parameter_types: tuple[()] = ()
     last_undefined_parameter_type_error: None = None
 
-    def __init__(self, matching_text: str) -> None:
+    def __init__(self, matching_text: str, *, requires_parameter_registry: bool = False) -> None:
         self.matching_text = matching_text
+        self.requires_parameter_registry = requires_parameter_registry
 
     def is_matching(self, request: Any, name: str) -> bool:
+        if self.requires_parameter_registry:
+            request.getfixturevalue("parameter_type_registry")
         return name == self.matching_text
 
     def parse_arguments(self, request: Any, name: str, anonymous_group_names: Any = None) -> dict[str, Any]:
@@ -35,11 +38,11 @@ class _StringParser:
         return self.matching_text
 
 
-def _definition(matching_text: str) -> Definition:
+def _definition(matching_text: str, *, requires_parameter_registry: bool = False) -> Definition:
     return Definition(
         func=lambda: None,
         type_=StepType.context,
-        parser=_StringParser(matching_text),  # type: ignore[arg-type]  # This parser implements the matcher protocol used by the unit.
+        parser=_StringParser(matching_text, requires_parameter_registry=requires_parameter_registry),  # type: ignore[arg-type]  # This parser implements the matcher protocol used by the unit.
         anonymous_group_names=None,
         converters={},
         params_fixtures_mapping={},
@@ -117,3 +120,33 @@ def test_collection_matcher_treats_any_matching_step_as_partial_match() -> None:
     )
 
     assert _scenario_has_matching_step(_config(), item, feature, scenario) is True
+
+
+def test_custom_parameter_registry_fixture_is_not_run_for_unmatched_step() -> None:
+    invoked: list[str] = []
+    definition = _definition("different step", requires_parameter_registry=True)
+    registry = Registry(definitions=OrderedSet((definition,)))
+
+    def custom_parameter_type_registry() -> object:
+        invoked.append("custom registry")
+        return object()
+
+    fixture_manager = SimpleNamespace(
+        getfixturedefs=lambda name, item: (
+            (SimpleNamespace(func=custom_parameter_type_registry),)
+            if name == "parameter_type_registry"
+            else ()
+        )
+    )
+    item = SimpleNamespace(
+        module=SimpleNamespace(__pytest_cuke_step_registry__=registry),
+        session=SimpleNamespace(_fixturemanager=fixture_manager),
+    )
+    feature = Feature(name="Example", filename="features/example.feature")
+    scenario = Scenario(
+        name="unmatched custom registry expression",
+        steps=(Step(name="unmatched step", keyword="Given ", line=2, type=StepType.context),),
+    )
+
+    assert _scenario_has_matching_step(_config(), item, feature, scenario) is False
+    assert invoked == []

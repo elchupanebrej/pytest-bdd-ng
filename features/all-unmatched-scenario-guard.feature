@@ -80,7 +80,7 @@ Feature: Preventive guard for all-unmatched scenarios
           Path("pytest-body.txt").write_text("ran", encoding="utf-8")
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-allow-empty-scenarios --cuke-summary -rs -q tests/test_explicit_unmatched.py"
-    Then pytest should skip all-unmatched scenario "The explicit scenario has no matching definitions" with a meaningful reason before files "preventive-hooks.txt" and "pytest-body.txt" are created
+    Then pytest should skip all-unmatched scenario "The explicit scenario has no matching definitions" with a meaningful reason from feature "features/explicit-unmatched.feature" before files "preventive-hooks.txt" and "pytest-body.txt" are created
 
   Scenario: Allow-empty ini configuration skips an explicit all-unmatched case
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -129,7 +129,7 @@ Feature: Preventive guard for all-unmatched scenarios
           Path("pytest-body.txt").write_text("ran", encoding="utf-8")
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-summary -rs -q tests/test_explicit_unmatched.py"
-    Then pytest should skip all-unmatched scenario "The explicit scenario has no matching definitions" with a meaningful reason before files "preventive-hooks.txt" and "pytest-body.txt" are created
+    Then pytest should skip all-unmatched scenario "The explicit scenario has no matching definitions" with a meaningful reason from feature "features/explicit-unmatched.feature" before files "preventive-hooks.txt" and "pytest-body.txt" are created
 
   Scenario: Partial matches bypass the guard and fail through normal step execution
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
