@@ -12,8 +12,10 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import patch
+from warnings import catch_warnings, simplefilter
 
 import pytest
+from ordered_set import OrderedSet
 from pathvalidate import is_valid_filepath
 
 from pytest_cuke import cucumber_json, generation, gherkin_terminal_reporter, given, hooks, steps, then, when
@@ -36,6 +38,8 @@ from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_cuke.feature_sources import resolve_feature_sources
 from pytest_cuke.message_plugin import MessagePlugin
 from pytest_cuke.mimetypes import Mimetype
+from pytest_cuke.model import Feature, Scenario
+from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.npm_resource import check_npm, check_npm_package
 from pytest_cuke.parser import GherkinParser, MarkdownGherkinParser, clear_parser_registrations
@@ -50,13 +54,13 @@ from pytest_cuke.steps.registry import Registry, StepRegistryProtocol
 from pytest_cuke.steps.status_policy import configured_tolerant_status, configured_wip_status
 from pytest_cuke.test_groups.plugin import TestGroupPlugin, add_test_group_ini
 from pytest_cuke.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
+from pytest_cuke.warning_types import PytestBDDStepDefinitionWarning
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Generator, Iterable, Sequence
 
     from _pytest.nodes import Collector
 
-    from pytest_cuke.model import Feature, Scenario
     from pytest_cuke.model.step import Step
     from pytest_cuke.steps.definition import Definition
 
@@ -190,6 +194,13 @@ def pytest_addoption(parser: Parser) -> None:
         help="validate scenario step bindings without running BDD hooks or step bodies",
     )
     feature_group.addoption(
+        "--cuke-allow-empty-scenarios",
+        action="store_true",
+        dest="cuke_allow_empty_scenarios",
+        default=None,
+        help="skip explicit scenarios when none of their steps match a step definition",
+    )
+    feature_group.addoption(
         "--cuke-parser",
         action="store",
         dest="cuke_parser",
@@ -255,6 +266,12 @@ def add_bdd_ini(parser: Parser) -> None:
         type="bool",
     )
     parser.addini(
+        "cuke_allow_empty_scenarios",
+        "Skip explicitly bound non-empty scenarios when none of their steps match a step definition.",
+        default=False,
+        type="bool",
+    )
+    parser.addini(
         "cuke_tolerant_status",
         "Status policy for ordinary exceptions in @tolerant steps: failed or ignored.",
         default="failed",
@@ -283,6 +300,181 @@ def _positive_integer(value: str) -> int:
     if threshold < 1:
         raise ArgumentTypeError("batch threshold must be a positive integer")
     return threshold
+
+
+def _allow_empty_scenarios_enabled(config: Config) -> bool:
+    option = getattr(getattr(config, "option", None), "cuke_allow_empty_scenarios", None)
+    if option is not None:
+        return bool(option)
+    return bool(config.getini("cuke_allow_empty_scenarios"))
+
+
+def _generation_mode_enabled(config: Config) -> bool:
+    for name in ("cuke_generate_missing", "cuke_generate"):
+        option = getattr(getattr(config, "option", None), name, None)
+        if option is None:
+            try:
+                option = config.getini(name)
+            except (KeyError, ValueError):
+                option = False
+        if option:
+            return True
+    return False
+
+
+def _collection_step_registry(item: Any) -> Registry:
+    """Build the item's applicable step registry without setting up fixtures."""
+    fixture_manager = getattr(getattr(item, "session", None), "_fixturemanager", None)
+    get_fixture_definitions = getattr(fixture_manager, "getfixturedefs", None)
+    fixture_definitions = get_fixture_definitions("step_registry", item) if get_fixture_definitions else None
+
+    registries: list[Registry] = []
+    module_registry = getattr(getattr(item, "module", None), "__pytest_cuke_step_registry__", None)
+    if isinstance(module_registry, Registry):
+        registries.append(module_registry)
+
+    for fixture_definition in reversed(fixture_definitions or ()):
+        fixture_function = getattr(fixture_definition, "func", None)
+        registry = getattr(fixture_function, "__pytest_cuke_step_registry__", None)
+        if isinstance(registry, Registry) and all(registry is not existing for existing in registries):
+            registries.append(registry)
+
+    definitions: OrderedSet[Any] = OrderedSet()
+    for registry in registries:
+        definitions.update(registry.registry)
+    return Registry(definitions=definitions)
+
+
+class _CollectionMatchRequest:
+    """Expose only safe collection-time dependencies to the ordinary matcher."""
+
+    def __init__(self, config: Config, *, custom_parameter_registry: bool) -> None:
+        self.config = config
+        self.custom_parameter_registry = custom_parameter_registry
+
+    def getfixturevalue(self, name: str) -> Any:
+        if name == "parameter_type_registry" and not self.custom_parameter_registry:
+            return cucumber_expression.parameter_type_registry
+        raise LookupError(f"fixture {name!r} is unavailable during scenario collection validation")
+
+
+def _has_custom_parameter_type_registry(item: Any) -> bool:
+    fixture_manager = getattr(getattr(item, "session", None), "_fixturemanager", None)
+    get_fixture_definitions = getattr(fixture_manager, "getfixturedefs", None)
+    if get_fixture_definitions is None:
+        return False
+    fixture_definitions = get_fixture_definitions("parameter_type_registry", item) or ()
+    return any(
+        getattr(fixture_definition, "func", None) is not parameter_type_registry
+        for fixture_definition in fixture_definitions
+    )
+
+
+def _scenario_has_matching_step(config: Config, item: Any, feature: Feature, scenario: Scenario) -> bool:
+    """Return whether any executable step matches, without running a user fixture."""
+    steps_to_check = execution_steps(feature, scenario)
+    if not steps_to_check:
+        return False
+
+    matcher = Matcher(config)
+    request = _CollectionMatchRequest(
+        config,
+        custom_parameter_registry=_has_custom_parameter_type_registry(item),
+    )
+    registry = _collection_step_registry(item)
+    previous_step = None
+    for step in steps_to_check:
+        try:
+            with catch_warnings():
+                simplefilter("ignore", PytestBDDStepDefinitionWarning)
+                matcher(request, feature, scenario, step, previous_step, registry)  # type: ignore[arg-type]  # The collection request deliberately exposes no fixture setup API.
+        except Matcher.MatchNotFoundError:
+            pass
+        except LookupError:
+            # A parser may need a user fixture. Leave that case to normal runtime matching.
+            return True
+        else:
+            return True
+        finally:
+            previous_step = step
+    return False
+
+
+def _bound_scenario(item: Any) -> tuple[Feature, Scenario] | None:
+    if item.get_closest_marker("pytest_cuke_scenario") is None:
+        return None
+    callspec = getattr(item, "callspec", None)
+    params = getattr(callspec, "params", {})
+    feature, scenario = params.get("feature"), params.get("scenario")
+    if isinstance(feature, Feature) and isinstance(scenario, Scenario):
+        return feature, scenario
+    return None
+
+
+def _is_feature_autoload_item(item: Any) -> bool:
+    parent = getattr(item, "parent", None)
+    while parent is not None:
+        if isinstance(parent, FeatureFileCollector):
+            return True
+        parent = getattr(parent, "parent", None)
+    return False
+
+
+def _zero_match_scenario_detail(feature: Feature, scenario: Scenario) -> str:
+    source = feature.filename or feature.uri or feature.rel_filename or "<unknown feature>"
+    location = f"{source}:{scenario.line}" if scenario.line else source
+    heading = f"{scenario.keyword} {scenario.name}"
+    details = [
+        f"  {source}:{step.line}: {step.keyword}{step.name}"
+        for step in execution_steps(feature, scenario)
+    ]
+    return "\n".join((f"{location}: {heading} has no matching step definitions.", "  Scenario steps:", *details))
+
+
+def _zero_match_skip_reason(feature: Feature, scenario: Scenario) -> str:
+    source = feature.filename or feature.uri or feature.rel_filename or "<unknown feature>"
+    location = f"{source}:{scenario.line}" if scenario.line else source
+    return (
+        f"No scenario step matched a step definition at {location} ({scenario.keyword} {scenario.name}); "
+        "allowed by --cuke-allow-empty-scenarios."
+    )
+
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_collection_modifyitems(config: Config, items: list[Any]) -> Generator[Any, Any, None]:
+    """Validate explicit bindings after pytest has applied item selection."""
+    outcome = yield
+    if outcome.excinfo is not None:
+        return
+
+    if (
+        _generation_mode_enabled(config)
+        or bool(getattr(config.option, "keyword", None))
+        or bool(getattr(config.option, "markexpr", None))
+        or ScenarioRunner._mock_run_enabled(config)
+    ):
+        return
+
+    allow_empty = _allow_empty_scenarios_enabled(config)
+    invalid: list[str] = []
+    for item in items:
+        if _is_feature_autoload_item(item):
+            continue
+        binding = _bound_scenario(item)
+        if binding is None:
+            continue
+        feature, scenario = binding
+        if not execution_steps(feature, scenario) or _scenario_has_matching_step(config, item, feature, scenario):
+            continue
+        if allow_empty:
+            item.add_marker(pytest.mark.skip(reason=_zero_match_skip_reason(feature, scenario)))
+        else:
+            invalid.append(_zero_match_scenario_detail(feature, scenario))
+
+    if invalid:
+        raise pytest.UsageError(
+            "Explicit scenarios with steps but no matching step definitions were found:\n\n" + "\n\n".join(invalid)
+        )
 
 
 def _allure_messages_input(config: Config) -> str | None:
