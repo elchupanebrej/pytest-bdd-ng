@@ -8,6 +8,7 @@ import pytest
 from pytest_cuke.model.background import Background
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.model.step import Step
 from pytest_cuke.reporting import ScenarioReport, ScenarioReporterPlugin, StepReport
 
@@ -50,6 +51,31 @@ def test_failed_step_report_marks_unexecuted_background_and_scenario_steps_skipp
     assert [step["status"] for step in serialized_steps] == ["failed", "skipped", "skipped", "skipped"]
 
 
+def test_failed_scenario_run_keeps_later_steps_as_skipped() -> None:
+    steps = (
+        Step(name="completed step", keyword="Given "),
+        Step(name="failed step", keyword="When "),
+        Step(name="unexecuted step", keyword="Then "),
+    )
+    feature = Feature(name="Runtime reporting")
+    scenario = Scenario(name="Failure", steps=steps)
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="runtime.feature::Failure",
+        feature=feature,
+        scenario=scenario,
+    )
+
+    for step, status in ((steps[0], "passed"), (steps[1], "failed")):
+        step_run = context.start_step(step)
+        context.finish_step(step_run, status=status)
+    context.finish_active(status="failed", exception=RuntimeError("step failed"))
+
+    report = ScenarioReport.from_scenario_run(scenario_run)
+
+    assert [step["status"] for step in report.serialize()["steps"]] == ["passed", "failed", "skipped"]
+
+
 def test_scenario_report_failure_before_first_step_is_not_serialized_as_passed() -> None:
     step = Step(name="background setup", keyword="Given ")
     feature = Feature(name="Background setup", background=Background(steps=(step,)))
@@ -81,7 +107,6 @@ def test_scenario_report_skip_marks_remaining_steps_skipped() -> None:
 
 def test_plain_test_call_does_not_inherit_previous_scenario_report() -> None:
     plugin = ScenarioReporterPlugin()
-    plugin.current_report = ScenarioReport(feature=Feature(name="Previous BDD"), scenario=Scenario(name="Previous"))
     report = SimpleNamespace(passed=True, failed=False, skipped=False)
     item = SimpleNamespace(name="test_plain", get_closest_marker=lambda name: None)
     call = SimpleNamespace(when="call")
@@ -93,4 +118,3 @@ def test_plain_test_call_does_not_inherit_previous_scenario_report() -> None:
         hook.send(outcome)
 
     assert not hasattr(report, "scenario")
-    assert plugin.current_report is None

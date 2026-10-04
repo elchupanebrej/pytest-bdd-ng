@@ -8,6 +8,8 @@ from attrs import define, field
 from pytest_cuke.model.stash_access import StashBound
 
 if TYPE_CHECKING:
+    from pytest_cuke.model.feature import Feature
+    from pytest_cuke.model.feature_binding import FeatureRuntimeBinding
     from pytest_cuke.model.scenario import Scenario
     from pytest_cuke.model.step import Step
 
@@ -42,7 +44,7 @@ class ExecutionContext:
 
 @define(slots=True)
 class StepRun:
-    step: Step | Any | None = None
+    step: Step | None = None
     status: str = "passed"
     start_time: float | None = None
     duration: float = 0.0
@@ -51,6 +53,9 @@ class StepRun:
     failure_reason: str | None = None
     id: str = ""
     test_step_id: str | None = None
+    index: int = 0
+    previous_step_run: StepRun | None = None
+    children: list[StepRun] = field(factory=list)
 
     def start(self, timestamp: float | None = None) -> None:
         self.start_time = time.perf_counter() if timestamp is None else timestamp
@@ -93,13 +98,32 @@ class StepRun:
 class ScenarioRun(StashBound):
     STASH_KEY: ClassVar[str] = "pytest_cuke_scenario_run"
 
-    scenario: Scenario | Any | None = None
+    scenario: Scenario | None = None
+    feature: Feature | None = None
+    feature_binding: FeatureRuntimeBinding | None = None
+    nodeid: str = ""
     steps: list[StepRun] = field(factory=list)
     context: ExecutionContext = field(factory=ExecutionContext)
     run_id: str = ""
     attempt: int = 0
+    attempt_id: str = ""
+    test_case_id: str = ""
     test_case_started_id: str = ""
+    test_step_ids: list[str] = field(factory=list)
+    message_test_case: Any = None
+    message_test_case_started: Any = None
+    message_test_steps: list[Any] = field(factory=list)
+    message_test_steps_by_identity: dict[int, Any] = field(factory=dict)
+    message_finished_test_step_ids: set[str] = field(factory=set)
+    message_test_step_start_timestamps: dict[str, Any] = field(factory=dict)
+    message_active_test_step_id: str | None = None
+    message_test_step_exception_traces: dict[str, str] = field(factory=dict)
+    current_step_run: StepRun | None = None
+    previous_step_run: StepRun | None = None
     status: str = "pending"
+    stage: str = "inactive"
+    hook_phase: str = "inactive"
+    transition_index: int = 0
     start_time: float | None = None
     duration: float = 0.0
     exception: BaseException | None = None
