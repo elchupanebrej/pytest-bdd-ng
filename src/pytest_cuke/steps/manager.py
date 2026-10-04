@@ -74,6 +74,7 @@ class StepDefinitionManager:
                 param_defaults=param_defaults or {},
                 target_fixtures=list(resolved_target_fixtures),
                 liberal=liberal,
+                tolerant=bool(getattr(step_func, "__pytest_cuke_tolerant__", False)),
             )
             step_definitions = cast(
                 "set[Definition]", setdefaultattr(step_func, "__pytest_cuke_step_definitions__", value_factory=set)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager, suppress
+from dataclasses import dataclass
 from functools import partial
 from itertools import zip_longest
 from operator import attrgetter
@@ -22,6 +23,7 @@ from pytest_cuke.model.scenario_run import ScenarioRun, StepRun
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.steps.manager import StepDefinitionManager
 from pytest_cuke.steps.matcher import Matcher
+from pytest_cuke.steps.tolerant_policy import resolve_tolerant_status
 from pytest_cuke.utils import DefaultMapping, get_args
 
 if TYPE_CHECKING:
@@ -32,6 +34,11 @@ if TYPE_CHECKING:
     from pytest_cuke.model.scenario import Scenario
     from pytest_cuke.model.step import Step
     from pytest_cuke.steps.definition import Definition
+
+
+@dataclass(frozen=True, slots=True)
+class _IgnoredStepFailure:
+    exception: Exception
 
 
 class StepRunner:
@@ -143,6 +150,7 @@ class StepRunner:
             hook_kwargs["step_func"] = step_definition.func
             hook_kwargs["step_definition"] = step_definition
 
+        step_error_hook_called = False
         try:
             request.config.hook.pytest_cuke_before_step(**hook_kwargs)
             step_params = (
@@ -168,14 +176,29 @@ class StepRunner:
                     kwargs=step_function_kwargs,
                 )
 
-            step_result = step_caller()
+            try:
+                step_result = step_caller()
+            except Exception as exception:
+                outcome_exceptions = (pytest.skip.Exception, pytest.fail.Exception, pytest.xfail.Exception)
+                if (
+                    step_definition.tolerant
+                    and not isinstance(exception, outcome_exceptions)
+                    and resolve_tolerant_status(request.config, request.node, scenario) == "ignored"
+                ):
+                    hook_kwargs["exception"] = exception
+                    hook_kwargs["tolerated"] = True
+                    step_error_hook_called = True
+                    request.config.hook.pytest_cuke_step_error(**hook_kwargs)
+                    return _IgnoredStepFailure(exception)
+                raise
 
             self.inject_target_fixtures(request, step_definition, step_result)
             request.config.hook.pytest_cuke_after_step(**hook_kwargs)
             return step_result
         except (Exception, pytest.skip.Exception, pytest.fail.Exception, pytest.xfail.Exception) as exception:
-            hook_kwargs["exception"] = exception
-            request.config.hook.pytest_cuke_step_error(**hook_kwargs)
+            if not step_error_hook_called:
+                hook_kwargs["exception"] = exception
+                request.config.hook.pytest_cuke_step_error(**hook_kwargs)
             raise
 
 
@@ -374,6 +397,14 @@ class ScenarioRunner:
                 failure_reason=type(exception).__name__,
             )
             raise
+        if isinstance(result, _IgnoredStepFailure):
+            context.finish_step(
+                step_run,
+                status="failed",
+                exception=result.exception,
+                failure_reason=type(result.exception).__name__,
+            )
+            return None
         context.finish_step(step_run, result=result)
         return result
 

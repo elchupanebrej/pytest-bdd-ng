@@ -43,6 +43,21 @@ def test_decorators_not_implemented_and_tolerant() -> None:
     assert defn.tolerant is True
 
 
+def test_tolerant_can_be_inner_or_outer_to_step_decorator() -> None:
+    @tolerant
+    @when(string("I tolerate the inner order"))
+    def inner_tolerant() -> None:
+        pass
+
+    @when(string("I tolerate the outer order"))
+    @tolerant
+    def outer_tolerant() -> None:
+        pass
+
+    assert next(iter(inner_tolerant.__pytest_cuke_step_definitions__)).tolerant is True
+    assert next(iter(outer_tolerant.__pytest_cuke_step_definitions__)).tolerant is True
+
+
 def test_matcher_liberal_mode() -> None:
     @then(string("I check state"))
     def then_check() -> None:

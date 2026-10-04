@@ -58,6 +58,13 @@ def test_log_bdd_cucumber_json_get_result() -> None:
     assert res_failed["status"] == "failed"
     assert "AssertionError" in res_failed["error_message"]
 
+    report.passed = True
+    report.failed = False
+    tolerated_step = {"failed": True, "status": "failed", "error_message": "body assertion", "duration": 0.01}
+    tolerated_result = logger._get_result(tolerated_step, report)
+    assert tolerated_result["status"] == "failed"
+    assert tolerated_result["error_message"] == "body assertion"
+
     report.passed = False
     report.failed = False
     report.skipped = True

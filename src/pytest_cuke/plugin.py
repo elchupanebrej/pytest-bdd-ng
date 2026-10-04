@@ -47,6 +47,7 @@ from pytest_cuke.scenario import add_options as scenario_add_options
 from pytest_cuke.scenario_locator import FileScenarioLocator, UrlScenarioLocator
 from pytest_cuke.steps.matcher import Matcher
 from pytest_cuke.steps.registry import Registry, StepRegistryProtocol
+from pytest_cuke.steps.tolerant_policy import configured_tolerant_status
 from pytest_cuke.test_groups.plugin import TestGroupPlugin, add_test_group_ini
 from pytest_cuke.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
 
@@ -198,6 +199,16 @@ def pytest_addoption(parser: Parser) -> None:
         default=None,
         help="feature count at which collection switches to spawn-based batch parsing",
     )
+    tolerant_group = parser.getgroup("cuke", "Tolerant steps")
+    tolerant_group.addoption(
+        "--cuke-tolerant-status",
+        action="store",
+        dest="cuke_tolerant_status",
+        metavar="STATUS",
+        choices=("failed", "ignored"),
+        default=None,
+        help="status of a failed @tolerant step; overrides cuke_tolerant_status",
+    )
     steps.add_options(parser)
     scenario_add_options(parser)
     cucumber_json.add_options(parser)
@@ -219,6 +230,12 @@ def add_bdd_ini(parser: Parser) -> None:
     )
     parser.addini(
         "cuke_strict", "Reject empty parsed Feature and Scenario titles during collection.", default=False, type="bool"
+    )
+    parser.addini(
+        "cuke_tolerant_status",
+        "Status policy for ordinary exceptions in @tolerant steps: failed or ignored.",
+        default="failed",
+        type="string",
     )
     add_test_group_ini(parser)
 
@@ -274,12 +291,20 @@ def pytest_configure(config: Config) -> None:
         return
 
     try:
+        configured_tolerant_status(config)
+    except ValueError as error:
+        raise pytest.UsageError(str(error)) from error
+
+    try:
         resolve_feature_sources(config)
     except ValueError as error:
         raise pytest.UsageError(str(error)) from error
 
     config.addinivalue_line("markers", "pytest_cuke_scenario: marker to identify pytest_cuke tests")
     config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
+    config.addinivalue_line("markers", "tolerant_status(value): override the tolerant step status for this scenario")
+    config.addinivalue_line("markers", "tolerant-status-ignored: ignore ordinary failures in @tolerant steps")
+    config.addinivalue_line("markers", "tolerant-status-failed: report ordinary failures in @tolerant steps")
     run_context = RunContext.from_config(config)
     cucumber_json.configure(config)
     gherkin_terminal_reporter.configure(config)

@@ -6005,3 +6005,161 @@ def consumer_runtime_snapshot_retains_teardown_failure(relative_path: str, consu
     assert snapshot["active_step"] is False, snapshot
     assert snapshot["exception_type"] == "RuntimeError", snapshot
     assert snapshot["exception_message"] == "runtime teardown failure sentinel", snapshot
+
+
+@given("the installed consumer exposes tolerant steps and a continuation artifact")
+def install_tolerant_step_consumer_definitions(consumer: ConsumerProject) -> None:
+    (consumer.path / "conftest.py").write_text(
+        '''from pathlib import Path
+
+import pytest
+from pytest_cuke import parsers, then, when
+from pytest_cuke.steps import tolerant
+
+
+@tolerant
+@when("the first tolerant operation raises an AssertionError")
+def first_tolerant_operation():
+    raise AssertionError("first tolerant assertion sentinel")
+
+
+@when("the second tolerant operation raises a RuntimeError")
+@tolerant
+def second_tolerant_operation():
+    raise RuntimeError("second tolerant runtime sentinel")
+
+
+@tolerant
+@when("a tolerant operation requests a skip")
+def tolerant_operation_requests_skip():
+    pytest.skip("tolerant skip sentinel")
+
+
+@when("an ordinary operation raises a RuntimeError")
+def ordinary_operation_raises():
+    raise RuntimeError("ordinary runtime sentinel")
+
+
+@then(parsers.parse('the continuation records "{labels}"'))
+def record_continuation(labels):
+    with Path("continuations.log").open("a", encoding="utf-8") as stream:
+        stream.write("\\n".join(labels.split(",")) + "\\n")
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_collection_modifyitems(items):
+    for item in items:
+        if "A pytest marker overrides the conflicting Gherkin tag" in item.name:
+            item.add_marker(pytest.mark.tolerant_status("ignored"))
+        if "An invalid pytest marker falls through to the failed Gherkin tag" in item.name:
+            item.add_marker(pytest.mark.tolerant_status("unknown"))
+''',
+        encoding="utf-8",
+    )
+
+
+@then(re.compile(r'consumer continuation artifact should list "(?P<labels>[^"]+)"'))
+def consumer_continuation_artifact_has_expected_labels(labels: str, consumer: ConsumerProject) -> None:
+    artifact = consumer.path / "continuations.log"
+    actual = artifact.read_text(encoding="utf-8").splitlines()
+    expected = labels.split(",")
+    assert actual == expected, f"expected continuation lines {expected!r}, got {actual!r}"
+
+
+def _tolerant_scenario_step_results(
+    relative_path: str,
+    scenario_name: str,
+    consumer: ConsumerProject,
+) -> tuple[list[tuple[str, dict[str, object]]], bool]:
+    envelopes = _background_messages_artifact(relative_path, consumer)
+    pickles = [
+        envelope["pickle"]
+        for envelope in envelopes
+        if isinstance(envelope.get("pickle"), dict) and envelope["pickle"].get("name") == scenario_name
+    ]
+    assert len(pickles) == 1, f"expected one pickle for scenario {scenario_name!r}, got {pickles!r}"
+    pickle = pickles[0]
+    cases = [
+        envelope["testCase"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCase"), dict) and envelope["testCase"].get("pickleId") == pickle["id"]
+    ]
+    assert len(cases) == 1, f"expected one test case for scenario {scenario_name!r}, got {cases!r}"
+    test_case = cases[0]
+    started = [
+        envelope["testCaseStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCaseStarted"), dict)
+        and envelope["testCaseStarted"].get("testCaseId") == test_case["id"]
+    ]
+    assert len(started) == 1, f"expected one scenario attempt for {scenario_name!r}, got {started!r}"
+    started_id = started[0]["id"]
+    finishes = {
+        finish["testStepId"]: finish["testStepResult"]
+        for envelope in envelopes
+        if isinstance((finish := envelope.get("testStepFinished")), dict)
+        and finish.get("testCaseStartedId") == started_id
+    }
+    steps = [
+        (pickle_step["text"], finishes[test_step["id"]])
+        for pickle_step, test_step in zip(pickle["steps"], test_case["testSteps"], strict=True)
+        if test_step["id"] in finishes
+    ]
+    run_finishes = [
+        envelope["testRunFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunFinished"), dict)
+    ]
+    assert len(run_finishes) == 1, f"expected one TestRunFinished event, got {run_finishes!r}"
+    return steps, bool(run_finishes[0].get("success"))
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should keep tolerant step statuses '
+        r'"(?P<statuses>[A-Z, ]+)" and exception messages "(?P<messages>[^"]+)" for scenario '
+        r'"(?P<scenario_name>[^"]+)" and TestRunFinished success "(?P<expected_run_success>true|false)"'
+    )
+)
+def consumer_tolerant_step_messages(
+    relative_path: str,
+    statuses: str,
+    messages: str,
+    scenario_name: str,
+    expected_run_success: str,
+    consumer: ConsumerProject,
+) -> None:
+    steps, run_success = _tolerant_scenario_step_results(relative_path, scenario_name, consumer)
+    expected_statuses = [status.strip() for status in statuses.split(",")]
+    actual_statuses = [result.get("status") for _, result in steps]
+    assert actual_statuses == expected_statuses, (actual_statuses, expected_statuses, steps)
+    expected_messages = messages.split(",")
+    failure_exceptions = []
+    for _, result in steps:
+        exception = result.get("exception")
+        if result.get("status") == "FAILED" and isinstance(exception, dict):
+            failure_exceptions.append(exception.get("message"))
+    assert failure_exceptions == expected_messages, (failure_exceptions, expected_messages, steps)
+    assert run_success is (expected_run_success == "true"), (run_success, expected_run_success)
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should retain skip and undefined statuses under the ignored policy'
+    )
+)
+def consumer_tolerant_skip_and_undefined_messages(relative_path: str, consumer: ConsumerProject) -> None:
+    skip_steps, _ = _tolerant_scenario_step_results(
+        relative_path,
+        "A tolerant skip remains skipped under ignored policy",
+        consumer,
+    )
+    undefined_steps, run_success = _tolerant_scenario_step_results(
+        relative_path,
+        "An undefined operation remains undefined under ignored policy",
+        consumer,
+    )
+    assert [result.get("status") for _, result in skip_steps] == ["SKIPPED", "SKIPPED"], skip_steps
+    assert [result.get("status") for _, result in undefined_steps] == ["UNDEFINED", "SKIPPED"], undefined_steps
+    assert all(result.get("status") != "PASSED" for _, result in (*skip_steps, *undefined_steps))
+    assert run_success is False
