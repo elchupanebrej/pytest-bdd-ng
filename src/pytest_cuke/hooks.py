@@ -75,8 +75,14 @@ def pytest_cuke_step_error(
     step_func_args: tuple[Any, ...],
     exception: BaseException,
     step_definition: Any,
+    tolerated: bool = False,
 ) -> None:
-    """Called when step function failed to execute."""
+    """Called when a step body or its setup failed to execute.
+
+    ``tolerated`` is true only when an ordinary body exception is ignored by
+    the configured tolerant-step policy. The step still failed and should
+    retain its error evidence in reports.
+    """
 
 
 def pytest_cuke_step_func_lookup_error(

@@ -39,6 +39,8 @@ def test_pytest_configure_lifecycle() -> None:
     config.option.cuke_json = None
     config.option.cuke_progress = False
     config.option.cuke_summary = False
+    config.option.cuke_tolerant_status = None
+    config.getini.side_effect = lambda name: "failed" if name == "cuke_tolerant_status" else ""
 
     pytest_configure(config)
 

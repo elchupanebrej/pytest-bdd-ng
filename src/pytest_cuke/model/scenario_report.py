@@ -101,13 +101,13 @@ class ScenarioReport:
         feat_name = getattr(feature, "name", None) if feature is not None else None
 
         steps = [StepReport.from_step_run(st) for st in scenario_run.steps]
-        failed = scenario_run.status == "failed" or any(s.failed for s in steps)
+        failed = scenario_run.status in ("failed", "undefined")
         err_msg = str(scenario_run.exception) if scenario_run.exception is not None else None
-        if not err_msg and any(s.error_message for s in steps if s.failed):
+        if failed and not err_msg and any(s.error_message for s in steps if s.failed):
             err_msg = next(s.error_message for s in steps if s.failed and s.error_message)
 
         total_duration = scenario_run.duration or sum(s.duration for s in steps)
-        status = "failed" if failed else scenario_run.status
+        status = scenario_run.status
 
         return cls(
             scenario_name=sc_name,
