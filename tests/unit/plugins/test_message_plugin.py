@@ -8,13 +8,16 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from messages import Envelope as Message
-from messages import TestCase, TestCaseStarted, Timestamp
+from messages import TestCase, TestCaseStarted, TestStep, Timestamp
 from pytest_cuke.message_plugin import MessagePlugin
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.scenario import Scenario
 from pytest_cuke.model.session_run import RunContext
+from pytest_cuke.model.step import Step
 
 TestCase.__test__ = False
+TestCaseStarted.__test__ = False
+TestStep.__test__ = False
 
 
 def _enabled_config(**overrides):
@@ -97,6 +100,51 @@ def test_message_plugin_pytest_cuke_attach() -> None:
 
     plugin.pytest_cuke_attach(request, "hello attachment", "text/plain", "file.txt")
     config.hook.pytest_cuke_message.assert_called_once()
+
+
+def test_tolerated_step_error_keeps_later_message_steps_executable() -> None:
+    failed_step = Step(name="tolerated failure", keyword="When ")
+    later_step = Step(name="later real step", keyword="Then ")
+    scenario = Scenario(name="Tolerated", steps=(failed_step, later_step))
+    feature = Feature(name="Tolerant messages", uri="tolerant.feature")
+    context = RunContext()
+    scenario_run = context.start_scenario(nodeid="tolerant.feature::Tolerated", feature=feature, scenario=scenario)
+    failed_test_step = TestStep(id="ts-failed", pickle_step_id="ps-failed", step_definition_ids=[])
+    later_test_step = TestStep(id="ts-later", pickle_step_id="ps-later", step_definition_ids=[])
+    scenario_run.message_state.test_case_started = TestCaseStarted(
+        attempt=0,
+        id="attempt-1",
+        test_case_id="tc-1",
+        worker_id="master",
+        timestamp=Timestamp(seconds=1, nanos=0),
+    )
+    scenario_run.message_state.test_steps = [failed_test_step, later_test_step]
+    scenario_run.message_state.test_steps_by_identity = {
+        id(failed_step): failed_test_step,
+        id(later_step): later_test_step,
+    }
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+    )
+    plugin = MessagePlugin(config=config)
+
+    plugin.pytest_cuke_step_error(
+        request=SimpleNamespace(config=config),
+        feature=feature,
+        scenario=scenario,
+        step=failed_step,
+        step_func=lambda: None,
+        step_func_args={},
+        exception=AssertionError("tolerated failure"),
+        step_definition=object(),
+        tolerated=True,
+    )
+
+    assert scenario_run.message_state.finished_test_step_ids == {"ts-failed"}
+    assert len(config.hook.pytest_cuke_message.call_args_list) == 2
 
 
 def test_message_plugin_ignores_ordinary_pytest_tests() -> None:

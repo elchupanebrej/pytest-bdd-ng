@@ -56,6 +56,7 @@ class StepReport:
         self.started = time.perf_counter()
         self.duration_override: float | None = None
         self.status = "passed"
+        self.error_message: str | None = None
 
     def serialize(self, feature: Feature) -> dict[str, Any]:
         """Serialize the step execution report.
@@ -75,6 +76,7 @@ class StepReport:
             "skipped": self.skipped,
             "status": self.status,
             "duration": self.duration,
+            "error_message": self.error_message,
         }
         return serialized
 
@@ -134,6 +136,9 @@ class ScenarioReport:
             step_report.failed = step_run.status in ("failed", "undefined")
             step_report.skipped = step_run.status == "skipped"
             step_report.status = step_run.status
+            step_report.error_message = (
+                str(step_run.exception) if step_run.exception is not None else step_run.failure_reason
+            )
             report.add_step_report(step_report)
         if scenario_run.status in ("failed", "undefined"):
             report.fail()

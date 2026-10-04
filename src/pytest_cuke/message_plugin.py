@@ -866,6 +866,7 @@ class MessagePlugin:
         step_func_args: dict[str, Any],
         exception: BaseException,
         step_definition: Any,
+        tolerated: bool = False,
     ) -> None:
         if self.is_disabled:
             return
@@ -898,6 +899,9 @@ class MessagePlugin:
                 traceback.format_exception(type(exception), exception, exception.__traceback__)
             ),
         )
+        if tolerated:
+            return
+
         failed_step_index = next(
             index
             for index, ordered_step in enumerate(self.current_test_case_step_order)

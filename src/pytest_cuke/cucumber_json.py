@@ -222,11 +222,16 @@ class LogBDDCucumberJSON:
         if step.get("skipped", False) or step.get("status") == "skipped":
             result = {"status": "skipped"}
         elif step.get("status") == "failed" or (report.failed and step.get("failed", False)):
-            result = {"status": "failed", "error_message": str(report.longrepr) if error_message else ""}
-        elif step.get("status") == "passed" or report.passed or not step.get("failed", False):  # ignore setup/teardown
-            result = {"status": "passed"}
+            message = step.get("error_message")
+            if not message and error_message:
+                message = str(report.longrepr)
+            result = {"status": "failed"}
+            if message:
+                result["error_message"] = message
         elif report.skipped:
             result = {"status": "skipped"}
+        elif step.get("status") == "passed" or report.passed or not step.get("failed", False):  # ignore setup/teardown
+            result = {"status": "passed"}
         else:
             result = {"status": "unknown"}
         result["duration"] = math.floor((10**9) * step.get("duration", 0.0))  # nanosec
@@ -256,7 +261,7 @@ class LogBDDCucumberJSON:
 
         def stepmap(step: dict[str, Any]) -> dict[str, Any]:
             error_message = False
-            if step.get("failed") and not scenario.setdefault("failed", False):
+            if step.get("failed") and not scenario.setdefault("failed", False) and not report.passed:
                 scenario["failed"] = True
                 error_message = True
 
