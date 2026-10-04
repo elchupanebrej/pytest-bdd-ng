@@ -181,3 +181,23 @@ Feature: Tolerant step status policy
     Then pytest should exit with a non-zero code
     And pytest output should include "cuke_tolerant_status"
     And the consumer file "continuations.log" should not exist
+
+  Scenario: Xdist workers resolve each scenario policy independently
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And the installed consumer exposes tolerant steps and a continuation artifact
+    And consumer file "features/tolerant-status.feature" contains:
+      """gherkin
+      Feature: Isolated xdist tolerant policies
+        @tolerant-status-ignored
+        Scenario: Each worker continues the ignored scenario
+          When the first tolerant operation raises an AssertionError
+          Then the continuation records "worker-ignored"
+
+        @tolerant-status-failed
+        Scenario: Each worker stops the failed scenario
+          When the first tolerant operation raises an AssertionError
+          Then the continuation records "worker-failed"
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored -n2 --dist=each -q"
+    Then pytest should exit with a non-zero code
+    And consumer xdist continuation artifacts should show "worker-ignored" on 2 workers
