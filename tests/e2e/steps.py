@@ -6145,6 +6145,38 @@ def consumer_tolerant_step_messages(
 
 @then(
     re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should report scenario "(?P<scenario_name>[^"]+)" '
+        r'with step statuses "(?P<statuses>[a-z, ]+)" and error messages "(?P<messages>[^"]+)"'
+    )
+)
+def consumer_tolerant_cucumber_json(
+    relative_path: str,
+    scenario_name: str,
+    statuses: str,
+    messages: str,
+    consumer: ConsumerProject,
+) -> None:
+    report = json.loads((consumer.path / relative_path).read_text(encoding="utf-8"))
+    scenarios = [
+        scenario
+        for feature in report
+        for scenario in feature.get("elements", [])
+        if scenario.get("name") == scenario_name
+    ]
+    assert len(scenarios) == 1, scenarios
+    steps = scenarios[0]["steps"]
+    actual_statuses = [step["result"]["status"] for step in steps]
+    assert actual_statuses == [status.strip() for status in statuses.split(",")], (actual_statuses, steps)
+    actual_messages = [
+        step["result"]["error_message"]
+        for step in steps
+        if step["result"]["status"] == "failed" and step["result"].get("error_message")
+    ]
+    assert actual_messages == messages.split(","), (actual_messages, steps)
+
+
+@then(
+    re.compile(
         r'consumer artifact "(?P<relative_path>[^"]+)" should retain skip and undefined statuses under the ignored policy'
     )
 )
