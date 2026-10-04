@@ -17,6 +17,7 @@ import pytest
 from pathvalidate import is_valid_filepath
 
 from pytest_cuke import cucumber_json, generation, gherkin_terminal_reporter, given, hooks, steps, then, when
+from pytest_cuke.allure_conversion import AllureConversionError, convert_allure_messages
 from pytest_cuke.allure_logging import AllurePytestBDD
 from pytest_cuke.batch_collection import CollectionBatchService, get_batch_service
 from pytest_cuke.collector import FeatureFileModule as FeatureFileCollector
@@ -228,9 +229,40 @@ def _positive_integer(value: str) -> int:
     return threshold
 
 
+def _allure_messages_input(config: Config) -> str | None:
+    namespace = getattr(config, "known_args_namespace", None)
+    if namespace is None:
+        namespace = getattr(config, "option", None)
+    option = getattr(namespace, "cuke_allure_messages_in", None)
+    if option is not None:
+        return option if isinstance(option, str) else None
+    ini_value = config.getini("cuke_allure_messages_in")
+    return ini_value if isinstance(ini_value, str) and ini_value else None
+
+
+def _allure_output_path(config: Config) -> str | None:
+    option = getattr(config.option, "cuke_allure", None)
+    if option is not None:
+        return option if isinstance(option, str) else None
+    ini_value = config.getini("cuke_allure")
+    return ini_value if isinstance(ini_value, str) and ini_value else None
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_load_initial_conftests(early_config: Config) -> None:
+    """Keep saved-stream conversion independent from consumer conftest files."""
+    if _allure_messages_input(early_config) is not None:
+        early_config.known_args_namespace.noconftest = True
+
+
 @pytest.mark.trylast
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
+    if _allure_messages_input(config) is not None:
+        if _allure_output_path(config) is None:
+            raise pytest.UsageError("--cuke-allure-messages-in requires --cuke-allure")
+        return
+
     try:
         resolve_feature_sources(config)
     except ValueError as error:
@@ -248,7 +280,11 @@ def pytest_configure(config: Config) -> None:
         summary_enabled = config.getini("cuke_summary")
     if summary_enabled:
         config.pluginmanager.register(ScenarioSummaryPlugin(), name="pytest_cuke_summary")
-    config.__allure_plugin__ = AllurePytestBDD.register_if_allure_accessible(config)  # type: ignore[attr-defined]  # Store the optional plugin for paired unregistration.
+    setattr(
+        config,
+        "__allure_plugin__",
+        None if _allure_output_path(config) is not None else AllurePytestBDD.register_if_allure_accessible(config),
+    )
     if hasattr(config, "stash"):
         IdGenerator.from_stash(config.stash)
     setdefaultattr(config, "pytest_cuke_id_generator", value_factory=IdGenerator)
@@ -469,7 +505,19 @@ def pytest_generate_tests(metafunc: Metafunc) -> None:
             )
 
 
+@pytest.hookimpl(tryfirst=True)
 def pytest_cmdline_main(config: Config) -> int | None:
+    """Convert a saved stream before test collection, or run pytest-cuke's generator."""
+    messages_path = _allure_messages_input(config)
+    if messages_path is not None:
+        output_path = _allure_output_path(config)
+        if output_path is None:
+            raise pytest.UsageError("--cuke-allure-messages-in requires --cuke-allure")
+        try:
+            convert_allure_messages(Path(messages_path), Path(output_path))
+        except AllureConversionError as error:
+            raise pytest.UsageError(f"cannot convert Cucumber Messages input: {error}") from error
+        return pytest.ExitCode.OK
     return generation.cmdline_main(config)
 
 

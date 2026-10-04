@@ -19,7 +19,7 @@ from functools import reduce
 from operator import attrgetter, itemgetter
 from pathlib import Path, PurePosixPath
 from textwrap import dedent
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
 from pytest import fixture
@@ -444,6 +444,53 @@ def write_consumer_file(relative_path, consumer: ConsumerProject, step):
     file_path = consumer.path / destination
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_text(step.doc_string.content, encoding="utf-8")
+
+
+def _consumer_artifact_path(relative_path: str, consumer: ConsumerProject) -> Path:
+    destination = Path(relative_path)
+    if destination.is_absolute() or ".." in destination.parts:
+        raise ValueError("consumer artifact paths must stay inside the consumer project")
+    project_root = consumer.path.resolve()
+    artifact_path = (project_root / destination).resolve()
+    try:
+        artifact_path.relative_to(project_root)
+    except ValueError as exc:
+        raise ValueError("consumer artifact paths must stay inside the consumer project") from exc
+    return artifact_path
+
+
+@given("the installed consumer has no Allure Python adapters or Node on PATH")
+def consumer_has_no_allure_runtime_dependencies(consumer: ConsumerProject) -> None:
+    consumer.env["PATH"] = str(consumer.python.parent)
+    assert shutil.which("node", path=consumer.env["PATH"]) is None
+    assert shutil.which("allure", path=consumer.env["PATH"]) is None
+    probe = subprocess.run(
+        [
+            str(consumer.python),
+            "-c",
+            "from importlib.metadata import PackageNotFoundError, distribution\n"
+            "for name in ('allure-python-commons', 'allure-pytest'):\n"
+            "    try:\n"
+            "        distribution(name)\n"
+            "    except PackageNotFoundError:\n"
+            "        continue\n"
+            "    raise SystemExit(f'unexpected Allure adapter installed: {name}')\n",
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert probe.returncode == 0, f"unexpected Allure runtime dependency: {probe.stdout}\n{probe.stderr}"
+
+
+@when(re.compile(r'I remove consumer file "(?P<relative_path>[^\"]+)"'))
+def remove_consumer_file(relative_path: str, consumer: ConsumerProject) -> None:
+    target = _consumer_artifact_path(relative_path, consumer)
+    if not target.is_file():
+        raise ValueError(f"consumer file does not exist: {relative_path}")
+    target.unlink()
 
 
 @step(re.compile(r'consumer file "(?P<relative_path>[^\"]+)" contains UTF-8 BOM and CRLF:'))
@@ -923,6 +970,92 @@ def consumer_messages_artifact(relative_path, scenario_count, step_count, consum
     assert run_finished[0].success is True
 
 
+@then(
+    re.compile(
+        r'consumer Messages artifact "(?P<relative_path>[^"]+)" should preserve the failed step diagnostics '
+        r"and attachment correlations"
+    )
+)
+def consumer_messages_failure_attachment_correlations(relative_path: str, consumer: ConsumerProject) -> None:
+    from base64 import b64decode
+
+    from messages import ContentEncoding
+
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    envelopes = []
+    exception_traces: dict[tuple[str, str], str] = {}
+    for line in artifact_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        payload = json.loads(line)
+        step_finished = payload.get("testStepFinished")
+        if isinstance(step_finished, dict):
+            step_result = step_finished.get("testStepResult")
+            if isinstance(step_result, dict):
+                exception_payload = step_result.get("exception")
+                if isinstance(exception_payload, dict) and "stackTrace" in exception_payload:
+                    trace = exception_payload.pop("stackTrace")
+                    assert isinstance(trace, str)
+                    exception_traces[(step_finished["testCaseStartedId"], step_finished["testStepId"])] = trace
+        envelopes.append(Envelope.model_validate(payload))
+
+    def payloads(kind: str) -> list[Any]:
+        return [
+            payload
+            for envelope in envelopes
+            if (payload := getattr(envelope, kind)) is not None
+        ]
+
+    def one(kind: str) -> Any:
+        matches = payloads(kind)
+        assert len(matches) == 1, f"expected one {kind} message, found {len(matches)}"
+        return matches[0]
+
+    pickle_message = one("pickle")
+    test_case = one("test_case")
+    case_started = one("test_case_started")
+    case_finished = one("test_case_finished")
+    run_finished = one("test_run_finished")
+    assert test_case.pickle_id == pickle_message.id
+    assert case_started.test_case_id == test_case.id
+    assert case_finished.test_case_started_id == case_started.id
+    assert run_finished.success is False
+    assert len(test_case.test_steps) == 1, test_case
+    test_step = test_case.test_steps[0]
+
+    step_started = one("test_step_started")
+    step_finished = one("test_step_finished")
+    assert step_started.test_case_started_id == case_started.id
+    assert step_started.test_step_id == test_step.id
+    assert step_finished.test_case_started_id == case_started.id
+    assert step_finished.test_step_id == test_step.id
+    assert step_finished.test_step_result.status.value == "FAILED"
+    assert step_finished.test_step_result.message == "failure sentinel"
+    exception = step_finished.test_step_result.exception
+    assert exception is not None
+    assert exception.type == "AssertionError"
+    assert exception.message == "failure sentinel"
+    stack_trace = exception_traces[(case_started.id, test_step.id)]
+    assert "AssertionError: failure sentinel" in stack_trace
+
+    attachments = payloads("attachment")
+    assert len(attachments) == 2, attachments
+    assert all(attachment.test_case_started_id == case_started.id for attachment in attachments), attachments
+    assert all(attachment.test_step_id == test_step.id for attachment in attachments), attachments
+    attachments_by_name = {attachment.file_name: attachment for attachment in attachments}
+    assert set(attachments_by_name) == {"identity.txt", "binary.bin"}, attachments_by_name
+
+    identity = attachments_by_name["identity.txt"]
+    assert ContentEncoding(identity.content_encoding) == ContentEncoding.identity
+    assert identity.media_type == "text/plain"
+    assert identity.body == "identity evidence"
+
+    binary = attachments_by_name["binary.bin"]
+    assert ContentEncoding(binary.content_encoding) == ContentEncoding.base64
+    assert binary.media_type == "application/octet-stream"
+    assert b64decode(binary.body, validate=True) == b"\x00\xffbinary evidence"
+
+
 @then("consumer reports should preserve external row identities, source URIs, Background steps, and outcomes")
 def consumer_external_examples_reports(consumer: ConsumerProject):
     json_report = json.loads((consumer.path / "report.json").read_text(encoding="utf-8"))
@@ -1165,6 +1298,512 @@ def consumer_command_exit_nonzero(consumer: ConsumerProject):
     assert result.returncode != 0, f"unexpected command success:\n{result.stdout}\n{result.stderr}"
 
 
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^\"]+)" should contain one result for scenario '
+        r'"(?P<scenario_name>[^\"]+)" with passed step "(?P<step_name>[^\"]+)" and one linked container'
+    )
+)
+def consumer_allure_result_directory_has_one_passed_step(
+    relative_path: str,
+    scenario_name: str,
+    step_name: str,
+    consumer: ConsumerProject,
+) -> None:
+    directory = Path(relative_path)
+    if directory.is_absolute() or ".." in directory.parts:
+        raise ValueError("consumer artifact paths must stay inside the consumer project")
+    result_directory = consumer.path / directory
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+    assert isinstance(result.get("uuid"), str) and result["uuid"], result
+    assert result.get("name") == scenario_name, result
+    assert result.get("status") == "passed", result
+    assert result.get("stage") == "finished", result
+    assert isinstance(result.get("start"), int) and isinstance(result.get("stop"), int), result
+    assert result["start"] <= result["stop"], result
+    assert (result["start"], result["stop"]) == (1700000001000, 1700000003000), result
+    steps = result.get("steps")
+    assert isinstance(steps, list) and len(steps) == 1, result
+    step_result = steps[0]
+    assert isinstance(step_result, dict), step_result
+    assert step_result.get("name") == step_name, step_result
+    assert step_result.get("status") == "passed", step_result
+    assert step_result.get("stage") == "finished", step_result
+    assert isinstance(step_result.get("start"), int) and isinstance(step_result.get("stop"), int), step_result
+    assert step_result["start"] <= step_result["stop"], step_result
+    assert (step_result["start"], step_result["stop"]) == (1700000002000, 1700000002001), step_result
+
+    container_files = sorted(result_directory.glob("*-container.json"))
+    assert len(container_files) == 1, f"expected one Allure container file, found {container_files!r}"
+    container = json.loads(container_files[0].read_text(encoding="utf-8"))
+    assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
+    container_uuid = container.get("uuid")
+    assert isinstance(container_uuid, str) and container_uuid, container
+    assert container_files[0].name == f"{container_uuid}-container.json", container
+    children = container.get("children")
+    assert isinstance(children, list) and result["uuid"] in children, container
+    befores = container.get("befores")
+    assert isinstance(befores, list) and len(befores) == 1, container
+    before = befores[0]
+    assert isinstance(before, dict), before
+    assert before.get("name") == "Before setup", before
+    assert before.get("status") == "passed", before
+    assert before.get("stage") == "finished", before
+    assert isinstance(before.get("start"), int) and isinstance(before.get("stop"), int), before
+    assert before["start"] <= before["stop"], before
+    assert (before["start"], before["stop"]) == (1700000001100, 1700000001200), before
+    afters = container.get("afters")
+    assert isinstance(afters, list) and len(afters) == 1, container
+    after = afters[0]
+    assert isinstance(after, dict), after
+    assert after.get("name") == "After cleanup", after
+    assert after.get("status") == "passed", after
+    assert after.get("stage") == "finished", after
+    assert isinstance(after.get("start"), int) and isinstance(after.get("stop"), int), after
+    assert after["start"] <= after["stop"], after
+    assert (after["start"], after["stop"]) == (1700000002100, 1700000002200), after
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^"]+)" should map "(?P<skipped_step>[^"]+)" '
+        r'to skipped and "(?P<undefined_step>[^"]+)" to broken, with scenario status broken'
+    )
+)
+def consumer_allure_skipped_and_undefined_statuses(
+    relative_path: str,
+    skipped_step: str,
+    undefined_step: str,
+    consumer: ConsumerProject,
+) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+    result_uuid = result.get("uuid")
+    assert isinstance(result_uuid, str) and result_uuid, result
+    assert result_files[0].name == f"{result_uuid}-result.json", result
+    assert result.get("name") == "Mixed outcome scenario", result
+    assert result.get("status") == "broken", result
+    assert result.get("stage") == "finished", result
+
+    steps = result.get("steps")
+    assert isinstance(steps, list) and len(steps) == 2, result
+    assert all(isinstance(item, dict) for item in steps), steps
+    assert [item.get("name") for item in steps] == [skipped_step, undefined_step], steps
+    assert [item.get("status") for item in steps] == ["skipped", "broken"], steps
+    assert all(item.get("stage") == "finished" for item in steps), steps
+
+    container_files = sorted(result_directory.glob("*-container.json"))
+    assert len(container_files) == 1, f"expected one Allure container file, found {container_files!r}"
+    container = json.loads(container_files[0].read_text(encoding="utf-8"))
+    assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
+    container_uuid = container.get("uuid")
+    assert isinstance(container_uuid, str) and container_uuid, container
+    assert container_files[0].name == f"{container_uuid}-container.json", container
+    assert container.get("children") == [result_uuid], container
+
+
+@when(
+    re.compile(
+        r'I generate an Allure 3 report from consumer result directory "(?P<results_path>[^"]+)" '
+        r'into "(?P<report_path>[^"]+)"'
+    ),
+    target_fixture="allure3_render_result",
+)
+def generate_allure3_report(
+    results_path: str,
+    report_path: str,
+    consumer: ConsumerProject,
+) -> tuple[subprocess.CompletedProcess[str], Path]:
+    results_directory = _consumer_artifact_path(results_path, consumer)
+    report_directory = _consumer_artifact_path(report_path, consumer)
+    npx = shutil.which("npx")
+    allure = shutil.which("allure")
+    if npx:
+        command = [npx, "--yes", "allure@3.20.0", "generate", str(results_directory), "-o", str(report_directory)]
+    elif allure:
+        version = subprocess.run([allure, "--version"], check=False, capture_output=True, text=True)
+        version_output = f"{version.stdout}\n{version.stderr}"
+        assert version.returncode == 0 and re.search(r"\b3\.", version_output), (
+            f"Allure 3 is required to render this contract; installed CLI output was: {version_output}"
+        )
+        command = [allure, "generate", str(results_directory), "-o", str(report_directory)]
+    else:
+        from pytest import skip
+
+        skip(
+            "Allure 3 CLI is not installed; run the pinned consumer manually with "
+            f"npx --yes allure@3.20.0 generate {results_directory} -o {report_directory}"
+        )
+    result = subprocess.run(
+        command,
+        cwd=consumer.path,
+        env=os.environ.copy(),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result, report_directory
+
+
+@then("the Allure 3 renderer should generate the report")
+def allure3_report_was_generated(allure3_render_result: tuple[subprocess.CompletedProcess[str], Path]) -> None:
+    result, report_directory = allure3_render_result
+    assert result.returncode == 0, f"Allure 3 renderer failed:\n{result.stdout}\n{result.stderr}"
+    rendered_html = sorted(path for path in report_directory.rglob("*.html") if path.is_file())
+    assert rendered_html, f"Allure 3 did not render an HTML report under {report_directory}"
+    assert any(path.stat().st_size > 0 for path in rendered_html), rendered_html
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^"]+)" should expose the raw event from '
+        r'"(?P<messages_path>[^"]+)" as an application/json attachment'
+    )
+)
+def consumer_allure_raw_extension_attachment(
+    relative_path: str,
+    messages_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+
+    message_file = _consumer_artifact_path(messages_path, consumer)
+    raw_extension_events: list[bytes] = []
+    for raw_line in message_file.read_bytes().splitlines():
+        payload = json.loads(raw_line)
+        if isinstance(payload, dict) and "vendorAuditExtension" in payload:
+            assert set(payload) == {"vendorAuditExtension"}, payload
+            raw_extension_events.append(raw_line)
+    assert len(raw_extension_events) == 1, raw_extension_events
+
+    attachment_references: list[Any] = []
+
+    def collect_attachments(value: Any) -> None:
+        if isinstance(value, dict):
+            attachments = value.get("attachments")
+            if isinstance(attachments, list):
+                attachment_references.extend(attachments)
+            for nested_value in value.values():
+                collect_attachments(nested_value)
+        elif isinstance(value, list):
+            for nested_value in value:
+                collect_attachments(nested_value)
+
+    collect_attachments(result)
+    json_references = [
+        reference
+        for reference in attachment_references
+        if isinstance(reference, dict) and reference.get("type") == "application/json"
+    ]
+    assert len(json_references) == 1, attachment_references
+
+    reference = json_references[0]
+    source = reference.get("source")
+    assert isinstance(source, str) and source, reference
+    relative_source = PurePosixPath(source)
+    assert (
+        not relative_source.is_absolute()
+        and ".." not in relative_source.parts
+        and "\\" not in source
+        and re.match(r"^[A-Za-z]:", source) is None
+    ), reference
+    attachment_path = result_directory.joinpath(*relative_source.parts).resolve()
+    try:
+        attachment_path.relative_to(result_directory.resolve())
+    except ValueError as exc:
+        raise AssertionError(f"attachment source escapes the Allure result directory: {source!r}") from exc
+    assert attachment_path.is_file(), f"Allure attachment file is missing: {source!r}"
+    assert attachment_path.read_bytes() == raw_extension_events[0], reference
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^\"]+)" should preserve scenario '
+        r'"(?P<scenario_name>[^\"]+)", tag "(?P<tag>[^\"]+)", and outline parameter '
+        r'"(?P<parameter_name>[^\"]+)" value "(?P<parameter_value>[^\"]+)"'
+    )
+)
+def consumer_allure_outline_result_metadata(
+    relative_path: str,
+    scenario_name: str,
+    tag: str,
+    parameter_name: str,
+    parameter_value: str,
+    consumer: ConsumerProject,
+) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+    result_uuid = result.get("uuid")
+    assert isinstance(result_uuid, str) and result_uuid, result
+    assert result_files[0].name == f"{result_uuid}-result.json", result
+    assert result.get("name") == scenario_name, result
+    assert result.get("status") == "passed", result
+
+    labels = result.get("labels")
+    assert isinstance(labels, list), result
+    tag_labels = [label for label in labels if isinstance(label, dict) and label.get("name") == "tag"]
+    assert tag_labels == [{"name": "tag", "value": tag}], result
+
+    parameters = result.get("parameters")
+    assert isinstance(parameters, list), result
+    outline_parameters = [
+        parameter
+        for parameter in parameters
+        if isinstance(parameter, dict) and parameter.get("name") == parameter_name
+    ]
+    assert outline_parameters == [{"name": parameter_name, "value": parameter_value}], result
+
+    container_files = sorted(result_directory.glob("*-container.json"))
+    assert len(container_files) == 1, f"expected one Allure container file, found {container_files!r}"
+    container = json.loads(container_files[0].read_text(encoding="utf-8"))
+    assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
+    container_uuid = container.get("uuid")
+    assert isinstance(container_uuid, str) and container_uuid, container
+    assert container_files[0].name == f"{container_uuid}-container.json", container
+    assert container.get("children") == [result_uuid], container
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directories "(?P<first_path>[^"]+)" and "(?P<second_path>[^"]+)" '
+        r"should be semantically equivalent"
+    )
+)
+def consumer_allure_result_directories_semantically_equivalent(
+    first_path: str,
+    second_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    semantic_artifacts = []
+    for relative_path in (first_path, second_path):
+        result_directory = _consumer_artifact_path(relative_path, consumer)
+        result_files = sorted(result_directory.glob("*-result.json"))
+        assert len(result_files) == 1, f"expected one Allure result file in {relative_path!r}, found {result_files!r}"
+        result = json.loads(result_files[0].read_text(encoding="utf-8"))
+        assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+        result_uuid = result.get("uuid")
+        assert isinstance(result_uuid, str) and result_uuid, result
+        assert result_files[0].name == f"{result_uuid}-result.json", result
+
+        container_files = sorted(result_directory.glob("*-container.json"))
+        assert len(container_files) == 1, (
+            f"expected one Allure container file in {relative_path!r}, found {container_files!r}"
+        )
+        container = json.loads(container_files[0].read_text(encoding="utf-8"))
+        assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
+        container_uuid = container.get("uuid")
+        assert isinstance(container_uuid, str) and container_uuid, container
+        assert container_files[0].name == f"{container_uuid}-container.json", container
+        assert container.get("children") == [result_uuid], container
+
+        semantic_result = dict(result)
+        semantic_result.pop("uuid")
+        semantic_container = dict(container)
+        semantic_container.pop("uuid")
+        semantic_container["children"] = ["<linked-result>"]
+        semantic_artifacts.append((semantic_result, semantic_container))
+
+    assert semantic_artifacts[0] == semantic_artifacts[1], {
+        first_path: semantic_artifacts[0],
+        second_path: semantic_artifacts[1],
+    }
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^"]+)" should preserve failed diagnostics, '
+        r"portable attachments, and a linked container"
+    )
+)
+def consumer_allure_failure_attachments_and_container(relative_path: str, consumer: ConsumerProject) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+    assert result.get("name") == "Fail after attaching evidence", result
+    assert result.get("uuid") == result_files[0].name.removesuffix("-result.json"), result
+    assert result.get("status") == "failed", result
+
+    def assert_failure_details(item: dict[str, Any]) -> None:
+        details = item.get("statusDetails")
+        assert isinstance(details, dict), item
+        assert details.get("message") == "failure sentinel", details
+        trace = details.get("trace")
+        assert isinstance(trace, str) and "AssertionError: failure sentinel" in trace, details
+
+    assert_failure_details(result)
+    steps = result.get("steps")
+    assert isinstance(steps, list) and len(steps) == 1, result
+    failed_step = steps[0]
+    assert isinstance(failed_step, dict), failed_step
+    assert failed_step.get("name") == "the operation attaches evidence and fails", failed_step
+    assert failed_step.get("status") == "failed", failed_step
+    assert_failure_details(failed_step)
+
+    expected_files = {
+        "identity.txt": ("text/plain", b"identity evidence"),
+        "binary.bin": ("application/octet-stream", b"\x00\xffbinary evidence"),
+    }
+    references = failed_step.get("attachments")
+    assert isinstance(references, list) and len(references) == len(expected_files), failed_step
+    seen_names: set[str] = set()
+    for reference in references:
+        assert isinstance(reference, dict), reference
+        name = reference.get("name")
+        assert isinstance(name, str) and name in expected_files, reference
+        assert name not in seen_names, references
+        seen_names.add(name)
+        media_type, expected_content = expected_files[name]
+        assert reference.get("type") == media_type, reference
+        source = reference.get("source")
+        assert isinstance(source, str) and source, reference
+        relative_source = PurePosixPath(source)
+        assert (
+            not relative_source.is_absolute()
+            and ".." not in relative_source.parts
+            and "\\" not in source
+            and re.match(r"^[A-Za-z]:", source) is None
+        ), reference
+        attachment_path = result_directory.joinpath(*relative_source.parts).resolve()
+        try:
+            attachment_path.relative_to(result_directory.resolve())
+        except ValueError as exc:
+            raise AssertionError(f"attachment source escapes the Allure result directory: {source!r}") from exc
+        assert attachment_path.is_file(), f"Allure attachment file is missing: {source!r}"
+        assert attachment_path.read_bytes() == expected_content, reference
+    assert seen_names == set(expected_files), references
+
+    container_files = sorted(result_directory.glob("*-container.json"))
+    assert len(container_files) == 1, f"expected one Allure container file, found {container_files!r}"
+    container = json.loads(container_files[0].read_text(encoding="utf-8"))
+    assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
+    container_uuid = container.get("uuid")
+    assert isinstance(container_uuid, str) and container_uuid, container
+    assert container_files[0].name == f"{container_uuid}-container.json", container
+    assert container.get("children") == [result["uuid"]], container
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^"]+)" should contain both scenarios with ordered '
+        r"steps and linked containers"
+    )
+)
+def consumer_allure_multiple_scenarios(relative_path: str, consumer: ConsumerProject) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    expected_steps = {
+        "Submit a book order": [
+            "the cart contains a book",
+            "the customer submits the order",
+            "the order has an identifier",
+        ],
+        "Generate a customer report": [
+            "a customer report is requested",
+            "the report is generated",
+            "the report is ready",
+        ],
+    }
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == len(expected_steps), f"unexpected Allure result files: {result_files!r}"
+    results_by_uuid: dict[str, str] = {}
+    for result_file in result_files:
+        result = json.loads(result_file.read_text(encoding="utf-8"))
+        assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+        result_uuid = result.get("uuid")
+        assert isinstance(result_uuid, str) and result_uuid, result
+        assert result_file.name == f"{result_uuid}-result.json", result
+        scenario_name = result.get("name")
+        assert scenario_name in expected_steps and scenario_name not in results_by_uuid.values(), result
+        assert result.get("status") == "passed", result
+        steps = result.get("steps")
+        assert isinstance(steps, list), result
+        step_names = [step.get("name") for step in steps if isinstance(step, dict)]
+        assert step_names == expected_steps[scenario_name], result
+        assert all(step.get("status") == "passed" for step in steps), result
+        results_by_uuid[result_uuid] = scenario_name
+    assert set(results_by_uuid.values()) == set(expected_steps), results_by_uuid
+
+    container_files = sorted(result_directory.glob("*-container.json"))
+    assert len(container_files) == len(results_by_uuid), f"unexpected Allure container files: {container_files!r}"
+    linked_result_uuids: list[str] = []
+    for container_file in container_files:
+        container = json.loads(container_file.read_text(encoding="utf-8"))
+        assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
+        container_uuid = container.get("uuid")
+        assert isinstance(container_uuid, str) and container_uuid, container
+        assert container_file.name == f"{container_uuid}-container.json", container
+        children = container.get("children")
+        assert isinstance(children, list) and len(children) == 1, container
+        linked_result_uuids.append(children[0])
+    assert len(linked_result_uuids) == len(set(linked_result_uuids)), linked_result_uuids
+    assert set(linked_result_uuids) == set(results_by_uuid), {
+        "results": results_by_uuid,
+        "containers": linked_result_uuids,
+    }
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^"]+)" should preserve the scenario description, '
+        r"tag, and structured step arguments"
+    )
+)
+def consumer_allure_structured_step_arguments(relative_path: str, consumer: ConsumerProject) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+    assert result.get("name") == "Submit a profile payload and field table", result
+    assert result.get("description") == "The request identifies its media type and keeps the field values.", result
+    assert result.get("status") == "passed", result
+
+    labels = result.get("labels")
+    assert isinstance(labels, list), result
+    tag_labels = [label for label in labels if isinstance(label, dict) and label.get("name") == "tag"]
+    assert tag_labels == [{"name": "tag", "value": "@smoke"}], result
+
+    steps = result.get("steps")
+    assert isinstance(steps, list) and len(steps) == 2, result
+    doc_string_step, data_table_step = steps
+    assert isinstance(doc_string_step, dict), doc_string_step
+    assert isinstance(data_table_step, dict), data_table_step
+    assert [doc_string_step.get("name"), data_table_step.get("name")] == [
+        "the JSON profile is accepted",
+        "the profile fields are recorded",
+    ], result
+    assert all(step.get("status") == "passed" for step in steps), result
+
+    doc_string_content = '{"customer": "Ada", "active": true}'
+    doc_string_description = f"application/json\n\n{doc_string_content}"
+    assert doc_string_step.get("description") == doc_string_description, doc_string_step
+    assert doc_string_step.get("descriptionHtml") == doc_string_description, doc_string_step
+    assert doc_string_step.get("parameters") == [
+        {"name": "docString", "value": doc_string_content}
+    ], doc_string_step
+
+    data_table_markdown = "| field | value |\n| customer | Ada |\n| active | true |"
+    assert data_table_step.get("description") == data_table_markdown, data_table_step
+    assert data_table_step.get("descriptionHtml") == data_table_markdown, data_table_step
+    assert data_table_step.get("parameters") == [
+        {"name": "dataTable", "value": data_table_markdown}
+    ], data_table_step
+
+
 @given(re.compile(r'consumer file "(?P<relative_path>[^\"]+)" has content:'))
 def write_consumer_file_with_content(relative_path: str, consumer: ConsumerProject, step) -> None:
     destination = Path(relative_path)
@@ -1291,16 +1930,6 @@ def consumer_command_requires_feature_directory(consumer: ConsumerProject):
     output = f"{result.stdout}\n{result.stderr}"
     assert "features-dir" in output
     assert "required" in output.lower()
-
-
-@then("the unimplemented command should report that it is not implemented")
-def consumer_unimplemented_command_output(consumer: ConsumerProject):
-    result = consumer.command_result
-    assert result is not None, "a standalone command has not been run in this consumer"
-    output = f"{result.stdout}\n{result.stderr}".lower()
-    assert "not implemented" in output
-    assert "validation passed" not in output
-    assert "features are valid" not in output
 
 
 if TYPE_CHECKING:  # pragma: no cover
