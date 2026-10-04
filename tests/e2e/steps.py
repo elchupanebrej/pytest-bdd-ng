@@ -7318,11 +7318,12 @@ def consumer_all_unmatched_collection_usage_error(
 @then(
     re.compile(
         r'pytest should skip all-unmatched scenario "(?P<scenario_name>[^"]+)" with a meaningful reason '
-        r'before files "(?P<hook_path>[^"]+)" and "(?P<body_path>[^"]+)" are created'
+        r'from feature "(?P<feature_path>[^"]+)" before files "(?P<hook_path>[^"]+)" '
+        r'and "(?P<body_path>[^"]+)" are created'
     )
 )
 def consumer_all_unmatched_skip_has_reason(
-    scenario_name: str, hook_path: str, body_path: str, consumer: ConsumerProject
+    scenario_name: str, feature_path: str, hook_path: str, body_path: str, consumer: ConsumerProject
 ) -> None:
     result = consumer.pytest_result
     assert result is not None, "pytest has not been run in this consumer"
@@ -7331,11 +7332,15 @@ def consumer_all_unmatched_skip_has_reason(
     has_meaningful_reason = bool(
         re.search(r"unmatch|no (?:matching |bound )?steps?|step definitions?|empty scenario", output, re.IGNORECASE)
     )
+    feature_source = _consumer_artifact_path(feature_path, consumer)
     checks = {
         f"pytest exited successfully; got {result.returncode}": result.returncode == 0,
         "pytest reports the selected scenario as skipped": has_skip,
         "pytest includes an informative no-binding reason": has_meaningful_reason,
         f"pytest output identifies scenario {scenario_name!r}": scenario_name in output,
+        f"pytest output identifies feature source {feature_path!r}": any(
+            source in output for source in (str(feature_source), feature_path, feature_source.name)
+        ),
         f"runtime hook file {hook_path!r} was not created": not _consumer_artifact_path(hook_path, consumer).exists(),
         f"test body file {body_path!r} was not created": not _consumer_artifact_path(body_path, consumer).exists(),
     }
