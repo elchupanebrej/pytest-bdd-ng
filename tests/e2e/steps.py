@@ -6043,11 +6043,12 @@ def ordinary_operation_raises():
 
 @then(parsers.parse('the continuation records "{labels}"'))
 def record_continuation(labels):
+    serialized_labels = "\\n".join(labels.split(",")) + "\\n"
     with Path("continuations.log").open("a", encoding="utf-8") as stream:
-        stream.write("\\n".join(labels.split(",")) + "\\n")
+        stream.write(serialized_labels)
     worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
     with Path(f"xdist-continuations-{worker}.log").open("a", encoding="utf-8") as stream:
-        stream.write("\\n".join(labels.split(",")) + "\\n")
+        stream.write(serialized_labels)
 
 
 @pytest.hookimpl(trylast=True)
