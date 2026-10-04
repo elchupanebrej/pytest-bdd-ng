@@ -350,12 +350,18 @@ def stringify(value: StringableProtocol | str | bytes) -> str:
 class IdGenerator:
     pytest_cuke_id_generator = "pytest_cuke_id_generator"
 
-    def __init__(self) -> None:
+    def __init__(self, namespace: str = "") -> None:
         self._id_counter = 0
+        self.namespace = namespace
+
+    def set_namespace(self, namespace: str) -> None:
+        """Prefix runtime IDs so separate pytest sessions and workers cannot collide."""
+        self.namespace = namespace
 
     def __next__(self) -> str:
         try:
-            return str(self._id_counter)
+            value = str(self._id_counter)
+            return f"{self.namespace}-{value}" if self.namespace else value
         finally:
             self._id_counter += 1
 

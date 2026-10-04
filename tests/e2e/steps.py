@@ -5900,3 +5900,108 @@ def consumer_artifact_has_expected_undefined_parameter_type_causes(
 def consumer_artifact_has_no_undefined_parameter_type_messages(relative_path: str, consumer: ConsumerProject) -> None:
     envelopes = _consumer_message_envelopes(relative_path, consumer)
     assert not any(envelope.undefined_parameter_type is not None for envelope in envelopes)
+
+
+@then(
+    re.compile(
+        r'consumer runtime observation "(?P<observation_path>[^"]+)" should link to scenario '
+        r'"(?P<scenario_name>[^"]+)" in Messages "(?P<messages_path>[^"]+)" and report "(?P<report_path>[^"]+)"'
+    )
+)
+def consumer_runtime_observation_links_to_report_and_messages(
+    observation_path: str,
+    scenario_name: str,
+    messages_path: str,
+    report_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    observation_file = Path(observation_path)
+    if observation_file.is_absolute() or ".." in observation_file.parts:
+        raise ValueError("consumer runtime observation paths must stay inside the consumer project")
+    observation = json.loads((consumer.path / observation_file).read_text(encoding="utf-8"))
+    assert observation.get("scenario_name") == scenario_name, observation
+    assert observation.get("hook_context_identity") == observation.get("step_context_identity"), observation
+    assert observation.get("hook_scenario_run_identity") == observation.get("step_scenario_run_identity"), observation
+    scenario_run_id = observation.get("scenario_run_id")
+    assert isinstance(scenario_run_id, str) and scenario_run_id, observation
+    test_case_started_id = observation.get("test_case_started_id")
+    assert isinstance(test_case_started_id, str) and test_case_started_id, observation
+
+    envelopes = _consumer_message_envelopes(messages_path, consumer)
+    pickles = [envelope.pickle for envelope in envelopes if envelope.pickle is not None]
+    scenario_pickles = [pickle for pickle in pickles if pickle.name == scenario_name]
+    assert len(scenario_pickles) == 1, scenario_pickles
+    pickle = scenario_pickles[0]
+    test_cases = [envelope.test_case for envelope in envelopes if envelope.test_case is not None]
+    scenario_cases = [case for case in test_cases if case.pickle_id == pickle.id]
+    assert len(scenario_cases) == 1, scenario_cases
+    test_case = scenario_cases[0]
+
+    started = [
+        envelope.test_case_started
+        for envelope in envelopes
+        if envelope.test_case_started is not None and envelope.test_case_started.test_case_id == test_case.id
+    ]
+    assert len(started) == 1, started
+    assert started[0].id == test_case_started_id, (started[0], observation)
+    finished = [
+        envelope.test_case_finished
+        for envelope in envelopes
+        if envelope.test_case_finished is not None
+        and envelope.test_case_finished.test_case_started_id == test_case_started_id
+    ]
+    assert len(finished) == 1, finished
+
+    report_file = Path(report_path)
+    if report_file.is_absolute() or ".." in report_file.parts:
+        raise ValueError("consumer report paths must stay inside the consumer project")
+    report = json.loads((consumer.path / report_file).read_text(encoding="utf-8"))
+    reported_scenarios = [
+        scenario
+        for feature in report
+        for scenario in feature.get("elements", [])
+        if scenario.get("name") == scenario_name
+    ]
+    assert len(reported_scenarios) == 1, reported_scenarios
+    assert all(step.get("result", {}).get("status") == "passed" for step in reported_scenarios[0]["steps"]), (
+        reported_scenarios[0]
+    )
+
+
+def _consumer_runtime_snapshot(relative_path: str, consumer: ConsumerProject) -> dict[str, object]:
+    artifact_path = Path(relative_path)
+    if artifact_path.is_absolute() or ".." in artifact_path.parts:
+        raise ValueError("consumer runtime snapshot paths must stay inside the consumer project")
+    snapshot = json.loads((consumer.path / artifact_path).read_text(encoding="utf-8"))
+    assert isinstance(snapshot, dict), f"consumer runtime snapshot must be an object, got {type(snapshot).__name__}"
+    return snapshot
+
+
+@then(
+    re.compile(
+        r'consumer runtime snapshot "(?P<relative_path>[^"]+)" should show no active BDD scenario'
+    )
+)
+def consumer_runtime_snapshot_has_no_active_scenario(relative_path: str, consumer: ConsumerProject) -> None:
+    snapshot = _consumer_runtime_snapshot(relative_path, consumer)
+    assert snapshot == {
+        "active_feature_binding": False,
+        "active_scenario_run": False,
+        "status": "inactive",
+    }, snapshot
+
+
+@then(
+    re.compile(
+        r'consumer runtime snapshot "(?P<relative_path>[^"]+)" should retain the failed scenario after clearing active refs'
+    )
+)
+def consumer_runtime_snapshot_retains_teardown_failure(relative_path: str, consumer: ConsumerProject) -> None:
+    snapshot = _consumer_runtime_snapshot(relative_path, consumer)
+    assert snapshot["active_feature_binding"] is False, snapshot
+    assert snapshot["active_scenario_run"] is False, snapshot
+    assert snapshot["scenario_history_found"] is True, snapshot
+    assert snapshot["scenario_status"] == "failed", snapshot
+    assert snapshot["active_step"] is False, snapshot
+    assert snapshot["exception_type"] == "RuntimeError", snapshot
+    assert snapshot["exception_message"] == "runtime teardown failure sentinel", snapshot

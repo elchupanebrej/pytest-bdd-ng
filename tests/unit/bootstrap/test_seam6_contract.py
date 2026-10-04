@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 from ordered_set import OrderedSet
 
 from pytest_cuke.model.step import Step, StepType
+from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.parsers.string_parser import string
 from pytest_cuke.plugin import (
     _build_scenario_locators_from_mark,
@@ -63,6 +64,8 @@ def test_seam6_plugin_lifecycle_and_stash_contract() -> None:
 
     id_gen = config.stash[IdGenerator.pytest_cuke_id_generator]
     assert isinstance(id_gen, IdGenerator)
-    assert id_gen.get_next_id() == "0"
+    run_context = RunContext.find_in_config(config)
+    assert run_context is not None
+    assert id_gen.get_next_id().startswith(f"{run_context.run_id}-")
 
     pytest_unconfigure(config)
