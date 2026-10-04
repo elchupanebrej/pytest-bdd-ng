@@ -55,6 +55,79 @@ Feature: Convert saved Cucumber Messages to Allure results
     And the command output should contain "test steps did not finish"
     And the consumer file "allure-incomplete" should not exist
 
+  Scenario: Reject a retry declaration without its next attempt
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-retry","uri":"features/retry.feature","name":"Retry scenario","language":"en","steps":[{"id":"pickle-step-retry","astNodeIds":["ast-step-retry"],"type":"Context","text":"the retryable operation"}],"tags":[],"astNodeIds":["ast-scenario-retry"]}}
+      {"testCase":{"id":"case-retry","pickleId":"pickle-retry","testSteps":[{"id":"step-retry","pickleStepId":"pickle-step-retry"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-retry-0","testCaseId":"case-retry","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-retry-0","testStepId":"step-retry","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-retry-0","testStepId":"step-retry","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-retry-0","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":true}}
+      {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000004,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-missing-retry"
+    Then the command should exit with code 2
+    And the command output should contain "retry"
+    And the consumer file "allure-missing-retry" should not exist
+
+  Scenario: Accept a complete retry sequence as two Allure results
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-retry-complete","uri":"features/retry.feature","name":"Retry scenario","language":"en","steps":[{"id":"pickle-step-retry-complete","astNodeIds":["ast-step-retry-complete"],"type":"Context","text":"the retryable operation"}],"tags":[],"astNodeIds":["ast-scenario-retry-complete"]}}
+      {"testCase":{"id":"case-retry-complete","pickleId":"pickle-retry-complete","testSteps":[{"id":"step-retry-complete","pickleStepId":"pickle-step-retry-complete"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-retry-0","testCaseId":"case-retry-complete","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-retry-0","testStepId":"step-retry-complete","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-retry-0","testStepId":"step-retry-complete","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"FAILED","message":"first attempt sentinel","exception":{"type":"AssertionError","message":"first attempt sentinel"}},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-retry-0","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":true}}
+      {"testCaseStarted":{"attempt":1,"id":"attempt-retry-1","testCaseId":"case-retry-complete","timestamp":{"seconds":1700000004,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-retry-1","testStepId":"step-retry-complete","timestamp":{"seconds":1700000005,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-retry-1","testStepId":"step-retry-complete","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000005,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-retry-1","timestamp":{"seconds":1700000006,"nanos":0},"willBeRetried":false}}
+      {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000007,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-retry-results"
+    Then the command should exit with code 0
+    And consumer Allure result directory "allure-retry-results" should emit two retry attempts for scenario "Retry scenario" with linked containers
+
+  Scenario: Preserve run-finished diagnostics without changing a passing scenario
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-run-diagnostics","uri":"features/run-diagnostics.feature","name":"Run diagnostic scenario","language":"en","steps":[{"id":"pickle-step-run-diagnostics","astNodeIds":["ast-step-run-diagnostics"],"type":"Context","text":"the successful operation"}],"tags":[],"astNodeIds":["ast-scenario-run-diagnostics"]}}
+      {"testCase":{"id":"case-run-diagnostics","pickleId":"pickle-run-diagnostics","testSteps":[{"id":"step-run-diagnostics","pickleStepId":"pickle-step-run-diagnostics"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-run-diagnostics","testCaseId":"case-run-diagnostics","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-run-diagnostics","testStepId":"step-run-diagnostics","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-run-diagnostics","testStepId":"step-run-diagnostics","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-run-diagnostics","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":false}}
+      {"testRunFinished":{"success":false,"timestamp":{"seconds":1700000004,"nanos":0},"message":"run summary sentinel","exception":{"type":"RuntimeError","message":"run exception sentinel","stackTrace":"Traceback (most recent call last):\n  File \"runner.py\", line 42, in run\nRuntimeError: run exception sentinel"}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-run-diagnostics"
+    Then the command should exit with code 0
+    And consumer Allure result directory "allure-run-diagnostics" should preserve deterministic run-finished diagnostics from "messages.ndjson" and keep the scenario passed
+
+  Scenario: Preserve a failed run status without run-finished diagnostics
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-run-status-only","uri":"features/run-status.feature","name":"Run status-only scenario","language":"en","steps":[{"id":"pickle-step-run-status-only","astNodeIds":["ast-step-run-status-only"],"type":"Context","text":"the successful operation"}],"tags":[],"astNodeIds":["ast-scenario-run-status-only"]}}
+      {"testCase":{"id":"case-run-status-only","pickleId":"pickle-run-status-only","testSteps":[{"id":"step-run-status-only","pickleStepId":"pickle-step-run-status-only"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-run-status-only","testCaseId":"case-run-status-only","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-run-status-only","testStepId":"step-run-status-only","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-run-status-only","testStepId":"step-run-status-only","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-run-status-only","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":false}}
+      {"testRunFinished":{"success":false,"timestamp":{"seconds":1700000004,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-run-status-only"
+    Then the command should exit with code 0
+    And consumer Allure result directory "allure-run-status-only" should preserve the success-only run-finished JSON and keep the scenario passed
+
   Scenario: Reject invalid input and output paths and aggregate skipped statuses
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And consumer file "messages.ndjson" contains:
@@ -68,14 +141,20 @@ Feature: Convert saved Cucumber Messages to Allure results
     And the consumer file "allure-schema-invalid" should not exist
     Given consumer file "messages.ndjson" contains:
       """ndjson
-      {"pickle":{"id":"pickle-status","uri":"features/statuses.feature","name":"Mixed outcome scenario","language":"en","steps":[{"id":"pickle-step-skipped","astNodeIds":["ast-step-skipped"],"type":"Context","text":"the skipped operation"},{"id":"pickle-step-undefined","astNodeIds":["ast-step-undefined"],"type":"Context","text":"the undefined operation"}],"tags":[],"astNodeIds":["ast-scenario-status"]}}
-      {"testCase":{"id":"case-status","pickleId":"pickle-status","testSteps":[{"id":"step-skipped","pickleStepId":"pickle-step-skipped"},{"id":"step-undefined","pickleStepId":"pickle-step-undefined"}]}}
+      {"pickle":{"id":"pickle-status","uri":"features/statuses.feature","name":"Mixed outcome scenario","language":"en","steps":[{"id":"pickle-step-skipped","astNodeIds":["ast-step-skipped"],"type":"Context","text":"the skipped operation"},{"id":"pickle-step-undefined","astNodeIds":["ast-step-undefined"],"type":"Context","text":"the undefined operation"},{"id":"pickle-step-ambiguous","astNodeIds":["ast-step-ambiguous"],"type":"Context","text":"the ambiguous operation"},{"id":"pickle-step-pending","astNodeIds":["ast-step-pending"],"type":"Context","text":"the pending operation"},{"id":"pickle-step-unknown","astNodeIds":["ast-step-unknown"],"type":"Context","text":"the unknown operation"}],"tags":[],"astNodeIds":["ast-scenario-status"]}}
+      {"testCase":{"id":"case-status","pickleId":"pickle-status","testSteps":[{"id":"step-skipped","pickleStepId":"pickle-step-skipped"},{"id":"step-undefined","pickleStepId":"pickle-step-undefined"},{"id":"step-ambiguous","pickleStepId":"pickle-step-ambiguous"},{"id":"step-pending","pickleStepId":"pickle-step-pending"},{"id":"step-unknown","pickleStepId":"pickle-step-unknown"}]}}
       {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
       {"testCaseStarted":{"attempt":0,"id":"attempt-status","testCaseId":"case-status","timestamp":{"seconds":1700000001,"nanos":0}}}
       {"testStepStarted":{"testCaseStartedId":"attempt-status","testStepId":"step-skipped","timestamp":{"seconds":1700000002,"nanos":0}}}
       {"testStepFinished":{"testCaseStartedId":"attempt-status","testStepId":"step-skipped","testStepResult":{"duration":{"seconds":0,"nanos":100000000},"status":"SKIPPED"},"timestamp":{"seconds":1700000002,"nanos":100000000}}}
       {"testStepStarted":{"testCaseStartedId":"attempt-status","testStepId":"step-undefined","timestamp":{"seconds":1700000002,"nanos":200000000}}}
       {"testStepFinished":{"testCaseStartedId":"attempt-status","testStepId":"step-undefined","testStepResult":{"duration":{"seconds":0,"nanos":100000000},"status":"UNDEFINED"},"timestamp":{"seconds":1700000002,"nanos":300000000}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-status","testStepId":"step-ambiguous","timestamp":{"seconds":1700000002,"nanos":400000000}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-status","testStepId":"step-ambiguous","testStepResult":{"duration":{"seconds":0,"nanos":100000000},"status":"AMBIGUOUS"},"timestamp":{"seconds":1700000002,"nanos":500000000}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-status","testStepId":"step-pending","timestamp":{"seconds":1700000002,"nanos":600000000}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-status","testStepId":"step-pending","testStepResult":{"duration":{"seconds":0,"nanos":100000000},"status":"PENDING"},"timestamp":{"seconds":1700000002,"nanos":700000000}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-status","testStepId":"step-unknown","timestamp":{"seconds":1700000002,"nanos":800000000}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-status","testStepId":"step-unknown","testStepResult":{"duration":{"seconds":0,"nanos":100000000},"status":"UNKNOWN"},"timestamp":{"seconds":1700000002,"nanos":900000000}}}
       {"testCaseFinished":{"testCaseStartedId":"attempt-status","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":false}}
       {"testRunFinished":{"success":false,"timestamp":{"seconds":1700000004,"nanos":0}}}
       """
@@ -91,7 +170,117 @@ Feature: Convert saved Cucumber Messages to Allure results
     And the consumer file "blocked-parent/allure-results" should not exist
     When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-status-results"
     Then the command should exit with code 0
-    And consumer Allure result directory "allure-status-results" should map "the skipped operation" to skipped and "the undefined operation" to broken, with scenario status broken
+    And consumer Allure result directory "allure-status-results" should map skipped, undefined, ambiguous, pending, and unknown to their Allure statuses with scenario status broken
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    Then the command should exit with code 2
+    And the command output should contain "cannot write Allure results"
+    And the consumer file "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" should not exist
+
+    And consumer directory "readonly-output" exists
+    When I remove write permission from consumer directory "readonly-output"
+    And I run command "cuke" with arguments "convert allure messages.ndjson --output readonly-output/allure-results"
+    Then the command should exit with code 2
+    And the command output should contain "cannot write Allure results"
+    And consumer directory "readonly-output" should remain empty
+    And the consumer file "readonly-output/allure-results" should not exist
+    When I restore write permission to consumer directory "readonly-output"
+
+  Scenario: Reject a missing Messages input without creating output
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    When I run command "cuke" with arguments "convert allure missing.ndjson --output allure-missing-input"
+    Then the command should exit with code 2
+    And the command output should contain "cannot read input"
+    And the consumer file "allure-missing-input" should not exist
+
+  Scenario: Reject invalid retry history and reversed timestamps without results
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-gap","uri":"features/retry.feature","name":"Retry scenario","language":"en","steps":[{"id":"pickle-step-gap","astNodeIds":["ast-step-gap"],"type":"Context","text":"the retryable operation"}],"tags":[],"astNodeIds":["ast-scenario-gap"]}}
+      {"testCase":{"id":"case-gap","pickleId":"pickle-gap","testSteps":[{"id":"step-gap","pickleStepId":"pickle-step-gap"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-gap-0","testCaseId":"case-gap","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-gap-0","testStepId":"step-gap","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-gap-0","testStepId":"step-gap","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-gap-0","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":true}}
+      {"testCaseStarted":{"attempt":2,"id":"attempt-gap-2","testCaseId":"case-gap","timestamp":{"seconds":1700000004,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-gap-2","testStepId":"step-gap","timestamp":{"seconds":1700000005,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-gap-2","testStepId":"step-gap","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000005,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-gap-2","timestamp":{"seconds":1700000006,"nanos":0},"willBeRetried":false}}
+      {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000007,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-retry-gap"
+    Then the command should exit with code 2
+    And the consumer file "allure-retry-gap" should not exist
+    Given consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-duplicate","uri":"features/retry.feature","name":"Retry scenario","language":"en","steps":[{"id":"pickle-step-duplicate","astNodeIds":["ast-step-duplicate"],"type":"Context","text":"the retryable operation"}],"tags":[],"astNodeIds":["ast-scenario-duplicate"]}}
+      {"testCase":{"id":"case-duplicate","pickleId":"pickle-duplicate","testSteps":[{"id":"step-duplicate","pickleStepId":"pickle-step-duplicate"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-duplicate-0a","testCaseId":"case-duplicate","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-duplicate-0a","testStepId":"step-duplicate","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-duplicate-0a","testStepId":"step-duplicate","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-duplicate-0a","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":true}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-duplicate-0b","testCaseId":"case-duplicate","timestamp":{"seconds":1700000004,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-duplicate-0b","testStepId":"step-duplicate","timestamp":{"seconds":1700000005,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-duplicate-0b","testStepId":"step-duplicate","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000005,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-duplicate-0b","timestamp":{"seconds":1700000006,"nanos":0},"willBeRetried":false}}
+      {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000007,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-retry-duplicate"
+    Then the command should exit with code 2
+    And the consumer file "allure-retry-duplicate" should not exist
+    Given consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-final","uri":"features/retry.feature","name":"Retry scenario","language":"en","steps":[{"id":"pickle-step-final","astNodeIds":["ast-step-final"],"type":"Context","text":"the retryable operation"}],"tags":[],"astNodeIds":["ast-scenario-final"]}}
+      {"testCase":{"id":"case-final","pickleId":"pickle-final","testSteps":[{"id":"step-final","pickleStepId":"pickle-step-final"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-final-0","testCaseId":"case-final","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-final-0","testStepId":"step-final","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-final-0","testStepId":"step-final","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-final-0","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":false}}
+      {"testCaseStarted":{"attempt":1,"id":"attempt-final-1","testCaseId":"case-final","timestamp":{"seconds":1700000004,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-final-1","testStepId":"step-final","timestamp":{"seconds":1700000005,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-final-1","testStepId":"step-final","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000005,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-final-1","timestamp":{"seconds":1700000006,"nanos":0},"willBeRetried":false}}
+      {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000007,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-retry-final-flag"
+    Then the command should exit with code 2
+    And the consumer file "allure-retry-final-flag" should not exist
+    Given consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-reversed","uri":"features/timestamps.feature","name":"Reversed timestamps","language":"en","steps":[{"id":"pickle-step-reversed","astNodeIds":["ast-step-reversed"],"type":"Context","text":"the timestamped operation"}],"tags":[],"astNodeIds":["ast-scenario-reversed"]}}
+      {"testCase":{"id":"case-reversed","pickleId":"pickle-reversed","testSteps":[{"id":"step-reversed","pickleStepId":"pickle-step-reversed"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-reversed","testCaseId":"case-reversed","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-reversed","testStepId":"step-reversed","timestamp":{"seconds":1700000003,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-reversed","testStepId":"step-reversed","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-reversed","timestamp":{"seconds":1700000004,"nanos":0},"willBeRetried":false}}
+      {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000005,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-reversed-timestamps"
+    Then the command should exit with code 2
+    And the consumer file "allure-reversed-timestamps" should not exist
+
+    Given consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-retry-time-order","uri":"features/retry.feature","name":"Retry timestamp order","language":"en","steps":[{"id":"pickle-step-retry-time-order","astNodeIds":["ast-step-retry-time-order"],"type":"Context","text":"the retryable operation"}],"tags":[],"astNodeIds":["ast-scenario-retry-time-order"]}}
+      {"testCase":{"id":"case-retry-time-order","pickleId":"pickle-retry-time-order","testSteps":[{"id":"step-retry-time-order","pickleStepId":"pickle-step-retry-time-order"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-time-order-0","testCaseId":"case-retry-time-order","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-time-order-0","testStepId":"step-retry-time-order","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-time-order-0","testStepId":"step-retry-time-order","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"FAILED","message":"first attempt sentinel","exception":{"type":"AssertionError","message":"first attempt sentinel"}},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-time-order-0","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":true}}
+      {"testCaseStarted":{"attempt":1,"id":"attempt-time-order-1","testCaseId":"case-retry-time-order","timestamp":{"seconds":1700000002,"nanos":900000000}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-time-order-1","testStepId":"step-retry-time-order","timestamp":{"seconds":1700000004,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-time-order-1","testStepId":"step-retry-time-order","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000004,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-time-order-1","timestamp":{"seconds":1700000005,"nanos":0},"willBeRetried":false}}
+      {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000006,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-retry-time-order"
+    Then the command should exit with code 2
+    And the consumer file "allure-retry-time-order" should not exist
 
   Scenario: malformed-input-fails-and-unknown-extension-is-attached
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -197,6 +386,65 @@ Feature: Convert saved Cucumber Messages to Allure results
     And the consumer file "features/failure-evidence.feature" should not exist
     And the consumer file "conftest.py" should not exist
     And consumer Allure result directory "allure-results" should preserve failed diagnostics, portable attachments, and a linked container
+
+  Scenario: Preserve distinct exception and step-result failure messages
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-distinct-failure","uri":"features/distinct-failure.feature","name":"Distinct failure messages","language":"en","steps":[{"id":"pickle-step-distinct-failure","astNodeIds":["ast-step-distinct-failure"],"type":"Context","text":"the operation reports separate failure details"}],"tags":[],"astNodeIds":["ast-scenario-distinct-failure"]}}
+      {"testCase":{"id":"case-distinct-failure","pickleId":"pickle-distinct-failure","testSteps":[{"id":"step-distinct-failure","pickleStepId":"pickle-step-distinct-failure"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-distinct-failure","testCaseId":"case-distinct-failure","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-distinct-failure","testStepId":"step-distinct-failure","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-distinct-failure","testStepId":"step-distinct-failure","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"FAILED","message":"step result detail","exception":{"type":"AssertionError","message":"exception detail"}},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-distinct-failure","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":false}}
+      {"testRunFinished":{"success":false,"timestamp":{"seconds":1700000004,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-distinct-failure"
+    Then the command should exit with code 0
+    And consumer Allure result directory "allure-distinct-failure" should combine the exception and step-result messages with a linked container
+
+  Scenario: Convert a Gherkin Background step from saved Messages
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given, when
+
+
+      @given("the shop is open")
+      def shop_is_open():
+          pass
+
+
+      @given("the customer is Ada")
+      def customer_is_ada():
+          pass
+
+
+      @when("the order is saved")
+      def order_is_saved():
+          pass
+      """
+    And consumer file "features/store-order.feature" contains:
+      """gherkin
+      Feature: Store customer orders
+        Background:
+          Given the shop is open
+
+        Scenario: Save Ada's order
+          Given the customer is Ada
+          When the order is saved
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    Then pytest should exit with code 0
+    And consumer artifact "messages.ndjson" should be a valid Cucumber Messages stream for 1 passed scenario and 3 passed steps
+    When I remove consumer file "features/store-order.feature"
+    And I remove consumer file "conftest.py"
+    And I run command "cuke" with arguments "convert allure messages.ndjson --output allure-background"
+    Then the command should exit with code 0
+    And the consumer file "features/store-order.feature" should not exist
+    And the consumer file "conftest.py" should not exist
+    And consumer Allure result directory "allure-background" should preserve the Background step before scenario steps and a linked container
 
   Scenario: Convert a described scenario with DocString and DataTable steps
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
