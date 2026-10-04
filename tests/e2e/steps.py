@@ -6010,7 +6010,8 @@ def consumer_runtime_snapshot_retains_teardown_failure(relative_path: str, consu
 @given("the installed consumer exposes tolerant steps and a continuation artifact")
 def install_tolerant_step_consumer_definitions(consumer: ConsumerProject) -> None:
     (consumer.path / "conftest.py").write_text(
-        '''from pathlib import Path
+        '''import os
+from pathlib import Path
 
 import pytest
 from pytest_cuke import parsers, then, when
@@ -6044,6 +6045,9 @@ def ordinary_operation_raises():
 def record_continuation(labels):
     with Path("continuations.log").open("a", encoding="utf-8") as stream:
         stream.write("\\n".join(labels.split(",")) + "\\n")
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    with Path(f"xdist-continuations-{worker}.log").open("a", encoding="utf-8") as stream:
+        stream.write("\\n".join(labels.split(",")) + "\\n")
 
 
 @pytest.hookimpl(trylast=True)
@@ -6064,6 +6068,15 @@ def consumer_continuation_artifact_has_expected_labels(labels: str, consumer: Co
     actual = artifact.read_text(encoding="utf-8").splitlines()
     expected = labels.split(",")
     assert actual == expected, f"expected continuation lines {expected!r}, got {actual!r}"
+
+
+@then(re.compile(r'consumer xdist continuation artifacts should show "(?P<label>[^"]+)" on (?P<count>\d+) workers'))
+def consumer_xdist_tolerant_continuations(label: str, count: str, consumer: ConsumerProject) -> None:
+    artifacts = sorted(consumer.path.glob("xdist-continuations-gw*.log"))
+    assert len(artifacts) == int(count), f"expected {count} worker artifacts, found {artifacts!r}"
+    actual = {artifact.name: artifact.read_text(encoding="utf-8").splitlines() for artifact in artifacts}
+    expected = [label]
+    assert all(lines == expected for lines in actual.values()), actual
 
 
 def _tolerant_scenario_step_results(

@@ -97,6 +97,23 @@ def test_ignored_policy_does_not_swallow_before_step_hook_errors() -> None:
     request.config.hook.pytest_cuke_step_error.assert_called_once()
 
 
+def test_ignored_policy_does_not_swallow_step_lookup_errors() -> None:
+    request = MagicMock()
+    request.config.option.cuke_tolerant_status = "ignored"
+    request.config.hook.pytest_cuke_match_step_definition_to_step.side_effect = RuntimeError("ambiguous lookup")
+
+    with pytest.raises(RuntimeError, match="ambiguous lookup"):
+        StepRunner().run_step(
+            request,
+            Feature(name="Feature"),
+            Scenario(name="Scenario"),
+            Step(name="ambiguous step", keyword="When "),
+            None,
+        )
+
+    request.config.hook.pytest_cuke_step_error.assert_not_called()
+
+
 def test_scenario_runner_init_and_context() -> None:
     step_runner = StepRunner()
     scen_runner = ScenarioRunner(step_runner=step_runner)
