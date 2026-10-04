@@ -7280,3 +7280,80 @@ def consumer_mock_run_only_test_function_markers(relative_path: str, count: str,
     actual = marker_path.read_text(encoding="utf-8").splitlines()
     expected = ["test-function-body"] * int(count)
     assert actual == expected, (actual, expected)
+
+
+@then(
+    re.compile(
+        r'collection should reject consumer feature "(?P<feature_path>[^"]+)", scenario "(?P<scenario_name>[^"]+)", '
+        r'and step "(?P<step_text>[^"]+)" before files "(?P<hook_path>[^"]+)" and "(?P<body_path>[^"]+)" are created'
+    )
+)
+def consumer_all_unmatched_collection_usage_error(
+    feature_path: str,
+    scenario_name: str,
+    step_text: str,
+    hook_path: str,
+    body_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    expected_source = _consumer_artifact_path(feature_path, consumer)
+    source_references = (str(expected_source), feature_path, f"file:{expected_source.name}", expected_source.name)
+    checks = {
+        f"pytest UsageError exit code 4; got {result.returncode}": result.returncode == 4,
+        "pytest emitted its UsageError summary": bool(re.search(r"(?im)^ERROR:", output))
+        or "UsageError" in output,
+        f"output identifies source {feature_path!r}": any(source_reference in output for source_reference in source_references),
+        f"output identifies scenario {scenario_name!r}": scenario_name in output,
+        f"output identifies unmatched step {step_text!r}": step_text in output,
+        f"runtime hook file {hook_path!r} was not created": not _consumer_artifact_path(hook_path, consumer).exists(),
+        f"test body file {body_path!r} was not created": not _consumer_artifact_path(body_path, consumer).exists(),
+    }
+    failures = [message for message, passed in checks.items() if not passed]
+    assert not failures, f"all-unmatched collection guard checks failed: {failures}\npytest output:\n{output}"
+
+
+@then(
+    re.compile(
+        r'pytest should skip all-unmatched scenario "(?P<scenario_name>[^"]+)" with a meaningful reason '
+        r'before files "(?P<hook_path>[^"]+)" and "(?P<body_path>[^"]+)" are created'
+    )
+)
+def consumer_all_unmatched_skip_has_reason(
+    scenario_name: str, hook_path: str, body_path: str, consumer: ConsumerProject
+) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    has_skip = bool(re.search(r"\bskip(?:ped|s)?\b", output, re.IGNORECASE))
+    has_meaningful_reason = bool(
+        re.search(r"unmatch|no (?:matching |bound )?steps?|step definitions?|empty scenario", output, re.IGNORECASE)
+    )
+    checks = {
+        f"pytest exited successfully; got {result.returncode}": result.returncode == 0,
+        "pytest reports the selected scenario as skipped": has_skip,
+        "pytest includes an informative no-binding reason": has_meaningful_reason,
+        f"pytest output identifies scenario {scenario_name!r}": scenario_name in output,
+        f"runtime hook file {hook_path!r} was not created": not _consumer_artifact_path(hook_path, consumer).exists(),
+        f"test body file {body_path!r} was not created": not _consumer_artifact_path(body_path, consumer).exists(),
+    }
+    failures = [message for message, passed in checks.items() if not passed]
+    assert not failures, f"all-unmatched skip checks failed: {failures}\npytest output:\n{output}"
+
+
+@then("pytest output should report exactly 2 deselected items")
+def consumer_pytest_reports_two_deselected_items(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert re.search(r"\b2 deselected\b", output), output
+
+
+@then(re.compile(r'consumer marker file "(?P<relative_path>[^"]+)" should contain lines "(?P<lines>[^"]+)"'))
+def consumer_marker_file_contains_lines(relative_path: str, lines: str, consumer: ConsumerProject) -> None:
+    marker_path = _consumer_artifact_path(relative_path, consumer)
+    actual = marker_path.read_text(encoding="utf-8").splitlines()
+    expected = [line.strip() for line in lines.split(",")]
+    assert actual == expected, (actual, expected)

@@ -77,6 +77,31 @@ The same option can be enabled for a project in pytest configuration:
    [pytest]
    cuke_mock_run = true
 
+Explicit scenario collection validation
+---------------------------------------
+
+By default, pytest-cuke stops collection with a ``UsageError`` when an
+explicitly bound, non-empty scenario has no step that matches any registered
+step definition. The diagnostic includes the feature, scenario and source
+locations and text for the scenario's executable steps, including Feature and
+Rule backgrounds. Scenarios with at least one match keep the usual runtime
+behavior for any remaining missing steps.
+
+Use ``--cuke-allow-empty-scenarios`` or
+``cuke_allow_empty_scenarios = true`` to collect those scenarios as skipped
+items instead. This policy applies only to explicit ``@scenario`` bindings.
+Autoload, generation, binding-only mock runs, and non-empty ``-k`` or ``-m``
+selections retain their own diagnostics. Scenarios with no executable steps
+are unaffected, and this option does not relax title validation.
+
+.. code-block:: console
+
+   pytest --cuke-allow-empty-scenarios
+
+The collection check uses the same matcher and applicable module/conftest step
+registries as runtime matching. It does not set up fixtures or execute step
+bodies.
+
 Feature source roots
 --------------------
 
