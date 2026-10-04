@@ -23,6 +23,12 @@ def test_add_bdd_ini() -> None:
         type="bool",
     )
     parser.addini.assert_any_call(
+        "cuke_allow_empty_scenarios",
+        "Skip explicitly bound non-empty scenarios when none of their steps match a step definition.",
+        default=False,
+        type="bool",
+    )
+    parser.addini.assert_any_call(
         "cuke_tolerant_status",
         "Status policy for ordinary exceptions in @tolerant steps: failed or ignored.",
         default="failed",
@@ -69,6 +75,7 @@ def test_pytest_addoption_calls_all_submodules() -> None:
     assert "--cuke-tolerant-status" in option_calls
     assert "--cuke-wip-status" in option_calls
     assert "--cuke-mock-run" in option_calls
+    assert "--cuke-allow-empty-scenarios" in option_calls
     option_kwargs = {call.args[0]: call.kwargs for call in group.addoption.call_args_list if call.args}
     assert "cuke_features_dir" in option_kwargs["--cuke-features-dir"]["help"]
     assert "pytest root" in option_kwargs["--cuke-features-dir"]["help"]
@@ -80,6 +87,9 @@ def test_pytest_addoption_calls_all_submodules() -> None:
     assert option_kwargs["--cuke-mock-run"]["dest"] == "cuke_mock_run"
     assert option_kwargs["--cuke-mock-run"]["action"] == "store_true"
     assert option_kwargs["--cuke-mock-run"]["default"] is None
+    assert option_kwargs["--cuke-allow-empty-scenarios"]["dest"] == "cuke_allow_empty_scenarios"
+    assert option_kwargs["--cuke-allow-empty-scenarios"]["action"] == "store_true"
+    assert option_kwargs["--cuke-allow-empty-scenarios"]["default"] is None
 
 
 @pytest.mark.parametrize(
