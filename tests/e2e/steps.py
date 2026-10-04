@@ -7362,3 +7362,487 @@ def consumer_marker_file_contains_lines(relative_path: str, lines: str, consumer
     actual = marker_path.read_text(encoding="utf-8").splitlines()
     expected = [line.strip() for line in lines.split(",")]
     assert actual == expected, (actual, expected)
+
+
+@given("the installed consumer exposes a debugger failure BDD probe")
+def install_debugger_failure_probe(consumer: ConsumerProject) -> None:
+    (consumer.path / "conftest.py").write_text(
+        dedent(
+            '''\
+            import re
+            from pathlib import Path
+
+            from pytest_cuke import given, then, when
+
+            def pytest_configure(config):
+                config.addinivalue_line(
+                    "markers",
+                    "mcp-debug-probe: marker for the Debug MCP installed-consumer probe",
+                )
+
+            @given("the debugger probe records its setup completion")
+            def record_probe_setup():
+                Path("probe-setup.log").write_text("setup completed\\n", encoding="utf-8")
+
+            @when(re.compile(r'the debugger probe raises "(?P<message>[^"]+)"'))
+            def raise_probe_failure(message):
+                raise RuntimeError(message)
+
+            @then("the debugger probe continuation should not run")
+            def record_probe_continuation():
+                Path("probe-continuation.log").write_text("unexpected\\n", encoding="utf-8")
+            '''
+        ),
+        encoding="utf-8",
+    )
+    (consumer.path / "features").mkdir(exist_ok=True)
+    (consumer.path / "features" / "debug-mcp-probe.feature").write_text(
+        dedent(
+            '''\
+            Feature: MCP failure inspection probe
+              @mcp-debug-probe
+              Scenario Outline: The client can inspect the failing BDD step for <probe_id>
+                Given the debugger probe records its setup completion
+                When the debugger probe raises "<message>"
+                Then the debugger probe continuation should not run
+
+                Examples:
+                  | probe_id       | message                       |
+                  | outline-row-17 | debug MCP failure sentinel |
+            '''
+        ),
+        encoding="utf-8",
+    )
+
+
+@given("the consumer has a startup guard for MCP imports and child processes")
+def install_mcp_startup_guard(consumer: ConsumerProject) -> None:
+    guard_directory = consumer.path / "startup-guard"
+    guard_directory.mkdir(exist_ok=True)
+    (guard_directory / "sitecustomize.py").write_text(
+        dedent(
+            '''\
+            import importlib.abc
+            import os
+            import subprocess
+            import sys
+            from pathlib import Path
+
+            observation = Path(os.environ["CUKE_MCP_GUARD"])
+
+            def record(value):
+                observation.parent.mkdir(parents=True, exist_ok=True)
+                with observation.open("a", encoding="utf-8") as stream:
+                    stream.write(value + "\\n")
+
+            class MCPImportGuard(importlib.abc.MetaPathFinder):
+                def find_spec(self, fullname, path=None, target=None):
+                    if fullname == "mcp" or fullname.startswith("mcp.") or fullname == "mcp_pdb":
+                        record("import:" + fullname)
+                    return None
+
+            sys.meta_path.insert(0, MCPImportGuard())
+            original_popen = subprocess.Popen
+
+            def observed_popen(*args, **kwargs):
+                command = args[0] if args else kwargs.get("args", "unknown")
+                command_text = repr(command).lower()
+                if "mcp-pdb" in command_text or "mcp_pdb" in command_text or "pytest_cuke.debug_mcp.backend" in command_text:
+                    record("child:" + repr(command))
+                return original_popen(*args, **kwargs)
+
+            subprocess.Popen = observed_popen
+            '''
+        ),
+        encoding="utf-8",
+    )
+    consumer.env["PYTHONPATH"] = str(guard_directory)
+    consumer.env["CUKE_MCP_GUARD"] = str(consumer.path / "mcp-startup-observations.log")
+
+
+@given("the installed consumer has the optional debug MCP extra installed")
+def install_debug_mcp_extra(consumer: ConsumerProject) -> None:
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "the installed-consumer contract requires uv to install the optional MCP extra"
+    install = subprocess.run(
+        [uv_executable, "pip", "install", "--python", str(consumer.python), f"{consumer.artifact}[debug-mcp]"],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert install.returncode == 0, (
+        "could not install the optional debug-mcp consumer extra:\n"
+        f"{install.stdout}\n{install.stderr}"
+    )
+
+
+@when(re.compile(r'I start installed pytest for MCP inspection with arguments "(?P<arguments>[^"]*)"'))
+def start_consumer_pytest_for_mcp_inspection(arguments: str, consumer: ConsumerProject) -> None:
+    command = [str(consumer.pytest), *shlex.split(arguments)]
+    output_path = consumer.path / "mcp-pytest-output.log"
+    with output_path.open("w", encoding="utf-8") as output:
+        process = subprocess.Popen(
+            command,
+            cwd=consumer.path,
+            env=consumer.env,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+    setattr(consumer, "_mcp_pytest_process", process)
+    setattr(consumer, "_mcp_pytest_command", command)
+    setattr(consumer, "_mcp_pytest_output_path", output_path)
+    consumer.pytest_result = None
+
+
+def _debug_mcp_sdk_client_script() -> str:
+    return dedent(
+        '''\
+        import asyncio
+        import json
+        import sys
+        from pathlib import Path
+
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
+
+        def jsonable(value):
+            if value is None or isinstance(value, (str, int, float, bool)):
+                return value
+            if isinstance(value, dict):
+                return {str(key): jsonable(item) for key, item in value.items()}
+            if isinstance(value, (list, tuple)):
+                return [jsonable(item) for item in value]
+            if hasattr(value, "model_dump"):
+                return jsonable(value.model_dump(mode="json"))
+            return str(value)
+
+        def tool_payload(result):
+            structured = getattr(result, "structuredContent", None)
+            if isinstance(structured, dict):
+                return jsonable(structured)
+            for block in getattr(result, "content", []):
+                text = getattr(block, "text", None)
+                if isinstance(text, str):
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(payload, dict):
+                        return payload
+            raise AssertionError(f"MCP tool did not return structured JSON: {result!r}")
+
+        def tool_snapshot(result):
+            return {
+                "is_error": bool(getattr(result, "isError", False)),
+                "payload": tool_payload(result),
+                "content": [
+                    {"type": getattr(block, "type", None), "text": getattr(block, "text", None)}
+                    for block in getattr(result, "content", [])
+                ],
+            }
+
+        async def main(endpoint, output_path):
+            async with streamable_http_client(endpoint, terminate_on_close=False) as (
+                read_stream,
+                write_stream,
+                _get_session_id,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    tools = await session.list_tools()
+                    names = {tool.name for tool in tools.tools}
+                    required = {"inspect_failure", "heartbeat", "release_failure"}
+                    assert required <= names, f"missing MCP inspection tools: {required - names}"
+
+                    inspected_result = await session.call_tool("inspect_failure", {})
+                    assert not getattr(inspected_result, "isError", False), inspected_result
+                    inspected = tool_snapshot(inspected_result)
+                    failure = inspected["payload"].get("active_failure")
+                    assert isinstance(failure, dict), inspected
+                    session_id = inspected["payload"].get("session_id")
+                    status = inspected["payload"].get("status")
+                    sequence = failure.get("sequence")
+                    assert isinstance(session_id, str) and session_id, inspected
+                    assert isinstance(status, str) and status, inspected
+                    assert isinstance(sequence, int) and sequence > 0, inspected
+
+                    heartbeat_result = await session.call_tool(
+                        "heartbeat", {"session_id": session_id, "sequence": sequence}
+                    )
+                    assert not getattr(heartbeat_result, "isError", False), heartbeat_result
+                    heartbeat = tool_snapshot(heartbeat_result)
+
+                    # Refresh the lease before it expires, then inspect after the first lease deadline.
+                    await asyncio.sleep(6.1)
+                    refresh_result = await session.call_tool(
+                        "heartbeat", {"session_id": session_id, "sequence": sequence}
+                    )
+                    assert not getattr(refresh_result, "isError", False), refresh_result
+                    refresh = tool_snapshot(refresh_result)
+                    assert refresh["payload"].get("session_id") == session_id, refresh
+                    assert refresh["payload"].get("sequence") == sequence, refresh
+                    await asyncio.sleep(4.2)
+                    after_heartbeat_result = await session.call_tool("inspect_failure", {})
+                    assert not getattr(after_heartbeat_result, "isError", False), after_heartbeat_result
+                    after_heartbeat = tool_snapshot(after_heartbeat_result)
+                    active_after_heartbeat = after_heartbeat["payload"].get("active_failure")
+                    assert isinstance(active_after_heartbeat, dict), after_heartbeat
+                    assert active_after_heartbeat.get("sequence") == sequence, after_heartbeat
+                    assert after_heartbeat["payload"].get("status") == status, after_heartbeat
+
+                    release_result = await session.call_tool(
+                        "release_failure", {"session_id": session_id, "sequence": sequence}
+                    )
+                    assert not getattr(release_result, "isError", False), release_result
+                    release = tool_snapshot(release_result)
+                    assert release["payload"].get("released") is True, release
+
+                    Path(output_path).write_text(
+                        json.dumps(
+                            {
+                                "endpoint": endpoint,
+                                "tools": sorted(names),
+                                "inspection": inspected["payload"],
+                                "heartbeat": heartbeat["payload"],
+                                "heartbeat_refresh": refresh["payload"],
+                                "after_heartbeat": after_heartbeat["payload"],
+                                "release": release["payload"],
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                        encoding="utf-8",
+                    )
+
+        asyncio.run(main(sys.argv[1], sys.argv[2]))
+        '''
+    )
+
+
+def _mcp_read_discovery_record(consumer: ConsumerProject, timeout: float = 45) -> dict[str, object]:
+    record_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "session.json"
+    process = getattr(consumer, "_mcp_pytest_process")
+    deadline = time.monotonic() + timeout
+    latest_error = "discovery file has not been published"
+    while time.monotonic() < deadline:
+        if record_path.is_file():
+            try:
+                payload = json.loads(record_path.read_text(encoding="utf-8"))
+                if isinstance(payload, dict) and isinstance(payload.get("active_failure"), dict):
+                    return payload
+                latest_error = f"discovery record has no active failure yet: {payload!r}"
+            except (OSError, json.JSONDecodeError) as error:
+                latest_error = repr(error)
+        if process.poll() is not None:
+            break
+        time.sleep(0.1)
+    output_path = getattr(consumer, "_mcp_pytest_output_path")
+    output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+    raise AssertionError(
+        f"installed pytest did not publish an active MCP failure ({latest_error}) before the watchdog;\n"
+        f"pytest output:\n{output}"
+    )
+
+
+def _mcp_endpoint_port(endpoint: object) -> tuple[str, int]:
+    assert isinstance(endpoint, str), f"MCP endpoint must be a URL, got {endpoint!r}"
+    parsed = urlsplit(endpoint)
+    assert parsed.scheme == "http" and parsed.hostname and parsed.port, endpoint
+    assert parsed.path == "/mcp", endpoint
+    return parsed.hostname, parsed.port
+
+
+def _assert_debug_mcp_failure_context(failure: object) -> dict[str, object]:
+    assert isinstance(failure, dict), failure
+    assert failure.get("phase") == "call", failure
+    assert failure.get("error_type") == "RuntimeError", failure
+    assert failure.get("error_message") == "debug MCP failure sentinel", failure
+    assert isinstance(failure.get("nodeid"), str) and failure["nodeid"], failure
+    assert isinstance(failure.get("sequence"), int) and failure["sequence"] > 0, failure
+    context = failure.get("bdd_context")
+    assert isinstance(context, dict), failure
+    assert context.get("feature_name") == "MCP failure inspection probe", context
+    scenario_name = context.get("scenario_name")
+    assert isinstance(scenario_name, str), context
+    assert scenario_name.startswith("The client can inspect the failing BDD step for <probe_id>"), context
+    assert "[table_rows:[line:" in scenario_name, context
+    assert context.get("step_keyword") == "When", context
+    assert context.get("step_text") == 'the debugger probe raises "debug MCP failure sentinel"', context
+    feature_path = context.get("feature_path")
+    assert isinstance(feature_path, str) and Path(feature_path).name == "debug-mcp-probe.feature", context
+    tags = context.get("tags")
+    assert isinstance(tags, list) and any(str(tag).lstrip("@") == "mcp-debug-probe" for tag in tags), context
+    outline_row = context.get("outline_row")
+    outline_row_json = json.dumps(outline_row, ensure_ascii=False)
+    assert "outline-row-17" in outline_row_json and "debug MCP failure sentinel" in outline_row_json, context
+    breadcrumb = context.get("breadcrumb")
+    assert isinstance(breadcrumb, dict), context
+    assert breadcrumb.get("feature_name") == "MCP failure inspection probe", context
+    assert breadcrumb.get("scenario_name") == scenario_name, context
+    breadcrumb_row = breadcrumb.get("outline_row")
+    breadcrumb_row_json = json.dumps(breadcrumb_row, ensure_ascii=False)
+    assert "outline-row-17" in breadcrumb_row_json and "debug MCP failure sentinel" in breadcrumb_row_json, context
+    breadcrumb_step = breadcrumb.get("step")
+    assert isinstance(breadcrumb_step, dict), context
+    assert breadcrumb_step.get("keyword") == "When", context
+    assert breadcrumb_step.get("text") == 'the debugger probe raises "debug MCP failure sentinel"', context
+    return context
+
+
+@when("an external MCP client inspects the advertised failure, heartbeats, and releases it")
+def run_external_debug_mcp_client(consumer: ConsumerProject) -> None:
+    process = getattr(consumer, "_mcp_pytest_process", None)
+    assert isinstance(process, subprocess.Popen), "the MCP pytest process has not been started"
+    command = getattr(consumer, "_mcp_pytest_command")
+    output_path = getattr(consumer, "_mcp_pytest_output_path")
+    client_path = consumer.path / "debug-mcp-client.py"
+    result_path = consumer.path / "debug-mcp-client-result.json"
+    client_result: subprocess.CompletedProcess[str] | None = None
+    try:
+        client_path.write_text(_debug_mcp_sdk_client_script(), encoding="utf-8")
+        discovery = _mcp_read_discovery_record(consumer)
+        inspection_endpoint = discovery.get("inspection_endpoint")
+        debugger_endpoint = discovery.get("debugger_endpoint")
+        inspection_host, inspection_port = _mcp_endpoint_port(inspection_endpoint)
+        debugger_host, debugger_port = _mcp_endpoint_port(debugger_endpoint)
+        assert inspection_host == debugger_host == "127.0.0.1", discovery
+        assert inspection_endpoint != debugger_endpoint, discovery
+        assert isinstance(discovery.get("session_id"), str) and discovery["session_id"], discovery
+        assert isinstance(discovery.get("status"), str) and discovery["status"], discovery
+        _assert_debug_mcp_failure_context(discovery.get("active_failure"))
+        setattr(consumer, "_mcp_initial_discovery", discovery)
+
+        client_result = subprocess.run(
+            [str(consumer.python), str(client_path), str(inspection_endpoint), str(result_path)],
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        setattr(consumer, "_mcp_client_result", client_result)
+        assert client_result.returncode == 0, (
+            f"external MCP SDK client failed ({client_result.returncode}):\n"
+            f"{client_result.stdout}\n{client_result.stderr}"
+        )
+        assert result_path.is_file(), f"MCP client did not write its observation: {client_result.stdout}"
+        observation = json.loads(result_path.read_text(encoding="utf-8"))
+        assert observation.get("endpoint") == inspection_endpoint, observation
+        assert {"inspect_failure", "heartbeat", "release_failure"} <= set(observation.get("tools", [])), observation
+        inspected = observation.get("inspection")
+        assert isinstance(inspected, dict), observation
+        assert inspected.get("session_id") == discovery["session_id"], observation
+        assert inspected.get("status") == discovery["status"], observation
+        client_failure = _assert_debug_mcp_failure_context(inspected.get("active_failure"))
+        assert client_failure == discovery["active_failure"]["bdd_context"], (client_failure, discovery)
+        assert isinstance(observation.get("heartbeat"), dict) and observation["heartbeat"], observation
+        assert observation.get("after_heartbeat", {}).get("active_failure", {}).get("sequence") == discovery[
+            "active_failure"
+        ]["sequence"], observation
+        assert observation.get("release", {}).get("released") is True, observation
+        setattr(consumer, "_mcp_client_observation", observation)
+
+        try:
+            return_code = process.wait(timeout=15)
+        except subprocess.TimeoutExpired as error:
+            raise AssertionError("installed pytest did not resume after the external release") from error
+        output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+        consumer.pytest_result = subprocess.CompletedProcess(command, return_code, output, "")
+        assert return_code != 0, f"release changed the failed pytest outcome to success:\n{output}"
+        final_record_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "session.json"
+        final_record = (
+            json.loads(final_record_path.read_text(encoding="utf-8")) if final_record_path.is_file() else None
+        )
+        setattr(consumer, "_mcp_final_record", final_record)
+        endpoints = []
+        if isinstance(final_record, dict):
+            assert final_record.get("status") == "closed", final_record
+            assert final_record.get("active_failure") is None, final_record
+            endpoints = [final_record.get("debugger_endpoint"), final_record.get("inspection_endpoint")]
+            assert endpoints == [None, None], final_record
+        setattr(consumer, "_mcp_advertised_endpoints_after_finish", endpoints)
+        for host, port in ((debugger_host, debugger_port), (inspection_host, inspection_port)):
+            import socket
+
+            try:
+                connection = socket.create_connection((host, port), timeout=0.25)
+            except OSError:
+                continue
+            connection.close()
+            raise AssertionError(f"MCP endpoint {host}:{port} remained open after pytest finished")
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+        if client_result is not None:
+            setattr(consumer, "_mcp_client_result", client_result)
+
+
+@then("the consumer should report no MCP backend import or child process")
+def consumer_reports_no_mcp_startup(consumer: ConsumerProject) -> None:
+    marker = consumer.path / "mcp-startup-observations.log"
+    assert not marker.exists(), marker.read_text(encoding="utf-8") if marker.exists() else ""
+    assert not (consumer.path / "probe-continuation.log").exists()
+
+
+@then("the MCP client observation should confirm the advertised endpoint and BDD failure context")
+def consumer_mcp_client_observation_confirms_context(consumer: ConsumerProject) -> None:
+    observation = getattr(consumer, "_mcp_client_observation", None)
+    assert isinstance(observation, dict), observation
+    discovery = getattr(consumer, "_mcp_initial_discovery", None)
+    assert isinstance(discovery, dict), discovery
+    assert observation["endpoint"] == discovery["inspection_endpoint"]
+    failure = observation["inspection"]["active_failure"]
+    _assert_debug_mcp_failure_context(failure)
+    assert isinstance(observation.get("heartbeat"), dict) and observation["heartbeat"]
+    assert observation.get("after_heartbeat", {}).get("active_failure", {}).get("sequence") == failure[
+        "sequence"
+    ], observation
+    assert observation["release"].get("released") is True
+
+
+@then("the MCP discovery record should no longer advertise a live endpoint")
+def consumer_mcp_discovery_has_no_live_endpoint(consumer: ConsumerProject) -> None:
+    endpoints = getattr(consumer, "_mcp_advertised_endpoints_after_finish", None)
+    assert isinstance(endpoints, list), endpoints
+    assert not any(endpoints), f"discovery record still advertises endpoints after pytest exited: {endpoints}"
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should retain the failed debugger BDD scenario'))
+def consumer_debug_mcp_json_report_retains_failure(relative_path: str, consumer: ConsumerProject) -> None:
+    report_path = _consumer_artifact_path(relative_path, consumer)
+    assert report_path.is_file(), f"Cucumber JSON report was not written: {report_path}"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    scenarios = [
+        scenario
+        for feature in report
+        for scenario in feature.get("elements", [])
+        if isinstance(scenario.get("name"), str)
+        and scenario["name"].startswith("The client can inspect the failing BDD step for <probe_id>")
+        and isinstance(scenario.get("id"), str)
+        and "[table_rows:[line:" in scenario["id"]
+    ]
+    assert len(scenarios) == 1, scenarios
+    statuses = [step.get("result", {}).get("status") for step in scenarios[0].get("steps", [])]
+    assert statuses == ["passed", "failed", "skipped"], statuses
+    report_text = json.dumps(scenarios[0], ensure_ascii=False)
+    assert "debug MCP failure sentinel" in report_text, scenarios[0]
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should retain the debugger failure evidence'))
+def consumer_debug_mcp_messages_retain_failure(relative_path: str, consumer: ConsumerProject) -> None:
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    assert artifact_path.is_file(), f"Messages artifact was not written: {artifact_path}"
+    artifact_text = artifact_path.read_text(encoding="utf-8")
+    assert artifact_text.strip(), f"Messages artifact is empty: {artifact_path}"
+    assert "debug MCP failure sentinel" in artifact_text, artifact_text
+    assert "testCaseFinished" in artifact_text, artifact_text
