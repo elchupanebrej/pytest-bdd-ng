@@ -63,6 +63,7 @@ from pytest_cuke.compatibility.pytest import (
 )
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_message_id, scenario_to_pickle
+from pytest_cuke.model.run_access import get_run_context
 from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_cuke.packaging import get_distribution_version
 from pytest_cuke.steps import Matcher
@@ -86,16 +87,8 @@ class MessagePlugin:
     # the next session's function, so the "already emitted" check silently skips a message (#232).
     config: Config = attrib()
     allure_output_path: Path | None = attrib(default=None)
-    current_test_case: TestCase | None = attrib(default=None)
-    current_test_case_step_id_to_step_mapping: dict[int, TestStep] = attrib(factory=dict)
-    current_test_case_step_order: list[TestStep] = attrib(factory=list)
-    current_finished_test_step_ids: set[str] = attrib(factory=set)
-    current_test_step_start_timestamps: dict[str, Timestamp] = attrib(factory=dict)
-    current_active_test_step_id: str | None = attrib(default=None)
-    current_test_step_exception_traces: dict[str, str] = attrib(factory=dict)
-    current_test_case_start: TestCaseStarted | None = attrib(default=None)
-    parameter_type_registry: ClassVar[set[int]] = set()
-    hook_registry: ClassVar[set[int]] = set()
+    parameter_type_registry: set[int] = attrib(factory=set)
+    hook_registry: set[int] = attrib(factory=set)
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
 
     def _configured_output(self, name: str) -> str | None:
@@ -104,6 +97,83 @@ class MessagePlugin:
             return value
         ini_value = self.config.getini(name)
         return ini_value if isinstance(ini_value, str) and ini_value else None
+
+    def _active_scenario_run(self) -> Any:
+        run_context = get_run_context(self.config)
+        return run_context.active_scenario_run if run_context is not None else None
+
+    def _get_scenario_state(self, name: str, default: Any) -> Any:
+        scenario_run = self._active_scenario_run()
+        return getattr(scenario_run, name, default) if scenario_run is not None else default
+
+    def _set_scenario_state(self, name: str, value: Any) -> None:
+        scenario_run = self._active_scenario_run()
+        if scenario_run is not None:
+            setattr(scenario_run, name, value)
+
+    @property
+    def current_test_case(self) -> TestCase | None:
+        return cast("TestCase | None", self._get_scenario_state("message_test_case", None))
+
+    @current_test_case.setter
+    def current_test_case(self, value: TestCase | None) -> None:
+        self._set_scenario_state("message_test_case", value)
+
+    @property
+    def current_test_case_step_id_to_step_mapping(self) -> dict[int, TestStep]:
+        return cast("dict[int, TestStep]", self._get_scenario_state("message_test_steps_by_identity", {}))
+
+    @current_test_case_step_id_to_step_mapping.setter
+    def current_test_case_step_id_to_step_mapping(self, value: dict[int, TestStep]) -> None:
+        self._set_scenario_state("message_test_steps_by_identity", value)
+
+    @property
+    def current_test_case_step_order(self) -> list[TestStep]:
+        return cast("list[TestStep]", self._get_scenario_state("message_test_steps", []))
+
+    @current_test_case_step_order.setter
+    def current_test_case_step_order(self, value: list[TestStep]) -> None:
+        self._set_scenario_state("message_test_steps", value)
+
+    @property
+    def current_finished_test_step_ids(self) -> set[str]:
+        return cast("set[str]", self._get_scenario_state("message_finished_test_step_ids", set()))
+
+    @current_finished_test_step_ids.setter
+    def current_finished_test_step_ids(self, value: set[str]) -> None:
+        self._set_scenario_state("message_finished_test_step_ids", value)
+
+    @property
+    def current_test_step_start_timestamps(self) -> dict[str, Timestamp]:
+        return cast("dict[str, Timestamp]", self._get_scenario_state("message_test_step_start_timestamps", {}))
+
+    @current_test_step_start_timestamps.setter
+    def current_test_step_start_timestamps(self, value: dict[str, Timestamp]) -> None:
+        self._set_scenario_state("message_test_step_start_timestamps", value)
+
+    @property
+    def current_active_test_step_id(self) -> str | None:
+        return cast("str | None", self._get_scenario_state("message_active_test_step_id", None))
+
+    @current_active_test_step_id.setter
+    def current_active_test_step_id(self, value: str | None) -> None:
+        self._set_scenario_state("message_active_test_step_id", value)
+
+    @property
+    def current_test_step_exception_traces(self) -> dict[str, str]:
+        return cast("dict[str, str]", self._get_scenario_state("message_test_step_exception_traces", {}))
+
+    @current_test_step_exception_traces.setter
+    def current_test_step_exception_traces(self, value: dict[str, str]) -> None:
+        self._set_scenario_state("message_test_step_exception_traces", value)
+
+    @property
+    def current_test_case_start(self) -> TestCaseStarted | None:
+        return cast("TestCaseStarted | None", self._get_scenario_state("message_test_case_started", None))
+
+    @current_test_case_start.setter
+    def current_test_case_start(self, value: TestCaseStarted | None) -> None:
+        self._set_scenario_state("message_test_case_started", value)
 
     def __attrs_post_init__(self) -> None:
         messages_path = self._configured_output("cuke_messages_ndjson")
@@ -605,7 +675,7 @@ class MessagePlugin:
                                 ),
                             ),
                         )
-            type(self).parameter_type_registry.update(not_yet_registered_parameter_types)
+            self.parameter_type_registry.update(not_yet_registered_parameter_types)
             step_registry = step_registry.parent
 
         test_steps = []
@@ -657,6 +727,15 @@ class MessagePlugin:
             test_steps=test_steps,
         )
         self.current_test_case = current_test_case
+        run_context = get_run_context(config)
+        if run_context is not None:
+            active_run = run_context.active_scenario_run
+            if active_run is not None and active_run.nodeid == request.node.nodeid:
+                run_context.set_test_case(
+                    test_case_id=current_test_case.id,
+                    test_step_ids=[test_step.id for test_step in test_steps],
+                    test_steps=test_steps,
+                )
 
         hook_handler.pytest_cuke_message(
             config=config,
@@ -677,6 +756,11 @@ class MessagePlugin:
             worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
             timestamp=self.get_timestamp(),
         )
+        run_context = get_run_context(config)
+        if run_context is not None:
+            active_run = run_context.active_scenario_run
+            if active_run is not None and active_run.nodeid == request.node.nodeid:
+                run_context.set_attempt_id(self.current_test_case_start.id)
 
         hook_handler.pytest_cuke_message(
             config=config,

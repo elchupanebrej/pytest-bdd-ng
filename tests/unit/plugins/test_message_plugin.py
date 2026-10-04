@@ -4,13 +4,15 @@ import json
 from base64 import b64encode
 from pathlib import Path
 from queue import Queue
-from threading import Event
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from messages import Envelope as Message
-from messages import TestCase
+from messages import TestCase, TestCaseStarted, Timestamp
 from pytest_cuke.message_plugin import MessagePlugin
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.session_run import RunContext
 
 TestCase.__test__ = False
 
@@ -30,8 +32,8 @@ def test_message_plugin_add_options() -> None:
     parser.getgroup.return_value = group
 
     MessagePlugin.add_options(parser)
-    assert parser.getgroup.call_count == 2
-    assert group.addoption.call_count == 2
+    assert parser.getgroup.call_count == 3
+    assert group.addoption.call_count == 4
 
 
 def test_message_plugin_disabled_when_no_options() -> None:
@@ -68,15 +70,30 @@ def test_message_plugin_pytest_cuke_message_queue() -> None:
 
 
 def test_message_plugin_pytest_cuke_attach() -> None:
-    config = MagicMock()
-    config.option.cuke_messages_ndjson = "messages.ndjson"
-    config.option.cuke_html = None
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="test.feature::Scenario",
+        feature=Feature(name="Attachment", uri="attachment.feature"),
+        scenario=Scenario(name="Attachment"),
+    )
+    scenario_run.message_test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=[])
+    scenario_run.message_test_case_started = TestCaseStarted(
+        attempt=0,
+        id="tcs-1",
+        test_case_id="tc-1",
+        worker_id="master",
+        timestamp=Timestamp(seconds=1, nanos=0),
+    )
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+    )
 
     plugin = MessagePlugin(config=config)
-    plugin.current_test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=[])
 
-    request = MagicMock()
-    request.config = config
+    request = SimpleNamespace(config=config)
 
     plugin.pytest_cuke_attach(request, "hello attachment", "text/plain", "file.txt")
     config.hook.pytest_cuke_message.assert_called_once()

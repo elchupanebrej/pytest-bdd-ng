@@ -1,0 +1,131 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from attrs.exceptions import FrozenInstanceError
+
+from pytest_cuke.model.doc_string import DocString
+from pytest_cuke.model.examples import ExternalExampleRowSource
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.feature_binding import FeatureRuntimeBinding, normalize_feature_uri
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.session_run import RunContext
+from pytest_cuke.model.step import Step
+from pytest_cuke.model.table import DataTable, TableCell, TableRow
+
+
+def test_feature_binding_indexes_source_tree_and_outline_row(tmp_path: Path) -> None:
+    data_table = DataTable(
+        id="table-1",
+        rows=(
+            TableRow(id="row-1", cells=(TableCell(id="cell-1", value="name"),)),
+            TableRow(id="row-2", cells=(TableCell(id="cell-2", value="Ada"),)),
+        ),
+    )
+    doc_string = DocString(content="payload", id="doc-1")
+    step = Step(name="consume data", keyword="Given ", id="step-1", doc_string=doc_string, data_table=data_table)
+    source_ids = ("scenario-ast-1", "examples-row-1")
+    scenario = Scenario(
+        name="Outline row Ada",
+        id="pickle-1",
+        steps=(step,),
+        source_ast_node_ids=source_ids,
+        external_example_source=ExternalExampleRowSource(
+            path="examples.csv",
+            marker_line=4,
+            section_index=0,
+            row_index=1,
+            source_line=7,
+            row_id="examples-row-1",
+        ),
+    )
+    uri = str(tmp_path / "runtime.feature")
+    feature = Feature(
+        name="Runtime binding",
+        uri=uri,
+        scenarios=(scenario,),
+        source_content="Feature: Runtime binding",
+        source_media_type="text/x.cucumber.gherkin+plain",
+    )
+
+    binding = FeatureRuntimeBinding.from_feature(feature)
+
+    assert binding.uri == Path(uri).resolve().as_uri()
+    assert normalize_feature_uri(feature) == binding.uri
+    assert binding.document is not None and binding.document.feature is feature
+    assert binding.source == feature.source_content
+    assert binding.source_media_type == feature.source_media_type
+    assert binding.pickles_by_id["pickle-1"] is scenario
+    assert binding.resolve_scenario(source_ids) is scenario
+    assert binding.resolve_step(step) is step
+    assert binding.ast_nodes_by_id["table-1"] is data_table
+    assert binding.ast_nodes_by_id["row-2"] is data_table.rows[1]
+    assert binding.ast_nodes_by_id["cell-2"] is data_table.rows[1].cells[0]
+    assert binding.ast_nodes_by_id["doc-1"] is doc_string
+    assert binding.ast_nodes_by_id["examples-row-1"] is scenario
+
+    with pytest.raises(FrozenInstanceError):
+        setattr(step, "runtime", object())
+
+
+def test_run_context_tracks_step_transitions_attempt_and_teardown_snapshot() -> None:
+    first_step = Step(name="first", keyword="Given ", id="step-1")
+    second_step = Step(name="second", keyword="Then ", id="step-2")
+    feature = Feature(name="Lifecycle", uri="lifecycle.feature", scenarios=())
+    scenario = Scenario(name="Lifecycle scenario", id="pickle-1", steps=(first_step, second_step))
+    context = RunContext()
+    context.begin_collection()
+    binding = context.bind_feature(feature)
+    assert context.stage == "collection"
+    assert context.hook_phase == "pytest_collection"
+
+    scenario_run = context.start_scenario(
+        nodeid="lifecycle.feature::Lifecycle scenario",
+        feature=feature,
+        scenario=scenario,
+        attempt=2,
+    )
+    assert context.stage == "setup"
+    assert context.hook_phase == "pytest_runtest_setup"
+    context.set_test_case(
+        test_case_id="test-case-1",
+        test_step_ids=["message-step-1", "message-step-2"],
+        test_case_started_id="attempt-1",
+    )
+    first_run = context.start_step(first_step)
+    assert context.stage == "step"
+    assert context.hook_phase == "pytest_cuke_before_step"
+    context.finish_step(first_run)
+    second_run = context.start_step(second_step)
+    context.finish_step(second_run)
+    assert second_run.previous_step_run is first_run
+    assert context.stage == "running"
+    assert context.hook_phase == "pytest_cuke_after_step"
+    context.finish_active(status="passed")
+    assert context.stage == "finished"
+    context.enter_teardown()
+    assert context.stage == "teardown"
+    context.record_teardown_error(RuntimeError("fixture teardown failed"))
+    final_snapshot_transition = scenario_run.transition_index
+
+    context.clear_active()
+
+    assert context.feature_bindings_by_uri[binding.uri] is binding
+    assert context.get_scenario_run(scenario_run.nodeid, attempt=2) is scenario_run
+    assert scenario_run.test_case_id == "test-case-1"
+    assert scenario_run.test_case_started_id == "attempt-1"
+    assert scenario_run.attempt_id == "attempt-1"
+    assert first_run.test_step_id == "message-step-1"
+    assert second_run.test_step_id == "message-step-2"
+    assert second_run.previous_step_run is first_run
+    assert first_run.children == [second_run]
+    assert scenario_run.current_step_run is None
+    assert scenario_run.status == "failed"
+    assert scenario_run.exception is not None
+    assert context.active_feature_binding is None
+    assert context.active_scenario_run is None
+    assert context.last_error is scenario_run.exception
+    assert context.stage == "inactive"
+    assert context.status == "inactive"
+    assert context.transition_index > final_snapshot_transition

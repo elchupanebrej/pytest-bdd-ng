@@ -97,7 +97,7 @@ class ScenarioReport:
     def from_scenario_run(cls, scenario_run: ScenarioRun) -> ScenarioReport:
         scenario = scenario_run.scenario
         sc_name = getattr(scenario, "name", "") if scenario is not None else ""
-        feature = getattr(scenario, "feature", None) if scenario is not None else None
+        feature = scenario_run.feature or (getattr(scenario, "feature", None) if scenario is not None else None)
         feat_name = getattr(feature, "name", None) if feature is not None else None
 
         steps = [StepReport.from_step_run(st) for st in scenario_run.steps]

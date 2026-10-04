@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import contextlib
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
@@ -51,8 +51,7 @@ def test_allure_pytest_cuke_lifecycle_hooks(monkeypatch: pytest.MonkeyPatch) -> 
 
     bdd = AllurePytestBDD(allure_logger, allure_cache)
 
-    request = MagicMock()
-    request.node.nodeid = "node-id-123"
+    request = SimpleNamespace(node=SimpleNamespace(nodeid="node-id-123"))
     feature = MagicMock()
     feature.rel_filename = "test.feature"
     feature.name = "My Feature"

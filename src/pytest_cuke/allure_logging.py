@@ -13,6 +13,7 @@ from pydantic import BaseModel as PydanticBaseModel
 
 from pytest_cuke.compatibility.allure import ALLURE_INSTALLED
 from pytest_cuke.compatibility.pytest import PYTEST81
+from pytest_cuke.model.run_access import get_scenario_run
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, Mapping
@@ -241,11 +242,12 @@ class AllurePytestBDD:
     def pytest_cuke_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario) -> None:
         if TestStepResult is None or md5 is None or now is None:
             return
-        scenario_result_uuid = self._cache.get(scenario)
+        scenario_ref = get_scenario_run(request) or scenario
+        scenario_result_uuid = self._cache.get(scenario_ref)
         test_result_uuid = self._cache.get(request.node.nodeid)
 
         if not scenario_result_uuid:
-            scenario_result_uuid = self._cache.push(scenario)
+            scenario_result_uuid = self._cache.push(scenario_ref)
 
         self.allure_logger.start_step(test_result_uuid, scenario_result_uuid, TestStepResult())
 
@@ -268,7 +270,7 @@ class AllurePytestBDD:
     def pytest_cuke_after_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario) -> None:
         if now is None:
             return
-        scenario_result_uuid = self._cache.get(scenario)
+        scenario_result_uuid = self._cache.get(get_scenario_run(request) or scenario)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.stop = now()
         self.allure_logger.stop_step(scenario_result_uuid)
@@ -279,7 +281,7 @@ class AllurePytestBDD:
     ) -> None:
         if Status is None:
             return
-        scenario_result_uuid = self._cache.get(scenario)
+        scenario_result_uuid = self._cache.get(get_scenario_run(request) or scenario)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.status = Status.BROKEN
         scenario_result.status_details = exception

@@ -36,6 +36,7 @@ from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_cuke.feature_sources import resolve_feature_sources
 from pytest_cuke.message_plugin import MessagePlugin
 from pytest_cuke.mimetypes import Mimetype
+from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.npm_resource import check_npm, check_npm_package
 from pytest_cuke.parser import GherkinParser, MarkdownGherkinParser, clear_parser_registrations
 from pytest_cuke.parsers import cucumber_expression
@@ -87,9 +88,18 @@ __registry = Registry()
 
 
 @pytest.fixture
-def pytestbdd_step_runner() -> ScenarioRunner:
+def pytestbdd_step_runner(pytestconfig: Config | None = None) -> ScenarioRunner:
     """Fixture containing scenario step runner."""
-    return ScenarioRunner()
+    if pytestconfig is None:
+        return ScenarioRunner()
+    runner = pytestconfig.pluginmanager.get_plugin("pytest_cuke_scenario_runner")
+    return cast("ScenarioRunner", runner) if runner is not None else ScenarioRunner()
+
+
+@pytest.fixture(scope="session")
+def run_context(pytestconfig: Config) -> RunContext:
+    """Return the authoritative mutable runtime root for this pytest session."""
+    return RunContext.from_config(pytestconfig)
 
 
 @pytest.fixture
@@ -271,10 +281,11 @@ def pytest_configure(config: Config) -> None:
 
     config.addinivalue_line("markers", "pytest_cuke_scenario: marker to identify pytest_cuke tests")
     config.addinivalue_line("markers", "scenarios: marker to provide scenarios locator")
+    run_context = RunContext.from_config(config)
     cucumber_json.configure(config)
     gherkin_terminal_reporter.configure(config)
     config.pluginmanager.register(ScenarioReporterPlugin())
-    config.pluginmanager.register(ScenarioRunner())
+    config.pluginmanager.register(ScenarioRunner(), name="pytest_cuke_scenario_runner")
     config.pluginmanager.register(MessagePlugin(config=config), name="pytest_cuke_messages")
     summary_enabled = config.option.cuke_summary
     if summary_enabled is None:
@@ -286,9 +297,9 @@ def pytest_configure(config: Config) -> None:
         "__allure_plugin__",
         None if _allure_output_path(config) is not None else AllurePytestBDD.register_if_allure_accessible(config),
     )
-    if hasattr(config, "stash"):
-        IdGenerator.from_stash(config.stash)
-    setdefaultattr(config, "pytest_cuke_id_generator", value_factory=IdGenerator)
+    id_generator = IdGenerator.from_stash(config.stash) if hasattr(config, "stash") else IdGenerator()
+    id_generator.set_namespace(run_context.run_id)
+    setdefaultattr(config, "pytest_cuke_id_generator", value=id_generator)
     if STRUCT_BDD_INSTALLED:
         config.pluginmanager.register(StructBDDPlugin())
     if config.getini("cuke_test_group_order"):
@@ -296,8 +307,16 @@ def pytest_configure(config: Config) -> None:
 
 
 def pytest_sessionstart(session: Any) -> None:
-    """Create the batch cache for the current collection session."""
+    """Create session-scoped collection and runtime state before tests are collected."""
     CollectionBatchService.for_session(session, session.config)
+    RunContext.from_config(session.config).begin_collection()
+
+
+def pytest_collection_finish(session: Any) -> None:
+    """Return the runtime root to its explicit inactive state after collection."""
+    run_context = RunContext.find_in_config(session.config)
+    if run_context is not None:
+        run_context.clear_active()
 
 
 def pytest_sessionfinish(session: Any, exitstatus: int) -> None:
@@ -305,6 +324,9 @@ def pytest_sessionfinish(session: Any, exitstatus: int) -> None:
     service = get_batch_service(session.config)
     if service is not None:
         service.close()
+    run_context = RunContext.find_in_config(session.config)
+    if run_context is not None:
+        run_context.clear_active()
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -312,6 +334,9 @@ def pytest_unconfigure(config: Config) -> None:
     service = get_batch_service(config)
     if service is not None:
         service.close()
+    run_context = RunContext.find_in_config(config)
+    if run_context is not None:
+        run_context.clear_active()
     clear_parser_registrations(config)
     config.pluginmanager.unregister(name="pytest_cuke_messages")
     config.pluginmanager.unregister(name="pytest_cuke_summary")
@@ -500,6 +525,10 @@ def pytest_generate_tests(metafunc: Metafunc) -> None:
                 [pytest.param(None, None, marks=pytest.mark.skip(reason="No scenarios found"))],
             )
         else:
+            run_context = RunContext.find_in_config(config)
+            if run_context is not None:
+                for feature, scenario in feature_scenarios:
+                    run_context.bind_feature(feature).register_scenario(scenario)
             metafunc.parametrize(
                 ("feature", "scenario"),
                 [_build_scenario_param(feat, sc, config=config) for feat, sc in feature_scenarios],
