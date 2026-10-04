@@ -22,17 +22,24 @@ def configured_tolerant_status(config: Config) -> TolerantStatus:
     return cast("TolerantStatus", value)
 
 
+def _normalize_value(value: object) -> str:
+    return str(value).strip().lower().replace("_", "-")
+
+
+def _status_from_normalized(value: str) -> TolerantStatus | None:
+    return cast("TolerantStatus", value) if value in _VALID_STATUSES else None
+
+
 def _normalize_status(value: object) -> TolerantStatus | None:
-    normalized = str(value).strip().lower().replace("_", "-")
-    return cast("TolerantStatus", normalized) if normalized in _VALID_STATUSES else None
+    return _status_from_normalized(_normalize_value(value))
 
 
 def _tag_status(tag_name: object) -> TolerantStatus | None:
-    normalized = str(tag_name).strip().lower().replace("_", "-").lstrip("@")
+    normalized = _normalize_value(tag_name).lstrip("@")
     prefix = "tolerant-status-"
     if not normalized.startswith(prefix):
         return None
-    return _normalize_status(normalized[len(prefix) :])
+    return _status_from_normalized(normalized[len(prefix) :])
 
 
 def resolve_tolerant_status(config: Config, item: Item, scenario: Scenario) -> TolerantStatus:
