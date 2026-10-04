@@ -67,9 +67,10 @@ def probe_mcp_endpoint(endpoint: str, *, timeout: float = 2.0) -> None:
 class DebuggerMcpProcess:
     """Manage the optional mcp-pdb HTTP server process and drain its stderr pipe."""
 
-    def __init__(self, *, host: str, port: int) -> None:
+    def __init__(self, *, host: str, port: int, inspection_endpoint: str) -> None:
         self.host = host
         self.port = port
+        self.inspection_endpoint = inspection_endpoint
         self.endpoint = endpoint_url(host, port)
         self.process: subprocess.Popen[str] | None = None
         self._stderr_thread: threading.Thread | None = None
@@ -85,6 +86,8 @@ class DebuggerMcpProcess:
             self.host,
             "--port",
             str(self.port),
+            "--inspection-url",
+            self.inspection_endpoint,
         ]
         try:
             process = subprocess.Popen(  # noqa: S603  # Fixed module entry point, argument list and no shell.

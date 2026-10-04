@@ -165,3 +165,4 @@ def test_active_failure_is_written_to_discovery_and_terminal() -> None:
         "Debug MCP holding failure #2 (call) at tests/test_example.py::test_failure: "
         "RuntimeError: failure sentinel"
     ]
+

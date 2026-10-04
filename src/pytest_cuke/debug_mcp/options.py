@@ -11,9 +11,6 @@ if TYPE_CHECKING:
 
 _DURATION_SUFFIXES = {
     "ms": 0.001,
-    "sec": 1.0,
-    "min": 60.0,
-    "hr": 3600.0,
     "s": 1.0,
     "m": 60.0,
     "h": 3600.0,
@@ -69,8 +66,14 @@ def _host(value: Any) -> str:
             raise ValueError("bracketed cuke_mcp_host must be an IPv6 address") from error
         if address.version != 6:
             raise ValueError("bracketed cuke_mcp_host must be an IPv6 address")
-        return str(address)
-    return host
+        host = str(address)
+    try:
+        address = ip_address(host)
+    except ValueError:
+        return host
+    if address.is_unspecified:
+        raise ValueError("cuke_mcp_host wildcard addresses cannot be advertised; select a reachable interface")
+    return str(address)
 
 
 def _as_bool(value: Any) -> bool:
