@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 from typing import TYPE_CHECKING, Any, ClassVar
+from uuid import uuid4
 
 from attrs import define, field
 
@@ -108,6 +109,8 @@ class ScenarioMessageState:
 
 @define(slots=True)
 class ScenarioRun(StashBound):
+    """Mutable execution state retained for one scenario attempt."""
+
     STASH_KEY: ClassVar[str] = "pytest_cuke_scenario_run"
 
     scenario: Scenario | None = None
@@ -118,7 +121,8 @@ class ScenarioRun(StashBound):
     context: ExecutionContext = field(factory=ExecutionContext)
     run_id: str = ""
     attempt: int = 0
-    attempt_id: str = ""
+    # Keep runtime correlation available even when no reporting plugin is enabled.
+    attempt_id: str = field(factory=lambda: uuid4().hex)
     test_case_id: str = ""
     test_case_started_id: str = ""
     test_step_ids: list[str] = field(factory=list)
