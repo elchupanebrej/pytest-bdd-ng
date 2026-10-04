@@ -198,6 +198,6 @@ Feature: Tolerant step status policy
           When the first tolerant operation raises an AssertionError
           Then the continuation records "worker-failed"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored -n2 --dist=each -q"
+    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored -n2 --dist=each -q"
     Then pytest should exit with a non-zero code
     And consumer xdist continuation artifacts should show "worker-ignored" on 2 workers
