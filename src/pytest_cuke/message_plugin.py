@@ -183,15 +183,18 @@ class MessagePlugin:
                         try:
                             payload = json.loads(message_json)
                             validation_payload = json.loads(message_json)
-                            step_finished = validation_payload.get("testStepFinished")
-                            if isinstance(step_finished, dict):
-                                step_result = step_finished.get("testStepResult")
-                                if isinstance(step_result, dict):
-                                    exception = step_result.get("exception")
-                                    if isinstance(exception, dict) and "stackTrace" in exception:
-                                        stack_trace = exception.pop("stackTrace")
-                                        if not isinstance(stack_trace, str):
-                                            raise ValueError("exception stackTrace must be a string")
+                            for event_key in ("testStepFinished", "testRunFinished"):
+                                event = validation_payload.get(event_key)
+                                if not isinstance(event, dict):
+                                    continue
+                                result = event.get("testStepResult") if event_key == "testStepFinished" else event
+                                if not isinstance(result, dict):
+                                    continue
+                                exception = result.get("exception")
+                                if isinstance(exception, dict) and "stackTrace" in exception:
+                                    stack_trace = exception.pop("stackTrace")
+                                    if not isinstance(stack_trace, str):
+                                        raise ValueError("exception stackTrace must be a string")
                             Message.model_validate(validation_payload)
                         except (ValidationError, ValueError):
                             logging.exception("Failed to parse:\n%s\n", pformat(message_json), exc_info=True)
@@ -433,7 +436,7 @@ class MessagePlugin:
             config=config,
             message=Message(
                 meta=Meta(
-                    protocol_version="22.0.0",
+                    protocol_version="24.0.0",
                     implementation=Product(name="pytest-cuke", version=str(get_distribution_version("pytest-cuke"))),
                     runtime=Product(name="Python", version=sys.version),
                     os=Product(name=system(), version=version()),
@@ -910,6 +913,8 @@ class MessagePlugin:
         exception: ExceptionMessage | None = None,
         exception_stack_trace: str | None = None,
     ) -> None:
+        if exception_stack_trace is not None:
+            self.current_test_step_exception_traces[test_step.id] = exception_stack_trace
         finish_timestamp = self.get_timestamp()
         duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
             start_timestamp.seconds * 10**9 + start_timestamp.nanos
@@ -917,8 +922,6 @@ class MessagePlugin:
         duration_seconds = duration_total_nanos // 10**9
         duration_nanos = duration_total_nanos - duration_seconds * 10**9
         duration = Duration(seconds=duration_seconds, nanos=duration_nanos)
-        if exception_stack_trace is not None:
-            self.current_test_step_exception_traces[test_step.id] = exception_stack_trace
         try:
             config.hook.pytest_cuke_message(
                 config=config,
