@@ -59,6 +59,21 @@ def test_tolerant_can_be_inner_or_outer_to_step_decorator() -> None:
     assert next(iter(outer_tolerant.__pytest_cuke_step_definitions__)).tolerant is True
 
 
+def test_not_implemented_can_be_inner_or_outer_to_step_decorator() -> None:
+    @not_implemented
+    @when(string("The inner WIP decorator order"))
+    def inner_wip() -> None:
+        pass
+
+    @when(string("The outer WIP decorator order"))
+    @not_implemented
+    def outer_wip() -> None:
+        pass
+
+    assert next(iter(inner_wip.__pytest_cuke_step_definitions__)).not_implemented is True
+    assert next(iter(outer_wip.__pytest_cuke_step_definitions__)).not_implemented is True
+
+
 def test_matcher_liberal_mode() -> None:
     @then(string("I check state"))
     def then_check() -> None:

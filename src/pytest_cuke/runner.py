@@ -23,7 +23,7 @@ from pytest_cuke.model.scenario_run import ScenarioRun, StepRun
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.steps.manager import StepDefinitionManager
 from pytest_cuke.steps.matcher import Matcher
-from pytest_cuke.steps.tolerant_policy import resolve_tolerant_status
+from pytest_cuke.steps.status_policy import resolve_tolerant_status, resolve_wip_status
 from pytest_cuke.utils import DefaultMapping, get_args
 
 if TYPE_CHECKING:
@@ -39,6 +39,11 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True)
 class _IgnoredStepFailure:
     exception: Exception
+
+
+@dataclass(frozen=True, slots=True)
+class _WipPassed:
+    pass
 
 
 class StepRunner:
@@ -149,6 +154,24 @@ class StepRunner:
         else:
             hook_kwargs["step_func"] = step_definition.func
             hook_kwargs["step_definition"] = step_definition
+
+        if step_definition.not_implemented:
+            wip_status = resolve_wip_status(request.config, request.node, scenario)
+            if wip_status == "passed":
+                request.config.hook.pytest_cuke_step_bypassed(
+                    **hook_kwargs,
+                    status=wip_status,
+                    message=None,
+                )
+                return _WipPassed()
+            if wip_status == "skipped":
+                message = "Not-implemented step skipped by policy."
+                request.config.hook.pytest_cuke_step_bypassed(
+                    **hook_kwargs,
+                    status=wip_status,
+                    message=message,
+                )
+                pytest.skip(message)
 
         step_error_hook_called = False
         try:
@@ -405,6 +428,9 @@ class ScenarioRunner:
                 exception=result.exception,
                 failure_reason=type(result.exception).__name__,
             )
+            return None
+        if isinstance(result, _WipPassed):
+            context.finish_step(step_run, status="passed")
             return None
         context.finish_step(step_run, result=result)
         return result

@@ -47,7 +47,7 @@ from pytest_cuke.scenario import add_options as scenario_add_options
 from pytest_cuke.scenario_locator import FileScenarioLocator, UrlScenarioLocator
 from pytest_cuke.steps.matcher import Matcher
 from pytest_cuke.steps.registry import Registry, StepRegistryProtocol
-from pytest_cuke.steps.tolerant_policy import configured_tolerant_status
+from pytest_cuke.steps.status_policy import configured_tolerant_status, configured_wip_status
 from pytest_cuke.test_groups.plugin import TestGroupPlugin, add_test_group_ini
 from pytest_cuke.utils import IdGenerator, compose, getitemdefault, is_url_parsable, setdefaultattr
 
@@ -210,6 +210,16 @@ def pytest_addoption(parser: Parser) -> None:
         default=None,
         help="status of a failed @tolerant step; overrides cuke_tolerant_status",
     )
+    wip_group = parser.getgroup("cuke", "Not-implemented steps")
+    wip_group.addoption(
+        "--cuke-wip-status",
+        action="store",
+        dest="cuke_wip_status",
+        metavar="STATUS",
+        choices=("passed", "skipped", "failed"),
+        default=None,
+        help="status of a @not_implemented step; overrides cuke_wip_status",
+    )
     steps.add_options(parser)
     scenario_add_options(parser)
     cucumber_json.add_options(parser)
@@ -235,6 +245,12 @@ def add_bdd_ini(parser: Parser) -> None:
     parser.addini(
         "cuke_tolerant_status",
         "Status policy for ordinary exceptions in @tolerant steps: failed or ignored.",
+        default="failed",
+        type="string",
+    )
+    parser.addini(
+        "cuke_wip_status",
+        "Status policy for @not_implemented steps: passed, skipped, or failed.",
         default="failed",
         type="string",
     )
@@ -293,6 +309,7 @@ def pytest_configure(config: Config) -> None:
 
     try:
         configured_tolerant_status(config)
+        configured_wip_status(config)
     except ValueError as error:
         raise pytest.UsageError(str(error)) from error
 
@@ -306,6 +323,10 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line("markers", "tolerant_status(value): override the tolerant step status for this scenario")
     config.addinivalue_line("markers", "tolerant-status-ignored: ignore ordinary failures in @tolerant steps")
     config.addinivalue_line("markers", "tolerant-status-failed: report ordinary failures in @tolerant steps")
+    config.addinivalue_line("markers", "wip_status(value): override the not-implemented step status for this scenario")
+    config.addinivalue_line("markers", "wip-status-passed: mark not-implemented steps as passed without execution")
+    config.addinivalue_line("markers", "wip-status-skipped: skip scenarios at not-implemented steps")
+    config.addinivalue_line("markers", "wip-status-failed: execute not-implemented steps normally")
     run_context = RunContext.from_config(config)
     cucumber_json.configure(config)
     gherkin_terminal_reporter.configure(config)

@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from messages import Envelope as Message
-from messages import TestCase, TestCaseStarted, TestStep, Timestamp
+from messages import Status, TestCase, TestCaseStarted, TestStep, Timestamp
 from pytest_cuke.message_plugin import MessagePlugin
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.scenario import Scenario
@@ -145,6 +145,49 @@ def test_tolerated_step_error_keeps_later_message_steps_executable() -> None:
 
     assert scenario_run.message_state.finished_test_step_ids == {"ts-failed"}
     assert len(config.hook.pytest_cuke_message.call_args_list) == 2
+
+
+def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None:
+    step = Step(name="pending step", keyword="When ")
+    scenario = Scenario(name="Pending", steps=(step,))
+    feature = Feature(name="Pending messages", uri="pending.feature")
+    context = RunContext()
+    scenario_run = context.start_scenario(nodeid="pending.feature::Pending", feature=feature, scenario=scenario)
+    test_step = TestStep(id="ts-pending", pickle_step_id="ps-pending", step_definition_ids=[])
+    scenario_run.message_state.test_case_started = TestCaseStarted(
+        attempt=0,
+        id="attempt-pending",
+        test_case_id="tc-pending",
+        worker_id="master",
+        timestamp=Timestamp(seconds=1, nanos=0),
+    )
+    scenario_run.message_state.test_steps = [test_step]
+    scenario_run.message_state.test_steps_by_identity = {id(step): test_step}
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+    )
+    plugin = MessagePlugin(config=config)
+
+    plugin.pytest_cuke_step_bypassed(
+        request=SimpleNamespace(config=config),
+        feature=feature,
+        scenario=scenario,
+        step=step,
+        step_definition=object(),
+        status="passed",
+    )
+
+    messages = [call.kwargs["message"] for call in config.hook.pytest_cuke_message.call_args_list]
+    assert [message.test_step_started.test_step_id for message in messages if message.test_step_started] == ["ts-pending"]
+    finished = [message.test_step_finished for message in messages if message.test_step_finished]
+    assert len(finished) == 1
+    assert finished[0].test_case_started_id == "attempt-pending"
+    assert finished[0].test_step_result.status == Status.passed
+    assert scenario_run.message_state.finished_test_step_ids == {"ts-pending"}
+    assert scenario_run.message_state.active_test_step_id is None
 
 
 def test_message_plugin_ignores_ordinary_pytest_tests() -> None:

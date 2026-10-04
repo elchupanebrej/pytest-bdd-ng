@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pytest import hookspec
 
@@ -40,6 +40,18 @@ def pytest_cuke_before_step(
     request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, step_func: Any
 ) -> None:
     """Called before step function is set up."""
+
+
+def pytest_cuke_step_bypassed(
+    request: FixtureRequest,
+    feature: Feature,
+    scenario: Scenario,
+    step: Step,
+    step_definition: Any,
+    status: Literal["passed", "skipped"],
+    message: str | None = None,
+) -> None:
+    """Called when a not-implemented step is reported without executing its body."""
 
 
 def pytest_cuke_before_step_call(

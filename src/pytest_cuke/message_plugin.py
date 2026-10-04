@@ -18,7 +18,7 @@ from pprint import pformat
 from queue import Empty, Queue
 from threading import Event, Thread
 from time import sleep, time_ns
-from typing import TYPE_CHECKING, Any, ClassVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 import chevron  # type: ignore[import-untyped]  # chevron ships no type information
 import pytest
@@ -837,6 +837,35 @@ class MessagePlugin:
             test_step=step_definition,
         )
         self.current_test_case_started_step_ids.add(step_definition.id)
+
+    def pytest_cuke_step_bypassed(
+        self,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Any,
+        step: Step,
+        step_definition: Any,
+        status: Literal["passed", "skipped"],
+        message: str | None = None,
+    ) -> None:
+        if self.is_disabled:
+            return
+        config = request.config
+        current_test_case_start = self._get_current_test_case_start()
+        test_step = self.current_test_case_step_id_to_step_mapping[id(step)]
+        start_timestamp = self._start_test_step(
+            config=config,
+            test_case_started=current_test_case_start,
+            test_step=test_step,
+        )
+        self._finish_test_step(
+            config=config,
+            test_case_started=current_test_case_start,
+            test_step=test_step,
+            start_timestamp=start_timestamp,
+            status=Status.passed if status == "passed" else Status.skipped,
+            message=message,
+        )
 
     def pytest_cuke_after_step(
         self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any

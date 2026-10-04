@@ -63,6 +63,9 @@ def test_seam6_plugin_lifecycle_and_stash_contract() -> None:
     config.option.cuke_json = None
     config.option.cuke_progress = False
     config.option.cuke_summary = False
+    config.option.cuke_tolerant_status = None
+    config.option.cuke_wip_status = None
+    config.getini.side_effect = lambda name: "failed" if name in {"cuke_tolerant_status", "cuke_wip_status"} else ""
 
     pytest_configure(config)
 
