@@ -47,7 +47,7 @@ from pytest_cuke.ide_bindings import (
 )
 from pytest_cuke.message_schema_sync import resolve_upstream_release
 from pytest_cuke.model.execution_steps import execution_steps
-from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_message_id, scenario_to_pickle
+from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_pickle_id, scenario_to_pickle
 from pytest_cuke.model.message_transport import MessageEnvelopeView, ValidatedMessageTransport
 from pytest_cuke.model.message_types import (
     Attachment,
@@ -96,9 +96,21 @@ if TYPE_CHECKING:
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
     from pytest import Session
 
-    from pytest_cuke.compatibility.pytest import Item, Metafunc
+    from pytest_cuke.compatibility.pytest import Item, Metafunc, TestReport
     from pytest_cuke.model import Feature, Step
     from pytest_cuke.model.message_validation import MessageValidationDiagnostic
+
+
+@attrs(frozen=True, slots=True)
+class PendingTestStepFinish:
+    test_case_started: TestCaseStarted = attrib()
+    test_step: TestStep = attrib()
+    start_timestamp: Timestamp = attrib()
+    finish_timestamp: Timestamp = attrib()
+    status: Status = attrib()
+    message: str | None = attrib(default=None)
+    exception: ExceptionMessage | None = attrib(default=None)
+    exception_stack_trace: str | None = attrib(default=None)
 
 
 @attrs(eq=False)
@@ -199,6 +211,14 @@ class MessagePlugin:
     @current_test_step_exception_traces.setter
     def current_test_step_exception_traces(self, value: dict[str, str]) -> None:
         self._set_scenario_state("test_step_exception_traces", value)
+
+    @property
+    def pending_test_step_finish(self) -> PendingTestStepFinish | None:
+        return cast("PendingTestStepFinish | None", self._get_scenario_state("pending_test_step_finish", None))
+
+    @pending_test_step_finish.setter
+    def pending_test_step_finish(self, value: PendingTestStepFinish | None) -> None:
+        self._set_scenario_state("pending_test_step_finish", value)
 
     @property
     def current_test_case_start(self) -> TestCaseStarted | None:
@@ -571,6 +591,15 @@ class MessagePlugin:
 
         stack_trace = self.current_test_step_exception_traces.get(finished_step.test_step_id)
         if stack_trace is None:
+            run_context = get_run_context(self.config)
+            if run_context is not None:
+                for scenario_run in run_context.scenario_runs_by_nodeid.values():
+                    message_state = scenario_run.message_state
+                    test_case_started = message_state.test_case_started
+                    if test_case_started is not None and test_case_started.id == finished_step.test_case_started_id:
+                        stack_trace = message_state.test_step_exception_traces.get(finished_step.test_step_id)
+                        break
+        if stack_trace is None:
             return message
 
         return cast(
@@ -600,8 +629,7 @@ class MessagePlugin:
         for diagnostic in self.message_diagnostics:
             payload = message_diagnostic_to_dict(diagnostic)
             terminalreporter.write_line(
-                "PYTEST_CUKE_MESSAGE_DIAGNOSTIC="
-                + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+                "PYTEST_CUKE_MESSAGE_DIAGNOSTIC=" + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
             )
         self.message_diagnostics.clear()
 
@@ -792,14 +820,17 @@ class MessagePlugin:
         self._finish_test_run_hook(config, hook_started_id, started_at, error)
 
     @hookimpl(hookwrapper=True, tryfirst=True)
-    def pytest_sessionfinish(
-        self, session: Session, exitstatus: int | ExitCode
-    ) -> Generator[None, Any, Any]:
+    def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> Generator[None, Any, Any]:
         if self.is_disabled:
             yield
             return
         config = session.config
         hook_handler = config.hook
+
+        run_context = get_run_context(config)
+        if run_context is not None:
+            for scenario_run in run_context.scenario_runs_by_nodeid.values():
+                self._finish_scenario_test_case(scenario_run)
 
         after_hook_id = cast("str", getattr(self, "after_test_run_hook_id", ""))
         run_id = cast("str", getattr(self, "test_run_started_id", ""))
@@ -820,9 +851,8 @@ class MessagePlugin:
             self._report_process_messages_error(session)
 
         is_testrun_success = (
-            ((isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is ExitCode.OK)
-            and not self.test_run_hook_failed
-        )
+            (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is ExitCode.OK
+        ) and not self.test_run_hook_failed
         terminal_timestamp = self.get_timestamp()
         terminal_message = Message(
             test_run_finished=TestRunFinished(
@@ -1021,16 +1051,12 @@ class MessagePlugin:
         test_steps = []
         previous_step = None
 
-        self.current_test_case_step_id_to_step_mapping = {}
-        self.current_test_case_step_order = []
-        self.current_finished_test_step_ids = set()
-        self.current_test_step_start_timestamps = {}
-        self.current_active_test_step_id = None
-        self.current_test_step_exception_traces = {}
+        self._reset_current_test_case()
+        self._set_scenario_state("defer_test_case_finish", True)
         feature_uri = feature.uri or feature.filename or feature.name
         callspec_id = getattr(getattr(request.node, "callspec", None), "id", "")
         fallback_id = f"{feature_uri}#{callspec_id}" if callspec_id else ""
-        scenario_id = scenario_message_id(scenario, uri=feature_uri, default_id=fallback_id)
+        scenario_id = scenario_pickle_id(scenario, uri=feature_uri, default_id=fallback_id)
         step_binding_records: list[tuple[Step, Any | None, tuple[Any, ...]]] = []
 
         for step_index, step in enumerate(execution_steps(feature, scenario)):
@@ -1061,11 +1087,7 @@ class MessagePlugin:
 
             test_step = TestStep(
                 id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
-                pickle_step_id=(
-                    f"{scenario_id}-step-{step_index}"
-                    if scenario.source_ast_node_ids
-                    else step.id or f"{scenario_id}-step-{step_index}"
-                ),
+                pickle_step_id=f"{scenario_id}-step-{step_index}",
                 step_definition_ids=step_definition_ids,
             )
             test_steps.append(test_step)
@@ -1154,6 +1176,81 @@ class MessagePlugin:
                     },
                 )
 
+    def pytest_runtest_logreport(self, report: TestReport) -> None:
+        if self.is_disabled or report.when != "teardown":
+            return
+        run_context = get_run_context(self.config)
+        if run_context is None:
+            return
+        scenario_run = run_context.get_scenario_run(report.nodeid)
+        if scenario_run is not None:
+            self._finish_scenario_test_case(scenario_run)
+
+    def _finish_scenario_test_case(self, scenario_run: Any) -> None:
+        message_state = scenario_run.message_state
+        test_case_started = message_state.test_case_started
+        if test_case_started is None:
+            return
+
+        pending = message_state.pending_test_step_finish
+        if pending is not None:
+            status = pending.status
+            message = pending.message
+            exception = pending.exception
+            exception_stack_trace = pending.exception_stack_trace
+            step_statuses = {step_run.status for step_run in scenario_run.steps}
+            fallback_status: Status | None = None
+            fallback_type = ""
+            fallback_message = ""
+            if (
+                scenario_run.status == "interrupted"
+                and "interrupted" not in step_statuses
+                and pending.status
+                not in (
+                    Status.failed,
+                    Status.undefined,
+                    Status.unknown,
+                )
+            ):
+                fallback_status = Status.unknown
+                fallback_type = "KeyboardInterrupt"
+                fallback_message = "Scenario interrupted during teardown."
+            elif scenario_run.status == "failed" and not step_statuses.intersection({"failed", "undefined"}):
+                fallback_status = Status.failed
+                fallback_type = "RuntimeError"
+                fallback_message = "Scenario failed during teardown."
+
+            if fallback_status is not None:
+                status = fallback_status
+                error = scenario_run.exception
+                message = str(error) if error is not None else fallback_message
+                exception = ExceptionMessage(
+                    type=type(error).__name__ if error is not None else fallback_type,
+                    message=message,
+                )
+                exception_stack_trace = (
+                    "".join(traceback.format_exception(type(error), error, error.__traceback__))
+                    if error is not None
+                    else None
+                )
+
+            self._finish_test_step(
+                config=self.config,
+                test_case_started=test_case_started,
+                test_step=pending.test_step,
+                start_timestamp=pending.start_timestamp,
+                status=status,
+                message=message,
+                exception=exception,
+                exception_stack_trace=exception_stack_trace,
+                scenario_message_state=message_state,
+                defer_final_step=False,
+                finish_timestamp=pending.finish_timestamp,
+            )
+
+        self._emit_test_case_finished(self.config, test_case_started)
+        self._reset_scenario_message_state(message_state)
+
     def pytest_cuke_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
         if self.is_disabled:
             return
@@ -1189,6 +1286,9 @@ class MessagePlugin:
             self._reset_current_test_case()
             return
 
+        run_context = get_run_context(config)
+        active_run = run_context.active_scenario_run if run_context is not None else None
+        retain_until_teardown = active_run is not None and active_run.nodeid == request.node.nodeid
         try:
             for test_step in self.current_test_case_step_order:
                 if test_step.id in self.current_finished_test_step_ids:
@@ -1209,28 +1309,41 @@ class MessagePlugin:
                     status=status,
                 )
 
-            config.hook.pytest_cuke_message(
-                config=config,
-                message=Message(
-                    test_case_finished=TestCaseFinished(
-                        test_case_started_id=current_test_case_start.id,
-                        timestamp=self.get_timestamp(),
-                        will_be_retried=False,
-                    )
-                ),
-            )
+            if not retain_until_teardown:
+                self._emit_test_case_finished(config, current_test_case_start)
         finally:
-            self._reset_current_test_case()
+            if not retain_until_teardown:
+                self._reset_current_test_case()
+
+    def _emit_test_case_finished(self, config: Config, test_case_started: TestCaseStarted) -> None:
+        config.hook.pytest_cuke_message(
+            config=config,
+            message=Message(
+                test_case_finished=TestCaseFinished(
+                    test_case_started_id=test_case_started.id,
+                    timestamp=self.get_timestamp(),
+                    will_be_retried=False,
+                )
+            ),
+        )
 
     def _reset_current_test_case(self) -> None:
-        self.current_test_case = None
-        self.current_test_case_start = None
-        self.current_test_case_step_id_to_step_mapping = {}
-        self.current_test_case_step_order = []
-        self.current_finished_test_step_ids = set()
-        self.current_test_step_start_timestamps = {}
-        self.current_active_test_step_id = None
-        self.current_test_step_exception_traces = {}
+        scenario_run = self._active_scenario_run()
+        if scenario_run is not None:
+            self._reset_scenario_message_state(scenario_run.message_state)
+
+    @staticmethod
+    def _reset_scenario_message_state(message_state: Any) -> None:
+        message_state.test_case = None
+        message_state.test_case_started = None
+        message_state.test_steps = []
+        message_state.test_steps_by_identity = {}
+        message_state.finished_test_step_ids = set()
+        message_state.test_step_start_timestamps = {}
+        message_state.active_test_step_id = None
+        message_state.test_step_exception_traces = {}
+        message_state.pending_test_step_finish = None
+        message_state.defer_test_case_finish = False
 
     def pytest_cuke_before_step(
         self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any
@@ -1314,9 +1427,14 @@ class MessagePlugin:
         current_test_case_start = self._get_current_test_case_start()
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
-        status = (
-            Status.skipped if isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)) else Status.failed
-        )
+        if isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
+            status = Status.skipped
+        elif isinstance(exception, KeyboardInterrupt):
+            # Cucumber Messages has no interrupted outcome; UNKNOWN keeps this
+            # distinct from a scenario that completed with an ordinary failure.
+            status = Status.unknown
+        else:
+            status = Status.failed
         start_timestamp = self.current_test_step_start_timestamps.get(step_definition.id)
         if start_timestamp is None:
             start_timestamp = self._start_test_step(
@@ -1463,10 +1581,38 @@ class MessagePlugin:
         message: str | None = None,
         exception: ExceptionMessage | None = None,
         exception_stack_trace: str | None = None,
+        scenario_message_state: Any | None = None,
+        defer_final_step: bool = True,
+        finish_timestamp: Timestamp | None = None,
     ) -> None:
+        finish_timestamp = finish_timestamp or self.get_timestamp()
+        if (
+            defer_final_step
+            and scenario_message_state is None
+            and self._get_scenario_state("defer_test_case_finish", False)
+            and self.current_test_case_step_order
+            and test_step.id == self.current_test_case_step_order[-1].id
+        ):
+            self.pending_test_step_finish = PendingTestStepFinish(
+                test_case_started=test_case_started,
+                test_step=test_step,
+                start_timestamp=start_timestamp,
+                finish_timestamp=finish_timestamp,
+                status=status,
+                message=message,
+                exception=exception,
+                exception_stack_trace=exception_stack_trace,
+            )
+            if self.current_active_test_step_id == test_step.id:
+                self.current_active_test_step_id = None
+            self.current_finished_test_step_ids.add(test_step.id)
+            return
+
         if exception_stack_trace is not None:
-            self.current_test_step_exception_traces[test_step.id] = exception_stack_trace
-        finish_timestamp = self.get_timestamp()
+            if scenario_message_state is None:
+                self.current_test_step_exception_traces[test_step.id] = exception_stack_trace
+            else:
+                scenario_message_state.test_step_exception_traces[test_step.id] = exception_stack_trace
         duration_total_nanos = (finish_timestamp.seconds * 10**9 + finish_timestamp.nanos) - (
             start_timestamp.seconds * 10**9 + start_timestamp.nanos
         )
@@ -1491,11 +1637,21 @@ class MessagePlugin:
                 ),
             )
         finally:
-            self.current_test_step_exception_traces.pop(test_step.id, None)
-        self.current_test_step_start_timestamps.pop(test_step.id, None)
-        if self.current_active_test_step_id == test_step.id:
-            self.current_active_test_step_id = None
-        self.current_finished_test_step_ids.add(test_step.id)
+            if scenario_message_state is None:
+                self.current_test_step_exception_traces.pop(test_step.id, None)
+            else:
+                scenario_message_state.test_step_exception_traces.pop(test_step.id, None)
+        if scenario_message_state is None:
+            self.current_test_step_start_timestamps.pop(test_step.id, None)
+            if self.current_active_test_step_id == test_step.id:
+                self.current_active_test_step_id = None
+            self.current_finished_test_step_ids.add(test_step.id)
+        else:
+            scenario_message_state.pending_test_step_finish = None
+            scenario_message_state.test_step_start_timestamps.pop(test_step.id, None)
+            if scenario_message_state.active_test_step_id == test_step.id:
+                scenario_message_state.active_test_step_id = None
+            scenario_message_state.finished_test_step_ids.add(test_step.id)
 
     def pytest_cuke_attach(
         self,

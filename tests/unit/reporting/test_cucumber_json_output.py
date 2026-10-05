@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 if TYPE_CHECKING:
@@ -49,7 +50,7 @@ def test_log_bdd_cucumber_json_lifecycle_and_output(tmp_path: Path) -> None:
     }
 
     logger.pytest_runtest_logreport(report)
-    logger.pytest_sessionfinish()
+    logger.pytest_sessionfinish(SimpleNamespace(config=SimpleNamespace(stash={})))
 
     assert out_file.exists()
     content = json.loads(out_file.read_text(encoding="utf-8"))

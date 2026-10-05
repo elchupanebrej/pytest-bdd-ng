@@ -17,7 +17,7 @@ from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.run_access import get_scenario_run
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Sequence
 
     from pytest_cuke.compatibility.pytest import CallInfo, Item, Parser, TerminalReporter
     from pytest_cuke.model import Feature, Scenario, Step
@@ -135,7 +135,7 @@ class ScenarioReport:
             step_report.duration_override = step_run.duration
             step_report.failed = step_run.status in ("failed", "undefined")
             step_report.skipped = step_run.status == "skipped"
-            step_report.status = step_run.status
+            step_report.status = "unknown" if step_run.status == "interrupted" else step_run.status
             step_report.error_message = (
                 str(step_run.exception) if step_run.exception is not None else step_run.failure_reason
             )
@@ -144,6 +144,8 @@ class ScenarioReport:
             report.fail()
         elif scenario_run.status == "skipped":
             report.skip()
+        elif scenario_run.status == "interrupted":
+            report.interrupt()
         return report
 
     @property
@@ -213,39 +215,53 @@ class ScenarioReport:
             }
         return serialized
 
+    def _skip_unstarted_steps(self, scenario_steps: Sequence[Step]) -> None:
+        for step in scenario_steps[len(self.step_reports) :]:
+            report = StepReport(step=step)
+            report.finalize(failed=False, skipped=True)
+            self.add_step_report(report)
+
     def fail(self) -> None:
         """Stop collecting information and finalize the report as failed."""
         scenario_steps = execution_steps(self.feature, self.scenario)
         if self.step_reports:
             if not any(report.failed for report in self.step_reports):
                 self.current_step_report.finalize(failed=True)
+                self.current_step_report.error_message = self.error_message
         elif scenario_steps:
             report = StepReport(step=scenario_steps[0])
             report.finalize(failed=True)
+            report.error_message = self.error_message
             self.add_step_report(report)
-        remaining_steps = scenario_steps[len(self.step_reports) :]
-
-        # The current step failed; later steps did not run.
-        for step in remaining_steps:
-            report = StepReport(step=step)
-            report.finalize(failed=False, skipped=True)
-            self.add_step_report(report)
+        self._skip_unstarted_steps(scenario_steps)
 
     def skip(self) -> None:
         """Finalize the current step and all later steps as skipped."""
         scenario_steps = execution_steps(self.feature, self.scenario)
         if self.step_reports:
             self.current_step_report.finalize(failed=False, skipped=True)
-        else:
-            for step in scenario_steps:
-                report = StepReport(step=step)
-                report.finalize(failed=False, skipped=True)
-                self.add_step_report(report)
-        remaining_steps = scenario_steps[len(self.step_reports) :]
-        for step in remaining_steps:
-            report = StepReport(step=step)
-            report.finalize(failed=False, skipped=True)
+        self._skip_unstarted_steps(scenario_steps)
+
+    def interrupt(self) -> None:
+        """Record interruption as unknown and keep other step outcomes intact."""
+        scenario_steps = execution_steps(self.feature, self.scenario)
+        if not self.step_reports and scenario_steps:
+            report = StepReport(step=scenario_steps[0])
+            report.status = "unknown"
+            report.error_message = self.error_message
             self.add_step_report(report)
+        elif self.step_reports and not any(report.status == "unknown" for report in self.step_reports):
+            has_unstarted_steps = len(self.step_reports) < len(scenario_steps)
+            if has_unstarted_steps:
+                self._skip_unstarted_steps(scenario_steps)
+            current_report = self.current_step_report
+            if has_unstarted_steps or current_report.status in ("passed", "skipped"):
+                current_report.status = "unknown"
+                current_report.failed = False
+                current_report.skipped = False
+                current_report.error_message = self.error_message
+                return
+        self._skip_unstarted_steps(scenario_steps)
 
 
 def get_feature_and_scenario(item: Item) -> tuple[Feature, Pickle] | None:
@@ -277,7 +293,7 @@ class ScenarioReporterPlugin:
             scenario_report = ScenarioReport.from_scenario_run(scenario_run)
             if rep.skipped and scenario_run.status != "skipped":
                 scenario_report.skip()
-            elif rep.failed and scenario_run.status not in ("failed", "undefined"):
+            elif rep.failed and scenario_run.status not in ("failed", "undefined", "interrupted"):
                 scenario_report.fail()
             rep.scenario = scenario_report.serialize()
             rep.item = {"name": item.name}

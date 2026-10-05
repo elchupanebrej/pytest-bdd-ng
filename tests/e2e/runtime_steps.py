@@ -39,6 +39,87 @@ def _messages_envelopes(relative_path: str, consumer: Any) -> list[dict[str, Any
     return _jsonl_artifact_rows(relative_path, consumer, "Messages artifact")
 
 
+def _single_messages_case(
+    relative_path: str,
+    consumer: Any,
+    expected_step_count: int,
+    problems: list[str],
+) -> (
+    tuple[
+        dict[str, Any],
+        dict[str, Any],
+        list[dict[str, Any]],
+        list[dict[str, Any]],
+        list[dict[str, Any]],
+    ]
+    | None
+):
+    try:
+        envelopes = _messages_envelopes(relative_path, consumer)
+    except AssertionError as exc:
+        problems.append(f"Messages artifact {relative_path!r} could not be read: {exc}")
+        return None
+
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    starts = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    finishes = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    if len(cases) != 1:
+        problems.append(f"expected one Messages TestCase, got {len(cases)}")
+    if len(starts) != 1:
+        problems.append(f"expected one Messages TestCaseStarted, got {len(starts)}")
+    if len(finishes) != 1:
+        problems.append(f"expected one Messages TestCaseFinished, got {len(finishes)}")
+    if len(cases) != 1 or len(starts) != 1:
+        return None
+
+    case = cases[0]
+    started = starts[0]
+    test_steps = case.get("testSteps", [])
+    if len(test_steps) != expected_step_count:
+        problems.append(f"Messages TestCase has {len(test_steps)} test steps, expected {expected_step_count}")
+    if started.get("testCaseId") != case.get("id"):
+        problems.append("Messages TestCaseStarted does not reference its TestCase")
+    if len(finishes) == 1 and finishes[0].get("testCaseStartedId") != started.get("id"):
+        problems.append("Messages TestCaseFinished does not reference the interrupted TestCaseStarted")
+
+    step_finishes = [
+        envelope["testStepFinished"]
+        for envelope in envelopes
+        if "testStepFinished" in envelope and envelope["testStepFinished"].get("testCaseStartedId") == started.get("id")
+    ]
+    expected_step_ids = [step.get("id") for step in test_steps]
+    finished_step_ids = [finish.get("testStepId") for finish in step_finishes]
+    if finished_step_ids != expected_step_ids:
+        problems.append(
+            f"Messages finished step IDs={finished_step_ids!r}, expected scenario order {expected_step_ids!r}"
+        )
+    return case, started, test_steps, step_finishes, envelopes
+
+
+def _single_json_scenario_steps(
+    relative_path: str,
+    consumer: Any,
+    feature_basename: str,
+    scenario_name: str,
+    problems: list[str],
+) -> list[dict[str, Any]] | None:
+    try:
+        report = json.loads(_runtime_artifact_path(relative_path, consumer).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        problems.append(f"JSON report {relative_path!r} was not produced")
+        return None
+
+    features = [feature for feature in report if _uri_basename(feature.get("uri", "")) == feature_basename]
+    if len(features) != 1:
+        problems.append(f"expected one {feature_basename!r} feature in JSON report, got {len(features)}")
+        return None
+    scenarios = [element for element in features[0].get("elements", []) if element.get("name") == scenario_name]
+    if len(scenarios) != 1:
+        problems.append(f"expected one {scenario_name!r} scenario in JSON report, got {len(scenarios)}")
+        return None
+    return scenarios[0].get("steps", [])
+
+
 @then(
     re.compile(
         r'consumer runtime artifact "(?P<relative_path>[^"]+)" should show isolated rows and monotonic hook phases'
@@ -50,7 +131,10 @@ def consumer_runtime_rows_are_isolated(relative_path: str, consumer: Any) -> Non
     scenario_names = [row["scenario_name"] for row in rows]
     assert scenario_names.count("The first ordinary scenario has clean step state") == 1, rows
     assert scenario_names.count("The second ordinary scenario starts with clean step state") == 1, rows
-    assert sum(name.startswith("Each outline row starts with clean step state for <label>") for name in scenario_names) == 2, rows
+    assert (
+        sum(name.startswith("Each outline row starts with clean step state for <label>") for name in scenario_names)
+        == 2
+    ), rows
     assert len({row["nodeid"] for row in rows}) == 4, rows
     for field in ("scenario_identity", "attempt_id", "test_case_id", "test_case_started_id"):
         values = [row[field] for row in rows]
@@ -108,13 +192,11 @@ def consumer_runtime_rows_are_isolated(relative_path: str, consumer: Any) -> Non
         assert len(row["steps"]) == 3, row
         assert [step["status"] for step in row["steps"]] == ["passed", "passed", "passed"], row
         assert row["steps"][0]["result"] == row["row_value"], row
-        assert row["steps"][1]["result"] == f'{row["row_value"]}:verified', row
+        assert row["steps"][1]["result"] == f"{row['row_value']}:verified", row
 
 
 @then(
-    re.compile(
-        r'consumer runtime artifact "(?P<relative_path>[^"]+)" should show failed teardown then clean BDD state'
-    )
+    re.compile(r'consumer runtime artifact "(?P<relative_path>[^"]+)" should show failed teardown then clean BDD state')
 )
 def consumer_runtime_cleanup_isolation(relative_path: str, consumer: Any) -> None:
     rows = _runtime_jsonl(relative_path, consumer)
@@ -159,7 +241,7 @@ def consumer_plain_pytest_after_runtime_cleanup(relative_path: str, consumer: An
 @then(
     re.compile(
         r'consumer runtime artifacts "(?P<runtime_path>[^"]+)" and "(?P<messages_path>[^"]+)" '
-        r'should retain distinct terminal outcomes after cleanup'
+        r"should retain distinct terminal outcomes after cleanup"
     )
 )
 def consumer_terminal_outcomes_after_cleanup(runtime_path: str, messages_path: str, consumer: Any) -> None:
@@ -235,9 +317,7 @@ def consumer_terminal_outcomes_after_cleanup(runtime_path: str, messages_path: s
         assert pickle["name"] == scenario_name, (pickle, row)
         assert started["testCaseId"] == case["id"], (started, case)
         assert len(case["testSteps"]) == 1, case
-        step_finished = [
-            finish for finish in finishes if finish["testCaseStartedId"] == row["test_case_started_id"]
-        ]
+        step_finished = [finish for finish in finishes if finish["testCaseStartedId"] == row["test_case_started_id"]]
         assert len(step_finished) == 1, step_finished
         assert step_finished[0]["testStepResult"]["status"] == outcome["message_status"], step_finished
 
@@ -276,8 +356,7 @@ def consumer_rule_background_runtime_links(
     report_elements = [element for feature in report for element in feature["elements"]]
     assert len(report_elements) == 2, report_elements
     assert all(
-        all(step["result"]["status"].lower() == "passed" for step in element["steps"])
-        for element in report_elements
+        all(step["result"]["status"].lower() == "passed" for step in element["steps"]) for element in report_elements
     ), report_elements
 
     for observation in observations:
@@ -287,9 +366,7 @@ def consumer_rule_background_runtime_links(
         assert started["testCaseId"] == case["id"], (started, case)
         assert len(observation["steps"]) == len(case["testSteps"]) == len(pickle["steps"]) == 6
         assert [step["text"] for step in observation["steps"]] == [step["text"] for step in pickle["steps"]]
-        assert [step["test_step_id"] for step in observation["steps"]] == [
-            step["id"] for step in case["testSteps"]
-        ]
+        assert [step["test_step_id"] for step in observation["steps"]] == [step["id"] for step in case["testSteps"]]
         assert all(step["status"] == "passed" and step["test_step_id"] for step in observation["steps"])
         assert [step["astNodeIds"] for step in pickle["steps"]] == [
             [step["source_step_id"]] for step in observation["steps"]
@@ -301,15 +378,9 @@ def consumer_rule_background_runtime_links(
         }
         assert step_finish_ids == {step["test_step_id"] for step in observation["steps"]}
         action = observation["steps"][2]["text"]
-        json_rows = [
-            element
-            for element in report_elements
-            if any(step["name"] == action for step in element["steps"])
-        ]
+        json_rows = [element for element in report_elements if any(step["name"] == action for step in element["steps"])]
         assert len(json_rows) == 1, (action, report_elements)
-        assert [step["name"] for step in json_rows[0]["steps"]] == [
-            step["text"] for step in observation["steps"]
-        ]
+        assert [step["name"] for step in json_rows[0]["steps"]] == [step["text"] for step in observation["steps"]]
         assert json_rows[0]["name"] == observation["source_scenario_name"], (json_rows[0], observation)
         assert observation["scenario_name"] == pickle["name"], (observation, pickle)
 
@@ -343,7 +414,8 @@ def consumer_rule_background_runtime_links(
     for observation in observations:
         case = cases[observation["test_case_id"]]
         pickle = pickles[case["pickleId"]]
-        assert observation["pickle_id"] == pickle["id"], (observation, pickle)
+        assert case["pickleId"] == pickle["id"], (case, pickle)
+        assert observation["source_ast_node_ids"] == pickle["astNodeIds"], (observation, pickle)
         assert observation["scenario_name"] == pickle["name"], (observation, pickle)
         for runtime_step, pickle_step in zip(observation["steps"], pickle["steps"], strict=True):
             source_step = ast_steps[runtime_step["source_step_id"]]
@@ -376,7 +448,11 @@ def consumer_rule_background_runtime_links(
                 )
             if runtime_step["data_table"] is not None:
                 runtime_table = runtime_step["data_table"]
-                assert source_table is not None and pickle_argument is not None, (runtime_step, source_step, pickle_step)
+                assert source_table is not None and pickle_argument is not None, (
+                    runtime_step,
+                    source_step,
+                    pickle_step,
+                )
                 source_rows = source_table["rows"]
                 assert [row["line"] for row in runtime_table["source_rows"]] == [
                     row["location"]["line"] for row in source_rows
@@ -385,19 +461,14 @@ def consumer_rule_background_runtime_links(
                     runtime_table,
                     source_table,
                 )
-                assert [
-                    [cell["value"] for cell in row["cells"]] for row in runtime_table["source_rows"]
-                ] == [[cell["value"] for cell in row["cells"]] for row in source_rows], (runtime_table, source_table)
-                assert [
-                    [cell["line"] for cell in row["cells"]] for row in runtime_table["source_rows"]
-                ] == [
+                assert [[cell["value"] for cell in row["cells"]] for row in runtime_table["source_rows"]] == [
+                    [cell["value"] for cell in row["cells"]] for row in source_rows
+                ], (runtime_table, source_table)
+                assert [[cell["line"] for cell in row["cells"]] for row in runtime_table["source_rows"]] == [
                     [cell["location"]["line"] for cell in row["cells"]] for row in source_rows
                 ], (runtime_table, source_table)
-                assert [
-                    [cell["value"] for cell in row["cells"]] for row in runtime_table["rows"]
-                ] == [
-                    [cell["value"] for cell in row["cells"]]
-                    for row in pickle_argument["dataTable"]["rows"]
+                assert [[cell["value"] for cell in row["cells"]] for row in runtime_table["rows"]] == [
+                    [cell["value"] for cell in row["cells"]] for row in pickle_argument["dataTable"]["rows"]
                 ], (runtime_table, pickle_argument)
 
 
@@ -430,11 +501,7 @@ def consumer_repeated_session_runtime_roots(
         assert starts[0]["testCaseId"] == cases[0]["id"], (starts, cases)
 
 
-@then(
-    re.compile(
-        r'consumer xdist runtime artifacts should show separate run roots in "(?P<messages_path>[^"]+)"'
-    )
-)
+@then(re.compile(r'consumer xdist runtime artifacts should show separate run roots in "(?P<messages_path>[^"]+)"'))
 def consumer_xdist_runtime_roots(messages_path: str, consumer: Any) -> None:
     artifact_root = _runtime_artifact_path(".", consumer)
     worker_artifacts = sorted(artifact_root.glob("runtime-gw*.jsonl"))
@@ -453,20 +520,1086 @@ def consumer_xdist_runtime_roots(messages_path: str, consumer: Any) -> None:
         assert all(values) and len(set(values)) == 2, (field, values)
 
     envelopes = _messages_envelopes(messages_path, consumer)
-    started_ids = {
-        envelope["testCaseStarted"]["id"]
-        for envelope in envelopes
-        if "testCaseStarted" in envelope
-    }
+    started_ids = {envelope["testCaseStarted"]["id"] for envelope in envelopes if "testCaseStarted" in envelope}
     assert started_ids == {row["test_case_started_id"] for row in observations}, (started_ids, observations)
 
 
+@then(
+    re.compile(
+        r'consumer runtime artifacts "(?P<runtime_path>[^"]+)", "(?P<plain_path>[^"]+)", '
+        r'"(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" should exclude plain pytest from BDD reporting'
+    )
+)
+def consumer_plain_reporting_does_not_reuse_bdd_identity(
+    runtime_path: str,
+    plain_path: str,
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    observations = _runtime_jsonl(runtime_path, consumer)
+    by_kind = {row["kind"]: row for row in observations}
+    assert len(observations) == 1 and set(by_kind) == {"bdd"}, observations
+    bdd = by_kind["bdd"]
+    plain = json.loads(_runtime_artifact_path(plain_path, consumer).read_text(encoding="utf-8"))
+    assert plain["run_context_identity"] == bdd["run_context_identity"], (bdd, plain)
+    assert plain["run_id"] == bdd["run_id"], (bdd, plain)
+    assert plain["run_status"] == plain["run_stage"] == plain["run_hook_phase"] == "inactive", plain
+    assert plain["active_feature_binding"] is False, plain
+    assert plain["active_scenario_run"] is False, plain
+    assert plain["scenario_count"] == 1, plain
+    assert plain["prior_nodeid"] == bdd["nodeid"], (bdd, plain)
+
+    envelopes = _messages_envelopes(messages_path, consumer)
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    starts = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    finishes = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    assert len(pickles) == len(cases) == len(starts) == len(finishes) == 1, envelopes
+    assert pickles[0]["name"] == bdd["scenario_name"], (pickles, bdd)
+    assert cases[0]["id"] == bdd["test_case_id"], (cases, bdd)
+    assert cases[0]["pickleId"] == pickles[0]["id"], (cases, pickles)
+    assert starts[0]["id"] == bdd["test_case_started_id"], (starts, bdd)
+    assert starts[0]["testCaseId"] == cases[0]["id"], (starts, cases)
+    assert finishes[0]["testCaseStartedId"] == starts[0]["id"], (finishes, starts)
+    finished_steps = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
+    assert {finish["testStepId"] for finish in finished_steps} == set(bdd["test_step_ids"]), (
+        finished_steps,
+        bdd,
+    )
+    assert all(finish["testCaseStartedId"] == starts[0]["id"] for finish in finished_steps), finished_steps
+
+    report = json.loads(_runtime_artifact_path(json_path, consumer).read_text(encoding="utf-8"))
+    report_elements = [element for feature in report for element in feature.get("elements", [])]
+    assert len(report_elements) == 1, report_elements
+    assert report_elements[0]["name"] == bdd["scenario_name"], (report_elements, bdd)
+    assert all(step["result"]["status"].lower() == "passed" for step in report_elements[0]["steps"]), (report_elements,)
+
+
+def _uri_basename(uri: str) -> str:
+    return Path(uri.removeprefix("file:").replace("\\", "/")).name
+
+
+@then(
+    re.compile(
+        r'consumer runtime artifacts "(?P<runtime_path>[^"]+)", "(?P<messages_path>[^"]+)" and '
+        r'"(?P<json_path>[^"]+)" should keep source bindings and report identities separate'
+    )
+)
+def consumer_distinct_source_identities(
+    runtime_path: str,
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    observations = _runtime_jsonl(runtime_path, consumer)
+    assert len(observations) == 2, observations
+    for field in (
+        "feature_uri",
+        "binding_identity",
+        "registered_binding_identity",
+        "test_case_id",
+        "test_case_started_id",
+    ):
+        values = [row[field] for row in observations]
+        assert all(values) and len(set(values)) == 2, (field, values)
+    assert len({row["run_id"] for row in observations}) == 1, observations
+    scenario_ast_identities = {(row["feature_uri"], row["source_scenario_id"]) for row in observations}
+    assert len(scenario_ast_identities) == 2, scenario_ast_identities
+    assert {row["scenario_name"] for row in observations} == {"The same scenario name executes"}, observations
+    assert all(row["binding_identity"] == row["registered_binding_identity"] for row in observations), observations
+    assert all(row["source_scenario_id"] == row["resolved_source_scenario_id"] for row in observations), observations
+    source_step_ids = {(row["feature_uri"], row["steps"][0]["source_step_id"]) for row in observations}
+    test_step_ids = [row["steps"][0]["test_step_id"] for row in observations]
+    assert len(source_step_ids) == 2, source_step_ids
+    assert all(test_step_ids) and len(set(test_step_ids)) == 2, test_step_ids
+    assert all(len(row["steps"]) == 1 and row["steps"][0]["status"] == "passed" for row in observations), (
+        observations,
+    )
+    assert {row["steps"][0]["name"] for row in observations} == {"the same source step name executes"}, observations
+
+    envelopes = _messages_envelopes(messages_path, consumer)
+    pickle_messages = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    case_messages = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    start_messages = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    assert len(pickle_messages) == len(case_messages) == len(start_messages) == 2, envelopes
+    assert len({pickle["id"] for pickle in pickle_messages}) == 2, pickle_messages
+    assert len({case["id"] for case in case_messages}) == 2, case_messages
+    assert len({case["pickleId"] for case in case_messages}) == 2, case_messages
+    assert len({started["id"] for started in start_messages}) == 2, start_messages
+    pickles = {pickle["id"]: pickle for pickle in pickle_messages}
+    cases = {case["id"]: case for case in case_messages}
+    starts = {started["id"]: started for started in start_messages}
+    finishes = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
+    case_finishes = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    assert len(pickles) == len(cases) == len(starts) == len(case_finishes) == 2, envelopes
+    assert len({pickle["uri"] for pickle in pickles.values()}) == 2, pickles
+    assert len({finish["testStepId"] for finish in finishes}) == 2, finishes
+    pickle_step_ids = [pickle_step["id"] for pickle in pickles.values() for pickle_step in pickle["steps"]]
+    assert len(pickle_step_ids) == 2 and len(set(pickle_step_ids)) == 2, pickle_step_ids
+    test_step_ids_from_cases = [test_step["id"] for case in cases.values() for test_step in case["testSteps"]]
+    assert len(test_step_ids_from_cases) == 2 and len(set(test_step_ids_from_cases)) == 2, test_step_ids_from_cases
+
+    documents = [
+        envelope["gherkinDocument"]
+        for envelope in envelopes
+        if "gherkinDocument" in envelope and envelope["gherkinDocument"].get("feature") is not None
+    ]
+    assert len(documents) == 2, documents
+    document_ids_by_basename: dict[str, set[str]] = {}
+
+    def collect_ids(value: Any, ids: set[str]) -> None:
+        if isinstance(value, dict):
+            identifier = value.get("id")
+            if isinstance(identifier, str):
+                ids.add(identifier)
+            for child in value.values():
+                collect_ids(child, ids)
+        elif isinstance(value, list):
+            for child in value:
+                collect_ids(child, ids)
+
+    for document in documents:
+        ids: set[str] = set()
+        collect_ids(document.get("feature", {}), ids)
+        document_ids_by_basename[_uri_basename(document["uri"])] = ids
+    assert len(document_ids_by_basename) == 2, document_ids_by_basename
+
+    for row in observations:
+        case = cases[row["test_case_id"]]
+        pickle = pickles[case["pickleId"]]
+        started = starts[row["test_case_started_id"]]
+        step = row["steps"][0]
+        assert _uri_basename(pickle["uri"]) == _uri_basename(row["feature_uri"]), (pickle, row)
+        assert pickle["name"] == row["scenario_name"], (pickle, row)
+        assert row["source_scenario_id"] in pickle["astNodeIds"], (pickle, row)
+        source_ids = document_ids_by_basename[_uri_basename(row["feature_uri"])]
+        assert row["source_scenario_id"] in source_ids, (source_ids, row)
+        assert step["source_step_id"] in source_ids, (source_ids, step)
+        assert len(pickle["steps"]) == len(case["testSteps"]) == 1, (pickle, case)
+        assert [test_step["pickleStepId"] for test_step in case["testSteps"]] == [
+            pickle_step["id"] for pickle_step in pickle["steps"]
+        ], (case, pickle)
+        assert pickle["steps"][0]["astNodeIds"] == [step["source_step_id"]], (pickle, step)
+        assert case["pickleId"] == pickle["id"], (case, pickle)
+        assert [test_step["id"] for test_step in case["testSteps"]] == [step["test_step_id"]], (case, step)
+        assert started["testCaseId"] == case["id"], (started, case)
+        assert any(
+            finish["testCaseStartedId"] == started["id"]
+            and finish["testStepId"] == step["test_step_id"]
+            and finish["testStepResult"]["status"] == "PASSED"
+            for finish in finishes
+        ), (finishes, started, step)
+        assert any(finish["testCaseStartedId"] == started["id"] for finish in case_finishes), (case_finishes, started)
+
+    report = json.loads(_runtime_artifact_path(json_path, consumer).read_text(encoding="utf-8"))
+    assert len(report) == 2, report
+    assert len({_uri_basename(feature["uri"]) for feature in report}) == 2, report
+    assert len({feature["id"] for feature in report}) == 2, report
+    report_by_basename = {_uri_basename(feature["uri"]): feature for feature in report}
+    assert set(report_by_basename) == {_uri_basename(row["feature_uri"]) for row in observations}, (
+        report_by_basename,
+        observations,
+    )
+    for row in observations:
+        feature = report_by_basename[_uri_basename(row["feature_uri"])]
+        assert len(feature["elements"]) == 1, feature
+        element = feature["elements"][0]
+        assert element["name"] == row["scenario_name"], (element, row)
+        assert len(element["steps"]) == 1, element
+        assert element["steps"][0]["name"] == row["steps"][0]["name"], (element, row)
+        assert element["steps"][0]["result"]["status"].lower() == "passed", element
+    report_element_ids = [feature["elements"][0]["id"] for feature in report]
+    assert len(set(report_element_ids)) == 2, report_element_ids
+
+
+@then(
+    re.compile(
+        r"the interrupted consumer should exit with code (?P<exit_code>\d+), retain runtime artifacts "
+        r'"(?P<after_path>[^"]+)" and "(?P<history_path>[^"]+)", and report an UNKNOWN Messages step in '
+        r'"(?P<messages_path>[^"]+)" and an UNKNOWN JSON result in "(?P<json_path>[^"]+)"'
+    )
+)
+def consumer_interrupted_runtime_is_retained(
+    exit_code: str,
+    after_path: str,
+    history_path: str,
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    problems: list[str] = []
+    result = getattr(consumer, "pytest_result", None)
+    if result is None:
+        problems.append("pytest did not run")
+    elif result.returncode != int(exit_code):
+        problems.append(
+            f"pytest returned {result.returncode}, expected {exit_code}; stdout={result.stdout!r}; stderr={result.stderr!r}"
+        )
+
+    snapshots: dict[str, dict[str, Any]] = {}
+    for label, relative_path in (("after-scenario", after_path), ("session-finish history", history_path)):
+        try:
+            snapshots[label] = json.loads(_runtime_artifact_path(relative_path, consumer).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            problems.append(f"{label} artifact {relative_path!r} was not produced")
+
+    after = snapshots.get("after-scenario")
+    if after is not None:
+        for field, expected in (
+            ("scenario_status", "interrupted"),
+            ("exception_type", "KeyboardInterrupt"),
+            ("exception_message", "runtime interrupt sentinel"),
+            ("active_scenario_run", True),
+        ):
+            if after.get(field) != expected:
+                problems.append(f"after-scenario {field}={after.get(field)!r}, expected {expected!r}")
+
+        try:
+            envelopes = _messages_envelopes(messages_path, consumer)
+        except AssertionError as exc:
+            problems.append(f"Messages artifact {messages_path!r} could not be read: {exc}")
+        else:
+            cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+            starts = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+            if len(cases) != 1:
+                problems.append(f"expected one Messages TestCase, got {len(cases)}")
+            if len(starts) != 1:
+                problems.append(f"expected one Messages TestCaseStarted, got {len(starts)}")
+            if len(cases) == 1 and len(starts) == 1:
+                case = cases[0]
+                started = starts[0]
+                if case.get("id") != after.get("test_case_id"):
+                    problems.append(
+                        f"Messages TestCase id={case.get('id')!r}, expected runtime id={after.get('test_case_id')!r}"
+                    )
+                if started.get("id") != after.get("test_case_started_id"):
+                    problems.append(
+                        "Messages TestCaseStarted id="
+                        f"{started.get('id')!r}, expected runtime id={after.get('test_case_started_id')!r}"
+                    )
+                if started.get("testCaseId") != case.get("id"):
+                    problems.append("Messages TestCaseStarted does not reference the runtime TestCase")
+                runtime_step_ids = after.get("test_step_ids")
+                case_step_ids = [step.get("id") for step in case.get("testSteps", [])]
+                if not runtime_step_ids or case_step_ids != runtime_step_ids:
+                    problems.append(
+                        f"Messages TestCase step IDs={case_step_ids!r}, expected runtime IDs={runtime_step_ids!r}"
+                    )
+                finished_steps = [
+                    envelope["testStepFinished"]
+                    for envelope in envelopes
+                    if "testStepFinished" in envelope
+                    and envelope["testStepFinished"].get("testCaseStartedId") == started.get("id")
+                ]
+                if len(finished_steps) != 1:
+                    problems.append(
+                        f"expected one finished Messages step for the interrupted attempt, got {len(finished_steps)}"
+                    )
+                else:
+                    finished_step = finished_steps[0]
+                    if finished_step.get("testStepId") not in runtime_step_ids:
+                        problems.append(
+                            f"Messages finished step id={finished_step.get('testStepId')!r} is not a runtime step ID"
+                        )
+                    wire_result = finished_step.get("testStepResult", {})
+                    step_status = wire_result.get("status")
+                    if step_status != "UNKNOWN":
+                        problems.append(f"Messages interrupted TestStep status={step_status!r}, expected 'UNKNOWN'")
+                    if wire_result.get("message") != "runtime interrupt sentinel":
+                        problems.append(
+                            "Messages interrupted TestStep message="
+                            f"{wire_result.get('message')!r}, expected 'runtime interrupt sentinel'"
+                        )
+                    exception_message = wire_result.get("exception", {}).get("message")
+                    if exception_message != "runtime interrupt sentinel":
+                        problems.append(
+                            "Messages interrupted TestStep exception message="
+                            f"{exception_message!r}, expected 'runtime interrupt sentinel'"
+                        )
+
+    history = snapshots.get("session-finish history")
+    if history is not None:
+        for field, expected in (
+            ("scenario_history_found", True),
+            ("scenario_status", "interrupted"),
+            ("exception_type", "KeyboardInterrupt"),
+            ("exception_message", "runtime interrupt sentinel"),
+            ("active_feature_binding", False),
+            ("active_scenario_run", False),
+            ("active_step", False),
+            ("exit_status", int(exit_code)),
+        ):
+            if history.get(field) != expected:
+                problems.append(f"session-finish history {field}={history.get(field)!r}, expected {expected!r}")
+
+    try:
+        report = json.loads(_runtime_artifact_path(json_path, consumer).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        problems.append(f"JSON report {json_path!r} was not produced")
+    else:
+        features = [
+            feature for feature in report if _uri_basename(feature.get("uri", "")) == "interrupted-runtime.feature"
+        ]
+        if len(features) != 1:
+            problems.append(f"expected one interrupted feature in JSON report, got {len(features)}")
+        else:
+            scenarios = [
+                element
+                for element in features[0].get("elements", [])
+                if element.get("name") == "KeyboardInterrupt leaves an interrupted runtime outcome"
+            ]
+            if len(scenarios) != 1:
+                problems.append(f"expected one interrupted scenario in JSON report, got {len(scenarios)}")
+            else:
+                steps = scenarios[0].get("steps", [])
+                if len(steps) != 1:
+                    problems.append(f"expected one interrupted scenario step in JSON report, got {len(steps)}")
+                else:
+                    json_result = steps[0].get("result", {})
+                    json_status = json_result.get("status")
+                    if json_status != "unknown":
+                        problems.append(f"JSON interrupted step status={json_status!r}, expected 'unknown'")
+                    if json_result.get("error_message") != "runtime interrupt sentinel":
+                        problems.append(
+                            "JSON interrupted step error_message="
+                            f"{json_result.get('error_message')!r}, expected 'runtime interrupt sentinel'"
+                        )
+
+    assert not problems, "interrupted runtime contract failed:\n- " + "\n- ".join(problems)
+
+
+@then(
+    re.compile(
+        r'consumer runtime artifacts "(?P<after_path>[^"]+)", "(?P<runtime_path>[^"]+)", '
+        r'"(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" should retain the teardown interruption'
+    )
+)
+def consumer_teardown_interrupt_is_retained(
+    after_path: str,
+    runtime_path: str,
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    problems: list[str] = []
+    result = getattr(consumer, "pytest_result", None)
+    if result is None:
+        problems.append("pytest did not run")
+    elif result.returncode != 2:
+        problems.append(
+            f"pytest returned {result.returncode}, expected 2; stdout={result.stdout!r}; stderr={result.stderr!r}"
+        )
+
+    snapshots: dict[str, dict[str, Any]] = {}
+    for label, relative_path in (("after-scenario", after_path), ("teardown runtime", runtime_path)):
+        try:
+            snapshots[label] = json.loads(_runtime_artifact_path(relative_path, consumer).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            problems.append(f"{label} artifact {relative_path!r} was not produced")
+
+    after = snapshots.get("after-scenario")
+    runtime = snapshots.get("teardown runtime")
+    expected_scenario_name = "Fixture teardown interrupts a completed multi-step scenario"
+    expected_step_names = [
+        "the scenario arms a KeyboardInterrupt during fixture teardown",
+        "the first runtime action completes",
+        "the terminal runtime action completes before pytest teardown",
+    ]
+    if after is not None:
+        if after.get("scenario_name") != expected_scenario_name:
+            problems.append(
+                f"after-scenario scenario_name={after.get('scenario_name')!r}, expected {expected_scenario_name!r}"
+            )
+        step_ids = after.get("test_step_ids")
+        if not isinstance(step_ids, list) or len(step_ids) != len(expected_step_names) or not all(step_ids):
+            problems.append(f"after-scenario test_step_ids={step_ids!r}, expected three test step IDs")
+
+    if runtime is not None:
+        for field, expected in (
+            ("scenario_status", "interrupted"),
+            ("exception_type", "KeyboardInterrupt"),
+            ("exception_message", "teardown interrupt sentinel"),
+            ("runtime_status", "inactive"),
+            ("runtime_stage", "inactive"),
+            ("active_feature_binding", False),
+            ("active_scenario_run", False),
+            ("exit_status", 2),
+        ):
+            if runtime.get(field) != expected:
+                problems.append(f"teardown runtime {field}={runtime.get(field)!r}, expected {expected!r}")
+        if len(runtime.get("test_step_ids", [])) != len(expected_step_names):
+            problems.append(f"teardown runtime test_step_ids={runtime.get('test_step_ids')!r}, expected three IDs")
+        if len(runtime.get("step_statuses", [])) != len(expected_step_names):
+            problems.append(f"teardown runtime step_statuses={runtime.get('step_statuses')!r}, expected three steps")
+        if after is not None:
+            for field in ("test_case_id", "test_case_started_id", "test_step_ids"):
+                if runtime.get(field) != after.get(field):
+                    problems.append(
+                        f"teardown runtime {field}={runtime.get(field)!r}, after-scenario has {after.get(field)!r}"
+                    )
+
+    messages_case = _single_messages_case(messages_path, consumer, len(expected_step_names), problems)
+    if messages_case is not None:
+        case, started, test_steps, step_finishes, _envelopes = messages_case
+        if [step.get("id") for step in test_steps] != (after or {}).get("test_step_ids"):
+            problems.append(
+                f"Messages TestCase step IDs={[step.get('id') for step in test_steps]!r}, "
+                f"after-scenario IDs={(after or {}).get('test_step_ids')!r}"
+            )
+        if runtime is not None and case.get("id") != runtime.get("test_case_id"):
+            problems.append(f"Messages TestCase id={case.get('id')!r}, runtime id={runtime.get('test_case_id')!r}")
+        if runtime is not None and started.get("id") != runtime.get("test_case_started_id"):
+            problems.append(
+                f"Messages TestCaseStarted id={started.get('id')!r}, runtime id={runtime.get('test_case_started_id')!r}"
+            )
+        if len(step_finishes) == len(expected_step_names):
+            terminal_result = step_finishes[-1].get("testStepResult", {})
+            if terminal_result.get("status") != "UNKNOWN":
+                problems.append(
+                    f"terminal Messages test step status={terminal_result.get('status')!r}, expected 'UNKNOWN'"
+                )
+            if terminal_result.get("message") != "teardown interrupt sentinel":
+                problems.append(
+                    f"terminal Messages message={terminal_result.get('message')!r}, expected 'teardown interrupt sentinel'"
+                )
+            if terminal_result.get("exception", {}).get("message") != "teardown interrupt sentinel":
+                problems.append(
+                    "terminal Messages exception.message="
+                    f"{terminal_result.get('exception', {}).get('message')!r}, expected 'teardown interrupt sentinel'"
+                )
+
+    json_steps = _single_json_scenario_steps(
+        json_path,
+        consumer,
+        "teardown-interrupted-runtime.feature",
+        expected_scenario_name,
+        problems,
+    )
+    if json_steps is not None:
+        if [step.get("name") for step in json_steps] != expected_step_names:
+            problems.append(
+                f"JSON scenario steps={[step.get('name') for step in json_steps]!r}, expected {expected_step_names!r}"
+            )
+        if len(json_steps) == len(expected_step_names):
+            terminal_result = json_steps[-1].get("result", {})
+            if terminal_result.get("status") != "unknown":
+                problems.append(f"terminal JSON step status={terminal_result.get('status')!r}, expected 'unknown'")
+            if terminal_result.get("error_message") != "teardown interrupt sentinel":
+                problems.append(
+                    f"terminal JSON step error_message={terminal_result.get('error_message')!r}, "
+                    "expected 'teardown interrupt sentinel'"
+                )
+
+    assert not problems, "teardown interruption reporting contract failed:\n- " + "\n- ".join(problems)
+
+
+@then(
+    re.compile(
+        r'consumer artifacts "(?P<skip_path>[^"]+)", "(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" '
+        r"should report the teardown interruption over the skipped terminal step"
+    )
+)
+def consumer_teardown_interrupt_overrides_terminal_skip(
+    skip_path: str,
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    problems: list[str] = []
+    result = getattr(consumer, "pytest_result", None)
+    if result is None:
+        problems.append("pytest did not run")
+    elif result.returncode != 2:
+        problems.append(
+            f"pytest returned {result.returncode}, expected 2; stdout={result.stdout!r}; stderr={result.stderr!r}"
+        )
+
+    expected_scenario_name = "Fixture teardown interrupts after its terminal step skips"
+    expected_step_names = [
+        "the scenario arms teardown interruption after its terminal step",
+        "the preliminary scenario action completes",
+        "the terminal scenario step is skipped",
+    ]
+    expected_message = "teardown after skipped-step sentinel"
+
+    try:
+        skip_snapshot = json.loads(_runtime_artifact_path(skip_path, consumer).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        problems.append(f"pre-teardown skip snapshot {skip_path!r} was not produced")
+    else:
+        for field, expected in (
+            ("scenario_status", "skipped"),
+            ("terminal_step_status", "skipped"),
+            ("exception_message", "terminal scenario step skip sentinel"),
+        ):
+            if skip_snapshot.get(field) != expected:
+                problems.append(
+                    f"pre-teardown skip snapshot {field}={skip_snapshot.get(field)!r}, expected {expected!r}"
+                )
+
+    messages_case = _single_messages_case(messages_path, consumer, len(expected_step_names), problems)
+    if messages_case is not None:
+        _case, _started, _test_steps, step_finishes, _envelopes = messages_case
+        if len(step_finishes) == len(expected_step_names):
+            terminal_result = step_finishes[-1].get("testStepResult", {})
+            if terminal_result.get("status") != "UNKNOWN":
+                problems.append(
+                    f"terminal Messages test step status={terminal_result.get('status')!r}, expected 'UNKNOWN'"
+                )
+            if terminal_result.get("message") != expected_message:
+                problems.append(
+                    f"terminal Messages test step message={terminal_result.get('message')!r}, expected {expected_message!r}"
+                )
+            exception = terminal_result.get("exception")
+            exception_message = exception.get("message") if isinstance(exception, dict) else None
+            if exception_message != expected_message:
+                problems.append(
+                    f"terminal Messages exception.message={exception_message!r}, expected {expected_message!r}"
+                )
+
+    json_steps = _single_json_scenario_steps(
+        json_path,
+        consumer,
+        "terminal-skip-interrupted-runtime.feature",
+        expected_scenario_name,
+        problems,
+    )
+    if json_steps is not None:
+        step_names = [step.get("name") for step in json_steps]
+        if step_names != expected_step_names:
+            problems.append(f"JSON scenario steps={step_names!r}, expected {expected_step_names!r}")
+        if len(json_steps) == len(expected_step_names):
+            terminal_result = json_steps[-1].get("result", {})
+            terminal_status = terminal_result.get("status")
+            if terminal_status == "skipped":
+                problems.append("terminal JSON step must not be reported as skipped after teardown interruption")
+            if terminal_status != "unknown":
+                problems.append(f"terminal JSON step status={terminal_status!r}, expected 'unknown'")
+            if terminal_result.get("error_message") != expected_message:
+                problems.append(
+                    f"terminal JSON step error_message={terminal_result.get('error_message')!r}, "
+                    f"expected {expected_message!r}"
+                )
+
+    assert not problems, "teardown interrupt must override terminal skip:\n- " + "\n- ".join(problems)
+
+
+@then(
+    re.compile(
+        r'consumer runtime artifacts "(?P<before_path>[^"]+)", "(?P<runtime_path>[^"]+)", '
+        r'"(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" '
+        r"should retain both assertion reporting and the teardown error"
+    )
+)
+def consumer_assertion_failure_and_teardown_interrupt_are_retained(
+    before_path: str,
+    runtime_path: str,
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    problems: list[str] = []
+    result = getattr(consumer, "pytest_result", None)
+    if result is None:
+        problems.append("pytest did not run")
+    elif result.returncode != 2:
+        problems.append(
+            f"pytest returned {result.returncode}, expected 2; stdout={result.stdout!r}; stderr={result.stderr!r}"
+        )
+
+    expected_scenario_name = "Fixture teardown interrupts after a terminal assertion fails"
+    expected_step_names = [
+        "the scenario arms teardown interruption after its terminal assertion",
+        "the preliminary assertion scenario action completes",
+        "the terminal runtime assertion fails with its sentinel",
+    ]
+    assertion_message = "terminal assertion sentinel"
+    teardown_message = "teardown after assertion sentinel"
+
+    snapshots: dict[str, dict[str, Any]] = {}
+    for label, relative_path in (("before-teardown", before_path), ("teardown runtime", runtime_path)):
+        try:
+            snapshots[label] = json.loads(_runtime_artifact_path(relative_path, consumer).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            problems.append(f"{label} artifact {relative_path!r} was not produced")
+
+    before = snapshots.get("before-teardown")
+    if before is not None:
+        for field, expected in (
+            ("scenario_status", "failed"),
+            ("terminal_step_status", "failed"),
+            ("terminal_step_exception_type", "AssertionError"),
+        ):
+            if before.get(field) != expected:
+                problems.append(f"before-teardown {field}={before.get(field)!r}, expected {expected!r}")
+        if assertion_message not in str(before.get("terminal_step_exception_message")):
+            problems.append(
+                "before-teardown terminal_step_exception_message="
+                f"{before.get('terminal_step_exception_message')!r}, expected to contain {assertion_message!r}"
+            )
+
+    runtime = snapshots.get("teardown runtime")
+    if runtime is not None:
+        for field, expected in (
+            ("scenario_status", "interrupted"),
+            ("exception_type", "KeyboardInterrupt"),
+            ("exception_message", teardown_message),
+            ("runtime_status", "inactive"),
+            ("runtime_stage", "inactive"),
+            ("active_feature_binding", False),
+            ("active_scenario_run", False),
+            ("exit_status", 2),
+        ):
+            if runtime.get(field) != expected:
+                problems.append(f"teardown runtime {field}={runtime.get(field)!r}, expected {expected!r}")
+        if len(runtime.get("test_step_ids", [])) != len(expected_step_names):
+            problems.append(f"teardown runtime test_step_ids={runtime.get('test_step_ids')!r}, expected three IDs")
+        if len(runtime.get("step_statuses", [])) != len(expected_step_names):
+            problems.append(f"teardown runtime step_statuses={runtime.get('step_statuses')!r}, expected three steps")
+
+    messages_case = _single_messages_case(messages_path, consumer, len(expected_step_names), problems)
+    if messages_case is not None:
+        _case, _started, _test_steps, step_finishes, _envelopes = messages_case
+        if len(step_finishes) == len(expected_step_names):
+            terminal_result = step_finishes[-1].get("testStepResult", {})
+            if terminal_result.get("status") != "FAILED":
+                problems.append(
+                    f"terminal Messages test step status={terminal_result.get('status')!r}, expected 'FAILED'"
+                )
+            if assertion_message not in str(terminal_result.get("message")):
+                problems.append(
+                    f"terminal Messages test step message={terminal_result.get('message')!r}, "
+                    f"expected to contain {assertion_message!r}"
+                )
+            exception = terminal_result.get("exception")
+            exception_message = exception.get("message") if isinstance(exception, dict) else None
+            if assertion_message not in str(exception_message):
+                problems.append(
+                    f"terminal Messages exception.message={exception_message!r}, "
+                    f"expected to contain {assertion_message!r}"
+                )
+
+    json_steps = _single_json_scenario_steps(
+        json_path,
+        consumer,
+        "assertion-teardown-interrupted-runtime.feature",
+        expected_scenario_name,
+        problems,
+    )
+    if json_steps is not None:
+        step_names = [step.get("name") for step in json_steps]
+        if step_names != expected_step_names:
+            problems.append(f"JSON scenario steps={step_names!r}, expected {expected_step_names!r}")
+        if len(json_steps) == len(expected_step_names):
+            terminal_result = json_steps[-1].get("result", {})
+            if terminal_result.get("status") != "failed":
+                problems.append(f"terminal JSON step status={terminal_result.get('status')!r}, expected 'failed'")
+            if assertion_message not in str(terminal_result.get("error_message")):
+                problems.append(
+                    f"terminal JSON step error_message={terminal_result.get('error_message')!r}, "
+                    f"expected to contain {assertion_message!r}"
+                )
+
+    assert not problems, "assertion report and teardown runtime contract failed:\n- " + "\n- ".join(problems)
+
+
+@then(
+    re.compile(
+        r'consumer runtime artifacts "(?P<before_path>[^"]+)", "(?P<runtime_path>[^"]+)", '
+        r'"(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" '
+        r"should preserve skipped and interrupted step outcomes"
+    )
+)
+def consumer_middle_skip_teardown_interrupt_preserves_reporting(
+    before_path: str,
+    runtime_path: str,
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    problems: list[str] = []
+    result = getattr(consumer, "pytest_result", None)
+    if result is None:
+        problems.append("pytest did not run")
+    elif result.returncode != 2:
+        problems.append(
+            f"pytest returned {result.returncode}, expected 2; stdout={result.stdout!r}; stderr={result.stderr!r}"
+        )
+
+    expected_scenario_name = "Fixture teardown interrupts after the middle scenario step skips"
+    expected_step_names = [
+        "the scenario arms teardown interruption after its middle step",
+        "the first scenario action completes",
+        "the middle scenario step is skipped",
+        "the final scenario step remains unstarted",
+    ]
+    expected_statuses = ["passed", "passed", "skipped", "unknown"]
+    teardown_message = "teardown after middle skip sentinel"
+
+    snapshots: dict[str, dict[str, Any]] = {}
+    for label, relative_path in (("before-teardown", before_path), ("teardown runtime", runtime_path)):
+        try:
+            snapshots[label] = json.loads(_runtime_artifact_path(relative_path, consumer).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            problems.append(f"{label} artifact {relative_path!r} was not produced")
+
+    before = snapshots.get("before-teardown")
+    if before is not None:
+        for field, expected in (
+            ("scenario_status", "skipped"),
+            ("scenario_step_count", len(expected_step_names)),
+            ("executed_step_names", expected_step_names[:3]),
+            ("executed_step_statuses", expected_statuses[:3]),
+        ):
+            if before.get(field) != expected:
+                problems.append(f"before-teardown {field}={before.get(field)!r}, expected {expected!r}")
+
+    runtime = snapshots.get("teardown runtime")
+    if runtime is not None:
+        for field, expected in (
+            ("scenario_status", "interrupted"),
+            ("exception_type", "KeyboardInterrupt"),
+            ("exception_message", teardown_message),
+            ("runtime_status", "inactive"),
+            ("active_feature_binding", False),
+            ("active_scenario_run", False),
+            ("exit_status", 2),
+        ):
+            if runtime.get(field) != expected:
+                problems.append(f"teardown runtime {field}={runtime.get(field)!r}, expected {expected!r}")
+
+    messages_case = _single_messages_case(messages_path, consumer, len(expected_step_names), problems)
+    if messages_case is not None:
+        case, _started, test_steps, step_finishes, envelopes = messages_case
+        pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+        if len(pickles) != 1:
+            problems.append(f"expected one Messages Pickle, got {len(pickles)}")
+        else:
+            pickle = pickles[0]
+            pickle_steps = pickle.get("steps", [])
+            if pickle.get("name") != expected_scenario_name:
+                problems.append(f"Messages Pickle name={pickle.get('name')!r}, expected {expected_scenario_name!r}")
+            if [step.get("text") for step in pickle_steps] != expected_step_names:
+                problems.append(
+                    f"Messages Pickle step texts={[step.get('text') for step in pickle_steps]!r}, "
+                    f"expected {expected_step_names!r}"
+                )
+            if case.get("pickleId") != pickle.get("id"):
+                problems.append("Messages TestCase does not reference its Pickle")
+            if [step.get("pickleStepId") for step in test_steps] != [step.get("id") for step in pickle_steps]:
+                problems.append("Messages TestCase step links do not match the Pickle step identities")
+
+        message_statuses = [finish.get("testStepResult", {}).get("status", "").lower() for finish in step_finishes]
+        if message_statuses != expected_statuses:
+            problems.append(f"Messages test step statuses={message_statuses!r}, expected {expected_statuses!r}")
+        if len(step_finishes) == len(expected_step_names):
+            terminal_result = step_finishes[-1].get("testStepResult", {})
+            if teardown_message not in str(terminal_result.get("message")):
+                problems.append(
+                    f"terminal Messages test step message={terminal_result.get('message')!r}, "
+                    f"expected to contain {teardown_message!r}"
+                )
+            exception = terminal_result.get("exception")
+            exception_message = exception.get("message") if isinstance(exception, dict) else None
+            if teardown_message not in str(exception_message):
+                problems.append(
+                    f"terminal Messages exception.message={exception_message!r}, "
+                    f"expected to contain {teardown_message!r}"
+                )
+
+    json_steps = _single_json_scenario_steps(
+        json_path,
+        consumer,
+        "middle-skip-interrupted-runtime.feature",
+        expected_scenario_name,
+        problems,
+    )
+    if json_steps is not None:
+        json_step_names = [step.get("name") for step in json_steps]
+        if json_step_names != expected_step_names:
+            problems.append(f"JSON scenario steps={json_step_names!r}, expected {expected_step_names!r}")
+        json_statuses = [step.get("result", {}).get("status") for step in json_steps]
+        if json_statuses != expected_statuses:
+            problems.append(f"JSON step statuses={json_statuses!r}, expected {expected_statuses!r}")
+        if len(json_steps) == len(expected_step_names):
+            terminal_result = json_steps[-1].get("result", {})
+            if teardown_message not in str(terminal_result.get("error_message")):
+                problems.append(
+                    f"terminal JSON step error_message={terminal_result.get('error_message')!r}, "
+                    f"expected to contain {teardown_message!r}"
+                )
+
+    assert not problems, "middle-step skip and teardown interruption contract failed:\n- " + "\n- ".join(problems)
+
+
+@then(
+    re.compile(
+        r'consumer runtime artifacts "(?P<before_path>[^"]+)", "(?P<runtime_path>[^"]+)", '
+        r'"(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" '
+        r"should preserve the tolerant failure and interrupt sentinels"
+    )
+)
+def consumer_tolerant_failure_teardown_interrupt_are_retained(
+    before_path: str,
+    runtime_path: str,
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    problems: list[str] = []
+    result = getattr(consumer, "pytest_result", None)
+    if result is None:
+        problems.append("pytest did not run")
+    elif result.returncode != 2:
+        problems.append(
+            f"pytest returned {result.returncode}, expected 2; stdout={result.stdout!r}; stderr={result.stderr!r}"
+        )
+
+    assertion_message = "tolerant first-step assertion sentinel"
+    teardown_message = "teardown after tolerant step sentinel"
+    expected_scenario_name = "Tolerant failure stays failed while terminal pass becomes interrupted"
+    expected_step_names = [
+        "the tolerant first step raises an AssertionError and continues",
+        "the terminal scenario step completes successfully",
+    ]
+
+    snapshots: dict[str, dict[str, Any]] = {}
+    for label, relative_path in (("before-teardown", before_path), ("teardown runtime", runtime_path)):
+        try:
+            snapshots[label] = json.loads(_runtime_artifact_path(relative_path, consumer).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            problems.append(f"{label} artifact {relative_path!r} was not produced")
+
+    before = snapshots.get("before-teardown")
+    if before is not None:
+        if before.get("scenario_status") != "passed":
+            problems.append(f"before-teardown scenario_status={before.get('scenario_status')!r}, expected 'passed'")
+        if before.get("step_statuses") != ["failed", "passed"]:
+            problems.append(
+                f"before-teardown step_statuses={before.get('step_statuses')!r}, expected ['failed', 'passed']"
+            )
+        first_step_error = before.get("step_exception_messages", [None])[0]
+        if assertion_message not in str(first_step_error):
+            problems.append(f"before-teardown first-step error={first_step_error!r}, expected {assertion_message!r}")
+
+    runtime = snapshots.get("teardown runtime")
+    if runtime is not None:
+        for field, expected in (
+            ("scenario_status", "interrupted"),
+            ("exception_type", "KeyboardInterrupt"),
+            ("exception_message", teardown_message),
+            ("runtime_status", "inactive"),
+            ("active_feature_binding", False),
+            ("active_scenario_run", False),
+            ("exit_status", 2),
+        ):
+            if runtime.get(field) != expected:
+                problems.append(f"teardown runtime {field}={runtime.get(field)!r}, expected {expected!r}")
+
+    messages_case = _single_messages_case(messages_path, consumer, len(expected_step_names), problems)
+    if messages_case is not None:
+        case, _started, _test_steps, step_finishes, _envelopes = messages_case
+        if case.get("pickleId") is None:
+            problems.append("Messages TestCase is missing its Pickle identity")
+        statuses = [finish.get("testStepResult", {}).get("status", "").lower() for finish in step_finishes]
+        if statuses != ["failed", "unknown"]:
+            problems.append(f"Messages test step statuses={statuses!r}, expected ['failed', 'unknown']")
+        if len(step_finishes) == len(expected_step_names):
+            first_result = step_finishes[0].get("testStepResult", {})
+            if assertion_message not in str(first_result.get("exception", {}).get("message")):
+                problems.append(
+                    f"tolerant Messages exception={first_result.get('exception')!r}, "
+                    f"expected to contain {assertion_message!r}"
+                )
+            terminal_result = step_finishes[-1].get("testStepResult", {})
+            if teardown_message not in str(terminal_result.get("message")):
+                problems.append(
+                    f"terminal Messages message={terminal_result.get('message')!r}, "
+                    f"expected to contain {teardown_message!r}"
+                )
+
+    json_steps = _single_json_scenario_steps(
+        json_path,
+        consumer,
+        "tolerant-teardown-interrupted-runtime.feature",
+        expected_scenario_name,
+        problems,
+    )
+    if json_steps is not None:
+        names = [step.get("name") for step in json_steps]
+        statuses = [step.get("result", {}).get("status") for step in json_steps]
+        if names != expected_step_names:
+            problems.append(f"JSON scenario steps={names!r}, expected {expected_step_names!r}")
+        if statuses != ["failed", "unknown"]:
+            problems.append(f"JSON step statuses={statuses!r}, expected ['failed', 'unknown']")
+        if len(json_steps) == len(expected_step_names):
+            first_error = json_steps[0].get("result", {}).get("error_message")
+            if assertion_message not in str(first_error):
+                problems.append(f"tolerant JSON error={first_error!r}, expected to contain {assertion_message!r}")
+            terminal_error = json_steps[-1].get("result", {}).get("error_message")
+            if teardown_message not in str(terminal_error):
+                problems.append(f"terminal JSON error={terminal_error!r}, expected to contain {teardown_message!r}")
+
+    assert not problems, "tolerant failure and teardown interruption contract failed:\n- " + "\n- ".join(problems)
+
+
+@then(
+    re.compile(
+        r'consumer runtime artifacts "(?P<before_path>[^"]+)", "(?P<runtime_path>[^"]+)", '
+        r'"(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" '
+        r"should preserve the undefined step and final teardown interruption"
+    )
+)
+def consumer_undefined_step_teardown_interrupt_are_retained(
+    before_path: str,
+    runtime_path: str,
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    problems: list[str] = []
+    result = getattr(consumer, "pytest_result", None)
+    if result is None:
+        problems.append("pytest did not run")
+    elif result.returncode != 2:
+        problems.append(
+            f"pytest returned {result.returncode}, expected 2; stdout={result.stdout!r}; stderr={result.stderr!r}"
+        )
+
+    expected_scenario_name = "Teardown interruption follows an undefined step"
+    expected_step_names = [
+        "the scenario arms teardown interruption before an undefined step",
+        "an undefined runtime step is encountered",
+        "the middle runtime step remains unstarted",
+        "the final runtime step remains unstarted",
+    ]
+    expected_statuses = ["passed", "undefined", "skipped", "unknown"]
+    undefined_message = "Step definition is not found"
+    teardown_message = "teardown after undefined-step sentinel"
+
+    snapshots: dict[str, dict[str, Any]] = {}
+    for label, relative_path in (("before-teardown", before_path), ("teardown runtime", runtime_path)):
+        try:
+            snapshots[label] = json.loads(_runtime_artifact_path(relative_path, consumer).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            problems.append(f"{label} artifact {relative_path!r} was not produced")
+
+    before = snapshots.get("before-teardown")
+    if before is not None:
+        if before.get("scenario_status") != "undefined":
+            problems.append(f"before-teardown scenario_status={before.get('scenario_status')!r}, expected 'undefined'")
+        if before.get("step_names") != expected_step_names[:2]:
+            problems.append(
+                f"before-teardown step_names={before.get('step_names')!r}, expected {expected_step_names[:2]!r}"
+            )
+        if before.get("step_statuses") != expected_statuses[:2]:
+            problems.append(
+                f"before-teardown step_statuses={before.get('step_statuses')!r}, expected {expected_statuses[:2]!r}"
+            )
+        undefined_error = before.get("step_exception_messages", [None, None])[1]
+        if undefined_message not in str(undefined_error):
+            problems.append(
+                f"before-teardown undefined error={undefined_error!r}, expected to contain {undefined_message!r}"
+            )
+
+    runtime = snapshots.get("teardown runtime")
+    if runtime is not None:
+        for field, expected in (
+            ("scenario_status", "interrupted"),
+            ("exception_type", "KeyboardInterrupt"),
+            ("exception_message", teardown_message),
+            ("runtime_status", "inactive"),
+            ("active_feature_binding", False),
+            ("active_scenario_run", False),
+            ("exit_status", 2),
+        ):
+            if runtime.get(field) != expected:
+                problems.append(f"teardown runtime {field}={runtime.get(field)!r}, expected {expected!r}")
+
+    messages_case = _single_messages_case(messages_path, consumer, len(expected_step_names), problems)
+    if messages_case is not None:
+        case, _started, test_steps, step_finishes, envelopes = messages_case
+        pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+        if len(pickles) != 1:
+            problems.append(f"expected one Messages Pickle, got {len(pickles)}")
+        else:
+            pickle = pickles[0]
+            pickle_steps = pickle.get("steps", [])
+            if pickle.get("name") != expected_scenario_name:
+                problems.append(f"Messages Pickle name={pickle.get('name')!r}, expected {expected_scenario_name!r}")
+            if [step.get("text") for step in pickle_steps] != expected_step_names:
+                problems.append(
+                    f"Messages Pickle step texts={[step.get('text') for step in pickle_steps]!r}, "
+                    f"expected {expected_step_names!r}"
+                )
+            if case.get("pickleId") != pickle.get("id"):
+                problems.append("Messages TestCase does not reference its Pickle")
+            if [step.get("pickleStepId") for step in test_steps] != [step.get("id") for step in pickle_steps]:
+                problems.append("Messages TestCase step links do not match the Pickle step identities")
+
+        message_statuses = [finish.get("testStepResult", {}).get("status", "").lower() for finish in step_finishes]
+        if message_statuses != expected_statuses:
+            problems.append(f"Messages test step statuses={message_statuses!r}, expected {expected_statuses!r}")
+        if len(step_finishes) == len(expected_step_names):
+            undefined_result = step_finishes[1].get("testStepResult", {})
+            if undefined_message not in str(undefined_result.get("message")):
+                problems.append(
+                    f"undefined Messages message={undefined_result.get('message')!r}, "
+                    f"expected to contain {undefined_message!r}"
+                )
+            terminal_result = step_finishes[-1].get("testStepResult", {})
+            if teardown_message not in str(terminal_result.get("message")):
+                problems.append(
+                    f"terminal Messages message={terminal_result.get('message')!r}, "
+                    f"expected to contain {teardown_message!r}"
+                )
+            if teardown_message not in str(terminal_result.get("exception", {}).get("message")):
+                problems.append(
+                    f"terminal Messages exception={terminal_result.get('exception')!r}, "
+                    f"expected to contain {teardown_message!r}"
+                )
+
+    json_steps = _single_json_scenario_steps(
+        json_path,
+        consumer,
+        "undefined-teardown-interrupted-runtime.feature",
+        expected_scenario_name,
+        problems,
+    )
+    if json_steps is not None:
+        json_names = [step.get("name") for step in json_steps]
+        if json_names != expected_step_names:
+            problems.append(f"JSON scenario steps={json_names!r}, expected {expected_step_names!r}")
+        json_statuses = [step.get("result", {}).get("status") for step in json_steps]
+        if json_statuses != expected_statuses:
+            problems.append(f"JSON step statuses={json_statuses!r}, expected {expected_statuses!r}")
+        if len(json_steps) == len(expected_step_names):
+            undefined_error = json_steps[1].get("result", {}).get("error_message")
+            if undefined_message not in str(undefined_error):
+                problems.append(f"undefined JSON error={undefined_error!r}, expected to contain {undefined_message!r}")
+            terminal_error = json_steps[-1].get("result", {}).get("error_message")
+            if teardown_message not in str(terminal_error):
+                problems.append(f"terminal JSON error={terminal_error!r}, expected to contain {teardown_message!r}")
+
+    assert not problems, "undefined step and teardown interruption contract failed:\n- " + "\n- ".join(problems)
+
+
 __all__ = [
+    "consumer_assertion_failure_and_teardown_interrupt_are_retained",
+    "consumer_distinct_source_identities",
+    "consumer_interrupted_runtime_is_retained",
+    "consumer_middle_skip_teardown_interrupt_preserves_reporting",
     "consumer_plain_pytest_after_runtime_cleanup",
+    "consumer_plain_reporting_does_not_reuse_bdd_identity",
     "consumer_repeated_session_runtime_roots",
     "consumer_rule_background_runtime_links",
     "consumer_runtime_cleanup_isolation",
     "consumer_runtime_rows_are_isolated",
+    "consumer_teardown_interrupt_is_retained",
+    "consumer_teardown_interrupt_overrides_terminal_skip",
     "consumer_terminal_outcomes_after_cleanup",
+    "consumer_tolerant_failure_teardown_interrupt_are_retained",
+    "consumer_undefined_step_teardown_interrupt_are_retained",
     "consumer_xdist_runtime_roots",
 ]
