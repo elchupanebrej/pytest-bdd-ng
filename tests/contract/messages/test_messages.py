@@ -6,33 +6,44 @@ from pprint import pformat
 from typing import TYPE_CHECKING, cast
 
 import pytest
-from pydantic import ValidationError
 
-from messages import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]
+from pytest_cuke.model.message_types import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]
     Attachment,
     ContentEncoding,
     GherkinDocument,
     Hook,
+    HookType,
     Meta,
     ParameterType,
     Pickle,
     Source,
     StepDefinition,
+    message_from_dict,
 )
-from messages import Envelope as Message  # type:ignore[attr-defined]
-from messages import TestCase as _TestCase  # type:ignore[attr-defined]
-from messages import TestCaseFinished as _TestCaseFinished  # type:ignore[attr-defined]
-from messages import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
-from messages import TestRunFinished as _TestRunFinished  # type:ignore[attr-defined]
-from messages import TestRunStarted as _TestRunStarted  # type:ignore[attr-defined]
-from messages import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
-from messages import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
+from pytest_cuke.model.message_types import Envelope as Message  # type:ignore[attr-defined]
+from pytest_cuke.model.message_types import TestCase as _TestCase  # type:ignore[attr-defined]
+from pytest_cuke.model.message_types import TestCaseFinished as _TestCaseFinished  # type:ignore[attr-defined]
+from pytest_cuke.model.message_types import TestCaseStarted as _TestCaseStarted  # type:ignore[attr-defined]
+from pytest_cuke.model.message_types import TestRunFinished as _TestRunFinished  # type:ignore[attr-defined]
+from pytest_cuke.model.message_types import TestRunStarted as _TestRunStarted  # type:ignore[attr-defined]
+from pytest_cuke.model.message_types import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
+from pytest_cuke.model.message_types import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
 from pytest_cuke.utils import flip
 
 if TYPE_CHECKING:  # pragma: nocover
     from pytest_cuke.compatibility.pytest import Testdir
 
 samples_path = Path(__file__).parent.parent.parent.parent / "compatibility-kit/devkit/samples"
+
+
+def run_messages_pytest(testdir: "Testdir", *arguments: str):
+    project_root = Path(str(testdir.tmpdir))
+    feature_root = project_root / "features"
+    feature_root.mkdir(exist_ok=True)
+    for feature in project_root.glob("*.feature"):
+        destination = feature_root / f"{feature.stem.replace('_', '-')}.feature"
+        feature.rename(destination)
+    return testdir.runpytest("--cuke-autoload", "--cuke-features-dir=features", *arguments)
 
 
 def unfold_message(message: Message):
@@ -50,6 +61,8 @@ def unfold_message(message: Message):
         "test_case_finished",
         "test_case_started",
         "test_run_finished",
+        "test_run_hook_finished",
+        "test_run_hook_started",
         "test_run_started",
         "test_step_finished",
         "test_step_started",
@@ -74,8 +87,8 @@ def parse_and_unflold_messages(lines):
     parsed_messages = []
     for line in lines:
         try:
-            parsed_messages.append(Message.model_validate(json.loads(line)))
-        except ValidationError as e:  # pragma: nocover
+            parsed_messages.append(message_from_dict(json.loads(line), Message))
+        except (TypeError, ValueError) as e:  # pragma: nocover
             errors.append(e)
         if errors:  # pragma: nocover
             raise ParseError(f"Could not parse messages: {errors}")
@@ -112,7 +125,7 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
+    result = run_messages_pytest(testdir, "--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -265,7 +278,7 @@ def test_parameter_type_messages(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
+    result = run_messages_pytest(testdir, "--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -302,7 +315,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
+    result = run_messages_pytest(testdir, "--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -311,7 +324,8 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
 
     unfold_messages = parse_and_unflold_messages(ndjson_lines)
 
-    attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
+    messages = list_filter_by_type(Attachment, unfold_messages)
+    attachment_messages = [message for message in messages if message.test_step_id is not None]
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
 
     attachment_message: Attachment = attachment_messages[0]
@@ -344,7 +358,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
+    result = run_messages_pytest(testdir, "--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -353,7 +367,8 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
 
     unfold_messages = parse_and_unflold_messages(ndjson_lines)
 
-    attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
+    messages = list_filter_by_type(Attachment, unfold_messages)
+    attachment_messages = [message for message in messages if message.test_step_id is not None]
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
 
     attachment_message: Attachment = attachment_messages[0]
@@ -386,7 +401,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
+    result = run_messages_pytest(testdir, "--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -395,7 +410,8 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
 
     unfold_messages = parse_and_unflold_messages(ndjson_lines)
 
-    attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
+    messages = list_filter_by_type(Attachment, unfold_messages)
+    attachment_messages = [message for message in messages if message.test_step_id is not None]
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
 
     attachment_message: Attachment = attachment_messages[0]
@@ -432,7 +448,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
+    result = run_messages_pytest(testdir, "--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -441,7 +457,8 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
 
     unfold_messages = parse_and_unflold_messages(ndjson_lines)
 
-    attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
+    messages = list_filter_by_type(Attachment, unfold_messages)
+    attachment_messages = [message for message in messages if message.test_step_id is not None]
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
 
     attachment_message: Attachment = attachment_messages[0]
@@ -478,7 +495,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
+    result = run_messages_pytest(testdir, "--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -487,7 +504,8 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
 
     unfold_messages = parse_and_unflold_messages(ndjson_lines)
 
-    attachment_messages = messages = list_filter_by_type(Attachment, unfold_messages)
+    messages = list_filter_by_type(Attachment, unfold_messages)
+    attachment_messages = [message for message in messages if message.test_step_id is not None]
     assert len(attachment_messages) == 1, f"Messages: {pformat(messages)}"
 
     attachment_message: Attachment = attachment_messages[0]
@@ -569,7 +587,7 @@ def test_hook_type_messages(testdir, tmp_path):
     )
 
     ndjson_path = tmp_path / "minimal.feature.ndjson"
-    result = testdir.runpytest("--cuke-messages-ndjson", str(ndjson_path))
+    result = run_messages_pytest(testdir, "--cuke-messages-ndjson", str(ndjson_path))
 
     result.assert_outcomes(passed=1)
 
@@ -578,7 +596,10 @@ def test_hook_type_messages(testdir, tmp_path):
 
     unfold_messages = parse_and_unflold_messages(ndjson_lines)
 
-    attachment_messages = messages = list_filter_by_type(Hook, unfold_messages)
+    hook_messages = messages = list_filter_by_type(Hook, unfold_messages)
+    run_hooks = [message for message in hook_messages if message.type is not None]
+    assert [message.type for message in run_hooks] == [HookType.before_test_run, HookType.after_test_run]
+    attachment_messages = [message for message in hook_messages if message.type is None]
     assert len(attachment_messages) == 4, f"Messages: {pformat(messages)}"
 
     # before_mark hook

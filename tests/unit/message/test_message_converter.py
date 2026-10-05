@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-import messages
+from pytest_cuke.model import message_types as messages
 from pytest_cuke.exceptions import FeatureConcreteParseError
 from pytest_cuke.model import message_converter as mc
+from pytest_cuke.model.message_extension import StepDefinitionPatternType
 from pytest_cuke.model.background import Background
 from pytest_cuke.model.doc_string import DocString
 from pytest_cuke.model.feature import Feature
@@ -69,7 +70,7 @@ def test_parse_error_envelope_preserves_source_and_uses_one_based_location() -> 
     assert envelope.parse_error.source.location.line == 6
     assert envelope.parse_error.source.location.column == 1
     mc.validate_envelope_shape(envelope)
-    assert messages.Envelope.model_validate(envelope.model_dump(exclude_none=True, by_alias=True)) == envelope
+    assert messages.message_from_dict(mc.envelope_to_dict(envelope), messages.Envelope) == envelope
 
     missing_source = FeatureConcreteParseError("invalid syntax", 0, "", "")
     with pytest.raises(ValueError, match="positive source line and non-empty URI"):
@@ -204,3 +205,27 @@ def test_execution_message_helpers_and_dict_roundtrip() -> None:
     reloaded = mc.envelope_from_dict(d)
     assert reloaded.test_run_finished is not None
     assert reloaded.test_run_finished.success is True
+
+
+@pytest.mark.parametrize(
+    ("internal_type", "wire_type"),
+    (
+        (StepDefinitionPatternType.pytest_cuke_heuristic_expression, "CUCUMBER_EXPRESSION"),
+        (StepDefinitionPatternType.pytest_cuke_regular_expression, "REGULAR_EXPRESSION"),
+    ),
+)
+def test_step_definition_pattern_extensions_map_to_official_wire_values(
+    internal_type: StepDefinitionPatternType,
+    wire_type: str,
+) -> None:
+    envelope = messages.Envelope(
+        step_definition=messages.StepDefinition(
+            id="definition-1",
+            pattern=messages.StepDefinitionPattern(source="example", type=internal_type),
+            source_reference=messages.SourceReference(uri="steps.py", location=messages.Location(line=1)),
+        )
+    )
+
+    payload = messages.message_to_dict(envelope)
+
+    assert payload["stepDefinition"]["pattern"]["type"] == wire_type

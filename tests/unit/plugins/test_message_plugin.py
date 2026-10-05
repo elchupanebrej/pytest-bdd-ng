@@ -1,20 +1,64 @@
 from __future__ import annotations
 
+import json
 from queue import Queue
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock
 
-from messages import Envelope as Message
-from messages import Status, TestCase, TestCaseStarted, TestStep, Timestamp
+from pytest_cuke.model.message_types import (
+    Attachment,
+    ContentEncoding,
+    Duration,
+    Envelope as Message,
+    ExceptionMessage,
+    Pickle,
+    PickleStep,
+    Status,
+    TestCase,
+    TestCaseStarted,
+    TestRunFinished,
+    TestRunStarted,
+    TestStep,
+    TestStepFinished,
+    TestStepResult,
+    TestStepStarted,
+    Timestamp,
+    message_to_dict,
+)
+from pytest import ExitCode
 from pytest_cuke.message_plugin import MessagePlugin
+from pytest_cuke.message_schema_sync import resolve_upstream_release
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.scenario import Scenario
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.model.step import Step
+from pytest_cuke.utils import IdGenerator
 
 TestCase.__test__ = False
 TestCaseStarted.__test__ = False
+TestRunFinished.__test__ = False
+TestRunStarted.__test__ = False
 TestStep.__test__ = False
+TestStepFinished.__test__ = False
+TestStepResult.__test__ = False
+TestStepStarted.__test__ = False
+
+
+def _complete_hook_wrapper(wrapper: Any, *, excinfo: Any = None) -> None:
+    next(wrapper)
+    try:
+        wrapper.send(SimpleNamespace(excinfo=excinfo))
+    except StopIteration:
+        return
+    raise AssertionError("pytest hook wrapper did not complete")
+
+
+def _drain_messages(plugin: MessagePlugin) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    while not plugin.process_messages_io_queue.empty():
+        result.append(json.loads(plugin.process_messages_io_queue.get_nowait()))
+    return result
 
 
 def test_message_plugin_add_options() -> None:
@@ -35,6 +79,7 @@ def test_message_plugin_disabled_when_no_options() -> None:
 
     plugin = MessagePlugin(config=config)
     assert plugin.is_disabled is True
+    assert plugin.message_transport is None
 
 
 def test_message_plugin_get_timestamp() -> None:
@@ -52,12 +97,245 @@ def test_message_plugin_pytest_cuke_message_queue() -> None:
     assert plugin.is_disabled is False
     plugin.process_messages_io_queue = Queue()
 
-    msg = Message(test_case=TestCase(id="tc-1", pickle_id="p-1", test_steps=[]))
+    msg = Message(
+        attachment=Attachment(
+            body="tc-1",
+            content_encoding=ContentEncoding.identity,
+            media_type="text/plain",
+        )
+    )
     plugin.pytest_cuke_message(config, msg)
 
     assert not plugin.process_messages_io_queue.empty()
     item = plugin.process_messages_io_queue.get_nowait()
     assert "tc-1" in item
+
+
+def test_validated_message_hook_and_ndjson_receive_the_same_accepted_order() -> None:
+    observed: list[Message] = []
+    config = SimpleNamespace(
+        stash={},
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=SimpleNamespace(pytest_cuke_message_validated=lambda *, config, message: observed.append(message)),
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.process_messages_io_queue = Queue()
+    messages = [
+        Message(
+            attachment=Attachment(
+                body="first",
+                content_encoding=ContentEncoding.identity,
+                media_type="text/plain",
+            )
+        ),
+        Message(
+            attachment=Attachment(
+                body="second",
+                content_encoding=ContentEncoding.identity,
+                media_type="text/plain",
+            )
+        ),
+    ]
+
+    for message in messages:
+        plugin.pytest_cuke_message(config, message)
+
+    queued = [plugin.process_messages_io_queue.get_nowait() for _ in messages]
+    assert observed == messages
+    assert [json.loads(value)["attachment"]["body"] for value in queued] == ["first", "second"]
+
+
+def test_validated_hook_and_ndjson_receive_the_same_exception_stack_trace() -> None:
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="test.feature::Scenario",
+        feature=Feature(name="Failure", uri="failure.feature"),
+        scenario=Scenario(name="Failure"),
+    )
+    scenario_run.message_state.test_step_exception_traces = {"ts-1": "failure stack trace"}
+    observed: list[Message] = []
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=SimpleNamespace(pytest_cuke_message_validated=lambda *, config, message: observed.append(message)),
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.process_messages_io_queue = Queue()
+    events = [
+        Message(test_run_started=TestRunStarted(timestamp=Timestamp(seconds=1, nanos=0))),
+        Message(
+            pickle=Pickle(
+                id="p-1",
+                uri="failure.feature",
+                name="Failure",
+                language="en",
+                steps=[PickleStep(id="ps-1", ast_node_ids=["ast-1"], text="a failing step")],
+                tags=[],
+                ast_node_ids=["ast-1"],
+            )
+        ),
+        Message(
+            test_case=TestCase(
+                id="tc-1",
+                pickle_id="p-1",
+                test_steps=[TestStep(id="ts-1", pickle_step_id="ps-1", step_definition_ids=[])],
+            )
+        ),
+        Message(
+            test_case_started=TestCaseStarted(
+                attempt=0,
+                id="tcs-1",
+                test_case_id="tc-1",
+                worker_id="master",
+                timestamp=Timestamp(seconds=2, nanos=0),
+            )
+        ),
+        Message(
+            test_step_started=TestStepStarted(
+                test_case_started_id="tcs-1",
+                test_step_id="ts-1",
+                timestamp=Timestamp(seconds=3, nanos=0),
+            )
+        ),
+        Message(
+            test_step_finished=TestStepFinished(
+                test_case_started_id="tcs-1",
+                test_step_id="ts-1",
+                timestamp=Timestamp(seconds=4, nanos=0),
+                test_step_result=TestStepResult(
+                    duration=Duration(seconds=1, nanos=0),
+                    status=Status.failed,
+                    exception=ExceptionMessage(type="AssertionError", message="failure"),
+                ),
+            )
+        ),
+    ]
+
+    for event in events:
+        plugin.pytest_cuke_message(config, event)
+
+    observed_payloads = [
+        message_to_dict(event)
+        for event in observed
+    ]
+    queued_payloads = [
+        json.loads(plugin.process_messages_io_queue.get_nowait())
+        for _ in events
+    ]
+    assert observed_payloads == queued_payloads
+    assert queued_payloads[-1]["testStepFinished"]["testStepResult"]["exception"]["stackTrace"] == (
+        "failure stack trace"
+    )
+
+
+def test_message_plugin_rejects_invalid_envelope_before_both_sinks() -> None:
+    observed: list[Message] = []
+    config = SimpleNamespace(
+        stash={},
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=SimpleNamespace(pytest_cuke_message_validated=lambda *, config, message: observed.append(message)),
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.process_messages_io_queue = Queue()
+    invalid = Message(
+        test_run_started=TestRunStarted(timestamp=Timestamp(seconds=123, nanos=456)),
+        test_run_finished=TestRunFinished(success=True, timestamp=Timestamp(seconds=124, nanos=0)),
+    )
+
+    plugin.pytest_cuke_message(config, invalid)
+
+    assert observed == []
+    assert plugin.process_messages_io_queue.empty()
+    assert len(plugin.message_diagnostics) == 1
+    diagnostic = plugin.message_diagnostics[0]
+    assert diagnostic.code == "INVALID_PAYLOAD_SHAPE"
+    assert diagnostic.severity == "error"
+    assert diagnostic.position == 0
+    assert diagnostic.payload_kind is None
+    assert diagnostic.offending_ids == ()
+
+    terminal_reporter = MagicMock()
+    plugin.pytest_terminal_summary(terminal_reporter, ExitCode.TESTS_FAILED, config)
+    diagnostic_line = terminal_reporter.write_line.call_args.args[0]
+    assert diagnostic_line.startswith("PYTEST_CUKE_MESSAGE_DIAGNOSTIC={")
+    assert json.loads(diagnostic_line.removeprefix("PYTEST_CUKE_MESSAGE_DIAGNOSTIC=")) == {
+        "code": "INVALID_PAYLOAD_SHAPE",
+        "severity": "error",
+        "position": 0,
+        "payload_kind": None,
+        "message": diagnostic.message,
+        "offending_ids": [],
+        "instance_path": None,
+    }
+
+
+def test_message_plugin_meta_uses_the_installed_protocol_release() -> None:
+    config = SimpleNamespace(
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=None,
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.process_messages_io_queue = Queue()
+    plugin.start_process_messages_thread = lambda: None
+    config.pytest_cuke_id_generator = IdGenerator()
+    config.hook = SimpleNamespace(
+        pytest_cuke_message=lambda *, config, message: plugin.pytest_cuke_message(config, message),
+        pytest_cuke_message_validated=lambda *, config, message: None,
+    )
+
+    _complete_hook_wrapper(plugin.pytest_sessionstart(SimpleNamespace(config=config)))
+
+    envelopes = _drain_messages(plugin)
+    envelope = envelopes[0]
+    assert envelope["meta"]["protocolVersion"] == resolve_upstream_release()[1].protocol_version
+    assert [next(iter(item)) for item in envelopes] == [
+        "meta",
+        "hook",
+        "hook",
+        "testRunStarted",
+        "testRunHookStarted",
+        "testRunHookFinished",
+    ]
+
+
+def test_invalid_stream_marks_terminal_message_and_pytest_run_failed() -> None:
+    config = SimpleNamespace(
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        workeroutput={},
+        hook=None,
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.process_messages_io_queue = Queue()
+    plugin.finish_process_messages_thread = lambda: None
+    plugin.start_process_messages_thread = lambda: None
+    config.pytest_cuke_id_generator = IdGenerator()
+    config.hook = SimpleNamespace(
+        pytest_cuke_message=lambda *, config, message: plugin.pytest_cuke_message(config, message),
+        pytest_cuke_message_validated=lambda *, config, message: None,
+    )
+    _complete_hook_wrapper(plugin.pytest_sessionstart(SimpleNamespace(config=config)))
+    plugin.pytest_cuke_message(
+        config,
+        Message(
+            test_run_started=TestRunStarted(timestamp=Timestamp(seconds=123, nanos=456)),
+            test_run_finished=TestRunFinished(success=True, timestamp=Timestamp(seconds=124, nanos=0)),
+        ),
+    )
+    session = SimpleNamespace(config=config, exitstatus=ExitCode.OK)
+
+    _complete_hook_wrapper(plugin.pytest_sessionfinish(session, ExitCode.OK))
+
+    envelopes = _drain_messages(plugin)
+    terminal = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    assert len(terminal) == 1
+    assert terminal[0]["success"] is False
+    assert session.exitstatus is ExitCode.TESTS_FAILED
+    assert [diagnostic.code for diagnostic in plugin.message_diagnostics] == ["INVALID_PAYLOAD_SHAPE"]
 
 
 def test_message_plugin_pytest_cuke_attach() -> None:

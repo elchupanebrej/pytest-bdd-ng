@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 from attrs import evolve
 from gherkin.ast_builder import AstBuilder
 from gherkin.parser import Parser
-from messages import GherkinDocument
+from pytest_cuke.model.message_types import GherkinDocument, message_from_dict, message_to_dict
 import pytest
 import pytest_cuke
 
@@ -48,7 +48,7 @@ def _document(id_generator: IdGenerator) -> GherkinDocument:
     ast_builder_factory = cast(Any, AstBuilder)
     ast = parser_factory(ast_builder_factory(id_generator=id_generator)).parse(LEGACY_SOURCE)
     ast["uri"] = "legacy-input"
-    return GherkinDocument.model_validate(ast)
+    return message_from_dict(ast, GherkinDocument)
 
 
 class _RecordingLegacyParser:
@@ -109,7 +109,7 @@ def test_legacy_adapter_forwards_historical_inputs_and_converts_full_model(tmp_p
     assert scenario.steps[0].id is not None
     assert scenario.examples[0].rows[0].cells[0].value == "one"
     assert parser.last_document is not None
-    raw_feature = parser.last_document.model_dump(mode="json", exclude_none=True, by_alias=True)["feature"]
+    raw_feature = message_to_dict(parser.last_document)["feature"]
     expected = build_feature_from_dict(
         {"feature": raw_feature},
         uri="file:features/legacy.feature",

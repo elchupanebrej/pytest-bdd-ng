@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import messages
+from pytest_cuke.model import message_types as messages
 from pytest_cuke.model import message_converter as mc
 from pytest_cuke.model import message_serialization as ms
 
