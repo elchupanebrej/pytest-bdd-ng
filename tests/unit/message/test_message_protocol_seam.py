@@ -13,7 +13,7 @@ from pytest_cuke.model.scenario import Scenario
 from pytest_cuke.model.step import Step
 
 if TYPE_CHECKING:
-    import messages
+    from pytest_cuke.model import message_types as messages
 
 
 def test_seam3_execution_event_protocol_contract() -> None:
@@ -43,7 +43,7 @@ def test_seam3_execution_event_protocol_contract() -> None:
 
     for env in envelopes:
         mc.validate_envelope_shape(env)
-        json_obj = json.loads(env.model_dump_json(exclude_none=True, by_alias=True))
+        json_obj = mc.envelope_to_dict(env)
         assert not any("pytest" in k.lower() or "_pytest" in k.lower() for k in json_obj)
 
     assert validate_message_stream(envelopes) == []

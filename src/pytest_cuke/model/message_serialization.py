@@ -9,7 +9,7 @@ from pytest_cuke.model.message_converter import envelope_from_dict, envelope_to_
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    import messages
+    from pytest_cuke.model import message_types as messages
 
 
 def serialize_envelope(envelope: messages.Envelope) -> str:

@@ -235,7 +235,7 @@ Synchronizing Cucumber Messages schemas
 ---------------------------------------
 
 ``sync messages schemas`` synchronizes vendored wire schemas for the exact
-installed ``cuke-messages`` contract version. The tool maps each supported
+installed ``cucumber-messages`` contract version. The tool maps each supported
 distribution version to an upstream release and immutable commit. An unknown
 version fails with an instruction to add an explicit mapping. Before a remote
 sync, the tool verifies that the release tag still resolves to its recorded

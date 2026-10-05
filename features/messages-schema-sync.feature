@@ -18,7 +18,7 @@ Feature: Synchronizing packaged Cucumber Messages schemas
       """
     When I run command "cuke" with arguments "sync messages schemas --schema-path schema-output --source-dir schema-fixture"
     Then the command should exit with code 0
-    And schema sync output should name cuke-messages 0.1.0 and upstream tag v24.0.1
+    And schema sync output should name cucumber-messages 28.0.0 and upstream tag v28.0.0
     And schema output "schema-output" should match source tree "schema-fixture"
 
   Scenario: A clean check reports the pinned source and leaves schemas unchanged
@@ -36,7 +36,7 @@ Feature: Synchronizing packaged Cucumber Messages schemas
     When I snapshot consumer directory "schema-output" for schema sync
     And I run command "cuke" with arguments "sync messages schemas --schema-path schema-output --source-dir schema-fixture --check"
     Then the command should exit with code 0
-    And schema sync output should name cuke-messages 0.1.0 and upstream tag v24.0.1
+    And schema sync output should name cucumber-messages 28.0.0 and upstream tag v28.0.0
     And consumer directory "schema-output" should match its schema sync snapshot
 
   Scenario: A drift check lists changed, missing, and extra schemas in sorted order without writes

@@ -5,7 +5,7 @@ from typing import Final, TypeAlias
 
 from attrs import frozen
 
-from messages import Envelope
+from pytest_cuke.model.message_types import Envelope, message_field_names
 
 
 class StepDefinitionPatternType(Enum):
@@ -22,7 +22,7 @@ class StepDefinitionPatternType(Enum):
 ExpressionType = StepDefinitionPatternType
 EventEnvelope: TypeAlias = Envelope
 PayloadKind: TypeAlias = str
-PAYLOAD_KINDS: Final[tuple[str, ...]] = tuple(Envelope.model_fields.keys())
+PAYLOAD_KINDS: Final[tuple[str, ...]] = message_field_names(Envelope)
 
 CONTROLLER_SINGULAR_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = ("meta", "test_run_started", "test_run_finished")
 STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (

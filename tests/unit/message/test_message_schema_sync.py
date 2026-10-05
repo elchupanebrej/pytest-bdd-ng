@@ -21,7 +21,7 @@ class _Response(io.BytesIO):
 
 
 def test_upstream_tag_verification_follows_annotated_tag_to_pinned_commit(monkeypatch: pytest.MonkeyPatch) -> None:
-    release = message_schema_sync.UPSTREAM_RELEASES["0.1.0"]
+    release = message_schema_sync.UPSTREAM_RELEASES["28.0.0"]
     tag_object_sha = "a" * 40
     responses = iter(
         (
@@ -40,25 +40,25 @@ def test_upstream_tag_verification_follows_annotated_tag_to_pinned_commit(monkey
     message_schema_sync._verify_upstream_tag(release)
 
     assert requested_urls == [
-        "https://api.github.com/repos/cucumber/messages/git/ref/tags/v24.0.1",
+        "https://api.github.com/repos/cucumber/messages/git/ref/tags/v28.0.0",
         f"https://api.github.com/repos/cucumber/messages/git/tags/{tag_object_sha}",
     ]
 
 
 def test_missing_upstream_tag_is_an_actionable_sync_error(monkeypatch: pytest.MonkeyPatch) -> None:
-    release = message_schema_sync.UPSTREAM_RELEASES["0.1.0"]
+    release = message_schema_sync.UPSTREAM_RELEASES["28.0.0"]
 
     def missing_tag(request: urllib.request.Request, timeout: float) -> None:
         raise urllib.error.HTTPError(request.full_url, 404, "Not Found", {}, None)
 
     monkeypatch.setattr(message_schema_sync.urllib.request, "urlopen", missing_tag)
 
-    with pytest.raises(message_schema_sync.SchemaSyncError, match=r"pinned upstream tag v24\.0\.1 is missing"):
+    with pytest.raises(message_schema_sync.SchemaSyncError, match=r"pinned upstream tag v28\.0\.0 is missing"):
         message_schema_sync._verify_upstream_tag(release)
 
 
 def test_archive_rejects_windows_backslash_traversal_paths() -> None:
-    release = message_schema_sync.UPSTREAM_RELEASES["0.1.0"]
+    release = message_schema_sync.UPSTREAM_RELEASES["28.0.0"]
     archive_buffer = io.BytesIO()
     with tarfile.open(fileobj=archive_buffer, mode="w:gz") as archive:
         member = tarfile.TarInfo("messages/jsonschema/..\\..\\outside.json")

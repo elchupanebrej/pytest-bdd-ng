@@ -15,7 +15,7 @@ from pytest_cuke.types.protocol import HasPytestStash
 from pytest_cuke.utils import IdGenerator
 
 if TYPE_CHECKING:
-    from messages import GherkinDocument
+    from pytest_cuke.model.message_types import GherkinDocument
 
 
 @define
@@ -155,10 +155,14 @@ def _feature_from_legacy_result(result: Any, parser_identity: str, path: Path, u
         _reject_unsupported_schema_metadata(document)
         document_data = _document_to_dict(document)
         _reject_unsupported_schema_metadata(document_data)
-        from messages import GherkinDocument  # noqa: PLC0415  -- Generated messages load only for legacy parsing.
+        from pytest_cuke.model.message_types import (
+            GherkinDocument,
+            message_from_dict,
+            message_to_dict,
+        )  # noqa: PLC0415  -- Generated messages load only for legacy parsing.
 
-        validated_document = GherkinDocument.model_validate(document_data)
-        normalized_data = validated_document.model_dump(mode="json", exclude_none=True, by_alias=True)
+        validated_document = message_from_dict(document_data, GherkinDocument)
+        normalized_data = message_to_dict(validated_document)
         feature_data = normalized_data.get("feature")
         if not isinstance(feature_data, dict):
             raise ValueError("GherkinDocument.feature must contain a Feature")
@@ -180,6 +184,10 @@ def _document_to_dict(document: Any) -> dict[str, Any]:
         raw = dict(document)
     elif callable(getattr(document, "model_dump", None)):
         raw = document.model_dump(mode="json", exclude_none=True, by_alias=True)
+    elif hasattr(document, "__dataclass_fields__"):
+        from pytest_cuke.model.message_types import message_to_dict  # noqa: PLC0415
+
+        raw = message_to_dict(document)
     elif callable(getattr(document, "dict", None)):
         raw = document.dict(exclude_none=True, by_alias=True)
     else:

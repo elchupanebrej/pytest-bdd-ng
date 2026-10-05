@@ -147,6 +147,10 @@ def pytest_cuke_message(config: Config, message: Message) -> None:
     """Implement cucumber message protocol https://github.com/cucumber/messages"""
 
 
+def pytest_cuke_message_validated(config: Config, message: Message) -> None:
+    """Receive one envelope after schema and stream validation accepts it."""
+
+
 @hookspec(firstresult=True)
 def pytest_cuke_is_collectible(config: Config, path: Path) -> bool | None:
     """Verifies if path could be collected by pytest_cuke"""

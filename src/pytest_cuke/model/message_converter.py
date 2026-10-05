@@ -4,9 +4,10 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-import messages
+from pytest_cuke.model import message_types as messages
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_extension import has_single_payload
+from pytest_cuke.model.message_types import message_from_dict, message_to_dict
 
 if TYPE_CHECKING:
     from pytest_cuke.exceptions import FeatureConcreteParseError
@@ -369,11 +370,7 @@ def make_test_step_finished(
     timestamp: float | int | datetime | None = None,
 ) -> messages.Envelope:
     if isinstance(status, str):
-        status = (
-            messages.Status[status.lower()]
-            if status.lower() in messages.Status.__members__
-            else messages.Status(status.upper())
-        )
+        status = messages.Status(status.upper())
     result = messages.TestStepResult(status=status, duration=make_duration(duration), message=message)
     payload = messages.TestStepFinished(
         test_case_started_id=test_case_started_id,
@@ -386,11 +383,11 @@ def make_test_step_finished(
 
 def envelope_to_dict(message: messages.Envelope) -> dict[str, Any]:
     validate_envelope_shape(message)
-    return message.model_dump(mode="json", exclude_none=True, by_alias=True)
+    return message_to_dict(message)
 
 
 def envelope_from_dict(payload: dict[str, Any]) -> messages.Envelope:
-    env = messages.Envelope.model_validate(payload)
+    env = message_from_dict(payload, messages.Envelope)
     validate_envelope_shape(env)
     return env
 

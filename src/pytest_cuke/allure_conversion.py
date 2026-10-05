@@ -19,7 +19,7 @@ from pytest_cuke.model.message_converter import envelope_from_dict
 from pytest_cuke.model.message_extension import PAYLOAD_KINDS, get_payload_kind
 
 if TYPE_CHECKING:
-    import messages
+    from pytest_cuke.model import message_types as messages
 
 
 class AllureConversionError(Exception):

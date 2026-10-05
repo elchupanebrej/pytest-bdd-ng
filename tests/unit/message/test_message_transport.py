@@ -1,13 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from pytest_cuke.model import message_converter as mc
-from pytest_cuke.model.message_transport import MessageFanOutEmitter, MessageTransport
-
-if TYPE_CHECKING:
-    import messages
-
+from pytest_cuke.model import message_converter as mc, message_types as messages
+from pytest_cuke.model.message_extension import StepDefinitionPatternType
+from pytest_cuke.model.message_transport import MessageFanOutEmitter, MessageTransport, ValidatedMessageTransport
 
 def test_message_transport_buffering_and_sinks() -> None:
     transport = MessageTransport()
@@ -31,3 +26,25 @@ def test_message_transport_buffering_and_sinks() -> None:
     unsub()
     emitter.emit(mc.make_test_run_started(101.0))
     assert len(calls) == 1
+
+
+def test_validated_transport_fans_out_official_wire_dataclasses() -> None:
+    transport = ValidatedMessageTransport()
+    received: list[messages.Envelope] = []
+    transport.add_sink(received.append)
+    internal = messages.Envelope(
+        step_definition=messages.StepDefinition(
+            id="definition-1",
+            pattern=messages.StepDefinitionPattern(
+                source="example",
+                type=StepDefinitionPatternType.pytest_cuke_heuristic_expression,
+            ),
+            source_reference=messages.SourceReference(uri="steps.py", location=messages.Location(line=1)),
+        )
+    )
+
+    transport.emit(internal)
+
+    assert received[0].step_definition is not None
+    assert received[0].step_definition.pattern.type is messages.MessageStepDefinitionPatternType.cucumber_expression
+    assert messages.message_to_dict(received[0])["stepDefinition"]["pattern"]["type"] == "CUCUMBER_EXPRESSION"

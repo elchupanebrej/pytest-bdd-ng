@@ -14,12 +14,11 @@ import time
 import venv
 import zipfile
 from collections import defaultdict
-from copy import deepcopy
 from dataclasses import dataclass
 from functools import reduce
 from operator import attrgetter, itemgetter
 from pathlib import Path, PurePosixPath
-from textwrap import dedent
+from textwrap import dedent, indent
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
@@ -41,10 +40,11 @@ except ImportError:
         pytest.skip("pytest_httpserver is not installed")
 
 
-from messages import Envelope  # type:ignore[attr-defined]
-from pytest_cuke import given, step, then, when
+from pytest_cuke import given, parsers, step, then, when
 from pytest_cuke.compatibility.pytest import assert_outcomes
 from pytest_cuke.mimetypes import Mimetype
+from pytest_cuke.model.message_types import Envelope, message_from_dict
+from pytest_cuke.model.message_validation import validate_envelope
 from pytest_cuke.utils import compose
 from tests.support.testing_utils import data_table_to_dicts
 
@@ -89,25 +89,12 @@ class ConsumerProject:
 
 
 def _validate_messages_envelope_compatibly(payload: Any) -> Envelope:
-    """Validate a copied v24 message with the bundled v22 model."""
+    """Convert and validate one Cucumber Messages wire envelope."""
     assert isinstance(payload, dict), f"Cucumber Messages envelope must be an object, got {type(payload).__name__}"
-    validation_payload = deepcopy(payload)
-
-    def remove_v24_exception_traces(value: Any) -> None:
-        if isinstance(value, dict):
-            exception = value.get("exception")
-            if isinstance(exception, dict) and "stackTrace" in exception:
-                stack_trace = exception["stackTrace"]
-                assert isinstance(stack_trace, str), exception
-                exception.pop("stackTrace")
-            for child in value.values():
-                remove_v24_exception_traces(child)
-        elif isinstance(value, list):
-            for child in value:
-                remove_v24_exception_traces(child)
-
-    remove_v24_exception_traces(validation_payload)
-    return Envelope.model_validate(validation_payload)
+    envelope = message_from_dict(payload)
+    diagnostics = validate_envelope(envelope)
+    assert not diagnostics, f"invalid Cucumber Messages envelope: {diagnostics!r}; payload={payload!r}"
+    return envelope
 
 
 @dataclass
@@ -1017,8 +1004,8 @@ def consumer_cucumber_json_feature_uri(relative_path: str, expected_uri: str, co
     )
 )
 def consumer_messages_artifact(relative_path, scenario_count, step_count, consumer: ConsumerProject):
-    from messages import Envelope, TestCase, TestCaseFinished, TestCaseStarted, TestRunFinished, TestRunStarted
-    from messages import TestStepFinished
+    from pytest_cuke.model.message_types import TestCase, TestCaseFinished, TestCaseStarted, TestRunFinished
+    from pytest_cuke.model.message_types import TestRunStarted, TestStepFinished
 
     lines = (consumer.path / relative_path).read_text(encoding="utf-8").splitlines()
     envelopes = [_validate_messages_envelope_compatibly(json.loads(line)) for line in lines]
@@ -1057,7 +1044,7 @@ def consumer_messages_artifact(relative_path, scenario_count, step_count, consum
 def consumer_messages_failure_attachment_correlations(relative_path: str, consumer: ConsumerProject) -> None:
     from base64 import b64decode
 
-    from messages import ContentEncoding
+    from pytest_cuke.model.message_types import ContentEncoding
 
     artifact_path = _consumer_artifact_path(relative_path, consumer)
     envelopes = []
@@ -1088,7 +1075,7 @@ def consumer_messages_failure_attachment_correlations(relative_path: str, consum
         return matches[0]
 
     meta = raw_one("meta")
-    assert meta.get("protocolVersion") == "24.0.0", meta
+    assert meta.get("protocolVersion") == "28.0.0", meta
     pickle_message = one("pickle")
     test_case = one("test_case")
     case_started = one("test_case_started")
@@ -1149,12 +1136,12 @@ def consumer_messages_failure_attachment_correlations(relative_path: str, consum
     assert step_metadata.get("pickleStepId") == test_step.pickle_step_id, step_metadata
 
     identity = attachments_by_name["identity.txt"]
-    assert ContentEncoding(identity.content_encoding) == ContentEncoding.identity
+    assert identity.content_encoding is ContentEncoding.identity
     assert identity.media_type == "text/plain"
     assert identity.body == "identity evidence"
 
     binary = attachments_by_name["binary.bin"]
-    assert ContentEncoding(binary.content_encoding) == ContentEncoding.base64
+    assert binary.content_encoding is ContentEncoding.base64
     assert binary.media_type == "application/octet-stream"
     assert b64decode(binary.body, validate=True) == b"\x00\xffbinary evidence"
 
@@ -1247,8 +1234,6 @@ def consumer_external_examples_reports(consumer: ConsumerProject):
     assert len(pickle_step_ids_all) == len(set(pickle_step_ids_all))
     assert len(run_finished) == 1
     assert run_finished[0]["success"] is False
-
-    from messages import Envelope
 
     for line in message_lines:
         _validate_messages_envelope_compatibly(json.loads(line))
@@ -5933,13 +5918,13 @@ def consumer_with_schema_sync_drift_fixture(consumer: ConsumerProject) -> None:
         (destination / f"{name}.schema.json").write_text(json.dumps(existing, sort_keys=True), encoding="utf-8")
 
 
-@then("schema sync output should name cuke-messages 0.1.0 and upstream tag v24.0.1")
+@then("schema sync output should name cucumber-messages 28.0.0 and upstream tag v28.0.0")
 def consumer_schema_sync_output_has_pinned_versions(consumer: ConsumerProject) -> None:
     result = consumer.command_result
     assert result is not None, "a schema sync command has not run"
     output = f"{result.stdout}\n{result.stderr}"
-    assert "cuke-messages==0.1.0" in output, output
-    assert "v24.0.1" in output, output
+    assert "cucumber-messages==28.0.0" in output, output
+    assert "v28.0.0" in output, output
 
 
 @then(re.compile(r'schema output "(?P<destination>[^\"]+)" should match source tree "(?P<source>[^\"]+)"'))
@@ -6001,8 +5986,6 @@ def consumer_artifact_has_one_valid_parse_error(
     column: str,
     consumer: ConsumerProject,
 ) -> None:
-    from messages import Envelope
-
     artifact_path = Path(artifact)
     feature_path = Path(feature)
     if artifact_path.is_absolute() or ".." in artifact_path.parts:
@@ -8324,3 +8307,929 @@ def consumer_debug_mcp_messages_retain_failure(relative_path: str, consumer: Con
     assert artifact_text.strip(), f"Messages artifact is empty: {artifact_path}"
     assert "debug MCP failure sentinel" in artifact_text, artifact_text
     assert "testCaseFinished" in artifact_text, artifact_text
+
+
+# Cucumber Messages reporting-spine acceptance helpers (#293).
+def _install_consumer_reporting_spine_probe(event_kind: str, consumer: ConsumerProject) -> None:
+    invalid_envelope_source = {
+        "multi-payload": (
+            "invalid = Envelope(\n"
+            "    test_run_started=TestRunStarted(timestamp=Timestamp(seconds=123, nanos=456)),\n"
+            "    test_run_finished=TestRunFinished(\n"
+            "        success=True, timestamp=Timestamp(seconds=124, nanos=0)\n"
+            "    ),\n"
+            ")"
+        ),
+        "schema-invalid": (
+            "invalid = Envelope(\n"
+            "    test_run_started=TestRunStarted(timestamp=Timestamp(seconds=1700000000, nanos=0))\n"
+            ")\n"
+            'invalid.test_run_started.timestamp.seconds = "invalid"'
+        ),
+    }.get(event_kind)
+
+    extension_injectors = {
+        "duplicate-lifecycle-id": '''\
+        @pytest.hookimpl(hookwrapper=True, trylast=True)
+        def pytest_runtest_call(item):
+            yield
+            if not _accepted_case_starts:
+                raise AssertionError("the canonical test_case_started event was not observed")
+            item.config.hook.pytest_cuke_message(
+                config=item.config,
+                message=Envelope(test_case_started=_accepted_case_starts[-1]),
+            )
+        ''',
+        "orphan-reference": '''\
+        @pytest.hookimpl(trylast=True)
+        def pytest_runtest_setup(item):
+            item.config.hook.pytest_cuke_message(
+                config=item.config,
+                message=Envelope(
+                    attachment=Attachment(
+                        body="reporting-spine-orphan-attachment",
+                        content_encoding=AttachmentContentEncoding.identity,
+                        media_type="text/plain",
+                        test_case_started_id="reporting-spine-unknown-attempt",
+                    )
+                ),
+            )
+        ''',
+        "out-of-order-lifecycle": '''\
+        class _AfterMessageStreamFinalizes:
+            @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+            def pytest_sessionfinish(self, session, exitstatus):
+                outcome = yield
+                del outcome, exitstatus
+                config = session.config
+                if _run_started_id is None or _after_run_hook_id is None:
+                    raise AssertionError("the canonical AFTER_TEST_RUN hook was not observed")
+
+                message_plugin = config.pluginmanager.get_plugin("pytest_cuke_messages")
+                if message_plugin is None:
+                    raise AssertionError("the Cucumber Messages plugin was not registered")
+                diagnostic_start = len(message_plugin.message_diagnostics)
+                config.hook.pytest_cuke_message(
+                    config=config,
+                    message=Envelope(
+                        test_run_hook_started=TestRunHookStarted(
+                            id="reporting-spine-duplicate-after-hook-start",
+                            test_run_started_id=_run_started_id,
+                            hook_id=_after_run_hook_id,
+                            timestamp=Timestamp(seconds=1700000001, nanos=0),
+                        )
+                    ),
+                )
+                late_diagnostics = message_plugin.message_diagnostics[diagnostic_start:]
+                payloads = [message_diagnostic_to_dict(diagnostic) for diagnostic in late_diagnostics]
+                Path("out-of-order-diagnostics.json").write_text(json.dumps(payloads), encoding="utf-8")
+                if len(payloads) != 1 or payloads[0].get("code") != "OUT_OF_ORDER_LIFECYCLE":
+                    raise AssertionError(f"expected one late out-of-order diagnostic, got {payloads!r}")
+                session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
+        def pytest_sessionstart(session):
+            session.config.pluginmanager.register(
+                _AfterMessageStreamFinalizes(),
+                name="reporting_spine_after_message_stream_finalizes",
+            )
+        ''',
+    }
+    if event_kind not in {"multi-payload", "schema-invalid", *extension_injectors}:
+        raise ValueError(f"unsupported reporting-spine event kind: {event_kind}")
+
+    if invalid_envelope_source is not None:
+        injection = f'''\
+        @pytest.hookimpl(trylast=True)
+        def pytest_runtest_setup(item):
+            global _submitted_reporting_spine_probe
+            if _submitted_reporting_spine_probe:
+                return
+            _submitted_reporting_spine_probe = True
+
+{indent(dedent(invalid_envelope_source).strip(), "            ")}
+            for envelope in (
+                _attachment("reporting-spine-before"),
+                invalid,
+                _attachment("reporting-spine-after"),
+            ):
+                item.config.hook.pytest_cuke_message(config=item.config, message=envelope)
+        '''
+    else:
+        injection = extension_injectors[event_kind]
+
+    runtime_definitions = dedent(
+        '''\
+        @given("the reporting spine probe passes")
+        def reporting_spine_probe_passes():
+            pass
+        '''
+    ).strip()
+    template = dedent(
+        '''\
+        import json
+        from pathlib import Path
+
+        import pytest
+        from cucumber_messages import (
+            Attachment,
+            AttachmentContentEncoding,
+            Envelope,
+            TestRunFinished,
+            TestRunHookStarted,
+            TestRunStarted,
+            Timestamp,
+            message_converter,
+        )
+        from pytest_cuke import given
+        from pytest_cuke.model.message_validation import message_diagnostic_to_dict
+
+
+        def _attachment(body):
+            return Envelope(
+                attachment=Attachment(
+                    body=body,
+                    content_encoding=AttachmentContentEncoding.identity,
+                    media_type="text/plain",
+                )
+            )
+
+
+        _submitted_reporting_spine_probe = False
+        _accepted_case_starts = []
+        _run_started_id = None
+        _after_run_hook_id = None
+
+
+        def pytest_cuke_message_validated(config, message):
+            global _accepted_case_starts, _after_run_hook_id, _run_started_id, _submitted_reporting_spine_probe
+            payload = message_converter.to_dict(message)
+            if message.test_case_started is not None:
+                _accepted_case_starts.append(message.test_case_started)
+            if message.test_run_started is not None:
+                _run_started_id = message.test_run_started.id
+            if message.hook is not None and message.hook.type is not None:
+                if message.hook.type.value == "AFTER_TEST_RUN":
+                    _after_run_hook_id = message.hook.id
+            with Path("validated-messages.ndjson").open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(payload, ensure_ascii=False))
+                stream.write("\\n")
+
+
+        __RUNTIME_DEFINITIONS__
+
+
+        __INJECTION__
+        '''
+    )
+    source = template.replace("__RUNTIME_DEFINITIONS__", runtime_definitions).replace(
+        "__INJECTION__", dedent(injection).strip()
+    )
+    (consumer.path / "conftest.py").write_text(source, encoding="utf-8")
+
+
+@given('an installed consumer extension submits a "multi-payload" envelope through pytest_cuke_message')
+def install_consumer_reporting_spine_multi_payload_probe(consumer: ConsumerProject) -> None:
+    _install_consumer_reporting_spine_probe("multi-payload", consumer)
+
+
+@given('an installed consumer extension submits a "schema-invalid" envelope through pytest_cuke_message')
+def install_consumer_reporting_spine_schema_invalid_probe(consumer: ConsumerProject) -> None:
+    _install_consumer_reporting_spine_probe("schema-invalid", consumer)
+
+
+@given('an installed consumer extension submits a "duplicate-lifecycle-id" envelope through pytest_cuke_message')
+def install_consumer_reporting_spine_duplicate_id_probe(consumer: ConsumerProject) -> None:
+    _install_consumer_reporting_spine_probe("duplicate-lifecycle-id", consumer)
+
+
+@given('an installed consumer extension submits an "orphan-reference" envelope through pytest_cuke_message')
+def install_consumer_reporting_spine_orphan_reference_probe(consumer: ConsumerProject) -> None:
+    _install_consumer_reporting_spine_probe("orphan-reference", consumer)
+
+
+@given('an installed consumer extension submits an "out-of-order-lifecycle" envelope through pytest_cuke_message')
+def install_consumer_reporting_spine_out_of_order_probe(consumer: ConsumerProject) -> None:
+    _install_consumer_reporting_spine_probe("out-of-order-lifecycle", consumer)
+
+
+@given(
+    re.compile(
+        r'the consumer installs reporting-spine probe "(?P<probe>runtime-outcomes|passing-session|teardown-failure)"'
+    )
+)
+def install_consumer_reporting_spine_runtime_probe(probe: str, consumer: ConsumerProject) -> None:
+    runtime_definitions = dedent(
+        '''\
+        @given("the reporting spine step passes")
+        def reporting_spine_step_passes():
+            pass
+
+
+        @given("the reporting spine step fails")
+        def reporting_spine_step_fails():
+            pytest.fail("reporting spine failure sentinel")
+
+
+        @given("the reporting spine step skips")
+        def reporting_spine_step_skips():
+            pytest.skip("reporting spine skip sentinel")
+        '''
+    ).strip()
+    if probe == "passing-session":
+        runtime_definitions = dedent(
+            '''\
+            @given("the reporting spine step passes")
+            def reporting_spine_step_passes():
+                pass
+            '''
+        ).strip()
+    elif probe == "teardown-failure":
+        runtime_definitions = dedent(
+            '''\
+            @pytest.fixture
+            def reporting_spine_teardown_failure():
+                yield
+                raise RuntimeError("reporting spine teardown failure sentinel")
+
+
+            @given("the reporting spine step passes before pytest teardown")
+            def reporting_spine_step_passes_before_teardown(reporting_spine_teardown_failure):
+                pass
+            '''
+        ).strip()
+
+    template = dedent(
+        '''\
+        import json
+        from pathlib import Path
+
+        import pytest
+        from cucumber_messages import message_converter
+        from pytest_cuke import given
+
+
+        def pytest_cuke_message_validated(config, message):
+            payload = message_converter.to_dict(message)
+            output_path = getattr(config.option, "cuke_messages_ndjson", None)
+            if isinstance(output_path, str) and output_path:
+                output = Path(output_path)
+                observer_path = output.with_name(f"{output.stem}.validated.ndjson")
+            else:
+                observer_path = Path("validated-messages.ndjson")
+            with observer_path.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(payload, ensure_ascii=False))
+                stream.write("\\n")
+
+
+        __RUNTIME_DEFINITIONS__
+        '''
+    )
+    source = template.replace("__RUNTIME_DEFINITIONS__", runtime_definitions)
+    (consumer.path / "conftest.py").write_text(source, encoding="utf-8")
+
+
+@then(
+    re.compile(
+        r'the consumer should report one structured message diagnostic "(?P<code>INVALID_PAYLOAD_SHAPE|'
+        r'SCHEMA_VALIDATION_ERROR|DUPLICATE_LIFECYCLE_ID|ORPHAN_REFERENCE|OUT_OF_ORDER_LIFECYCLE)"'
+        r'(?: at position (?P<position>\d+))? with payload kind "(?P<payload_kind>[^"]+)"'
+    )
+)
+def consumer_reports_message_diagnostic(
+    code: str,
+    position: str | None,
+    payload_kind: str,
+    consumer: ConsumerProject,
+) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    prefix = "PYTEST_CUKE_MESSAGE_DIAGNOSTIC="
+    output = result.stdout + result.stderr
+    diagnostic_lines = [line[len(prefix) :] for line in output.splitlines() if line.startswith(prefix)]
+    assert len(diagnostic_lines) == 1, (
+        f"expected one structured pytest-cuke message diagnostic, got {diagnostic_lines!r}:\n{output}"
+    )
+
+    diagnostic_text = diagnostic_lines[0]
+    diagnostic = json.loads(diagnostic_text)
+    assert isinstance(diagnostic, dict), diagnostic
+    assert json.dumps(diagnostic, ensure_ascii=False, separators=(",", ":")) == diagnostic_text, diagnostic_text
+    expected_payload_kind = None if payload_kind == "null" else payload_kind
+    assert diagnostic.get("code") == code, diagnostic
+    assert diagnostic.get("severity") == "error", diagnostic
+    actual_position = diagnostic.get("position")
+    assert isinstance(actual_position, int) and actual_position >= 0, diagnostic
+    if position is not None:
+        assert actual_position == int(position), diagnostic
+    assert diagnostic.get("payload_kind") == expected_payload_kind, diagnostic
+    assert isinstance(diagnostic.get("message"), str) and diagnostic["message"].strip(), diagnostic
+
+    if code == "INVALID_PAYLOAD_SHAPE":
+        assert "payload" in diagnostic["message"].casefold(), diagnostic
+    elif code == "SCHEMA_VALIDATION_ERROR":
+        assert diagnostic.get("instance_path") == "/testRunStarted/timestamp/seconds", diagnostic
+
+
+@then(
+    re.compile(
+        r'the late lifecycle probe should capture one structured message diagnostic "(?P<code>OUT_OF_ORDER_LIFECYCLE)" '
+        r'with payload kind "(?P<payload_kind>test_run_hook_started)"'
+    )
+)
+def consumer_captures_late_message_diagnostic(code: str, payload_kind: str, consumer: ConsumerProject) -> None:
+    diagnostic_path = consumer.path / "out-of-order-diagnostics.json"
+    assert diagnostic_path.is_file(), f"late lifecycle probe did not write diagnostics: {diagnostic_path}"
+    diagnostics = json.loads(diagnostic_path.read_text(encoding="utf-8"))
+    assert isinstance(diagnostics, list) and len(diagnostics) == 1, diagnostics
+    diagnostic = diagnostics[0]
+    assert isinstance(diagnostic, dict), diagnostic
+    assert diagnostic.get("code") == code, diagnostic
+    assert diagnostic.get("severity") == "error", diagnostic
+    assert diagnostic.get("payload_kind") == payload_kind, diagnostic
+    assert isinstance(diagnostic.get("position"), int) and diagnostic["position"] >= 0, diagnostic
+    assert "Cannot accept an envelope after stream validation has finished" in diagnostic.get("message", ""), diagnostic
+
+
+@then(
+    re.compile(
+        r'consumer Messages artifact "(?P<relative_path>[^"]+)" should retain the valid terminal reporting spine '
+        r'around the rejected "(?P<event_kind>multi-payload|schema-invalid|duplicate-lifecycle-id|'
+        r'orphan-reference|out-of-order-lifecycle)" event'
+    )
+)
+def consumer_messages_artifact_retains_reporting_spine(
+    relative_path: str,
+    event_kind: str,
+    consumer: ConsumerProject,
+) -> None:
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    assert artifact_path.is_file(), f"Messages artifact was not written: {artifact_path}"
+    raw_lines = [line for line in artifact_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert raw_lines, f"Messages artifact is empty: {artifact_path}"
+
+    raw_envelopes: list[dict[str, Any]] = []
+    for line_number, raw_line in enumerate(raw_lines, start=1):
+        payload = json.loads(raw_line)
+        assert isinstance(payload, dict), f"line {line_number} is not an envelope object: {payload!r}"
+        payload_keys = [key for key, value in payload.items() if value is not None]
+        assert len(payload_keys) == 1, f"line {line_number} is not a single-payload envelope: {payload!r}"
+        _validate_messages_envelope_compatibly(payload)
+        raw_envelopes.append(payload)
+
+    observer_path = _consumer_artifact_path("validated-messages.ndjson", consumer)
+    assert observer_path.is_file(), f"validated-message observer did not receive accepted events: {observer_path}"
+    observer_envelopes: list[dict[str, Any]] = []
+    for line_number, raw_line in enumerate(observer_path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not raw_line.strip():
+            continue
+        payload = json.loads(raw_line)
+        assert isinstance(payload, dict), f"observer line {line_number} is not an envelope object: {payload!r}"
+        payload_keys = [key for key, value in payload.items() if value is not None]
+        assert len(payload_keys) == 1, f"observer line {line_number} is not a single-payload envelope: {payload!r}"
+        _validate_messages_envelope_compatibly(payload)
+        observer_envelopes.append(payload)
+
+    def ordered_event_ids(envelopes: list[dict[str, Any]]) -> list[tuple[str, object]]:
+        identities: list[tuple[str, object]] = []
+        for envelope in envelopes:
+            kind = next(key for key, value in envelope.items() if value is not None)
+            event = envelope[kind]
+            assert isinstance(event, dict), (kind, event)
+            known_ids = tuple(
+                (name, event[name])
+                for name in ("id", "testCaseStartedId", "testCaseId", "testStepId")
+                if name in event
+            )
+            serialized_event = known_ids or json.dumps(event, ensure_ascii=False, sort_keys=True)
+            identities.append((kind, serialized_event))
+        return identities
+
+    sink_event_ids = ordered_event_ids(raw_envelopes)
+    observer_event_ids = ordered_event_ids(observer_envelopes)
+    assert observer_event_ids == sink_event_ids, (
+        "the validated-message observer and configured NDJSON sink must receive the same ordered accepted events: "
+        f"observer={observer_event_ids!r}, sink={sink_event_ids!r}"
+    )
+    assert observer_envelopes == raw_envelopes, (
+        "both sinks must receive the identical accepted envelopes, including payload values: "
+        f"observer={observer_envelopes!r}, sink={raw_envelopes!r}"
+    )
+
+    run_started = [envelope["testRunStarted"] for envelope in raw_envelopes if "testRunStarted" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in raw_envelopes if "testRunFinished" in envelope]
+    attachments = [envelope["attachment"] for envelope in raw_envelopes if "attachment" in envelope]
+    assert len(run_started) == 1, f"expected one testRunStarted message, got {run_started!r}"
+    assert len(run_finished) == 1, f"expected one terminal testRunFinished message, got {run_finished!r}"
+    if event_kind == "out-of-order-lifecycle":
+        assert run_finished[0]["success"] is True, run_finished[0]
+        rejected_hook_id = "reporting-spine-duplicate-after-hook-start"
+        assert not any(
+            envelope.get("testRunHookStarted", {}).get("id") == rejected_hook_id for envelope in raw_envelopes
+        ), raw_envelopes
+    else:
+        assert run_finished[0]["success"] is False, run_finished[0]
+    assert raw_envelopes[-1].get("testRunFinished") == run_finished[0], "testRunFinished must close the stream"
+
+    marker_bodies = [attachment.get("body") for attachment in attachments]
+    if event_kind in {"multi-payload", "schema-invalid"}:
+        assert marker_bodies.count("reporting-spine-before") == 1, marker_bodies
+        assert marker_bodies.count("reporting-spine-after") == 1, marker_bodies
+        run_started_index = next(index for index, envelope in enumerate(raw_envelopes) if "testRunStarted" in envelope)
+        before_index = next(
+            index
+            for index, envelope in enumerate(raw_envelopes)
+            if envelope.get("attachment", {}).get("body") == "reporting-spine-before"
+        )
+        after_index = next(
+            index
+            for index, envelope in enumerate(raw_envelopes)
+            if envelope.get("attachment", {}).get("body") == "reporting-spine-after"
+        )
+        finished_index = next(index for index, envelope in enumerate(raw_envelopes) if "testRunFinished" in envelope)
+        assert run_started_index < before_index < after_index < finished_index, raw_envelopes
+    elif event_kind == "duplicate-lifecycle-id":
+        started = [envelope["testCaseStarted"] for envelope in raw_envelopes if "testCaseStarted" in envelope]
+        assert len(started) == 1, f"the duplicate attempt ID must be rejected before either sink: {started!r}"
+    elif event_kind == "orphan-reference":
+        assert "reporting-spine-orphan-attachment" not in marker_bodies, marker_bodies
+    elif event_kind == "out-of-order-lifecycle":
+        assert run_finished[0]["success"] is True, run_finished[0]
+
+    for sink_name, envelopes in (
+        ("configured NDJSON sink", raw_envelopes),
+        ("validated-message observer", observer_envelopes),
+    ):
+        if event_kind == "multi-payload":
+            assert not any(
+                envelope.get("testRunStarted", {}).get("timestamp", {}).get("seconds") == 123
+                or envelope.get("testRunFinished", {}).get("timestamp", {}).get("seconds") == 124
+                for envelope in envelopes
+            ), f"the rejected multi-payload event leaked into the {sink_name}"
+        elif event_kind == "schema-invalid":
+            assert not any(
+                envelope.get("testRunStarted", {}).get("timestamp", {}).get("seconds") == "invalid"
+                for envelope in envelopes
+            ), f"the rejected schema-invalid payload leaked into the {sink_name}"
+        elif event_kind == "orphan-reference":
+            assert not any(
+                envelope.get("attachment", {}).get("body") == "reporting-spine-orphan-attachment"
+                for envelope in envelopes
+            ), f"the rejected orphan attachment leaked into the {sink_name}"
+
+
+def _reporting_spine_artifact(relative_path: str, consumer: ConsumerProject) -> list[dict[str, Any]]:
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    assert artifact_path.is_file(), f"Messages artifact was not written: {artifact_path}"
+    envelopes: list[dict[str, Any]] = []
+    for line_number, raw_line in enumerate(artifact_path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not raw_line.strip():
+            continue
+        payload = json.loads(raw_line)
+        assert isinstance(payload, dict), f"line {line_number} is not an envelope object: {payload!r}"
+        payload_keys = [key for key, value in payload.items() if value is not None]
+        assert len(payload_keys) == 1, f"line {line_number} is not a single-payload envelope: {payload!r}"
+        _validate_messages_envelope_compatibly(payload)
+        envelopes.append(payload)
+    assert envelopes, f"Messages artifact is empty: {artifact_path}"
+    return envelopes
+
+
+def _reporting_spine_event_ids(envelopes: list[dict[str, Any]]) -> list[tuple[str, object]]:
+    identities: list[tuple[str, object]] = []
+    for envelope in envelopes:
+        kind = next(key for key, value in envelope.items() if value is not None)
+        event = envelope[kind]
+        assert isinstance(event, dict), (kind, event)
+        event_ids = tuple(
+            (name, event[name])
+            for name in ("id", "testCaseStartedId", "testCaseId", "testStepId")
+            if name in event
+        )
+        identities.append((kind, event_ids or json.dumps(event, ensure_ascii=False, sort_keys=True)))
+    return identities
+
+
+def _assert_reporting_spine_fanout(
+    messages_path: str,
+    observer_path: str,
+    consumer: ConsumerProject,
+) -> list[dict[str, Any]]:
+    messages = _reporting_spine_artifact(messages_path, consumer)
+    observed = _reporting_spine_artifact(observer_path, consumer)
+    message_ids = _reporting_spine_event_ids(messages)
+    observed_ids = _reporting_spine_event_ids(observed)
+    assert observed_ids == message_ids, (
+        "the validated extension sink and configured NDJSON sink must receive the same event IDs in the same order: "
+        f"observer={observed_ids!r}, ndjson={message_ids!r}"
+    )
+    assert observed == messages, (
+        "the validated extension sink and configured NDJSON sink must receive identical accepted envelopes: "
+        f"observer={observed!r}, ndjson={messages!r}"
+    )
+    return messages
+
+
+@then(
+    re.compile(
+        r'consumer reporting-spine artifacts "(?P<messages_path>[^"]+)" and "(?P<observer_path>[^"]+)" '
+        r'should preserve outcome terminal events with protocol "(?P<protocol_version>[0-9.]+)"'
+    )
+)
+def consumer_reporting_spine_preserves_outcomes(
+    messages_path: str,
+    observer_path: str,
+    protocol_version: str,
+    consumer: ConsumerProject,
+) -> None:
+    envelopes = _assert_reporting_spine_fanout(messages_path, observer_path, consumer)
+    meta = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
+    assert len(meta) == 1, meta
+    assert meta[0].get("protocolVersion") == protocol_version, meta[0]
+
+    run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    assert len(run_started) == 1, run_started
+    assert len(run_finished) == 1, run_finished
+    assert run_finished[0].get("success") is False, run_finished[0]
+    assert envelopes[-1].get("testRunFinished") == run_finished[0], "the terminal event must close the stream"
+
+    pickles_by_name = {
+        pickle["name"]: pickle
+        for envelope in envelopes
+        if isinstance((pickle := envelope.get("pickle")), dict)
+    }
+    expected_statuses = {
+        "A reporting spine step passes": "PASSED",
+        "A reporting spine step fails": "FAILED",
+        "A reporting spine step skips": "SKIPPED",
+        "An undefined reporting spine step stays undefined": "UNDEFINED",
+    }
+    assert set(pickles_by_name) == set(expected_statuses), pickles_by_name
+    cases_by_pickle = {
+        test_case["pickleId"]: test_case
+        for envelope in envelopes
+        if isinstance((test_case := envelope.get("testCase")), dict)
+    }
+    pickle_events = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    case_events = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    assert len(pickle_events) == len(case_events) == len(expected_statuses), (pickle_events, case_events)
+    started_by_case = {
+        started["testCaseId"]: started
+        for envelope in envelopes
+        if isinstance((started := envelope.get("testCaseStarted")), dict)
+    }
+    start_events = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    case_finishes = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    assert (
+        len(cases_by_pickle)
+        == len(started_by_case)
+        == len(start_events)
+        == len(case_finishes)
+        == len(expected_statuses)
+    )
+
+    for scenario_name, expected_status in expected_statuses.items():
+        pickle = pickles_by_name[scenario_name]
+        test_case = cases_by_pickle[pickle["id"]]
+        attempt = started_by_case[test_case["id"]]
+        step_finishes = [
+            envelope["testStepFinished"]
+            for envelope in envelopes
+            if isinstance(envelope.get("testStepFinished"), dict)
+            and envelope["testStepFinished"].get("testCaseStartedId") == attempt["id"]
+        ]
+        assert len(step_finishes) == 1, (scenario_name, step_finishes)
+        actual_status = step_finishes[0]["testStepResult"].get("status")
+        assert actual_status == expected_status, (scenario_name, actual_status, step_finishes)
+        linked_finishes = [
+            finish
+            for finish in case_finishes
+            if finish.get("testCaseStartedId") == attempt["id"]
+        ]
+        assert len(linked_finishes) == 1, (scenario_name, linked_finishes)
+
+
+@then(
+    re.compile(
+        r'consumer reporting-spine artifacts "(?P<messages_path>[^"]+)" and "(?P<observer_path>[^"]+)" '
+        r'should keep the passed step and failed run after teardown failure'
+    )
+)
+def consumer_reporting_spine_preserves_teardown_failure(
+    messages_path: str,
+    observer_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    envelopes = _assert_reporting_spine_fanout(messages_path, observer_path, consumer)
+    meta = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
+    run_starts = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    run_finishes = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    starts = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    case_finishes = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    step_finishes = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
+    assert len(meta) == len(run_starts) == len(run_finishes) == len(cases) == len(starts) == 1
+    assert len(case_finishes) == len(step_finishes) == 1
+    assert meta[0].get("protocolVersion") == "28.0.0", meta[0]
+    assert cases[0].get("pickleId") == next(envelope["pickle"]["id"] for envelope in envelopes if "pickle" in envelope)
+    assert starts[0].get("testCaseId") == cases[0].get("id")
+    assert step_finishes[0].get("testStepResult", {}).get("status") == "PASSED", step_finishes[0]
+    assert step_finishes[0].get("testCaseStartedId") == starts[0].get("id")
+    assert case_finishes[0].get("testCaseStartedId") == starts[0].get("id")
+    assert run_finishes[0].get("success") is False, run_finishes[0]
+    assert envelopes[-1].get("testRunFinished") == run_finishes[0], "the terminal event must close the stream"
+
+
+@then(
+    re.compile(
+        r'consumer reporting-spine sessions "(?P<first_messages>[^"]+)" and "(?P<second_messages>[^"]+)" '
+        r'should have isolated validated sinks and lifecycle IDs'
+    )
+)
+def consumer_reporting_spine_sessions_are_isolated(
+    first_messages: str,
+    second_messages: str,
+    consumer: ConsumerProject,
+) -> None:
+    first_path = PurePosixPath(first_messages)
+    second_path = PurePosixPath(second_messages)
+    first_observer = str(first_path.with_name(f"{first_path.stem}.validated.ndjson"))
+    second_observer = str(second_path.with_name(f"{second_path.stem}.validated.ndjson"))
+    first = _assert_reporting_spine_fanout(first_messages, first_observer, consumer)
+    second = _assert_reporting_spine_fanout(second_messages, second_observer, consumer)
+
+    for name, envelopes in (("first", first), ("second", second)):
+        metas = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
+        starts = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+        cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+        case_finishes = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+        run_starts = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+        run_finishes = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+        counts = (len(metas), len(starts), len(cases), len(case_finishes), len(run_starts), len(run_finishes))
+        assert counts == (1, 1, 1, 1, 1, 1), (
+            name,
+            metas,
+            starts,
+            cases,
+            case_finishes,
+            run_starts,
+            run_finishes,
+        )
+        assert metas[0].get("protocolVersion") == "28.0.0", metas[0]
+        assert cases[0].get("pickleId") == next(
+            envelope["pickle"]["id"] for envelope in envelopes if "pickle" in envelope
+        ), (name, cases[0])
+        assert starts[0].get("testCaseId") == cases[0].get("id"), (name, starts[0], cases[0])
+        assert case_finishes[0].get("testCaseStartedId") == starts[0].get("id"), (name, case_finishes[0])
+        assert run_finishes[0].get("success") is True, (name, run_finishes[0])
+        assert envelopes[-1].get("testRunFinished") == run_finishes[0], (name, envelopes[-1])
+
+    first_attempt_id = next(
+        envelope["testCaseStarted"]["id"] for envelope in first if "testCaseStarted" in envelope
+    )
+    second_attempt_id = next(
+        envelope["testCaseStarted"]["id"] for envelope in second if "testCaseStarted" in envelope
+    )
+    first_case_id = next(envelope["testCase"]["id"] for envelope in first if "testCase" in envelope)
+    second_case_id = next(envelope["testCase"]["id"] for envelope in second if "testCase" in envelope)
+    assert first_attempt_id != second_attempt_id, (first_attempt_id, second_attempt_id)
+    assert first_case_id != second_case_id, (first_case_id, second_case_id)
+
+
+@given(
+    re.compile(
+        r'the consumer installs reporting-spine run-hook probe "(?P<probe>failing-after-hook)"'
+    )
+)
+def install_consumer_reporting_spine_run_hook_probe(probe: str, consumer: ConsumerProject) -> None:
+    if probe != "failing-after-hook":
+        raise ValueError(f"unsupported reporting-spine run-hook probe: {probe}")
+
+    template = dedent(
+        '''\
+        import json
+        from pathlib import Path
+
+        import pytest
+        from cucumber_messages import Attachment, AttachmentContentEncoding, Envelope, message_converter
+        from pytest_cuke import given
+
+
+        _hook_types = {}
+        _run_hook_started_ids = {}
+
+
+        def pytest_cuke_message_validated(config, message):
+            if message.hook is not None and message.hook.type is not None:
+                _hook_types[message.hook.id] = message.hook.type.value
+            if message.test_run_hook_started is not None:
+                started = message.test_run_hook_started
+                hook_type = _hook_types.get(started.hook_id)
+                if hook_type is not None:
+                    _run_hook_started_ids[hook_type] = started.id
+
+            payload = message_converter.to_dict(message)
+            output_path = getattr(config.option, "cuke_messages_ndjson", None)
+            if isinstance(output_path, str) and output_path:
+                output = Path(output_path)
+                observer_path = output.with_name(f"{output.stem}.validated.ndjson")
+            else:
+                observer_path = Path("validated-messages.ndjson")
+            with observer_path.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(payload, ensure_ascii=False))
+                stream.write("\\n")
+
+
+        def _attach_to_run_hook(config, hook_type):
+            started_id = _run_hook_started_ids.get(hook_type)
+            if not started_id:
+                raise AssertionError(f"no started {hook_type} run hook was observed")
+            attachment_name = hook_type.casefold().replace("_", "-")
+            config.hook.pytest_cuke_message(
+                config=config,
+                message=Envelope(
+                    attachment=Attachment(
+                        body=f"reporting-spine-{attachment_name}-attachment",
+                        content_encoding=AttachmentContentEncoding.identity,
+                        media_type="text/plain",
+                        test_run_hook_started_id=started_id,
+                    )
+                ),
+            )
+
+
+        @given("the reporting spine run-hook step passes")
+        def reporting_spine_run_hook_step_passes():
+            pass
+
+
+        @pytest.hookimpl(hookwrapper=True, trylast=True)
+        def pytest_sessionstart(session):
+            yield
+            _attach_to_run_hook(session.config, "BEFORE_TEST_RUN")
+
+
+        @pytest.hookimpl(hookwrapper=True, trylast=True)
+        def pytest_sessionfinish(session, exitstatus):
+            outcome = yield
+            _attach_to_run_hook(session.config, "AFTER_TEST_RUN")
+            outcome.force_exception(RuntimeError("reporting spine after-session hook sentinel"))
+        '''
+    )
+    (consumer.path / "conftest.py").write_text(template, encoding="utf-8")
+
+
+@then(
+    re.compile(
+        r'consumer reporting-spine artifacts "(?P<messages_path>[^"]+)" and "(?P<observer_path>[^"]+)" '
+        r'should preserve the ordered before and failed after run-hook lifecycle for protocol "(?P<protocol_version>[0-9.]+)"'
+    )
+)
+def consumer_reporting_spine_preserves_run_hook_lifecycle(
+    messages_path: str,
+    observer_path: str,
+    protocol_version: str,
+    consumer: ConsumerProject,
+) -> None:
+    envelopes = _assert_reporting_spine_fanout(messages_path, observer_path, consumer)
+    meta = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
+    assert len(meta) == 1 and meta[0].get("protocolVersion") == protocol_version, meta
+
+    def events(kind: str) -> list[dict[str, Any]]:
+        found = [envelope[kind] for envelope in envelopes if isinstance(envelope.get(kind), dict)]
+        assert found, f"expected {kind} events in the reporting-spine stream"
+        return found
+
+    run_started = events("testRunStarted")
+    run_finished = events("testRunFinished")
+    assert len(run_started) == len(run_finished) == 1, (run_started, run_finished)
+    run_id = run_started[0].get("id")
+    assert isinstance(run_id, str) and run_id, run_started[0]
+    assert run_finished[0].get("testRunStartedId") == run_id, run_finished[0]
+    assert run_finished[0].get("success") is False, run_finished[0]
+    assert envelopes[-1].get("testRunFinished") == run_finished[0], "testRunFinished must close the stream"
+
+    hooks = {
+        hook.get("type"): hook
+        for envelope in envelopes
+        if isinstance((hook := envelope.get("hook")), dict)
+        and hook.get("type") in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}
+    }
+    assert set(hooks) == {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}, hooks
+    hook_definition_indexes = {
+        hook_type: next(
+            index
+            for index, envelope in enumerate(envelopes)
+            if envelope.get("hook", {}).get("id") == hook["id"]
+        )
+        for hook_type, hook in hooks.items()
+    }
+    for hook_type, hook in hooks.items():
+        source_reference = hook.get("sourceReference")
+        assert isinstance(source_reference, dict), (hook_type, hook)
+        assert isinstance(source_reference.get("uri"), str) and source_reference["uri"], source_reference
+        location = source_reference.get("location")
+        assert isinstance(location, dict) and isinstance(location.get("line"), int) and location["line"] > 0, (
+            hook_type,
+            source_reference,
+        )
+
+    started_events = events("testRunHookStarted")
+    finished_events = events("testRunHookFinished")
+    starts_by_type: dict[str, dict[str, Any]] = {}
+    start_indexes: dict[str, int] = {}
+    for index, envelope in enumerate(envelopes):
+        started = envelope.get("testRunHookStarted")
+        if not isinstance(started, dict):
+            continue
+        hook = next(
+            (definition for definition in hooks.values() if definition.get("id") == started.get("hookId")), None
+        )
+        assert hook is not None, started
+        hook_type = hook["type"]
+        assert hook_type not in starts_by_type, (hook_type, starts_by_type, started)
+        assert started.get("testRunStartedId") == run_id, started
+        assert isinstance(started.get("id"), str) and started["id"], started
+        starts_by_type[hook_type] = started
+        start_indexes[hook_type] = index
+        assert hook_definition_indexes[hook_type] < index, (hook_type, hook_definition_indexes[hook_type], index)
+    assert set(starts_by_type) == {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}, started_events
+
+    finishes_by_start: dict[str, dict[str, Any]] = {}
+    finish_indexes: dict[str, int] = {}
+    for index, envelope in enumerate(envelopes):
+        finished = envelope.get("testRunHookFinished")
+        if not isinstance(finished, dict):
+            continue
+        started_id = finished.get("testRunHookStartedId")
+        assert started_id in {event.get("id") for event in starts_by_type.values()}, finished
+        assert started_id not in finishes_by_start, (started_id, finished)
+        finishes_by_start[started_id] = finished
+        finish_indexes[started_id] = index
+    assert len(finished_events) == len(finishes_by_start) == 2, finished_events
+
+    attachments = [
+        (index, envelope["attachment"])
+        for index, envelope in enumerate(envelopes)
+        if isinstance(envelope.get("attachment"), dict)
+        and envelope["attachment"].get("body") in {
+            "reporting-spine-before-test-run-attachment",
+            "reporting-spine-after-test-run-attachment",
+        }
+    ]
+    assert len(attachments) == 2, attachments
+    attachment_indexes: dict[str, int] = {}
+    for index, attachment in attachments:
+        hook_type = "BEFORE_TEST_RUN" if "before" in attachment["body"] else "AFTER_TEST_RUN"
+        started = starts_by_type[hook_type]
+        assert attachment.get("testRunHookStartedId") == started["id"], (hook_type, attachment, started)
+        attachment_indexes[hook_type] = index
+
+    statuses: dict[str, str] = {}
+    for hook_type, started in starts_by_type.items():
+        finished = finishes_by_start[started["id"]]
+        result = finished.get("result")
+        assert isinstance(result, dict), (hook_type, finished)
+        statuses[hook_type] = result.get("status")
+        assert finish_indexes[finished["testRunHookStartedId"]] > start_indexes[hook_type]
+        assert (
+            start_indexes[hook_type]
+            < attachment_indexes[hook_type]
+            < finish_indexes[finished["testRunHookStartedId"]]
+        )
+    assert statuses == {"BEFORE_TEST_RUN": "PASSED", "AFTER_TEST_RUN": "FAILED"}, statuses
+
+    failed_result = finishes_by_start[starts_by_type["AFTER_TEST_RUN"]["id"]]["result"]
+    exception = failed_result.get("exception")
+    failure_evidence = "\n".join(
+        value
+        for value in (
+            failed_result.get("message"),
+            exception.get("message") if isinstance(exception, dict) else None,
+        )
+        if isinstance(value, str)
+    )
+    assert "reporting spine after-session hook sentinel" in failure_evidence, failed_result
+
+    scenario_starts = [
+        index for index, envelope in enumerate(envelopes) if isinstance(envelope.get("testCaseStarted"), dict)
+    ]
+    scenario_finishes = [
+        index for index, envelope in enumerate(envelopes) if isinstance(envelope.get("testCaseFinished"), dict)
+    ]
+    assert len(scenario_starts) == len(scenario_finishes) == 1, (scenario_starts, scenario_finishes)
+    before_start = start_indexes["BEFORE_TEST_RUN"]
+    after_start = start_indexes["AFTER_TEST_RUN"]
+    before_finish = finish_indexes[starts_by_type["BEFORE_TEST_RUN"]["id"]]
+    after_finish = finish_indexes[starts_by_type["AFTER_TEST_RUN"]["id"]]
+    assert (
+        envelopes.index(next(envelope for envelope in envelopes if "testRunStarted" in envelope))
+        < before_start
+        < before_finish
+        < scenario_starts[0]
+        < scenario_finishes[0]
+        < after_start
+        < after_finish
+        < envelopes.index(next(envelope for envelope in envelopes if "testRunFinished" in envelope))
+    )
