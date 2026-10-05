@@ -20,7 +20,7 @@ port is selected.
    pytest --cuke-mcp-on-fail --cuke-mcp-timeout=30s --cuke-mcp-lease=10s
 
 The equivalent pytest settings are ``cuke_mcp_timeout``, ``cuke_mcp_lease``,
-``cuke_mcp_host`` and ``cuke_mcp_port``. Durations accept bare seconds or the
+``cuke_mcp_host``, ``cuke_mcp_port`` and ``cuke_mcp_artifacts``. Durations accept bare seconds or the
 ``ms``, ``s``, ``m`` and ``h`` suffixes and must be positive finite values.
 The debugger port accepts ``auto`` or a fixed value from 1 through 65535.
 Command-line values take precedence over pytest configuration.
@@ -60,6 +60,34 @@ available while the failed report is held. It exposes these tools:
 ``heartbeat(session_id, sequence)``
    Extend the lease for the currently active failure. A stale session or
    sequence is rejected.
+
+``submit_artifact(session_id, sequence, artifact)``
+   Validate and write an investigation for the matching active failure as
+   paired UTF-8 JSON and Markdown files. The default directory is
+   ``.pytest_cache/cuke/debug-mcp/artifacts/<session-id>``; set
+   ``--cuke-mcp-artifacts=DIR`` or ``cuke_mcp_artifacts = DIR`` to choose a
+   directory. Relative directories are resolved from pytest's root directory.
+   Each filename includes the increasing failure sequence and a
+   safe slug of the pytest node ID. The tool returns the artifact ID and both
+   paths. Invalid payloads, stale failure identities and filesystem errors
+   return structured errors and do not mark the failure as written.
+
+   The ``artifact`` object requires ``artifact_id``, ``nodeid``,
+   ``pytest_phase``, ``status``, ``summary``, ``inspected_commands``,
+   ``evidence``, ``suspected_cause`` and ``next_action``. Its node ID and phase
+   must match the active failure. The phase is ``setup``, ``call`` or
+   ``teardown``; status is ``investigated``, ``needs_followup`` or ``resolved``.
+   ``links`` is an optional list of strings. Optional ``bdd_metadata`` contains
+   ``feature_path``, ``feature_name``, ``scenario_name``, ``step_keyword``,
+   ``step_text``, ``tags`` and ``example_row``. Fields with unknown names,
+   invalid types, phases or statuses are rejected before files are created.
+
+Artifacts contain the submitted diagnosis fields and BDD metadata from the
+active failure context. Content is stored as submitted; pytest-cuke does not
+automatically redact it. After files are written, subscribers to
+``pytest_cuke_debug_mcp_artifact_created`` receive the node ID, pytest phase,
+BDD metadata, both paths, investigation status and summary. Artifact writing
+does not require a subscriber.
 
 ``release_failure(session_id, sequence, reason="explicit")``
    Resume pytest for the matching failure. ``reason`` can be ``explicit`` or

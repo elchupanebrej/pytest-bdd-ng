@@ -3,10 +3,12 @@ from __future__ import annotations
 import copy
 import time
 from threading import Condition
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+_WriteResult = TypeVar("_WriteResult")
 
 ReleaseReason = Literal["explicit", "timeout", "lease_expired", "debugger_continuation", "shutdown"]
 _RELEASE_REASONS = {"explicit", "timeout", "lease_expired", "debugger_continuation", "shutdown"}
@@ -138,6 +140,24 @@ class FailureQueue:
             self._expire_active_locked()
             self._require_active_locked(session_id=session_id, sequence=sequence)
             self._artifact_written_sequences.add(sequence)
+
+    def write_artifact(
+        self,
+        *,
+        session_id: str,
+        sequence: int,
+        writer: Callable[[dict[str, Any]], _WriteResult],
+    ) -> _WriteResult:
+        """Write under the active hold lock and mark success only after the writer returns."""
+        with self._condition:
+            self._expire_active_locked()
+            failure = self._require_active_locked(session_id=session_id, sequence=sequence)
+            if sequence in self._artifact_written_sequences:
+                raise FailureHoldError("an investigation artifact was already written for this failure")
+            result = writer(copy.deepcopy(failure))
+            self._artifact_written_sequences.add(sequence)
+            self._condition.notify_all()
+            return result
 
     @property
     def last_release(self) -> dict[str, Any] | None:

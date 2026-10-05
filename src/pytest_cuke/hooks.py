@@ -160,3 +160,15 @@ def pytest_cuke_attach(
     file_name: str | None,
 ) -> None:
     """Internal hook to add attachment to a test case"""
+
+
+def pytest_cuke_debug_mcp_artifact_created(
+    nodeid: str,
+    pytest_phase: Literal["setup", "call", "teardown"],
+    bdd_metadata: dict[str, Any],
+    json_path: Path,
+    markdown_path: Path,
+    status: Literal["investigated", "needs_followup", "resolved"],
+    summary: str,
+) -> None:
+    """Receive a validated Debug MCP artifact after its paired files are written."""

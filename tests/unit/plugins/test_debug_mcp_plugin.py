@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp import plugin as debug_mcp_plugin
-from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin, _cache_discovery_path
+from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin, _artifact_root, _cache_discovery_path
 
 
 def test_debug_mcp_discovery_path_uses_pytest_cache_dir_setting(tmp_path) -> None:
@@ -28,6 +29,27 @@ def test_debug_mcp_discovery_path_uses_cli_cache_dir_over_ini(tmp_path) -> None:
     )
 
     assert _cache_discovery_path(config) == cli_cache_dir / "cuke" / "debug-mcp" / "session.json"
+
+
+def test_debug_mcp_artifact_root_defaults_to_session_isolated_cache_directory(tmp_path) -> None:
+    config = SimpleNamespace(
+        rootpath=tmp_path,
+        option=SimpleNamespace(cache_dir=None),
+        getini=lambda name: ".pytest_cache",
+    )
+
+    root = _artifact_root(config, None, "session-42")
+
+    assert root == (tmp_path / ".pytest_cache" / "cuke" / "debug-mcp" / "artifacts" / "session-42").resolve()
+    assert _artifact_root(config, None, "session-43") != root
+
+
+def test_debug_mcp_artifact_root_resolves_configured_relative_path_from_pytest_root(tmp_path) -> None:
+    config = SimpleNamespace(rootpath=tmp_path)
+
+    root = _artifact_root(config, Path("reports/debug-artifacts"), "unused-session")
+
+    assert root == (tmp_path / "reports" / "debug-artifacts").resolve()
 
 
 def test_startup_failure_removes_stale_discovery_record(tmp_path, monkeypatch) -> None:
@@ -165,4 +187,3 @@ def test_active_failure_is_written_to_discovery_and_terminal() -> None:
         "Debug MCP holding failure #2 (call) at tests/test_example.py::test_failure: "
         "RuntimeError: failure sentinel"
     ]
-
