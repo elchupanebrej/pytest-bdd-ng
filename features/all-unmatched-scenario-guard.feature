@@ -14,11 +14,11 @@ Feature: Preventive guard for all-unmatched scenarios
               stream.write(name + "\n")
 
 
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _record("before-scenario")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           _record("step-lookup-error")
       """
     And consumer file "features/explicit-unmatched.feature" contains:
@@ -54,11 +54,11 @@ Feature: Preventive guard for all-unmatched scenarios
               stream.write(name + "\n")
 
 
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _record("before-scenario")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           _record("step-lookup-error")
       """
     And consumer file "features/explicit-unmatched.feature" contains:
@@ -103,11 +103,11 @@ Feature: Preventive guard for all-unmatched scenarios
               stream.write(name + "\n")
 
 
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _record("before-scenario")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           _record("step-lookup-error")
       """
     And consumer file "features/explicit-unmatched.feature" contains:
@@ -150,7 +150,7 @@ Feature: Preventive guard for all-unmatched scenarios
           _record("parent-registry")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           _record("lookup-error")
       """
     And consumer file "features/partial-match.feature" contains:
@@ -359,11 +359,11 @@ Feature: Preventive guard for all-unmatched scenarios
       from pathlib import Path
 
 
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           Path("autoload-runtime-hooks.txt").write_text("before-scenario", encoding="utf-8")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           with Path("autoload-runtime-hooks.txt").open("a", encoding="utf-8") as stream:
               stream.write("\nstep-lookup-error")
       """
@@ -411,11 +411,11 @@ Feature: Preventive guard for all-unmatched scenarios
       from pathlib import Path
 
 
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           Path("mock-run-runtime-hooks.txt").write_text("before-scenario", encoding="utf-8")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           with Path("mock-run-runtime-hooks.txt").open("a", encoding="utf-8") as stream:
               stream.write("\nstep-lookup-error")
       """

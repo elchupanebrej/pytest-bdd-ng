@@ -131,36 +131,30 @@ class HookCaller:
     def __init__(self, hook_relay: Any) -> None:
         self.hook = hook_relay
 
-    def before_scenario(self, request: FixtureRequest, feature: Any, scenario: Any) -> None:
+    def before_scenario(self, request: FixtureRequest, run: Any) -> None:
         if hasattr(self.hook, "pytest_cuke_before_scenario"):
-            self.hook.pytest_cuke_before_scenario(request=request, feature=feature, scenario=scenario)
+            self.hook.pytest_cuke_before_scenario(request=request, run=run)
 
-    def after_scenario(self, request: FixtureRequest, feature: Any, scenario: Any) -> None:
+    def after_scenario(self, request: FixtureRequest, run: Any) -> None:
         if hasattr(self.hook, "pytest_cuke_after_scenario"):
-            self.hook.pytest_cuke_after_scenario(request=request, feature=feature, scenario=scenario)
+            self.hook.pytest_cuke_after_scenario(request=request, run=run)
 
-    def before_step(self, request: FixtureRequest, feature: Any, scenario: Any, step: Any, step_func: Any) -> None:
+    def before_step(self, request: FixtureRequest, run: Any, step_func: Any) -> None:
         if hasattr(self.hook, "pytest_cuke_before_step"):
-            self.hook.pytest_cuke_before_step(
-                request=request, feature=feature, scenario=scenario, step=step, step_func=step_func
-            )
+            self.hook.pytest_cuke_before_step(request=request, run=run, step_func=step_func)
 
     def after_step(
         self,
         request: FixtureRequest,
-        feature: Any,
-        scenario: Any,
-        step: Any,
+        run: Any,
         step_func: Any,
-        step_func_args: tuple[Any, ...],
+        step_func_args: dict[str, Any],
         step_definition: Any,
     ) -> None:
         if hasattr(self.hook, "pytest_cuke_after_step"):
             self.hook.pytest_cuke_after_step(
                 request=request,
-                feature=feature,
-                scenario=scenario,
-                step=step,
+                run=run,
                 step_func=step_func,
                 step_func_args=step_func_args,
                 step_definition=step_definition,
@@ -169,11 +163,9 @@ class HookCaller:
     def step_error(
         self,
         request: FixtureRequest,
-        feature: Any,
-        scenario: Any,
-        step: Any,
+        run: Any,
         step_func: Any,
-        step_func_args: tuple[Any, ...],
+        step_func_args: dict[str, Any],
         exception: BaseException,
         step_definition: Any,
         tolerated: bool = False,
@@ -181,9 +173,7 @@ class HookCaller:
         if hasattr(self.hook, "pytest_cuke_step_error"):
             self.hook.pytest_cuke_step_error(
                 request=request,
-                feature=feature,
-                scenario=scenario,
-                step=step,
+                run=run,
                 step_func=step_func,
                 step_func_args=step_func_args,
                 exception=exception,

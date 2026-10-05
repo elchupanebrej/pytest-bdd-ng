@@ -17,6 +17,7 @@ from mako.template import Template
 from pytest_cuke.compatibility.importlib.resources import as_file, files
 from pytest_cuke.compatibility.pytest import wrap_session
 from pytest_cuke.model import StepType
+from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.packaging import compare_distribution_version
 from pytest_cuke.scenario_locator import FileScenarioLocator
 from pytest_cuke.steps import Matcher
@@ -76,29 +77,30 @@ def iter_step_definition_matches(
     for step in scenario.steps:
         ambiguous = False
         try:
-            if detect_ambiguity:
-                with warnings.catch_warnings(record=True) as observed:
-                    warnings.simplefilter("always", PytestBDDStepDefinitionWarning)
+            with RunContext().inspect_step(
+                feature=feature,
+                scenario=scenario,
+                step=step,
+                previous_step=previous_step,
+                nodeid="<step-definition-inspection>",
+            ) as run:
+                if detect_ambiguity:
+                    with warnings.catch_warnings(record=True) as observed:
+                        warnings.simplefilter("always", PytestBDDStepDefinitionWarning)
+                        request.config.hook.pytest_cuke_match_step_definition_to_step(
+                            request=request,
+                            run=run,
+                        )
+                    ambiguous = any(
+                        warning.category is PytestBDDStepDefinitionWarning
+                        and "Alternative step definitions" in str(warning.message)
+                        for warning in observed
+                    )
+                else:
                     request.config.hook.pytest_cuke_match_step_definition_to_step(
                         request=request,
-                        feature=feature,
-                        scenario=scenario,
-                        step=step,
-                        previous_step=previous_step,
+                        run=run,
                     )
-                ambiguous = any(
-                    warning.category is PytestBDDStepDefinitionWarning
-                    and "Alternative step definitions" in str(warning.message)
-                    for warning in observed
-                )
-            else:
-                request.config.hook.pytest_cuke_match_step_definition_to_step(
-                    request=request,
-                    feature=feature,
-                    scenario=scenario,
-                    step=step,
-                    previous_step=previous_step,
-                )
         except Matcher.MatchNotFoundError:
             yield StepDefinitionMatch(step=step, matched=False, ambiguous=False)
         except Exception as error:
