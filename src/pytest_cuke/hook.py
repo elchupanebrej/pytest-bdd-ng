@@ -176,6 +176,7 @@ class HookCaller:
         step_func_args: tuple[Any, ...],
         exception: BaseException,
         step_definition: Any,
+        tolerated: bool = False,
     ) -> None:
         if hasattr(self.hook, "pytest_cuke_step_error"):
             self.hook.pytest_cuke_step_error(
@@ -187,4 +188,5 @@ class HookCaller:
                 step_func_args=step_func_args,
                 exception=exception,
                 step_definition=step_definition,
+                tolerated=tolerated,
             )
