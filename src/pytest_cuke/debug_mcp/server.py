@@ -10,6 +10,15 @@ from contextlib import suppress
 from importlib.util import find_spec
 from typing import Any  # FastMCP resolves tool annotations at runtime.
 
+from pydantic import ValidationError
+
+from pytest_cuke.debug_mcp.artifacts import ArtifactSink, ArtifactWriteResult, validation_error_payload
+from pytest_cuke.debug_mcp.schemas import BddMetadata, InvestigationArtifact
+from pytest_cuke.debug_mcp.state import FailureHoldError, FailureQueue, ReleaseReason
+
+
+class _ArtifactFailureMismatch(ValueError):
+    """A submitted artifact does not describe the active held failure."""
 
 class DebugMcpDependencyError(RuntimeError):
     """The selected optional Debug MCP backend is not installed or cannot start."""
@@ -168,10 +177,20 @@ class DebuggerMcpProcess:
 class InspectionMcpServer:
     """Host the client-facing failure inspection tools in pytest's process."""
 
-    def __init__(self, *, queue: Any, host: str, port: int) -> None:
+    def __init__(
+        self,
+        *,
+        queue: FailureQueue,
+        host: str,
+        port: int,
+        artifact_sink: ArtifactSink | None = None,
+        pluginmanager: Any | None = None,
+    ) -> None:
         self.queue = queue
         self.host = host
         self.port = port
+        self.artifact_sink = artifact_sink
+        self.pluginmanager = pluginmanager
         self.endpoint = endpoint_url(host, port)
         self._server: Any = None
         self._thread: threading.Thread | None = None
@@ -202,7 +221,7 @@ class InspectionMcpServer:
         def release_failure(
             session_id: str,
             sequence: int,
-            reason: str = "explicit",
+            reason: ReleaseReason = "explicit",
         ) -> dict[str, Any]:
             """Release the matching failure, optionally after debugger continuation."""
             return failure_queue.release_failure(
@@ -210,6 +229,58 @@ class InspectionMcpServer:
                 sequence=sequence,
                 reason=reason,
             )
+
+        if self.artifact_sink is not None:
+            artifact_sink = self.artifact_sink
+            pluginmanager = self.pluginmanager
+
+            @mcp.tool()
+            def submit_artifact(session_id: str, sequence: int, artifact: Any) -> dict[str, Any]:
+                """Validate and store paired JSON/Markdown findings for the matching held failure."""
+                submitted: dict[str, InvestigationArtifact] = {}
+
+                def write_for_active_failure(active: dict[str, Any]) -> ArtifactWriteResult:
+                    validated = InvestigationArtifact.model_validate(artifact)
+                    if validated.nodeid != active["nodeid"]:
+                        raise _ArtifactFailureMismatch("artifact nodeid does not match the active held failure")
+                    if validated.pytest_phase != active["phase"]:
+                        raise _ArtifactFailureMismatch("artifact pytest_phase does not match the active held failure")
+
+                    bound = validated.model_copy(update={"bdd_metadata": _bdd_metadata(active.get("bdd_context"))})
+                    submitted["artifact"] = bound
+                    return artifact_sink.write(
+                        sequence=sequence,
+                        nodeid=str(active["nodeid"]),
+                        payload=bound.model_dump(mode="json"),
+                    )
+
+                try:
+                    result = failure_queue.write_artifact(
+                        session_id=session_id,
+                        sequence=sequence,
+                        writer=write_for_active_failure,
+                    )
+                except ValidationError as error:
+                    return validation_error_payload(error)
+                except _ArtifactFailureMismatch as error:
+                    return {"ok": False, "error": "failure_mismatch", "details": [str(error)]}
+                except FailureHoldError as error:
+                    return {"ok": False, "error": "failure_unavailable", "details": [str(error)]}
+                except (OSError, ValueError) as error:
+                    return {"ok": False, "error": "filesystem_error", "details": [str(error)]}
+
+                validated_artifact = submitted["artifact"]
+                if pluginmanager is not None:
+                    pluginmanager.hook.pytest_cuke_debug_mcp_artifact_created(
+                        nodeid=validated_artifact.nodeid,
+                        pytest_phase=validated_artifact.pytest_phase,
+                        bdd_metadata=validated_artifact.bdd_metadata.model_dump(mode="json"),
+                        json_path=result.json_path,
+                        markdown_path=result.markdown_path,
+                        status=validated_artifact.status,
+                        summary=validated_artifact.summary,
+                    )
+                return {"ok": True, **result.as_dict()}
 
         class _ThreadedUvicornServer(uvicorn.Server):
             def install_signal_handlers(self) -> None:
@@ -251,3 +322,23 @@ class InspectionMcpServer:
             thread.join(timeout=timeout)
         self._server = None
         self._thread = None
+
+
+def _bdd_metadata(context: object) -> BddMetadata:
+    if not isinstance(context, dict):
+        return BddMetadata()
+    example_row = context.get("outline_row")
+    tags = context.get("tags")
+    return BddMetadata(
+        feature_path=context.get("feature_path") if isinstance(context.get("feature_path"), str) else None,
+        feature_name=context.get("feature_name") if isinstance(context.get("feature_name"), str) else None,
+        scenario_name=context.get("scenario_name") if isinstance(context.get("scenario_name"), str) else None,
+        step_keyword=context.get("step_keyword") if isinstance(context.get("step_keyword"), str) else None,
+        step_text=context.get("step_text") if isinstance(context.get("step_text"), str) else None,
+        tags=[tag for tag in tags if isinstance(tag, str)] if isinstance(tags, list) else [],
+        example_row=(
+            {key: value for key, value in example_row.items() if isinstance(key, str) and isinstance(value, str)}
+            if isinstance(example_row, dict)
+            else {}
+        ),
+    )

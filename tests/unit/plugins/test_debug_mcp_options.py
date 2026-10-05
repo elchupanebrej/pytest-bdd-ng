@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -45,6 +46,7 @@ def test_debug_mcp_options_use_cli_values_before_ini_values() -> None:
             cuke_mcp_lease=None,
             cuke_mcp_host=None,
             cuke_mcp_port=8765,
+            cuke_mcp_artifacts=None,
         ),
         getini=lambda name: {
             "cuke_mcp_on_fail": False,
@@ -52,6 +54,7 @@ def test_debug_mcp_options_use_cli_values_before_ini_values() -> None:
             "cuke_mcp_lease": "12s",
             "cuke_mcp_host": "localhost",
             "cuke_mcp_port": "9000",
+            "cuke_mcp_artifacts": "reports/debug-artifacts",
         }[name],
     )
 
@@ -62,6 +65,27 @@ def test_debug_mcp_options_use_cli_values_before_ini_values() -> None:
     assert options.lease_seconds == 12.0
     assert options.host == "localhost"
     assert options.port == 8765
+    assert options.artifacts_root is not None
+    assert options.artifacts_root.as_posix() == "reports/debug-artifacts"
+
+
+def test_debug_mcp_artifact_cli_path_overrides_ini_path() -> None:
+    ini = {
+        "cuke_mcp_on_fail": False,
+        "cuke_mcp_timeout": "30s",
+        "cuke_mcp_lease": "10s",
+        "cuke_mcp_host": "127.0.0.1",
+        "cuke_mcp_port": "auto",
+        "cuke_mcp_artifacts": "ini-artifacts",
+    }
+    config = SimpleNamespace(
+        option=SimpleNamespace(cuke_mcp_artifacts="cli-artifacts"),
+        getini=lambda name: ini[name],
+    )
+
+    options = DebugMcpOptions.from_config(config)
+
+    assert options.artifacts_root == Path("cli-artifacts")
 
 
 def test_debug_mcp_options_have_inert_loopback_defaults() -> None:
@@ -72,6 +96,7 @@ def test_debug_mcp_options_have_inert_loopback_defaults() -> None:
             cuke_mcp_lease=None,
             cuke_mcp_host=None,
             cuke_mcp_port=None,
+            cuke_mcp_artifacts=None,
         ),
         getini=lambda name: {
             "cuke_mcp_on_fail": False,
@@ -79,6 +104,7 @@ def test_debug_mcp_options_have_inert_loopback_defaults() -> None:
             "cuke_mcp_lease": "10s",
             "cuke_mcp_host": "127.0.0.1",
             "cuke_mcp_port": "auto",
+            "cuke_mcp_artifacts": "",
         }[name],
     )
 
@@ -89,6 +115,7 @@ def test_debug_mcp_options_have_inert_loopback_defaults() -> None:
     assert options.lease_seconds == 10.0
     assert options.host == "127.0.0.1"
     assert options.port is None
+    assert options.artifacts_root is None
 
 
 def test_debug_mcp_options_reject_invalid_ini_values() -> None:
@@ -99,6 +126,7 @@ def test_debug_mcp_options_reject_invalid_ini_values() -> None:
             cuke_mcp_lease=None,
             cuke_mcp_host=None,
             cuke_mcp_port=None,
+            cuke_mcp_artifacts=None,
         ),
         getini=lambda name: {
             "cuke_mcp_on_fail": False,
@@ -106,6 +134,7 @@ def test_debug_mcp_options_reject_invalid_ini_values() -> None:
             "cuke_mcp_lease": "10s",
             "cuke_mcp_host": "127.0.0.1",
             "cuke_mcp_port": "auto",
+            "cuke_mcp_artifacts": "",
         }[name],
     )
 

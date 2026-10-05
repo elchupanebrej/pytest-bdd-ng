@@ -24,6 +24,42 @@ Feature: Debug MCP failure inspection
     And consumer artifact "report.json" should retain the failed debugger BDD scenario
     And consumer artifact "messages.ndjson" should retain the debugger failure evidence
 
+  Scenario: An external MCP client validates and submits a structured investigation artifact
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer has the optional debug MCP extra installed
+    And the installed consumer exposes a debugger failure BDD probe
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=60s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-mcp-artifacts=artifact-output --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
+    And an external MCP client validates and submits an investigation artifact for the held failure
+    Then pytest should exit with a non-zero code
+    And the MCP artifact observation should confirm strict validation, BDD metadata, and written release status
+    And the consumer MCP artifact files should contain the submitted JSON and Markdown pair
+    And the consumer artifact hook should report the same BDD failure and saved paths
+    And the MCP discovery record should no longer advertise a live endpoint
+    And consumer artifact "report.json" should retain the failed debugger BDD scenario
+    And consumer artifact "messages.ndjson" should retain the debugger failure evidence
+
+  Scenario: A released failure sequence cannot attach an artifact to the next held failure
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer has the optional debug MCP extra installed
+    And the installed consumer exposes two ordered debugger failures
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=60s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto -q"
+    And an external MCP client tries the first failure sequence after the next failure is held
+    Then pytest should exit with a non-zero code
+    And the MCP artifact client observation should show the stale sequence did not affect the next failure
+    And the MCP discovery record should no longer advertise a live endpoint
+
+  Scenario: Filesystem errors leave the held failure available for release
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer has the optional debug MCP extra installed
+    And the installed consumer exposes a debugger failure BDD probe
+    And the installed consumer has a file blocking its configured artifact directory
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=60s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-mcp-artifacts=occupied-root/child --cuke-json=report.json -q"
+    And an external MCP client submits an artifact and releases the held failure after the write fails
+    Then pytest should exit with a non-zero code
+    And the MCP filesystem error observation should show the failure remained held until release
+    And consumer artifact "report.json" should retain the failed debugger BDD scenario
+    And the MCP discovery record should no longer advertise a live endpoint
+
   Scenario: Continuing the advertised debugger session releases the exact held failure
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer has the optional debug MCP extra installed
