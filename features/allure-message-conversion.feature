@@ -55,6 +55,24 @@ Feature: Convert saved Cucumber Messages to Allure results
     And the command output should contain "test steps did not finish"
     And the consumer file "allure-incomplete" should not exist
 
+  Scenario: Preserve an attachment for an unknown Messages test case as an explicit fallback
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-known","uri":"features/known.feature","name":"Known scenario","language":"en","steps":[{"id":"pickle-step-known","astNodeIds":["ast-step-known"],"type":"Context","text":"the known step"}],"tags":[],"astNodeIds":["ast-scenario-known"]}}
+      {"testCase":{"id":"case-known","pickleId":"pickle-known","testSteps":[{"id":"step-known","pickleStepId":"pickle-step-known"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-known","testCaseId":"case-known","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-known","testStepId":"step-known","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-known","testStepId":"step-known","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-known","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":false}}
+      {"attachment":{"body":"{\"testCaseId\":\"case-unknown\",\"event\":\"orphan\"}","contentEncoding":"IDENTITY","fileName":"orphan.json","mediaType":"application/vnd.pytest-bdd.launch+json"}}
+      {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000004,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-unknown-case"
+    Then the command should exit with code 0
+    And consumer Allure result directory "allure-unknown-case" should preserve JSON attachment "orphan.json" for testCaseId "case-unknown" as an unmapped fallback from "messages.ndjson"
+
   Scenario: Reject a retry declaration without its next attempt
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And consumer file "messages.ndjson" contains:
@@ -127,6 +145,24 @@ Feature: Convert saved Cucumber Messages to Allure results
     When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-run-status-only"
     Then the command should exit with code 0
     And consumer Allure result directory "allure-run-status-only" should preserve the success-only run-finished JSON and keep the scenario passed
+
+  Scenario: Preserve an unscoped attachment without case metadata as a run-level fallback
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-run-fallback","uri":"features/run-fallback.feature","name":"Run fallback scenario","language":"en","steps":[{"id":"pickle-step-run-fallback","astNodeIds":["ast-step-run-fallback"],"type":"Context","text":"the successful operation"}],"tags":[],"astNodeIds":["ast-scenario-run-fallback"]}}
+      {"testCase":{"id":"case-run-fallback","pickleId":"pickle-run-fallback","testSteps":[{"id":"step-run-fallback","pickleStepId":"pickle-step-run-fallback"}]}}
+      {"testRunStarted":{"timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-run-fallback","testCaseId":"case-run-fallback","timestamp":{"seconds":1700000001,"nanos":0}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-run-fallback","testStepId":"step-run-fallback","timestamp":{"seconds":1700000002,"nanos":0}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-run-fallback","testStepId":"step-run-fallback","testStepResult":{"duration":{"seconds":0,"nanos":1000000},"status":"PASSED"},"timestamp":{"seconds":1700000002,"nanos":1000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-run-fallback","timestamp":{"seconds":1700000003,"nanos":0},"willBeRetried":false}}
+      {"attachment":{"body":"build metadata bytes","contentEncoding":"IDENTITY","fileName":"build-info.txt","mediaType":"text/plain"}}
+      {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000004,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-run-fallback"
+    Then the command should exit with code 0
+    And consumer Allure result directory "allure-run-fallback" should preserve run-level fallback attachment "Cucumber run-level fallback: build-info.txt" of type "text/plain" with bytes "build metadata bytes"
 
   Scenario: Reject invalid input and output paths and aggregate skipped statuses
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -356,6 +392,7 @@ Feature: Convert saved Cucumber Messages to Allure results
     And the consumer file "features/orders.feature" should not exist
     And consumer Allure result directory "allure-converted" should preserve scenario "Save an order for Ada", tag "@smoke", and outline parameter "customer" value "Ada"
     And consumer Allure result directories "allure-native" and "allure-converted" should be semantically equivalent
+    And consumer Allure result directories "allure-native" and "allure-converted" should preserve no-attempt Messages extensions for their scenarios from "messages.ndjson"
 
   Scenario: Convert failed step diagnostics and attached evidence
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -574,8 +611,16 @@ Feature: Convert saved Cucumber Messages to Allure results
     And the test outcome should have 2 passed scenarios
     When I remove consumer file "features/workflows.feature"
     And I remove consumer file "conftest.py"
+    And consumer file "conftest.py" contains:
+      """python
+      raise RuntimeError("pytest Allure stream import must not load conftest.py")
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-allure=allure-imported --cuke-allure-messages-in=messages.ndjson -q"
+    Then pytest should exit with code 0
+    When I remove consumer file "conftest.py"
     And I run command "cuke" with arguments "convert allure messages.ndjson --output allure-results"
     Then the command should exit with code 0
     And the consumer file "features/workflows.feature" should not exist
     And the consumer file "conftest.py" should not exist
     And consumer Allure result directory "allure-results" should contain both scenarios with ordered steps and linked containers
+    And consumer Allure result directories "allure-imported" and "allure-results" should preserve no-attempt Messages extensions for their scenarios from "messages.ndjson"
