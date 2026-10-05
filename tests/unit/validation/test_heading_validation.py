@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 from gherkin.ast_builder import AstBuilder
 from gherkin.parser import Parser
-from messages import GherkinDocument
+from pytest_cuke.model.message_types import GherkinDocument, message_from_dict
 import pytest
 
 from pytest_cuke.heading_scanner import (
@@ -161,7 +161,7 @@ def test_heading_scan_passes_pytest_config_to_legacy_parser(tmp_path: Path) -> N
             document = Parser(AstBuilder(id_generator=self.id_generator)).parse(path.read_text(encoding="utf-8"))
             document["uri"] = uri
             return ParsedFeature(
-                gherkin_document=GherkinDocument.model_validate(document),
+                gherkin_document=message_from_dict(document, GherkinDocument),
                 filename=path.as_posix(),
                 raw_data=path.read_text(encoding="utf-8"),
             )

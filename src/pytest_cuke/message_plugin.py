@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 import re
 import sys
@@ -14,43 +13,18 @@ from inspect import getfile, getsourcelines
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
 from platform import machine, processor, system, version
-from pprint import pformat
 from queue import Empty, Queue
-from threading import Event, Thread
-from time import sleep, time_ns
+from threading import Event, Lock, Thread
+from time import monotonic, sleep, time_ns
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
 import chevron  # type: ignore[import-untyped]  # chevron ships no type information
 import pytest
 from attr import attrib, attrs
-from ci_environment import detect_ci_environment  # type: ignore[import-untyped]  # no type stubs
-from cucumber_messages import (
-    Attachment,
-    AttachmentContentEncoding,
-    Ci,
-    Duration,
-    ExceptionMessage,
-    Hook,
-    Location,
-    Meta,
-    ParameterType,
-    Product,
-    Source,
-    SourceReference,
-    TestCase,
-    TestCaseFinished,
-    TestCaseStarted,
-    TestRunFinished,
-    TestRunStarted,
-    TestStep,
-    TestStepFinished,
-    TestStepResult,
-    TestStepResultStatus,
-    TestStepStarted,
-    Timestamp,
-    UndefinedParameterType,
-)
-from messages import Envelope as Message
+from ci_environment import detect_ci_environment
+from filelock import FileLock
+from pytest import ExitCode, hookimpl
+
 from pytest_cuke.allure_conversion import AllureConversionError, convert_allure_messages
 from pytest_cuke.compatibility.path import relpath
 from pytest_cuke.compatibility.pytest import (
@@ -71,8 +45,44 @@ from pytest_cuke.ide_bindings import (
     match_arguments,
     source_identity,
 )
+from pytest_cuke.message_schema_sync import resolve_upstream_release
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_message_id, scenario_to_pickle
+from pytest_cuke.model.message_transport import MessageEnvelopeView, ValidatedMessageTransport
+from pytest_cuke.model.message_types import (
+    Attachment,
+    Ci,
+    ContentEncoding,
+    Duration,
+    ExceptionMessage,
+    Hook,
+    HookType,
+    Location,
+    Meta,
+    ParameterType,
+    Product,
+    Source,
+    SourceMediaType,
+    SourceReference,
+    Status,
+    TestCase,
+    TestCaseFinished,
+    TestCaseStarted,
+    TestRunFinished,
+    TestRunHookFinished,
+    TestRunHookStarted,
+    TestRunStarted,
+    TestStep,
+    TestStepFinished,
+    TestStepResult,
+    TestStepStarted,
+    Timestamp,
+    UndefinedParameterType,
+    message_from_dict,
+    message_to_dict,
+)
+from pytest_cuke.model.message_types import Envelope as Message
+from pytest_cuke.model.message_validation import MessageValidationError, message_diagnostic_to_dict
 from pytest_cuke.model.run_access import get_run_context
 from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_cuke.packaging import get_distribution_version
@@ -81,13 +91,14 @@ from pytest_cuke.steps import Matcher
 from pytest_cuke.utils import PytestBDDIdGeneratorHandler, deepattrgetter
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Callable, Generator, Iterable
 
     from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
     from pytest import Session
 
     from pytest_cuke.compatibility.pytest import Item, Metafunc
     from pytest_cuke.model import Feature, Step
+    from pytest_cuke.model.message_validation import MessageValidationDiagnostic
 
 
 @attrs(eq=False)
@@ -98,9 +109,18 @@ class MessagePlugin:
     # the next session's function, so the "already emitted" check silently skips a message (#232).
     config: Config = attrib()
     allure_output_path: Path | None = attrib(default=None)
+    message_transport: ValidatedMessageTransport | None = attrib(default=None)
+    process_messages_error: Exception | None = attrib(default=None)
+    process_messages_error_reported: bool = attrib(default=False)
+    process_messages_closed: bool = attrib(default=False)
+    process_messages_lock: Any = attrib(factory=Lock)
     parameter_type_registry: set[int] = attrib(factory=set)
     hook_registry: set[int] = attrib(factory=set)
     ide_bindings: IdeBindingCollection = attrib(factory=IdeBindingCollection)
+    test_run_started_id: str | None = attrib(default=None)
+    after_test_run_hook_id: str | None = attrib(default=None)
+    test_run_hook_failed: bool = attrib(default=False)
+    message_diagnostics: list[Any] = attrib(factory=list)
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
 
     def _configured_output(self, name: str) -> str | None:
@@ -214,28 +234,64 @@ class MessagePlugin:
                 raise RuntimeError("A configured Messages output path is missing.")
             self.messages_file_path = Path(messages_path)
 
+        self.message_transport = ValidatedMessageTransport()
+        self.message_transport.add_sink(self._deliver_validated_message, name="pytest_cuke_message_validated")
+        self.message_transport.add_sink(self._queue_validated_message, name="Cucumber Messages NDJSON writer")
+
         if html_path is not None:
             self.check_npm_and_cucumber_packages()
 
     def start_process_messages_thread(self) -> None:
         self.process_messages_io_queue: Queue[str] = Queue()
         self.process_messages_stop_event = Event()
+        with self.process_messages_lock:
+            self.process_messages_error = None
+            self.process_messages_error_reported = False
+            self.process_messages_closed = False
         self.process_messages_thread = Thread(
-            target=type(self).process_messages,
-            args=(
-                self.process_messages_io_queue,
-                self.process_messages_stop_event,
-                self.messages_file_path,
-            ),
+            target=self._process_messages_safely,
             daemon=True,
         )
         self.process_messages_thread.start()
         sleep(0)
 
     def finish_process_messages_thread(self) -> None:
-        self.process_messages_io_queue.join()
+        with self.process_messages_lock:
+            self.process_messages_closed = True
         self.process_messages_stop_event.set()
         self.process_messages_thread.join()
+        with self.process_messages_lock:
+            if self.process_messages_error is not None:
+                self._discard_queued_messages_locked()
+        self.process_messages_io_queue.join()
+
+    def flush_process_messages_thread(self) -> None:
+        with self.process_messages_lock:
+            if self.process_messages_error is not None:
+                self._discard_queued_messages_locked()
+                return
+        self.process_messages_io_queue.join()
+
+    def _discard_queued_messages_locked(self) -> None:
+        while True:
+            try:
+                self.process_messages_io_queue.get_nowait()
+            except Empty:
+                break
+            else:
+                self.process_messages_io_queue.task_done()
+
+    def _process_messages_safely(self) -> None:
+        try:
+            self.process_messages(
+                self.process_messages_io_queue,
+                self.process_messages_stop_event,
+                self.messages_file_path,
+            )
+        except Exception as error:
+            with self.process_messages_lock:
+                self.process_messages_error = error
+                self._discard_queued_messages_locked()
 
     @staticmethod
     def process_messages(queue: Queue[str], stop_event: Event, messages_file_path: str | Path) -> None:
@@ -277,10 +333,7 @@ class MessagePlugin:
                                     stack_trace = exception.pop("stackTrace")
                                     if not isinstance(stack_trace, str):
                                         raise ValueError("exception stackTrace must be a string")
-                            Message.model_validate(validation_payload)
-                        except (ValidationError, ValueError):
-                            logging.exception("Failed to parse:\n%s\n", pformat(message_json), exc_info=True)
-                        else:
+                            message_from_dict(validation_payload, Message)
                             lines.append(f"{json.dumps(payload, ensure_ascii=False)}\n")
                         finally:
                             queue.task_done()
@@ -463,7 +516,10 @@ class MessagePlugin:
                                 source=Source(
                                     uri=feature.uri or feature.filename or "",
                                     data=feature.source_content,
-                                    media_type=feature.source_media_type or "text/x.cucumber.gherkin+plain",
+                                    media_type=cast(
+                                        "SourceMediaType",
+                                        feature.source_media_type or "text/x.cucumber.gherkin+plain",
+                                    ),
                                 )
                             ),
                         )
@@ -493,17 +549,137 @@ class MessagePlugin:
     def pytest_cuke_message(self, config: Config, message: Message) -> None:
         if self.is_disabled:
             return
-        message_data = message.model_dump(mode="json", exclude_none=True, by_alias=True)
-        if message.test_step_finished is not None:
-            step_id = message.test_step_finished.test_step_id
-            stack_trace = self.current_test_step_exception_traces.get(step_id)
-            if stack_trace:
-                result = message_data["testStepFinished"]["testStepResult"]
-                exception = result.get("exception")
-                if isinstance(exception, dict):
-                    exception["stackTrace"] = stack_trace
+
+        if self.message_transport is None:
+            return
+        message = self._with_exception_stack_trace(message)
+        try:
+            sink_diagnostics = self.message_transport.emit(message)
+        except MessageValidationError as error:
+            self._report_message_diagnostics(error.diagnostics)
+            return
+
+        self._report_message_diagnostics(sink_diagnostics)
+
+    def _deliver_validated_message(self, message: Message) -> None:
+        self.config.hook.pytest_cuke_message_validated(config=self.config, message=message)
+
+    def _with_exception_stack_trace(self, message: Message) -> Message:
+        finished_step = message.test_step_finished
+        if finished_step is None or finished_step.test_step_result.exception is None:
+            return message
+
+        stack_trace = self.current_test_step_exception_traces.get(finished_step.test_step_id)
+        if stack_trace is None:
+            return message
+
+        return cast(
+            "Message",
+            MessageEnvelopeView(message, exception_stack_trace=stack_trace),
+        )
+
+    def _queue_validated_message(self, message: Message) -> None:
+        message_data = message_to_dict(message)
         message_json = json.dumps(message_data, ensure_ascii=False)
-        self.process_messages_io_queue.put_nowait(message_json)
+        with self.process_messages_lock:
+            if self.process_messages_closed:
+                raise RuntimeError("Cucumber Messages writer has already stopped")
+            if self.process_messages_error is not None:
+                raise RuntimeError(
+                    "Cucumber Messages writer has failed: "
+                    f"{type(self.process_messages_error).__name__}: {self.process_messages_error}"
+                )
+            self.process_messages_io_queue.put_nowait(message_json)
+
+    def _report_message_diagnostics(self, diagnostics: Iterable[MessageValidationDiagnostic]) -> None:
+        self.message_diagnostics.extend(diagnostics)
+
+    @hookimpl(trylast=True)
+    def pytest_terminal_summary(self, terminalreporter: Any, exitstatus: int | ExitCode, config: Config) -> None:
+        del exitstatus, config
+        for diagnostic in self.message_diagnostics:
+            payload = message_diagnostic_to_dict(diagnostic)
+            terminalreporter.write_line(
+                "PYTEST_CUKE_MESSAGE_DIAGNOSTIC="
+                + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+            )
+        self.message_diagnostics.clear()
+
+    def _emit_test_run_hook_definition(self, config: Config, phase: Literal["before", "after"]) -> str:
+        generator = cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator
+        is_before = phase == "before"
+        hook_id = generator.get_next_id()
+        hook_name = "pytest session start" if is_before else "pytest session finish"
+        hook_type = HookType.before_test_run if is_before else HookType.after_test_run
+        hook_handler = config.hook
+        hook_handler.pytest_cuke_message(
+            config=config,
+            message=Message(
+                hook=Hook(
+                    id=hook_id,
+                    name=hook_name,
+                    type=hook_type,
+                    source_reference=SourceReference(
+                        uri="pytest-cuke:runtime",
+                        location=Location(line=1),
+                    ),
+                )
+            ),
+        )
+        return hook_id
+
+    def _start_test_run_hook(self, config: Config, hook_id: str, run_id: str) -> str:
+        started_id = cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id()
+        config.hook.pytest_cuke_message(
+            config=config,
+            message=Message(
+                test_run_hook_started=TestRunHookStarted(
+                    id=started_id,
+                    test_run_started_id=run_id,
+                    hook_id=hook_id,
+                    timestamp=self.get_timestamp(),
+                )
+            ),
+        )
+        return started_id
+
+    def _finish_test_run_hook(
+        self,
+        config: Config,
+        started_id: str,
+        started_at: float,
+        error: BaseException | None,
+    ) -> None:
+        elapsed = max(0.0, monotonic() - started_at)
+        duration_seconds = int(elapsed)
+        duration = Duration(seconds=duration_seconds, nanos=int((elapsed - duration_seconds) * 1_000_000_000))
+        exception = (
+            ExceptionMessage(
+                type=type(error).__name__,
+                message=str(error),
+                stack_trace="".join(traceback.format_exception(error)),
+            )
+            if error is not None
+            else None
+        )
+        result = TestStepResult(
+            duration=duration,
+            status=Status.failed if error is not None else Status.passed,
+            exception=exception,
+            message=str(error) if error is not None else None,
+        )
+        config.hook.pytest_cuke_message(
+            config=config,
+            message=Message(
+                test_run_hook_finished=TestRunHookFinished(
+                    test_run_hook_started_id=started_id,
+                    result=result,
+                    timestamp=self.get_timestamp(),
+                )
+            ),
+        )
+        if error is not None:
+            self.test_run_hook_failed = True
 
     def _emit_ide_attachment(self, config: Config, media_type: str, payload: dict[str, Any]) -> None:
         config.hook.pytest_cuke_message(
@@ -574,21 +750,13 @@ class MessagePlugin:
             raise RuntimeError("There is no active pytest-cuke test case start event.")
         return self.current_test_case_start
 
-    def pytest_runtestloop(self, session: Session) -> None:
+    @hookimpl(hookwrapper=True, tryfirst=True)
+    def pytest_sessionstart(self, session: Session) -> Generator[None, Any, Any]:
         if self.is_disabled:
-            return
-        config = session.config
-        hook_handler = config.hook
-
-        hook_handler.pytest_cuke_message(
-            config=config,
-            message=Message(test_run_started=TestRunStarted(timestamp=self.get_timestamp())),
-        )
-
-    def pytest_sessionstart(self, session: Session) -> None:
-        if self.is_disabled:
+            yield
             return
 
+        protocol_version = resolve_upstream_release()[1].protocol_version
         self.start_process_messages_thread()
 
         config = session.config
@@ -598,23 +766,48 @@ class MessagePlugin:
             config=config,
             message=Message(
                 meta=Meta(
-                    protocol_version="24.0.0",
+                    protocol_version=protocol_version,
                     implementation=Product(name="pytest-cuke", version=str(get_distribution_version("pytest-cuke"))),
                     runtime=Product(name="Python", version=sys.version),
                     os=Product(name=system(), version=version()),
                     cpu=Product(name=machine(), version=processor()),
-                    ci=messages_converter.from_dict(obj, Ci)
-                    if (obj := detect_ci_environment(os.environ)) is not None
-                    else None,
+                    ci=message_from_dict(obj, Ci) if (obj := detect_ci_environment(os.environ)) is not None else None,
                 ),
             ),
         )
 
-    def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> None:
+        run_id = cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id()
+        self.test_run_started_id = run_id
+        before_hook_id = self._emit_test_run_hook_definition(config, "before")
+        after_hook_id = self._emit_test_run_hook_definition(config, "after")
+        self.after_test_run_hook_id = after_hook_id
+        hook_handler.pytest_cuke_message(
+            config=config,
+            message=Message(test_run_started=TestRunStarted(timestamp=self.get_timestamp(), id=run_id)),
+        )
+        hook_started_id = self._start_test_run_hook(config, before_hook_id, run_id)
+        started_at = monotonic()
+        outcome = yield
+        error = outcome.excinfo[1] if outcome.excinfo is not None else None
+        self._finish_test_run_hook(config, hook_started_id, started_at, error)
+
+    @hookimpl(hookwrapper=True, tryfirst=True)
+    def pytest_sessionfinish(
+        self, session: Session, exitstatus: int | ExitCode
+    ) -> Generator[None, Any, Any]:
         if self.is_disabled:
+            yield
             return
         config = session.config
         hook_handler = config.hook
+
+        after_hook_id = cast("str", getattr(self, "after_test_run_hook_id", ""))
+        run_id = cast("str", getattr(self, "test_run_started_id", ""))
+        hook_started_id = self._start_test_run_hook(config, after_hook_id, run_id)
+        started_at = monotonic()
+        outcome = yield
+        error = outcome.excinfo[1] if outcome.excinfo is not None else None
+        self._finish_test_run_hook(config, hook_started_id, started_at, error)
 
         worker_output = getattr(config, "workeroutput", None)
         if isinstance(worker_output, dict):
@@ -622,30 +815,93 @@ class MessagePlugin:
         else:
             self._emit_source_binding_diagnostics(session)
 
-        is_testrun_success = (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is ExitCode.OK
+        if hasattr(self, "process_messages_thread"):
+            self.flush_process_messages_thread()
+            self._report_process_messages_error(session)
+
+        is_testrun_success = (
+            ((isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is ExitCode.OK)
+            and not self.test_run_hook_failed
+        )
+        terminal_timestamp = self.get_timestamp()
+        terminal_message = Message(
+            test_run_finished=TestRunFinished(
+                timestamp=terminal_timestamp,
+                success=is_testrun_success and not (self.message_transport and self.message_transport.has_errors),
+                test_run_started_id=self.test_run_started_id,
+            )
+        )
+        if self.message_transport is not None and self.message_transport.preview_finish(terminal_message):
+            terminal_message = Message(
+                test_run_finished=TestRunFinished(
+                    timestamp=terminal_timestamp,
+                    success=False,
+                    test_run_started_id=self.test_run_started_id,
+                )
+            )
         hook_handler.pytest_cuke_message(
             config=config,
-            message=Message(
-                test_run_finished=TestRunFinished(
-                    timestamp=self.get_timestamp(),
-                    success=is_testrun_success,
-                )
-            ),
+            message=terminal_message,
         )
 
-        self.finish_process_messages_thread()
+        if self.message_transport is not None:
+            self._report_message_diagnostics(self.message_transport.finish())
+            if self.message_transport.has_errors:
+                self._mark_session_failed(session)
+
+        try:
+            self.finish_process_messages_thread()
+        except Exception as error:
+            self._record_final_sink_failure(session, "Cucumber Messages NDJSON writer", error)
+        self._report_process_messages_error(session)
         try:
             if self._configured_output("cuke_html") is not None:
-                self.generate_html_report()
+                try:
+                    self.generate_html_report()
+                except Exception as error:
+                    self._record_final_sink_failure(session, "Cucumber HTML report", error)
             if self.allure_output_path is not None:
                 try:
                     convert_allure_messages(self.messages_file_path, self.allure_output_path)
                 except AllureConversionError as error:
                     print(f"pytest-cuke Allure conversion failed: {error}", file=sys.stderr)
-                    session.exitstatus = ExitCode.USAGE_ERROR
+                    if getattr(session, "exitstatus", ExitCode.OK) == ExitCode.OK:
+                        session.exitstatus = ExitCode.USAGE_ERROR
+                    self._record_final_sink_failure(session, "Allure report conversion", error)
+                except Exception as error:
+                    self._record_final_sink_failure(session, "Allure report conversion", error)
         finally:
             if self.is_messages_file_temp and self.messages_file_path.exists():
-                os.unlink(self.messages_file_path)
+                try:
+                    os.unlink(self.messages_file_path)
+                except OSError as error:
+                    self._record_final_sink_failure(session, "temporary Cucumber Messages cleanup", error)
+
+        if self.message_transport is not None and self.message_transport.has_errors:
+            self._mark_session_failed(session)
+
+    @staticmethod
+    def _mark_session_failed(session: Session) -> None:
+        if getattr(session, "exitstatus", ExitCode.OK) == ExitCode.OK:
+            session.exitstatus = ExitCode.TESTS_FAILED
+
+    def _record_final_sink_failure(self, session: Session, sink_name: str, error: Exception) -> None:
+        if self.message_transport is not None:
+            diagnostic = self.message_transport.record_sink_failure(sink_name, error)
+            self._report_message_diagnostics((diagnostic,))
+        self._mark_session_failed(session)
+
+    def _report_process_messages_error(self, session: Session) -> None:
+        with self.process_messages_lock:
+            error = self.process_messages_error
+            if error is None or self.process_messages_error_reported:
+                return
+            self.process_messages_error_reported = True
+        self._record_final_sink_failure(
+            session,
+            "Cucumber Messages NDJSON writer",
+            error,
+        )
 
     @hookimpl(hookwrapper=True)
     def pytest_fixture_setup(self, fixturedef: FixtureDef[Any], request: FixtureRequest) -> Generator[None, None, None]:
@@ -675,9 +931,11 @@ class MessagePlugin:
                         id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
                         **({"name": hook_name} if hook_name is not None else {}),
                         source_reference=SourceReference(
-                            uri=relpath(
-                                getfile(func),
-                                str(get_config_root_path(config)),
+                            uri=str(
+                                relpath(
+                                    getfile(func),
+                                    str(get_config_root_path(config)),
+                                )
                             ),
                             location=Location(line=getsourcelines(func)[1]),
                         ),
@@ -1291,7 +1549,7 @@ class MessagePlugin:
                     test_step_id=active_test_step_id,
                     test_case_started_id=current_test_case_start.id,
                     media_type=_media_type,
-                    **({"file_name": str(file_name)} if file_name is not None else {}),
+                    file_name=str(file_name) if file_name is not None else None,
                     content_encoding=content_encoding,
                     body=body,
                 )

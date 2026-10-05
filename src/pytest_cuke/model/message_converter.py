@@ -5,9 +5,10 @@ from dataclasses import is_dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-import messages
+from pytest_cuke.model import message_types as messages
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_extension import has_single_payload
+from pytest_cuke.model.message_types import message_from_dict, message_to_dict
 
 if TYPE_CHECKING:
     from pytest_cuke.exceptions import FeatureConcreteParseError
@@ -379,13 +380,9 @@ def make_test_step_finished(
     timestamp: float | int | datetime | None = None,
 ) -> cucumber_messages.Envelope:
     if isinstance(status, str):
-        status = (
-            cucumber_messages.TestStepResultStatus[status.lower()]
-            if status.lower() in cucumber_messages.TestStepResultStatus.__members__
-            else cucumber_messages.TestStepResultStatus(status.upper())
-        )
-    result = cucumber_messages.TestStepResult(status=status, duration=make_duration(duration), message=message)
-    payload = cucumber_messages.TestStepFinished(
+        status = messages.Status(status.upper())
+    result = messages.TestStepResult(status=status, duration=make_duration(duration), message=message)
+    payload = messages.TestStepFinished(
         test_case_started_id=test_case_started_id,
         test_step_id=test_step_id,
         test_step_result=result,
@@ -396,11 +393,11 @@ def make_test_step_finished(
 
 def envelope_to_dict(message: messages.Envelope) -> dict[str, Any]:
     validate_envelope_shape(message)
-    return message_converter.to_dict(message)
+    return message_to_dict(message)
 
 
 def envelope_from_dict(payload: dict[str, Any]) -> messages.Envelope:
-    env = messages.Envelope.model_validate(payload)
+    env = message_from_dict(payload, messages.Envelope)
     validate_envelope_shape(env)
     return env
 

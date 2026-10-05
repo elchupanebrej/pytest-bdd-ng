@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Final
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-MESSAGES_DISTRIBUTION: Final = "cuke-messages"
+MESSAGES_DISTRIBUTION: Final = "cucumber-messages"
 UPSTREAM_REPOSITORY: Final = "cucumber/messages"
 MAX_ARCHIVE_BYTES: Final = 16 * 1024 * 1024
 MAX_SCHEMA_BYTES: Final = 2 * 1024 * 1024
@@ -27,17 +27,22 @@ MAX_GITHUB_RESPONSE_BYTES: Final = 64 * 1024
 
 @dataclass(frozen=True)
 class UpstreamRelease:
-    """An immutable upstream source selected for one installed contract version."""
+    """An immutable schema source and wire protocol selected for a contract version."""
 
     tag: str
     commit: str
+    protocol_version: str
 
 
-# cuke-messages 0.1.0 does not expose the upstream schema version in its wheel
-# metadata. This compatibility pin was verified against the generated Envelope
-# payload fields and the official v24.0.1 schema at the recorded immutable commit.
+# Pin the generated official Python binding to the exact upstream schema source
+# and wire protocol. The distribution's release tag is also the protocol version
+# for this release.
 UPSTREAM_RELEASES: Final[Mapping[str, UpstreamRelease]] = {
-    "0.1.0": UpstreamRelease("v24.0.1", "30ecba04a90613d0f1fa50c9ab0c2bb1fc25d22d"),
+    "28.0.0": UpstreamRelease(
+        tag="v28.0.0",
+        commit="f5b1f30dc3ea234f44ea4cc6289726e7d8f2cbe0",
+        protocol_version="28.0.0",
+    ),
 }
 
 

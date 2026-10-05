@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from messages import DataTable
+    from pytest_cuke.model.message_types import DataTable
 
 
 def data_table_to_dicts(data_table: DataTable | None) -> dict[str, list[str]]:

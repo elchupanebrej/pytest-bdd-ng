@@ -17,7 +17,7 @@ pytestmark = mark.unit
 
 
 if TYPE_CHECKING:
-    import cucumber_messages
+    from pytest_cuke.model import message_types as messages
 
 
 def test_seam3_execution_event_protocol_contract() -> None:

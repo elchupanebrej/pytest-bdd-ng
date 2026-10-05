@@ -7,9 +7,10 @@ from typing import TYPE_CHECKING, TypeAlias
 import cucumber_messages
 from attrs import define, field
 
-import messages
 from pytest_cuke.compatibility.path import resolvepath
+from pytest_cuke.model import message_types as messages
 from pytest_cuke.model.message_extension import StepDefinitionPatternType
+from pytest_cuke.model.message_types import to_wire_step_definition_pattern_type
 from pytest_cuke.steps.types import (
     ConverterT,
     ParamsFixturesMapping,
@@ -73,8 +74,10 @@ class Definition:
         fn = str(self.func.__name__)
         msg = self.__cache[id(id_gen)] = cucumber_messages.StepDefinition(
             id=self.id,
-            pattern=cucumber_messages.StepDefinitionPattern(source=str(self.parser), type=expr_type),
-            source_reference=cucumber_messages.SourceReference(
+            pattern=messages.StepDefinitionPattern(
+                source=str(self.parser), type=to_wire_step_definition_pattern_type(expr_type)
+            ),
+            source_reference=messages.SourceReference(
                 uri=Path(resolvepath(src_file, getattr(config, "rootpath", Path.cwd()))).as_uri(),
                 location=messages.Location(line=src_line, column=1),
                 java_method=messages.JavaMethod(

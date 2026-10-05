@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    import cucumber_messages
+    from pytest_cuke.model import message_types as messages
 
 
 def iter_object_graph(root: Any) -> Iterator[Any]:

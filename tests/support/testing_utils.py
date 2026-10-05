@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional
 from pytest_cuke.utils import compose
 
 if TYPE_CHECKING:  # pragma: no cover
-    from messages import DataTable  # type:ignore[attr-defined, import-untyped]
+    from pytest_cuke.model.message_types import DataTable  # type:ignore[attr-defined, import-untyped]
 
 
 def data_table_to_dicts(data_table: Optional["DataTable"]):

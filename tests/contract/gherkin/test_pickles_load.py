@@ -3,11 +3,7 @@ from pathlib import Path
 
 from pytest import mark, param
 
-from cucumber_messages import Pickle
-from pytest_bdd.model.message_converter import message_converter
-
-pytestmark = mark.integration
-
+from pytest_cuke.model.message_types import Pickle, message_from_dict, message_to_dict
 
 test_data = Path(__file__).parent.parent.parent.parent / "gherkin" / "testdata"
 
@@ -23,9 +19,9 @@ def test_simple_load_pickle(pickle_path: Path):
     with pickle_path.open(mode="r") as pickle_file:
         for pickle_line in pickle_file:
             pickle_data = json.loads(pickle_line)["pickle"]
-            pickle = message_converter.from_dict(pickle_data, Pickle)
+            pickle = message_from_dict(pickle_data, Pickle)
             assert isinstance(pickle, Pickle)
 
-            dumped_pickle_data = message_converter.to_dict(pickle)
+            dumped_pickle_data = message_to_dict(pickle)
 
             assert pickle_data == dumped_pickle_data

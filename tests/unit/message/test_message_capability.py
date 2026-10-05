@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import messages
+from pytest_cuke.model import message_types as messages
 from pytest_cuke.model.message_capability import (
     MessageCapability,
     capability_is_relevant,
