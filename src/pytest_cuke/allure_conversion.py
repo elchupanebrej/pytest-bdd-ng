@@ -29,7 +29,8 @@ class AllureConversionError(Exception):
 def convert_allure_messages(input_path: Path, output_dir: Path) -> None:
     """Convert every completed scenario attempt in one Cucumber Messages run."""
     envelopes, exception_traces, run_finished_trace, raw_extensions = _read_envelopes(input_path)
-    converted, attachments = _convert_scenarios(envelopes, exception_traces)
+    converted, attachments, results_by_case_id = _convert_scenarios(envelopes, exception_traces)
+    _materialize_unscoped_attachments(envelopes, converted, attachments, results_by_case_id)
     _attach_run_diagnostics(
         converted,
         attachments,
@@ -209,7 +210,11 @@ def _validation_summary(error: Exception) -> str:
 
 def _convert_scenarios(
     envelopes: list[messages.Envelope], exception_traces: dict[tuple[str, str], str]
-) -> tuple[list[tuple[dict[str, Any], dict[str, Any]]], list[tuple[str, bytes]]]:
+) -> tuple[
+    list[tuple[dict[str, Any], dict[str, Any]]],
+    list[tuple[str, bytes]],
+    dict[str, list[dict[str, Any]]],
+]:
     pickles = _index_by_id(_messages(envelopes, "pickle"), "pickle")
     test_cases = _index_by_id(_messages(envelopes, "test_case"), "test case")
     hooks = _index_by_id(_messages(envelopes, "hook"), "hook")
@@ -239,6 +244,7 @@ def _convert_scenarios(
     _validate_exception_traces(exception_traces, attempts, test_cases)
     converted: list[tuple[dict[str, Any], dict[str, Any]]] = []
     attachment_files: list[tuple[str, bytes]] = []
+    results_by_case_id: dict[str, list[dict[str, Any]]] = {}
     for attempt in attempts.values():
         test_case = test_cases[attempt["started"].test_case_id]
         pickle = pickles[test_case.pickle_id]
@@ -251,8 +257,9 @@ def _convert_scenarios(
             hooks,
         )
         converted.append((result, container))
+        results_by_case_id.setdefault(test_case.id, []).append(result)
         attachment_files.extend(files)
-    return converted, attachment_files
+    return converted, attachment_files, results_by_case_id
 
 
 def _messages(envelopes: list[messages.Envelope], kind: str) -> list[Any]:
@@ -441,7 +448,11 @@ def _validate_run_lifecycle(
         if attempt_id not in known_attempt_ids:
             raise AllureConversionError(f"test step event refers to unknown attempt {attempt_id!r}")
     for envelope in envelopes:
-        if envelope.attachment is not None and envelope.attachment.test_case_started_id not in known_attempt_ids:
+        if (
+            envelope.attachment is not None
+            and envelope.attachment.test_case_started_id is not None
+            and envelope.attachment.test_case_started_id not in known_attempt_ids
+        ):
             raise AllureConversionError(
                 f"attachment {envelope.attachment.file_name or '<unnamed>'!r} refers to unknown attempt "
                 f"{envelope.attachment.test_case_started_id!r}"
@@ -723,13 +734,77 @@ def _materialize_attachments(
                 )
             attachment_target = step_target
 
-        attachment_id = str(uuid4())
-        name = _safe_attachment_name(attachment.file_name, attachment_id)
-        source = f"attachments/{attachment_id}.attach"
-        reference = {"name": name, "source": source, "type": attachment.media_type}
-        attachment_target.setdefault("attachments", []).append(reference)
-        files.append((source, _attachment_bytes(attachment)))
+        _materialize_attachment(attachment, attachment_target, files)
     return files
+
+
+def _materialize_unscoped_attachments(
+    envelopes: list[messages.Envelope],
+    converted: list[tuple[dict[str, Any], dict[str, Any]]],
+    files: list[tuple[str, bytes]],
+    results_by_case_id: dict[str, list[dict[str, Any]]],
+) -> None:
+    """Attach no-attempt messages to their case or mark them as a run fallback."""
+    for envelope in envelopes:
+        attachment = envelope.attachment
+        if attachment is None or attachment.test_case_started_id is not None:
+            continue
+        case_id = _attachment_case_id(attachment)
+        fallback_label: str | None = None
+        if case_id is not None:
+            results = results_by_case_id.get(case_id)
+            if not results:
+                if not converted:
+                    raise AllureConversionError(
+                        f"cannot preserve attachment {attachment.file_name or '<unnamed>'!r} for "
+                        f"unmapped testCaseId {case_id!r} without a completed scenario"
+                    )
+                results = [converted[0][0]]
+                fallback_label = f"Cucumber unmapped testCaseId {case_id!r} fallback"
+        elif converted:
+            results = [converted[0][0]]
+            fallback_label = "Cucumber run-level fallback"
+        else:
+            raise AllureConversionError("cannot attach unscoped Cucumber attachments without a completed scenario")
+
+        for result in results:
+            _materialize_attachment(attachment, result, files, fallback_label=fallback_label)
+
+
+def _materialize_attachment(
+    attachment: messages.Attachment,
+    target: dict[str, Any],
+    files: list[tuple[str, bytes]],
+    *,
+    fallback_label: str | None = None,
+) -> None:
+    attachment_id = str(uuid4())
+    source = f"attachments/{attachment_id}.attach"
+    name = _safe_attachment_name(attachment.file_name, attachment_id)
+    if fallback_label is not None:
+        name = f"{fallback_label}: {name}"
+    target.setdefault("attachments", []).append(
+        {
+            "name": name,
+            "source": source,
+            "type": attachment.media_type,
+        }
+    )
+    files.append((source, _attachment_bytes(attachment)))
+
+
+def _attachment_case_id(attachment: messages.Attachment) -> str | None:
+    """Read a case correlation id from an optional JSON extension attachment body."""
+    if attachment.media_type != "application/json" and not attachment.media_type.endswith("+json"):
+        return None
+    try:
+        metadata = json.loads(attachment.body)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(metadata, dict):
+        return None
+    case_id = metadata.get("testCaseId")
+    return case_id if isinstance(case_id, str) and case_id else None
 
 
 def _safe_attachment_name(file_name: str | None, attachment_id: str) -> str:

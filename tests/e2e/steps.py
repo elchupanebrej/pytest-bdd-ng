@@ -482,6 +482,26 @@ def _consumer_artifact_path(relative_path: str, consumer: ConsumerProject) -> Pa
     return artifact_path
 
 
+def _consumer_allure_attachment_file(result_directory: Path, reference: dict[str, Any]) -> Path:
+    source = reference.get("source")
+    assert isinstance(source, str) and source, reference
+    relative_source = PurePosixPath(source)
+    assert (
+        not relative_source.is_absolute()
+        and ".." not in relative_source.parts
+        and "\\" not in source
+        and relative_source.as_posix() == source
+        and re.match(r"^[A-Za-z]:", source) is None
+    ), reference
+    attachment_path = result_directory.joinpath(*relative_source.parts).resolve()
+    try:
+        attachment_path.relative_to(result_directory.resolve())
+    except ValueError as exc:
+        raise AssertionError(f"attachment source escapes the Allure result directory: {source!r}") from exc
+    assert attachment_path.is_file(), f"Allure attachment file is missing: {source!r}"
+    return attachment_path
+
+
 @given("the installed consumer has no Allure Python adapters or Node on PATH")
 def consumer_has_no_allure_runtime_dependencies(consumer: ConsumerProject) -> None:
     consumer.env["PATH"] = str(consumer.python.parent)
@@ -1107,12 +1127,26 @@ def consumer_messages_failure_attachment_correlations(relative_path: str, consum
     assert "AssertionError: failure sentinel" in stack_trace, raw_exception
 
     attachments = payloads("attachment")
-    assert len(attachments) == 2, attachments
-    assert all(attachment.test_case_started_id == case_started.id for attachment in attachments), attachments
-    assert all(attachment.test_step_id == test_step.id for attachment in attachments), attachments
-    attachments_by_name = {attachment.file_name: attachment for attachment in attachments}
-    assert len(attachments_by_name) == len(attachments), attachments
+    user_attachments = [attachment for attachment in attachments if attachment.test_case_started_id is not None]
+    metadata_attachments = [attachment for attachment in attachments if attachment.test_case_started_id is None]
+    assert len(user_attachments) == 2, user_attachments
+    assert len(metadata_attachments) == 2, metadata_attachments
+    assert len(user_attachments) + len(metadata_attachments) == len(attachments), attachments
+    assert all(attachment.test_case_started_id == case_started.id for attachment in user_attachments), user_attachments
+    assert all(attachment.test_step_id == test_step.id for attachment in user_attachments), user_attachments
+    attachments_by_name = {attachment.file_name: attachment for attachment in user_attachments}
+    assert len(attachments_by_name) == len(user_attachments), user_attachments
     assert set(attachments_by_name) == {"identity.txt", "binary.bin"}, attachments_by_name
+
+    metadata_by_type = {attachment.media_type: attachment for attachment in metadata_attachments}
+    assert len(metadata_by_type) == len(metadata_attachments), metadata_attachments
+    assert set(metadata_by_type) == {_IDE_LAUNCH_MEDIA_TYPE, _IDE_STEP_BINDING_MEDIA_TYPE}, metadata_by_type
+    launch_metadata = json.loads(metadata_by_type[_IDE_LAUNCH_MEDIA_TYPE].body)
+    assert launch_metadata.get("testCaseId") == test_case.id, launch_metadata
+    assert launch_metadata.get("pickleId") == pickle_message.id, launch_metadata
+    step_metadata = json.loads(metadata_by_type[_IDE_STEP_BINDING_MEDIA_TYPE].body)
+    assert step_metadata.get("testCaseId") == test_case.id, step_metadata
+    assert step_metadata.get("pickleStepId") == test_step.pickle_step_id, step_metadata
 
     identity = attachments_by_name["identity.txt"]
     assert ContentEncoding(identity.content_encoding) == ContentEncoding.identity
@@ -1560,21 +1594,7 @@ def consumer_allure_run_finished_diagnostics(
     assert isinstance(reference, dict), reference
     assert reference.get("name") == "Cucumber test run diagnostics", reference
     assert reference.get("type") == "application/json", reference
-    source = reference.get("source")
-    assert isinstance(source, str) and source, reference
-    relative_source = PurePosixPath(source)
-    assert (
-        not relative_source.is_absolute()
-        and ".." not in relative_source.parts
-        and "\\" not in source
-        and re.match(r"^[A-Za-z]:", source) is None
-    ), reference
-    attachment_path = result_directory.joinpath(*relative_source.parts).resolve()
-    try:
-        attachment_path.relative_to(result_directory.resolve())
-    except ValueError as exc:
-        raise AssertionError(f"attachment source escapes the Allure result directory: {source!r}") from exc
-    assert attachment_path.is_file(), f"Allure run diagnostic attachment is missing: {source!r}"
+    attachment_path = _consumer_allure_attachment_file(result_directory, reference)
 
     expected_diagnostics = {
         "success": False,
@@ -1645,23 +1665,9 @@ def consumer_allure_run_finished_success_only(relative_path: str, consumer: Cons
     assert isinstance(reference, dict), reference
     assert reference.get("name") == "Cucumber test run diagnostics", reference
     assert reference.get("type") == "application/json", reference
-    source = reference.get("source")
-    assert isinstance(source, str) and source, reference
-    relative_source = PurePosixPath(source)
-    assert (
-        not relative_source.is_absolute()
-        and ".." not in relative_source.parts
-        and "\\" not in source
-        and re.match(r"^[A-Za-z]:", source) is None
-    ), reference
-    attachment_path = result_directory.joinpath(*relative_source.parts).resolve()
-    try:
-        attachment_path.relative_to(result_directory.resolve())
-    except ValueError as exc:
-        raise AssertionError(f"attachment source escapes the Allure result directory: {source!r}") from exc
+    attachment_path = _consumer_allure_attachment_file(result_directory, reference)
     expected_diagnostics = {"success": False}
     expected_bytes = (json.dumps(expected_diagnostics, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
-    assert attachment_path.is_file(), attachment_path
     actual_bytes = attachment_path.read_bytes()
     assert actual_bytes == expected_bytes, reference
     assert json.loads(actual_bytes) == expected_diagnostics, reference
@@ -1674,6 +1680,117 @@ def consumer_allure_run_finished_success_only(relative_path: str, consumer: Cons
     assert isinstance(container_uuid, str) and container_uuid, container
     assert containers[0].name == f"{container_uuid}-container.json", container
     assert container.get("children") == [result_uuid], container
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^\"]+)" should preserve run-level fallback '
+        r'attachment "(?P<attachment_name>[^\"]+)" of type "(?P<media_type>[^\"]+)" with bytes '
+        r'"(?P<body>[^\"]+)"'
+    )
+)
+def consumer_allure_run_level_fallback_attachment(
+    relative_path: str,
+    attachment_name: str,
+    media_type: str,
+    body: str,
+    consumer: ConsumerProject,
+) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+    assert result.get("name") == "Run fallback scenario", result
+
+    references = result.get("attachments")
+    assert isinstance(references, list) and len(references) == 1, result
+    reference = references[0]
+    assert isinstance(reference, dict), reference
+    assert reference.get("name") == attachment_name, reference
+    assert reference.get("type") == media_type, reference
+    attachment_path = _consumer_allure_attachment_file(result_directory, reference)
+    source = reference["source"]
+    relative_source = PurePosixPath(source)
+    assert (
+        not relative_source.is_absolute()
+        and len(relative_source.parts) >= 2
+        and relative_source.parts[0] == "attachments"
+    ), reference
+    assert attachment_path.read_bytes() == body.encode("utf-8"), reference
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^\"]+)" should preserve JSON attachment '
+        r'"(?P<file_name>[^\"]+)" for testCaseId "(?P<case_id>[^\"]+)" as an unmapped fallback from '
+        r'"(?P<messages_path>[^\"]+)"'
+    )
+)
+def consumer_allure_unmapped_case_fallback_attachment(
+    relative_path: str,
+    file_name: str,
+    case_id: str,
+    messages_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    media_type = "application/vnd.pytest-bdd.launch+json"
+    messages_file = _consumer_artifact_path(messages_path, consumer)
+    matching_messages: list[dict[str, Any]] = []
+    test_case_ids: set[str] = set()
+    for line in messages_file.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        payload = json.loads(line)
+        assert isinstance(payload, dict), payload
+        test_case = payload.get("testCase")
+        if isinstance(test_case, dict) and isinstance(test_case.get("id"), str):
+            test_case_ids.add(test_case["id"])
+        attachment = payload.get("attachment")
+        if isinstance(attachment, dict) and attachment.get("fileName") == file_name:
+            matching_messages.append(attachment)
+
+    assert len(test_case_ids) == 1, test_case_ids
+    assert len(matching_messages) == 1, matching_messages
+    input_attachment = matching_messages[0]
+    assert input_attachment.get("testCaseStartedId") is None, input_attachment
+    assert input_attachment.get("mediaType") == media_type, input_attachment
+    assert input_attachment.get("contentEncoding") == "IDENTITY", input_attachment
+    body = input_attachment.get("body")
+    assert isinstance(body, str), input_attachment
+    body_payload = json.loads(body)
+    assert isinstance(body_payload, dict), body_payload
+    assert body_payload.get("testCaseId") == case_id, body_payload
+
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    assert result_directory.is_dir(), f"Allure output directory was not created: {result_directory}"
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+    assert result.get("name") == "Known scenario", result
+    assert result.get("status") == "passed", result
+    assert isinstance(result.get("testCaseId"), str) and result["testCaseId"], result
+
+    references = result.get("attachments")
+    assert isinstance(references, list) and len(references) == 1, result
+    reference = references[0]
+    assert isinstance(reference, dict), reference
+    assert reference.get("name") == f"Cucumber unmapped testCaseId '{case_id}' fallback: {file_name}", reference
+    assert reference.get("type") == media_type, reference
+    attachment_path = _consumer_allure_attachment_file(result_directory, reference)
+    source = reference["source"]
+    relative_source = PurePosixPath(source)
+    assert (
+        not relative_source.is_absolute()
+        and len(relative_source.parts) >= 2
+        and relative_source.parts[0] == "attachments"
+    ), reference
+    actual_bytes = attachment_path.read_bytes()
+    assert actual_bytes == body.encode("utf-8"), reference
+    actual_payload = json.loads(actual_bytes)
+    assert isinstance(actual_payload, dict), actual_payload
+    assert actual_payload.get("testCaseId") == case_id, actual_payload
 
 
 @when(
@@ -1776,21 +1893,7 @@ def consumer_allure_raw_extension_attachment(
     assert len(json_references) == 1, attachment_references
 
     reference = json_references[0]
-    source = reference.get("source")
-    assert isinstance(source, str) and source, reference
-    relative_source = PurePosixPath(source)
-    assert (
-        not relative_source.is_absolute()
-        and ".." not in relative_source.parts
-        and "\\" not in source
-        and re.match(r"^[A-Za-z]:", source) is None
-    ), reference
-    attachment_path = result_directory.joinpath(*relative_source.parts).resolve()
-    try:
-        attachment_path.relative_to(result_directory.resolve())
-    except ValueError as exc:
-        raise AssertionError(f"attachment source escapes the Allure result directory: {source!r}") from exc
-    assert attachment_path.is_file(), f"Allure attachment file is missing: {source!r}"
+    attachment_path = _consumer_allure_attachment_file(result_directory, reference)
     assert attachment_path.read_bytes() == raw_extension_events[0], reference
 
 
@@ -1855,6 +1958,32 @@ def consumer_allure_result_directories_semantically_equivalent(
     second_path: str,
     consumer: ConsumerProject,
 ) -> None:
+    internal_attachment_types = {_IDE_LAUNCH_MEDIA_TYPE, _IDE_STEP_BINDING_MEDIA_TYPE}
+
+    def normalized(value: Any) -> Any:
+        if isinstance(value, dict):
+            result: dict[str, Any] = {}
+            for key, item in value.items():
+                if key == "uuid":
+                    continue
+                if key == "attachments" and isinstance(item, list):
+                    references: list[Any] = []
+                    for reference in item:
+                        if (
+                            isinstance(reference, dict)
+                            and reference.get("type") in internal_attachment_types
+                        ):
+                            references.append({"type": reference["type"]})
+                        else:
+                            references.append(normalized(reference))
+                    result[key] = references
+                else:
+                    result[key] = normalized(item)
+            return result
+        if isinstance(value, list):
+            return [normalized(item) for item in value]
+        return value
+
     semantic_artifacts = []
     for relative_path in (first_path, second_path):
         result_directory = _consumer_artifact_path(relative_path, consumer)
@@ -1877,10 +2006,8 @@ def consumer_allure_result_directories_semantically_equivalent(
         assert container_files[0].name == f"{container_uuid}-container.json", container
         assert container.get("children") == [result_uuid], container
 
-        semantic_result = dict(result)
-        semantic_result.pop("uuid")
-        semantic_container = dict(container)
-        semantic_container.pop("uuid")
+        semantic_result = normalized(result)
+        semantic_container = normalized(container)
         semantic_container["children"] = ["<linked-result>"]
         semantic_artifacts.append((semantic_result, semantic_container))
 
@@ -1888,6 +2015,141 @@ def consumer_allure_result_directories_semantically_equivalent(
         first_path: semantic_artifacts[0],
         second_path: semantic_artifacts[1],
     }
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directories "(?P<first_path>[^\"]+)" and "(?P<second_path>[^\"]+)" '
+        r'should preserve no-attempt Messages extensions for their scenarios from "(?P<messages_path>[^\"]+)"'
+    )
+)
+def consumer_allure_no_attempt_message_extensions(
+    first_path: str,
+    second_path: str,
+    messages_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    from collections import Counter
+
+    @dataclass(frozen=True)
+    class ScenarioIdentity:
+        feature_file: str
+        scenario_name: str
+
+    extension_types = {_IDE_LAUNCH_MEDIA_TYPE, _IDE_STEP_BINDING_MEDIA_TYPE}
+    messages_file = _consumer_artifact_path(messages_path, consumer)
+    envelopes = [
+        json.loads(line)
+        for line in messages_file.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    pickle_scenarios = {
+        pickle["id"]: ScenarioIdentity(
+            feature_file=PurePosixPath(pickle["uri"].replace("\\", "/")).name,
+            scenario_name=re.sub(r"\[table_rows:\[line: \d+\]\]$", "", pickle["name"]),
+        )
+        for envelope in envelopes
+        if isinstance((pickle := envelope.get("pickle")), dict)
+        and isinstance(pickle.get("id"), str)
+        and isinstance(pickle.get("name"), str)
+        and isinstance(pickle.get("uri"), str)
+    }
+    scenario_identity_by_case = {
+        test_case["id"]: pickle_scenarios[test_case["pickleId"]]
+        for envelope in envelopes
+        if isinstance((test_case := envelope.get("testCase")), dict)
+        and isinstance(test_case.get("id"), str)
+        and isinstance(test_case.get("pickleId"), str)
+        and test_case["pickleId"] in pickle_scenarios
+    }
+    case_ids_by_scenario: dict[ScenarioIdentity, set[str]] = defaultdict(set)
+    for case_id, scenario_identity in scenario_identity_by_case.items():
+        case_ids_by_scenario[scenario_identity].add(case_id)
+
+    def semantic_payload(payload: dict[str, Any]) -> str:
+        stable_payload = {key: value for key, value in payload.items() if key != "testCaseId"}
+        return json.dumps(stable_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+    expected_by_scenario: dict[ScenarioIdentity, Counter[tuple[str, str, str]]] = defaultdict(Counter)
+    for envelope in envelopes:
+        attachment = envelope.get("attachment")
+        if not isinstance(attachment, dict) or attachment.get("testCaseStartedId") is not None:
+            continue
+        media_type = attachment.get("mediaType")
+        if media_type not in extension_types:
+            continue
+        body = attachment.get("body")
+        assert isinstance(body, str), attachment
+        payload = json.loads(body)
+        assert isinstance(payload, dict), payload
+        case_id = payload.get("testCaseId")
+        assert isinstance(case_id, str) and case_id in scenario_identity_by_case, payload
+        scenario_identity = scenario_identity_by_case[case_id]
+        expected_by_scenario[scenario_identity][(media_type, case_id, semantic_payload(payload))] += 1
+
+    assert expected_by_scenario, f"no no-attempt pytest-cuke extension attachments were found in {messages_path!r}"
+    for scenario_identity, expected in expected_by_scenario.items():
+        assert {media_type for media_type, _case_id, _payload in expected} == extension_types, {
+            scenario_identity: expected
+        }
+
+    for relative_path in (first_path, second_path):
+        result_directory = _consumer_artifact_path(relative_path, consumer)
+        result_files = sorted(result_directory.glob("*-result.json"))
+        assert len(result_files) == len(expected_by_scenario), (relative_path, result_files, expected_by_scenario)
+        actual_by_scenario: dict[ScenarioIdentity, Counter[tuple[str, str, str]]] = defaultdict(Counter)
+
+        for result_file in result_files:
+            result = json.loads(result_file.read_text(encoding="utf-8"))
+            assert isinstance(result, dict), result
+            full_name = result.get("fullName")
+            assert isinstance(full_name, str), result
+            matching_scenarios = [
+                identity
+                for identity in expected_by_scenario
+                if full_name.endswith(f"{identity.feature_file}:{identity.scenario_name}")
+            ]
+            assert len(matching_scenarios) == 1, (relative_path, result, expected_by_scenario)
+            scenario_identity = matching_scenarios[0]
+            result_case_id = result.get("testCaseId")
+            assert isinstance(result_case_id, str) and result_case_id, result
+            assert scenario_identity not in actual_by_scenario, (relative_path, result)
+
+            attachment_references: list[Any] = []
+
+            def collect_attachments(value: Any, references: list[Any]) -> None:
+                if isinstance(value, dict):
+                    nested_references = value.get("attachments")
+                    if isinstance(nested_references, list):
+                        references.extend(nested_references)
+                    for nested_value in value.values():
+                        collect_attachments(nested_value, references)
+                elif isinstance(value, list):
+                    for nested_value in value:
+                        collect_attachments(nested_value, references)
+
+            collect_attachments(result, attachment_references)
+            for reference in attachment_references:
+                if not isinstance(reference, dict) or reference.get("type") not in extension_types:
+                    continue
+                attachment_path = _consumer_allure_attachment_file(result_directory, reference)
+                payload = json.loads(attachment_path.read_text(encoding="utf-8"))
+                assert isinstance(payload, dict), payload
+                message_case_id = payload.get("testCaseId")
+                assert message_case_id in case_ids_by_scenario[scenario_identity], (
+                    relative_path,
+                    result,
+                    reference,
+                    payload,
+                )
+                actual_by_scenario[scenario_identity][
+                    (reference["type"], message_case_id, semantic_payload(payload))
+                ] += 1
+
+        assert dict(actual_by_scenario) == dict(expected_by_scenario), {
+            relative_path: dict(actual_by_scenario),
+            messages_path: dict(expected_by_scenario),
+        }
 
 
 @then(
@@ -1939,21 +2201,7 @@ def consumer_allure_failure_attachments_and_container(relative_path: str, consum
         seen_names.add(name)
         media_type, expected_content = expected_files[name]
         assert reference.get("type") == media_type, reference
-        source = reference.get("source")
-        assert isinstance(source, str) and source, reference
-        relative_source = PurePosixPath(source)
-        assert (
-            not relative_source.is_absolute()
-            and ".." not in relative_source.parts
-            and "\\" not in source
-            and re.match(r"^[A-Za-z]:", source) is None
-        ), reference
-        attachment_path = result_directory.joinpath(*relative_source.parts).resolve()
-        try:
-            attachment_path.relative_to(result_directory.resolve())
-        except ValueError as exc:
-            raise AssertionError(f"attachment source escapes the Allure result directory: {source!r}") from exc
-        assert attachment_path.is_file(), f"Allure attachment file is missing: {source!r}"
+        attachment_path = _consumer_allure_attachment_file(result_directory, reference)
         assert attachment_path.read_bytes() == expected_content, reference
     assert seen_names == set(expected_files), references
 
