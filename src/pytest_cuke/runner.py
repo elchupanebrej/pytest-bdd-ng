@@ -53,21 +53,23 @@ class StepRunner:
     def match_to_step(
         self,
         request: FixtureRequest,
-        feature: Feature,
-        scenario: Scenario,
-        step: Step,
-        previous_step: Step | None,
+        run: RunContext,
     ) -> Definition:
         __tracebackhide__ = True
+        feature = run.require_feature("pytest_cuke_match_step_definition_to_step")
+        scenario = run.require_scenario("pytest_cuke_match_step_definition_to_step")
+        step = run.require_step("pytest_cuke_match_step_definition_to_step")
         try:
+            run.transition(
+                stage=run.stage,
+                hook_phase="pytest_cuke_match_step_definition_to_step",
+                status=run.status,
+            )
             return cast(
                 "Definition",
                 request.config.hook.pytest_cuke_match_step_definition_to_step(
                     request=request,
-                    feature=feature,
-                    scenario=scenario,
-                    step=step,
-                    previous_step=previous_step,
+                    run=run,
                 ),
             )
         except (Matcher.MatchNotFoundError, StepDefinitionManager.Matcher.MatchNotFoundError) as e:
@@ -130,28 +132,33 @@ class StepRunner:
     def run_step(
         self,
         request: FixtureRequest,
-        feature: Feature,
-        scenario: Scenario,
-        step: Step,
-        previous_step: Step | None,
+        run: RunContext,
     ) -> Any:
         __tracebackhide__ = True
+        run.require_feature("pytest_cuke_run_step")
+        scenario = run.require_scenario("pytest_cuke_run_step")
+        step = run.require_step("pytest_cuke_run_step")
         hook_kwargs: dict[str, Any] = {
             "request": request,
-            "feature": feature,
-            "scenario": scenario,
-            "step": step,
-            "previous_step": previous_step,
+            "run": run,
             "step_func": None,
             "step_func_args": {},
             "tolerated": False,
         }
 
         try:
-            step_definition = self.match_to_step(request, feature, scenario, step, previous_step)
+            step_definition = self.match_to_step(request, run)
         except exceptions.StepDefinitionNotFoundError as exception:
-            hook_kwargs["exception"] = exception
-            request.config.hook.pytest_cuke_step_func_lookup_error(**hook_kwargs)
+            run.transition(
+                stage="step-running",
+                hook_phase="pytest_cuke_step_func_lookup_error",
+                status="undefined",
+            )
+            request.config.hook.pytest_cuke_step_func_lookup_error(
+                request=request,
+                run=run,
+                exception=exception,
+            )
             raise
         else:
             hook_kwargs["step_func"] = step_definition.func
@@ -160,16 +167,30 @@ class StepRunner:
         if step_definition.not_implemented:
             wip_status = resolve_wip_status(request.config, request.node, scenario)
             if wip_status == "passed":
+                run.transition(
+                    stage="step-running",
+                    hook_phase="pytest_cuke_step_bypassed",
+                    status="passed",
+                )
                 request.config.hook.pytest_cuke_step_bypassed(
-                    **hook_kwargs,
+                    request=request,
+                    run=run,
+                    step_definition=step_definition,
                     status=wip_status,
                     message=None,
                 )
                 return _WipPassed()
             if wip_status == "skipped":
                 message = "Not-implemented step skipped by policy."
+                run.transition(
+                    stage="step-running",
+                    hook_phase="pytest_cuke_step_bypassed",
+                    status="skipped",
+                )
                 request.config.hook.pytest_cuke_step_bypassed(
-                    **hook_kwargs,
+                    request=request,
+                    run=run,
+                    step_definition=step_definition,
                     status=wip_status,
                     message=message,
                 )
@@ -177,7 +198,16 @@ class StepRunner:
 
         step_error_hook_called = False
         try:
-            request.config.hook.pytest_cuke_before_step(**hook_kwargs)
+            run.transition(
+                stage="step-running",
+                hook_phase="pytest_cuke_before_step",
+                status="running",
+            )
+            request.config.hook.pytest_cuke_before_step(
+                request=request,
+                run=run,
+                step_func=step_definition.func,
+            )
             step_params = (
                 step_definition.get_parameters(request, step) if hasattr(step_definition, "get_parameters") else {}
             )
@@ -190,9 +220,26 @@ class StepRunner:
             step_function_kwargs = dict(self.get_step_function_kwargs(request, step, step_definition, step_params))
             hook_kwargs["step_func_args"] = step_function_kwargs
 
-            request.config.hook.pytest_cuke_before_step_call(**hook_kwargs)
+            run.transition(
+                stage="step-running",
+                hook_phase="pytest_cuke_step_call",
+                status="running",
+            )
+            request.config.hook.pytest_cuke_before_step_call(
+                request=request,
+                run=run,
+                step_func=step_definition.func,
+                step_func_args=step_function_kwargs,
+                step_definition=step_definition,
+            )
 
-            step_caller = request.config.hook.pytest_cuke_get_step_caller(**hook_kwargs)
+            step_caller = request.config.hook.pytest_cuke_get_step_caller(
+                request=request,
+                run=run,
+                step_func=step_definition.func,
+                step_func_args=step_function_kwargs,
+                step_definition=step_definition,
+            )
             if step_caller is None:
                 step_caller = partial(
                     call_fixture_func,
@@ -210,15 +257,37 @@ class StepRunner:
                     and not isinstance(exception, outcome_exceptions)
                     and resolve_tolerant_status(request.config, request.node, scenario) == "ignored"
                 ):
-                    hook_kwargs["exception"] = exception
-                    hook_kwargs["tolerated"] = True
                     step_error_hook_called = True
-                    request.config.hook.pytest_cuke_step_error(**hook_kwargs)
+                    run.transition(
+                        stage="step-running",
+                        hook_phase="pytest_cuke_step_error",
+                        status="failed",
+                    )
+                    request.config.hook.pytest_cuke_step_error(
+                        request=request,
+                        run=run,
+                        step_func=step_definition.func,
+                        step_func_args=step_function_kwargs,
+                        exception=exception,
+                        step_definition=step_definition,
+                        tolerated=True,
+                    )
                     return _IgnoredStepFailure(exception)
                 raise
 
             self.inject_target_fixtures(request, step_definition, step_result)
-            request.config.hook.pytest_cuke_after_step(**hook_kwargs)
+            run.transition(
+                stage="step-running",
+                hook_phase="pytest_cuke_after_step",
+                status="running",
+            )
+            request.config.hook.pytest_cuke_after_step(
+                request=request,
+                run=run,
+                step_func=step_definition.func,
+                step_func_args=step_function_kwargs,
+                step_definition=step_definition,
+            )
             return step_result
         except (
             Exception,
@@ -228,9 +297,30 @@ class StepRunner:
             KeyboardInterrupt,
         ) as exception:
             if not step_error_hook_called:
-                hook_kwargs["exception"] = exception
-                request.config.hook.pytest_cuke_step_error(**hook_kwargs)
+                status = self._status_for_exception(exception)
+                run.transition(
+                    stage="step-running",
+                    hook_phase="pytest_cuke_step_error",
+                    status=status,
+                )
+                request.config.hook.pytest_cuke_step_error(
+                    request=request,
+                    run=run,
+                    step_func=step_definition.func,
+                    step_func_args=hook_kwargs["step_func_args"],
+                    exception=exception,
+                    step_definition=step_definition,
+                    tolerated=False,
+                )
             raise
+
+    @staticmethod
+    def _status_for_exception(exception: BaseException) -> Literal["failed", "skipped", "interrupted"]:
+        if isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
+            return "skipped"
+        if isinstance(exception, KeyboardInterrupt):
+            return "interrupted"
+        return "failed"
 
 
 class ScenarioRunner:
@@ -301,12 +391,16 @@ class ScenarioRunner:
                     attempt=getattr(item, "execution_count", 0),
                 )
                 set_scenario_run(item, scenario_run)
-            context.transition(stage="running", hook_phase="pytest_cuke_before_scenario", status="running")
             error: BaseException | None = None
             try:
-                request.config.hook.pytest_cuke_before_scenario(request=request, feature=feature, scenario=scenario)
+                context.transition(
+                    stage="setup",
+                    hook_phase="pytest_cuke_before_scenario",
+                    status="running",
+                )
+                request.config.hook.pytest_cuke_before_scenario(request=request, run=context)
                 context.transition(stage="running", hook_phase="pytest_cuke_run_scenario", status="running")
-                request.config.hook.pytest_cuke_run_scenario(request=request, feature=feature, scenario=scenario)
+                request.config.hook.pytest_cuke_run_scenario(request=request, run=context)
             except BaseException as exception:
                 error = exception
                 raise
@@ -314,7 +408,7 @@ class ScenarioRunner:
                 status = self._status_for_exception(error) if error is not None else "passed"
                 context.finish_active(status=status, exception=error)
                 try:
-                    request.config.hook.pytest_cuke_after_scenario(request=request, feature=feature, scenario=scenario)
+                    request.config.hook.pytest_cuke_after_scenario(request=request, run=context)
                 except BaseException as after_exception:
                     error = after_exception
                     context.finish_active(status=self._status_for_exception(error), exception=error)
@@ -358,7 +452,14 @@ class ScenarioRunner:
         try:
             for step in execution_steps(feature, scenario):
                 try:
-                    self.step_runner.match_to_step(request, feature, scenario, step, previous_step)
+                    with context.inspect_step(
+                        feature=feature,
+                        scenario=scenario,
+                        step=step,
+                        previous_step=previous_step,
+                        nodeid=item.nodeid,
+                    ) as run:
+                        self.step_runner.match_to_step(request, run)
                 except exceptions.StepDefinitionNotFoundError as error:
                     missing.append(error)
                 previous_step = step
@@ -420,36 +521,29 @@ class ScenarioRunner:
                 with suppress(KeyError):
                     del stash[ScenarioRun.STASH_KEY]
 
-    def pytest_cuke_run_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario) -> Any:
+    def pytest_cuke_run_scenario(self, request: FixtureRequest, run: RunContext) -> Any:
         """Execute the scenario steps."""
         __tracebackhide__ = True
         steps: deque[Step] = request.getfixturevalue("steps_left")
+        feature = run.require_feature("pytest_cuke_run_scenario")
+        scenario = run.require_scenario("pytest_cuke_run_scenario")
         steps.extend(execution_steps(feature, scenario))
-        step_dispatcher = request.config.hook.pytest_cuke_get_step_dispatcher(
-            request=request, feature=feature, scenario=scenario
-        )
+        step_dispatcher = request.config.hook.pytest_cuke_get_step_dispatcher(request=request, run=run)
         return step_dispatcher(steps)
 
     @hookimpl(trylast=True)
     def pytest_cuke_get_step_dispatcher(
-        self, request: FixtureRequest, feature: Feature, scenario: Scenario
+        self, request: FixtureRequest, run: RunContext
     ) -> Callable[[deque[Step]], None]:
         """Provide default step dispatcher."""
         __tracebackhide__ = True
 
         def dispatcher(left_steps: deque[Step]) -> None:
             __tracebackhide__ = True
-            previous_step = None
             while left_steps:
                 step = left_steps.popleft()
-                request.config.hook.pytest_cuke_run_step(
-                    request=request,
-                    feature=feature,
-                    scenario=scenario,
-                    step=step,
-                    previous_step=previous_step,
-                )
-                previous_step = step
+                run.start_step(step)
+                request.config.hook.pytest_cuke_run_step(request=request, run=run)
 
         return dispatcher
 
@@ -458,27 +552,19 @@ class ScenarioRunner:
         """Compatibility context manager; immutable parsed models need no transient mutation."""
         yield
 
-    def pytest_cuke_run_step(
-        self,
-        request: FixtureRequest,
-        feature: Feature,
-        scenario: Scenario,
-        step: Step,
-        previous_step: Step | None,
-    ) -> Any:
+    def pytest_cuke_run_step(self, request: FixtureRequest, run: RunContext) -> Any:
         __tracebackhide__ = True
-        context = get_run_context(request.config)
-        scenario_run = context.active_scenario_run if context is not None else None
-        if context is None or scenario_run is None or scenario_run.nodeid != getattr(request.node, "nodeid", ""):
-            return self.step_runner.run_step(request, feature, scenario, step, previous_step)
-        step_run = context.start_step(step)
+        run.require_step("pytest_cuke_run_step")
+        step_run = run.step_run
+        if step_run is None:
+            raise RuntimeError("pytest_cuke_run_step requires an active StepRun in RunContext.")
         try:
-            result = self.step_runner.run_step(request, feature, scenario, step, previous_step)
+            result = self.step_runner.run_step(request, run)
         except BaseException as exception:
             status = self._status_for_exception(exception)
             if status == "passed":
                 status = "failed"
-            context.finish_step(
+            run.finish_step(
                 step_run,
                 status=status,
                 exception=exception,
@@ -486,7 +572,7 @@ class ScenarioRunner:
             )
             raise
         if isinstance(result, _IgnoredStepFailure):
-            context.finish_step(
+            run.finish_step(
                 step_run,
                 status="failed",
                 exception=result.exception,
@@ -494,84 +580,18 @@ class ScenarioRunner:
             )
             return None
         if isinstance(result, _WipPassed):
-            context.finish_step(step_run, status="passed")
+            run.finish_step(step_run, status="passed")
             return None
-        context.finish_step(step_run, result=result)
+        run.finish_step(step_run, result=result)
         return result
-
-    def pytest_cuke_before_step_call(
-        self,
-        request: FixtureRequest,
-        feature: Feature,
-        scenario: Scenario,
-        step: Step,
-        step_func: Any,
-        step_func_args: dict[str, Any],
-        step_definition: Definition,
-    ) -> None:
-        context = get_run_context(request.config)
-        if context is not None and context.active_scenario_run is not None:
-            context.transition(stage="step", hook_phase="pytest_cuke_step_call", status="running")
-
-    def pytest_cuke_step_func_lookup_error(
-        self,
-        request: FixtureRequest,
-        feature: Feature,
-        scenario: Any,
-        step: Step,
-        exception: Exception,
-    ) -> None:
-        context = get_run_context(request.config)
-        if context is not None and context.active_scenario_run is not None:
-            context.transition(
-                stage="step",
-                hook_phase="pytest_cuke_step_func_lookup_error",
-                status="undefined",
-            )
-
-    def pytest_cuke_step_error(
-        self,
-        request: FixtureRequest,
-        feature: Feature,
-        scenario: Scenario,
-        step: Step,
-        step_func: Any,
-        step_func_args: dict[str, Any],
-        exception: BaseException,
-        step_definition: Definition,
-    ) -> None:
-        context = get_run_context(request.config)
-        if context is not None and context.active_scenario_run is not None:
-            status = self._status_for_exception(exception)
-            context.transition(
-                stage="step",
-                hook_phase="pytest_cuke_step_error",
-                status="failed" if status == "passed" else status,
-            )
-
-    def pytest_cuke_after_step(
-        self,
-        request: FixtureRequest,
-        feature: Feature,
-        scenario: Scenario,
-        step: Step,
-        step_func: Any,
-        step_func_args: dict[str, Any],
-        step_definition: Definition,
-    ) -> None:
-        context = get_run_context(request.config)
-        if context is not None and context.active_scenario_run is not None:
-            context.transition(stage="step", hook_phase="pytest_cuke_after_step", status="running")
 
     @hookimpl(trylast=True)
     def pytest_cuke_get_step_caller(
         self,
         request: FixtureRequest,
-        feature: Feature,
-        scenario: Scenario,
-        step: Step,
+        run: RunContext,
         step_func: Any,
         step_func_args: dict[str, Any],
         step_definition: Definition,
     ) -> Callable[[], Any]:
-        return partial(call_fixture_func, fixturefunc=step_definition.func, request=request, kwargs=step_func_args)
+        return partial(call_fixture_func, fixturefunc=step_func, request=request, kwargs=step_func_args)

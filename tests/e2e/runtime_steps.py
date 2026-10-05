@@ -153,7 +153,7 @@ def consumer_runtime_rows_are_isolated(relative_path: str, consumer: Any) -> Non
         "finished",
     ]
     expected_runtime_phases = [
-        "pytest_runtest_setup",
+        "pytest_cuke_match_step_definition_to_step",
         "pytest_cuke_before_scenario",
         "pytest_cuke_before_step",
         "pytest_cuke_before_step",
@@ -169,10 +169,10 @@ def consumer_runtime_rows_are_isolated(relative_path: str, consumer: Any) -> Non
         assert indexes == sorted(indexes), snapshots
         assert [(snapshot["stage"], snapshot["status"]) for snapshot in snapshots] == [
             ("setup", "running"),
-            ("running", "running"),
-            ("step", "running"),
-            ("step", "running"),
-            ("step", "running"),
+            ("setup", "running"),
+            ("step-running", "running"),
+            ("step-running", "running"),
+            ("step-running", "running"),
             ("finished", "passed"),
             ("finished", "passed"),
         ], snapshots

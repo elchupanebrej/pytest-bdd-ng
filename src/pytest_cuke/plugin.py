@@ -150,7 +150,11 @@ def attach(request: FixtureRequest) -> Callable[..., None]:
 
     def add_attachment(attachment: Any, media_type: str | None = None, file_name: str | None = None) -> None:
         request.config.hook.pytest_cuke_attach(
-            request=request, attachment=attachment, media_type=media_type, file_name=file_name
+            request=request,
+            run=RunContext.from_config(request.config),
+            attachment=attachment,
+            media_type=media_type,
+            file_name=file_name,
         )
 
     return add_attachment
@@ -867,13 +871,17 @@ def pytest_cuke_convert_tag_to_marks(
     return [getattr(pytest.mark, tag_clean)]
 
 
+@pytest.hookimpl(trylast=True)
 def pytest_cuke_match_step_definition_to_step(
-    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, previous_step: Step | None
+    request: FixtureRequest, run: RunContext
 ) -> Definition:
+    feature = run.require_feature("pytest_cuke_match_step_definition_to_step")
+    scenario = run.require_scenario("pytest_cuke_match_step_definition_to_step")
+    step = run.require_step("pytest_cuke_match_step_definition_to_step")
     step_registry: Registry = request.getfixturevalue("step_registry")
     step_matcher: Matcher = request.getfixturevalue("step_matcher")
 
-    return step_matcher(request, feature, scenario, step, previous_step, step_registry)
+    return step_matcher(request, feature, scenario, step, run.previous_step, step_registry)
 
 
 def pytest_cuke_get_mimetype(config: Config, path: Path) -> str | None:

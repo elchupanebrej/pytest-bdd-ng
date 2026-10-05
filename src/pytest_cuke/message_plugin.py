@@ -85,6 +85,7 @@ from pytest_cuke.model.message_types import (
 from pytest_cuke.model.message_types import Envelope as Message
 from pytest_cuke.model.message_validation import MessageValidationError, message_diagnostic_to_dict
 from pytest_cuke.model.run_access import get_run_context
+from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_cuke.packaging import get_distribution_version
 from pytest_cuke.scenario_locator import ScenarioLocatorFilterMixin
@@ -98,7 +99,7 @@ if TYPE_CHECKING:
     from pytest import Session
 
     from pytest_cuke.compatibility.pytest import Item, Metafunc, TestReport
-    from pytest_cuke.model import Feature, Step
+    from pytest_cuke.model import Step
     from pytest_cuke.model.message_validation import MessageValidationDiagnostic
 
 
@@ -1045,13 +1046,18 @@ class MessagePlugin:
             if hasattr(step_matcher, "last_matches"):
                 step_matcher.last_matches = ()
             try:
-                step_definition = hook_handler.pytest_cuke_match_step_definition_to_step(
-                    request=request,
+                inspection_context = RunContext.from_config(config)
+                with inspection_context.inspect_step(
                     feature=feature,
                     scenario=scenario,
                     step=step,
                     previous_step=previous_step,
-                )
+                    nodeid=item.nodeid,
+                ) as run:
+                    step_definition = hook_handler.pytest_cuke_match_step_definition_to_step(
+                        request=request,
+                        run=run,
+                    )
             except Matcher.MatchNotFoundError:
                 step_definition = None
                 step_definition_ids = []
@@ -1229,11 +1235,13 @@ class MessagePlugin:
         self._emit_test_case_finished(self.config, test_case_started)
         self._reset_scenario_message_state(message_state)
 
-    def pytest_cuke_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
+    def pytest_cuke_before_scenario(self, request: FixtureRequest, run: RunContext) -> None:
         if self.is_disabled:
             return
         config = request.config
         hook_handler = config.hook
+        run.require_feature("pytest_cuke_before_scenario")
+        run.require_scenario("pytest_cuke_before_scenario")
         current_test_case = self._get_current_test_case()
 
         self.current_test_case_start = TestCaseStarted(
@@ -1243,29 +1251,27 @@ class MessagePlugin:
             worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
             timestamp=self.get_timestamp(),
         )
-        run_context = get_run_context(config)
-        if run_context is not None:
-            active_run = run_context.active_scenario_run
-            if active_run is not None and active_run.nodeid == request.node.nodeid:
-                run_context.set_attempt_id(self.current_test_case_start.id)
+        active_run = run.active_scenario_run
+        if active_run is not None and active_run.nodeid == request.node.nodeid:
+            run.set_attempt_id(self.current_test_case_start.id)
 
         hook_handler.pytest_cuke_message(
             config=config,
             message=Message(test_case_started=self.current_test_case_start),
         )
 
-    def pytest_cuke_after_scenario(self, request: FixtureRequest, feature: Feature, scenario: Any) -> None:
+    def pytest_cuke_after_scenario(self, request: FixtureRequest, run: RunContext) -> None:
         if self.is_disabled:
             return
         config = request.config
+        run.require_scenario("pytest_cuke_after_scenario")
 
         current_test_case_start = self.current_test_case_start
         if current_test_case_start is None:
             self._reset_current_test_case()
             return
 
-        run_context = get_run_context(config)
-        active_run = run_context.active_scenario_run if run_context is not None else None
+        active_run = run.active_scenario_run
         retain_until_teardown = active_run is not None and active_run.nodeid == request.node.nodeid
         try:
             for test_step in self.current_test_case_step_order:
@@ -1323,13 +1329,12 @@ class MessagePlugin:
         message_state.pending_test_step_finish = None
         message_state.defer_test_case_finish = False
 
-    def pytest_cuke_before_step(
-        self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any
-    ) -> None:
+    def pytest_cuke_before_step(self, request: FixtureRequest, run: RunContext, step_func: Any) -> None:
         if self.is_disabled:
             return
         config = request.config
         current_test_case_start = self._get_current_test_case_start()
+        step = run.require_step("pytest_cuke_before_step")
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
 
@@ -1342,9 +1347,7 @@ class MessagePlugin:
     def pytest_cuke_step_bypassed(
         self,
         request: FixtureRequest,
-        feature: Feature,
-        scenario: Any,
-        step: Step,
+        run: RunContext,
         step_definition: Any,
         status: Literal["passed", "skipped"],
         message: str | None = None,
@@ -1353,6 +1356,7 @@ class MessagePlugin:
             return
         config = request.config
         current_test_case_start = self._get_current_test_case_start()
+        step = run.require_step("pytest_cuke_step_bypassed")
         test_step = self.current_test_case_step_id_to_step_mapping[id(step)]
         start_timestamp = self._start_test_step(
             config=config,
@@ -1368,13 +1372,12 @@ class MessagePlugin:
             message=message,
         )
 
-    def pytest_cuke_after_step(
-        self, request: FixtureRequest, feature: Feature, scenario: Any, step: Step, step_func: Any
-    ) -> None:
+    def pytest_cuke_after_step(self, request: FixtureRequest, run: RunContext, step_func: Any) -> None:
         if self.is_disabled:
             return
         config = request.config
         current_test_case_start = self._get_current_test_case_start()
+        step = run.require_step("pytest_cuke_after_step")
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
         self._finish_test_step(
@@ -1388,9 +1391,7 @@ class MessagePlugin:
     def pytest_cuke_step_error(
         self,
         request: FixtureRequest,
-        feature: Feature,
-        scenario: Any,
-        step: Step,
+        run: RunContext,
         step_func: Any,
         step_func_args: dict[str, Any],
         exception: BaseException,
@@ -1401,6 +1402,7 @@ class MessagePlugin:
             return
         config = request.config
         current_test_case_start = self._get_current_test_case_start()
+        step = run.require_step("pytest_cuke_step_error")
 
         step_definition = self.current_test_case_step_id_to_step_mapping[id(step)]
         if isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
@@ -1460,15 +1462,14 @@ class MessagePlugin:
     def pytest_cuke_step_func_lookup_error(
         self,
         request: FixtureRequest,
-        feature: Feature,
-        scenario: Any,
-        step: Step,
+        run: RunContext,
         exception: Exception,
     ) -> None:
         if self.is_disabled:
             return
         config = request.config
         current_test_case_start = self._get_current_test_case_start()
+        step = run.require_step("pytest_cuke_step_func_lookup_error")
         test_step = self.current_test_case_step_id_to_step_mapping[id(step)]
 
         for expression, name in self._undefined_parameter_types_from(exception):
@@ -1632,6 +1633,7 @@ class MessagePlugin:
     def pytest_cuke_attach(
         self,
         request: FixtureRequest,
+        run: RunContext,
         attachment: Any,
         media_type: str | None,
         file_name: str | None,
@@ -1642,7 +1644,12 @@ class MessagePlugin:
         hook_handler = config.hook
         self._get_current_test_case()
         current_test_case_start = self._get_current_test_case_start()
-        active_test_step_id = self.current_active_test_step_id
+        active_scenario_run = run.active_scenario_run
+        active_test_step_id = (
+            active_scenario_run.message_state.active_test_step_id
+            if active_scenario_run is not None
+            else self.current_active_test_step_id
+        )
         if active_test_step_id not in self.current_test_step_start_timestamps:
             active_test_step_id = None
 

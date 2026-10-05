@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 from uuid import uuid4
 
@@ -14,9 +15,11 @@ from pytest_cuke.model.scenario_run import ScenarioRun, StepRun
 from pytest_cuke.model.stash_access import ConfigStash, StashAccess, StashBound
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from pytest_cuke.model import Feature, Scenario, Step
 
-RuntimeStage = Literal["inactive", "collection", "setup", "running", "step", "teardown", "finished"]
+RuntimeStage = Literal["inactive", "collection", "setup", "running", "step-running", "teardown", "finished"]
 RuntimeHookPhase = Literal[
     "inactive",
     "pytest_collection",
@@ -25,6 +28,8 @@ RuntimeHookPhase = Literal[
     "pytest_cuke_before_scenario",
     "pytest_cuke_run_scenario",
     "pytest_cuke_before_step",
+    "pytest_cuke_step_bypassed",
+    "pytest_cuke_match_step_definition_to_step",
     "pytest_cuke_step_call",
     "pytest_cuke_step_func_lookup_error",
     "pytest_cuke_step_error",
@@ -76,6 +81,164 @@ class RunContext(StashBound):
     def find_in_config(cls, config: Any) -> RunContext | None:
         stash = ConfigStash.from_config(config)._stash
         return StashAccess.get_optional(stash, cls)
+
+    @classmethod
+    def for_step_inspection(
+        cls,
+        *,
+        feature: Feature,
+        scenario: Scenario,
+        step: Step,
+        previous_step: Step | None,
+        nodeid: str = "<step-inspection>",
+    ) -> RunContext:
+        """Create a short-lived run view for non-executing definition lookup."""
+        context = cls(stage="collection", hook_phase="pytest_collection")
+        binding = context.bind_feature(feature)
+        binding.register_scenario(scenario)
+        previous_step_run = StepRun(step=previous_step, index=0) if previous_step is not None else None
+        current_step_run = StepRun(
+            step=step,
+            id=f"{context.run_id}:{nodeid}:inspection",
+            index=1 if previous_step_run is not None else 0,
+            previous_step_run=previous_step_run,
+        )
+        scenario_run = ScenarioRun(
+            feature=feature,
+            scenario=scenario,
+            feature_binding=binding,
+            nodeid=nodeid,
+            run_id=context.run_id,
+            status="running",
+            stage="collection",
+            current_step_run=current_step_run,
+            previous_step_run=previous_step_run,
+        )
+        if previous_step_run is not None:
+            scenario_run.steps.append(previous_step_run)
+        context.active_feature_binding = binding
+        context.active_scenario_run = scenario_run
+        return context
+
+    @contextmanager
+    def inspect_step(
+        self,
+        *,
+        feature: Feature,
+        scenario: Scenario,
+        step: Step,
+        previous_step: Step | None,
+        nodeid: str = "<step-inspection>",
+    ) -> Iterator[RunContext]:
+        """Expose one candidate step without adding it to executed runtime history."""
+        scenario_run = self.active_scenario_run
+        if scenario_run is None or scenario_run.feature is not feature or scenario_run.scenario is not scenario:
+            inspection = self.for_step_inspection(
+                feature=feature,
+                scenario=scenario,
+                step=step,
+                previous_step=previous_step,
+                nodeid=nodeid,
+            )
+            inspection.transition(
+                stage="collection",
+                hook_phase="pytest_cuke_match_step_definition_to_step",
+                status="running",
+            )
+            yield inspection
+            return
+
+        previous_step_run = next(
+            (step_run for step_run in scenario_run.steps if step_run.step is previous_step),
+            None,
+        )
+        if previous_step is not None and previous_step_run is None:
+            previous_step_run = StepRun(step=previous_step, index=max(0, len(scenario_run.steps) - 1))
+        previous_current_step_run = scenario_run.current_step_run
+        scenario_run.current_step_run = StepRun(
+            step=step,
+            id=f"{self.run_id}:{scenario_run.nodeid}:inspection:{len(scenario_run.steps)}",
+            index=len(scenario_run.steps),
+            previous_step_run=previous_step_run,
+        )
+        self.transition(
+            stage=self.stage,
+            hook_phase="pytest_cuke_match_step_definition_to_step",
+            status=self.status,
+        )
+        try:
+            yield self
+        finally:
+            scenario_run.current_step_run = previous_current_step_run
+
+    @property
+    def feature(self) -> Feature | None:
+        """Feature for this active scenario, if the run currently has one."""
+        scenario_run = self.active_scenario_run
+        if scenario_run is not None:
+            return scenario_run.feature
+        binding = self.active_feature_binding
+        return binding.feature if binding is not None else None
+
+    @property
+    def scenario(self) -> Scenario | None:
+        """Scenario currently owned by this run, or None outside a scenario."""
+        scenario_run = self.active_scenario_run
+        return scenario_run.scenario if scenario_run is not None else None
+
+    @property
+    def step_run(self) -> StepRun | None:
+        """Step currently being matched or executed, if any."""
+        scenario_run = self.active_scenario_run
+        return scenario_run.current_step_run if scenario_run is not None else None
+
+    @property
+    def step(self) -> Step | None:
+        """Current step model; completed earlier steps are never returned as current."""
+        step_run = self.step_run
+        return step_run.step if step_run is not None else None
+
+    @property
+    def previous_step_run(self) -> StepRun | None:
+        """Immediately preceding step for the active step, or None for the first step."""
+        step_run = self.step_run
+        return step_run.previous_step_run if step_run is not None else None
+
+    @property
+    def previous_step(self) -> Step | None:
+        """Previous step model for the active step, or None when there is no predecessor."""
+        previous_step_run = self.previous_step_run
+        return previous_step_run.step if previous_step_run is not None else None
+
+    def require_feature(self, hook_name: str) -> Feature:
+        feature = self.feature
+        if feature is None:
+            raise self._missing_context_error(hook_name, "feature")
+        return feature
+
+    def require_scenario(self, hook_name: str) -> Scenario:
+        scenario = self.scenario
+        if scenario is None:
+            raise self._missing_context_error(hook_name, "scenario")
+        return scenario
+
+    def require_step(self, hook_name: str) -> Step:
+        step = self.step
+        if step is None:
+            raise self._missing_context_error(hook_name, "current step")
+        return step
+
+    def require_previous_step(self, hook_name: str) -> Step:
+        previous_step = self.previous_step
+        if previous_step is None:
+            raise self._missing_context_error(hook_name, "previous step (this is the first step)")
+        return previous_step
+
+    def _missing_context_error(self, hook_name: str, object_name: str) -> RuntimeError:
+        return RuntimeError(
+            f"{hook_name} cannot access {object_name}: it is not available in "
+            f"RunContext(run_id={self.run_id!r}, stage={self.stage!r})."
+        )
 
     def bind_feature(self, feature: Feature) -> FeatureRuntimeBinding:
         uri = normalize_feature_uri(feature)
@@ -141,7 +304,7 @@ class RunContext(StashBound):
             step_run.previous_step_run.children.append(step_run)
         scenario_run.add_step_run(step_run)
         scenario_run.current_step_run = step_run
-        self.transition(stage="step", hook_phase="pytest_cuke_before_step", status="running")
+        self.transition(stage="step-running", hook_phase="pytest_cuke_before_step", status="running")
         step_run.start()
         return step_run
 

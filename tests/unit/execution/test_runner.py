@@ -8,12 +8,26 @@ from pytest_cuke import exceptions
 from pytest_cuke.model.background import Background
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.model.step import Step
 from pytest_cuke.parsers.string_parser import string
 from pytest_cuke.runner import ScenarioRunner, StepRunner, _IgnoredStepFailure, _WipPassed
 from pytest_cuke.steps.decorators import not_implemented, tolerant, when
 
 pytestmark = pytest.mark.unit
+
+
+def active_run(feature: Feature, scenario: Scenario, step: Step, previous_step: Step | None = None) -> RunContext:
+    """Build the same active context lifecycle hooks receive during normal execution."""
+    run = RunContext()
+    run.start_scenario(nodeid="test.feature::scenario", feature=feature, scenario=scenario)
+    if previous_step is not None:
+        run.start_step(previous_step)
+        previous_run = run.step_run
+        assert previous_run is not None
+        run.finish_step(previous_run)
+    run.start_step(step)
+    return run
 
 
 def test_step_runner_inject_target_fixtures() -> None:
@@ -38,7 +52,7 @@ def test_step_runner_missing_step_definition_raises_not_found() -> None:
     step = Step(name="Given step", keyword="Given", line=5)
 
     with pytest.raises(exceptions.StepDefinitionNotFoundError):
-        runner.run_step(mock_request, feat, scen, step, None)
+        runner.run_step(mock_request, active_run(feat, scen, step))
 
 
 def test_passed_wip_policy_bypasses_body_hooks_and_target_fixtures(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -61,13 +75,10 @@ def test_passed_wip_policy_bypasses_body_hooks_and_target_fixtures(monkeypatch: 
         "pytest_cuke.runner.inject_fixture", lambda _request, name, _value: injected_fixtures.append(name)
     )
 
-    result = StepRunner().run_step(
-        request,
-        Feature(name="Feature"),
-        Scenario(name="Scenario"),
-        Step(name="the pending operation runs", keyword="When "),
-        None,
-    )
+    feature = Feature(name="Feature")
+    scenario = Scenario(name="Scenario")
+    step = Step(name="the pending operation runs", keyword="When ")
+    result = StepRunner().run_step(request, active_run(feature, scenario, step))
 
     assert isinstance(result, _WipPassed)
     assert calls == []
@@ -96,13 +107,10 @@ def test_skipped_wip_policy_bypasses_body_and_reports_skip() -> None:
     request.config.hook.pytest_cuke_match_step_definition_to_step.return_value = definition
 
     with pytest.raises(pytest.skip.Exception):
-        StepRunner().run_step(
-            request,
-            Feature(name="Feature"),
-            Scenario(name="Scenario"),
-            Step(name="the skipped pending operation runs", keyword="When "),
-            None,
-        )
+        feature = Feature(name="Feature")
+        scenario = Scenario(name="Scenario")
+        step = Step(name="the skipped pending operation runs", keyword="When ")
+        StepRunner().run_step(request, active_run(feature, scenario, step))
 
     assert calls == []
     request.config.hook.pytest_cuke_step_bypassed.assert_called_once()
@@ -132,13 +140,10 @@ def test_ignored_tolerant_body_error_does_not_inject_target_or_run_after_hook(mo
         "pytest_cuke.runner.inject_fixture", lambda _request, name, _value: injected_fixtures.append(name)
     )
 
-    result = StepRunner().run_step(
-        request,
-        Feature(name="Feature"),
-        Scenario(name="Scenario"),
-        Step(name="I fail before producing the target", keyword="When "),
-        None,
-    )
+    feature = Feature(name="Feature")
+    scenario = Scenario(name="Scenario")
+    step = Step(name="I fail before producing the target", keyword="When ")
+    result = StepRunner().run_step(request, active_run(feature, scenario, step))
 
     assert isinstance(result, _IgnoredStepFailure)
     assert str(result.exception) == "step body"
@@ -159,15 +164,12 @@ def test_ignored_policy_does_not_swallow_before_step_hook_errors() -> None:
     request.config.option.cuke_tolerant_status = "ignored"
     request.config.hook.pytest_cuke_match_step_definition_to_step.return_value = definition
     request.config.hook.pytest_cuke_before_step.side_effect = RuntimeError("hook failure")
+    feature = Feature(name="Feature")
+    scenario = Scenario(name="Scenario")
+    step = Step(name="I would fail later", keyword="When ")
 
     with pytest.raises(RuntimeError, match="hook failure"):
-        StepRunner().run_step(
-            request,
-            Feature(name="Feature"),
-            Scenario(name="Scenario"),
-            Step(name="I would fail later", keyword="When "),
-            None,
-        )
+        StepRunner().run_step(request, active_run(feature, scenario, step))
 
     request.config.hook.pytest_cuke_step_error.assert_called_once()
 
@@ -176,15 +178,12 @@ def test_ignored_policy_does_not_swallow_step_lookup_errors() -> None:
     request = MagicMock()
     request.config.option.cuke_tolerant_status = "ignored"
     request.config.hook.pytest_cuke_match_step_definition_to_step.side_effect = RuntimeError("ambiguous lookup")
+    feature = Feature(name="Feature")
+    scenario = Scenario(name="Scenario")
+    step = Step(name="ambiguous step", keyword="When ")
 
     with pytest.raises(RuntimeError, match="ambiguous lookup"):
-        StepRunner().run_step(
-            request,
-            Feature(name="Feature"),
-            Scenario(name="Scenario"),
-            Step(name="ambiguous step", keyword="When "),
-            None,
-        )
+        StepRunner().run_step(request, active_run(feature, scenario, step))
 
     request.config.hook.pytest_cuke_step_error.assert_not_called()
 
@@ -221,14 +220,11 @@ def test_step_runner_dispatches_step_error_for_keyboard_interrupt() -> None:
         KeyboardInterrupt("interrupt")
     )
 
+    feature = Feature(name="Feature")
+    scenario = Scenario(name="Scenario")
+    step = Step(name="the step is interrupted", keyword="When ")
     with pytest.raises(KeyboardInterrupt, match="interrupt"):
-        StepRunner().run_step(
-            request,
-            Feature(name="Feature"),
-            Scenario(name="Scenario"),
-            Step(name="the step is interrupted", keyword="When "),
-            None,
-        )
+        StepRunner().run_step(request, active_run(feature, scenario, step))
 
     request.config.hook.pytest_cuke_step_error.assert_called_once()
     assert isinstance(request.config.hook.pytest_cuke_step_error.call_args.kwargs["exception"], KeyboardInterrupt)
@@ -247,19 +243,15 @@ def test_mock_run_aggregates_missing_steps_and_keeps_previous_step_context(
         background=Background(steps=(background_step,)),
     )
     scenario = Scenario(name="Scenario", steps=(missing_first, matched, missing_last))
-    run_context = MagicMock()
-    run_context.get_scenario_run.return_value = object()
+    run_context = RunContext()
     monkeypatch.setattr("pytest_cuke.runner.get_run_context", lambda _config: run_context)
 
     step_runner = MagicMock()
+    observed_previous_steps: list[Step | None] = []
 
-    def match_to_step(
-        _request: object,
-        _feature: Feature,
-        _scenario: Scenario,
-        step: Step,
-        _previous: Step | None,
-    ) -> object:
+    def match_to_step(_request: object, run: RunContext) -> object:
+        step = run.require_step("pytest_cuke_match_step_definition_to_step")
+        observed_previous_steps.append(run.previous_step)
         if step in (missing_first, missing_last):
             raise exceptions.StepDefinitionNotFoundError(step.name)
         return object()
@@ -275,14 +267,12 @@ def test_mock_run_aggregates_missing_steps_and_keeps_previous_step_context(
 
     assert "missing first" in str(error.value)
     assert "missing last" in str(error.value)
-    assert [call.args[4] for call in step_runner.match_to_step.call_args_list] == [
+    assert observed_previous_steps == [
         None,
         background_step,
         missing_first,
         matched,
     ]
-    run_context.finish_active.assert_called_once_with(
-        status="undefined",
-        exception=error.value,
-        hook_phase="pytest_runtest_call",
-    )
+    assert run_context.status == "undefined"
+    assert run_context.last_error is error.value
+    assert run_context.hook_phase == "pytest_runtest_call"

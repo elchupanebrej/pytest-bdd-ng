@@ -364,7 +364,7 @@ def test_message_plugin_pytest_cuke_attach() -> None:
 
     request = SimpleNamespace(config=config)
 
-    plugin.pytest_cuke_attach(request, "hello attachment", "text/plain", "file.txt")
+    plugin.pytest_cuke_attach(request, context, "hello attachment", "text/plain", "file.txt")
     config.hook.pytest_cuke_message.assert_called_once()
 
 
@@ -397,11 +397,10 @@ def test_tolerated_step_error_keeps_later_message_steps_executable() -> None:
     )
     plugin = MessagePlugin(config=config)
 
+    context.start_step(failed_step)
     plugin.pytest_cuke_step_error(
         request=SimpleNamespace(config=config),
-        feature=feature,
-        scenario=scenario,
-        step=failed_step,
+        run=context,
         step_func=lambda: None,
         step_func_args={},
         exception=AssertionError("tolerated failure"),
@@ -429,6 +428,7 @@ def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None
     )
     scenario_run.message_state.test_steps = [test_step]
     scenario_run.message_state.test_steps_by_identity = {id(step): test_step}
+    context.start_step(step)
     config = SimpleNamespace(
         stash={RunContext.STASH_KEY: context},
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
@@ -439,9 +439,7 @@ def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None
 
     plugin.pytest_cuke_step_bypassed(
         request=SimpleNamespace(config=config),
-        feature=feature,
-        scenario=scenario,
-        step=step,
+        run=context,
         step_definition=object(),
         status="passed",
     )

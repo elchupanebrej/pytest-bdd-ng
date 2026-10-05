@@ -13,13 +13,13 @@ from pydantic import BaseModel as PydanticBaseModel
 
 from pytest_cuke.compatibility.allure import ALLURE_INSTALLED
 from pytest_cuke.compatibility.pytest import PYTEST81
-from pytest_cuke.model.run_access import get_scenario_run
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Iterator, Mapping
 
     from pytest_cuke.compatibility.pytest import Config, FixtureRequest
-    from pytest_cuke.model import Feature, Scenario, Step
+    from pytest_cuke.model import Feature, Scenario
+    from pytest_cuke.model.session_run import RunContext
     from pytest_cuke.steps import Definition
 
 
@@ -220,22 +220,23 @@ class AllurePytestBDD:
     def pytest_cuke_before_step_call(
         self,
         request: FixtureRequest,
-        feature: Feature,
-        scenario: Scenario,
-        step: Step,
+        run: RunContext,
         step_func: Any,
         step_func_args: dict[str, Any],
         step_definition: Definition,
     ) -> None:
         """Called before step function is set up."""
         if StepContext is not None:
+            step = run.require_step("pytest_cuke_before_step_call")
             step_definition.func = StepContext(f"{step.keyword} {step.text}", step_func_args)(step_func)
 
     @pytest.hookimpl
-    def pytest_cuke_before_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario) -> None:
+    def pytest_cuke_before_scenario(self, request: FixtureRequest, run: RunContext) -> None:
         if TestStepResult is None or md5 is None or now is None:
             return
-        scenario_ref = get_scenario_run(request) or scenario
+        feature = run.require_feature("pytest_cuke_before_scenario")
+        scenario = run.require_scenario("pytest_cuke_before_scenario")
+        scenario_ref = run.active_scenario_run or scenario
         scenario_result_uuid = self._cache.get(scenario_ref)
         test_result_uuid = self._cache.get(request.node.nodeid)
 
@@ -260,21 +261,24 @@ class AllurePytestBDD:
         scenario_result.parameters = self.get_params(request.node)
 
     @pytest.hookimpl
-    def pytest_cuke_after_scenario(self, request: FixtureRequest, feature: Feature, scenario: Scenario) -> None:
+    def pytest_cuke_after_scenario(self, request: FixtureRequest, run: RunContext) -> None:
         if now is None:
             return
-        scenario_result_uuid = self._cache.get(get_scenario_run(request) or scenario)
+        scenario = run.require_scenario("pytest_cuke_after_scenario")
+        scenario_result_uuid = self._cache.get(run.active_scenario_run or scenario)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.stop = now()
         self.allure_logger.stop_step(scenario_result_uuid)
 
     @pytest.hookimpl
     def pytest_cuke_step_func_lookup_error(
-        self, request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, exception: Exception
+        self, request: FixtureRequest, run: RunContext, exception: Exception
     ) -> None:
         if Status is None:
             return
-        scenario_result_uuid = self._cache.get(get_scenario_run(request) or scenario)
+        scenario = run.require_scenario("pytest_cuke_step_func_lookup_error")
+        run.require_step("pytest_cuke_step_func_lookup_error")
+        scenario_result_uuid = self._cache.get(run.active_scenario_run or scenario)
         scenario_result = self.allure_logger.get_item(scenario_result_uuid)
         scenario_result.status = Status.BROKEN
         scenario_result.status_details = exception

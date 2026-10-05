@@ -6,6 +6,10 @@ from unittest.mock import MagicMock
 
 import pytest_cuke.allure_logging as allure_mod
 from pytest_cuke.allure_logging import AllurePytestBDD
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.session_run import RunContext
+from pytest_cuke.model.step import Step
 
 if TYPE_CHECKING:
     import pytest
@@ -52,19 +56,23 @@ def test_allure_pytest_cuke_lifecycle_hooks(monkeypatch: pytest.MonkeyPatch) -> 
     bdd = AllurePytestBDD(allure_logger, allure_cache)
 
     request = SimpleNamespace(node=SimpleNamespace(nodeid="node-id-123"))
-    feature = MagicMock()
-    feature.rel_filename = "test.feature"
-    feature.name = "My Feature"
-    scenario = MagicMock()
-    scenario.name = "My Scenario"
+    feature = Feature(name="My Feature", uri="test.feature")
+    step = Step(name="a lookup step", keyword="Given ")
+    scenario = Scenario(name="My Scenario", steps=(step,))
+    run = RunContext.for_step_inspection(
+        feature=feature,
+        scenario=scenario,
+        step=step,
+        previous_step=None,
+        nodeid=request.node.nodeid,
+    )
 
-    bdd.pytest_cuke_before_scenario(request, feature, scenario)
+    bdd.pytest_cuke_before_scenario(request, run)
     allure_logger.start_step.assert_called_once()
 
-    bdd.pytest_cuke_after_scenario(request, feature, scenario)
+    bdd.pytest_cuke_after_scenario(request, run)
     allure_logger.stop_step.assert_called_once()
 
     exc = ValueError("lookup error")
-    step = MagicMock()
-    bdd.pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exc)
+    bdd.pytest_cuke_step_func_lookup_error(request, run, exc)
     assert allure_logger.stop_step.call_count == 2
