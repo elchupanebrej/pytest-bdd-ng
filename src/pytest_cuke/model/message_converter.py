@@ -53,12 +53,21 @@ def doc_string_to_message(doc: DocString, default_id: str = "") -> messages.DocS
 
 
 def scenario_message_id(scenario: Scenario, uri: str = "", default_id: str = "") -> str:
-    """Return one stable Messages identity for conversion and runtime links."""
+    """Return the scenario's AST identity, scoped to its Gherkin document."""
     if scenario.id:
         return scenario.id
     if default_id:
         return default_id
     return f"{uri or 'feature'}#scenario-{scenario.line}-{scenario.name}"
+
+
+def scenario_pickle_id(scenario: Scenario, uri: str = "", default_id: str = "") -> str:
+    """Return an execution identity distinct from document-local AST node IDs."""
+    if default_id:
+        return default_id
+    if uri:
+        return f"{uri}#{scenario_message_id(scenario)}"
+    return scenario_message_id(scenario)
 
 
 def data_table_to_message(table: DataTable, default_id: str = "") -> messages.DataTable:
@@ -265,10 +274,9 @@ def scenario_to_pickle(
     *,
     feature: Feature | None = None,
 ) -> messages.Pickle:
-    sc_id = scenario_message_id(scenario, uri=uri, default_id=default_id)
-    outline_row = bool(scenario.source_ast_node_ids)
+    sc_id = scenario_pickle_id(scenario, uri=uri, default_id=default_id)
     steps = [
-        step_to_pickle_step(s, f"{sc_id}-step-{i}", force_generated_id=outline_row)
+        step_to_pickle_step(s, f"{sc_id}-step-{i}", force_generated_id=True)
         for i, s in enumerate(execution_steps(feature, scenario) if feature is not None else scenario.all_steps)
     ]
     tags = [messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in scenario.tags]
@@ -303,9 +311,9 @@ def scenario_to_test_case(
     test_steps = [
         messages.TestStep(
             id=f"{tc_id}-step-{i}",
-            pickle_step_id=(f"{p_id}-step-{i}" if scenario.source_ast_node_ids else (s.id or f"{p_id}-step-{i}")),
+            pickle_step_id=f"{p_id}-step-{i}",
         )
-        for i, s in enumerate(execution_steps(feature, scenario) if feature is not None else scenario.all_steps)
+        for i, _step in enumerate(execution_steps(feature, scenario) if feature is not None else scenario.all_steps)
     ]
     return messages.TestCase(id=tc_id, pickle_id=p_id, test_steps=test_steps)
 
@@ -419,6 +427,7 @@ __all__ = [
     "pickle_to_envelope",
     "rule_to_message",
     "scenario_message_id",
+    "scenario_pickle_id",
     "scenario_to_message",
     "scenario_to_pickle",
     "scenario_to_test_case",

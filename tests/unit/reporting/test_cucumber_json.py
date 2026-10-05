@@ -70,3 +70,22 @@ def test_log_bdd_cucumber_json_get_result() -> None:
     report.skipped = True
     res_skipped = logger._get_result(step, report)
     assert res_skipped["status"] == "skipped"
+
+
+def test_log_bdd_cucumber_json_preserves_undefined_step_status() -> None:
+    logger = LogBDDCucumberJSON("dummy.json")
+    step = {
+        "failed": True,
+        "status": "undefined",
+        "error_message": "Step definition is not found",
+        "duration": 0.01,
+    }
+    report = MagicMock()
+    report.passed = False
+    report.failed = True
+    report.skipped = False
+
+    result = logger._get_result(step, report)
+
+    assert result["status"] == "undefined"
+    assert result["error_message"] == "Step definition is not found"

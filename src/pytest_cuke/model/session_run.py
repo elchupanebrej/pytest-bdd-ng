@@ -4,15 +4,17 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 from uuid import uuid4
 
 from attrs import define, field
 
-from pytest_cuke.model import Feature, Scenario, Step
 from pytest_cuke.model.feature_binding import FeatureRuntimeBinding, normalize_feature_uri
 from pytest_cuke.model.scenario_run import ScenarioRun, StepRun
-from pytest_cuke.model.stash_access import ConfigStash, StashBound, StashAccess
+from pytest_cuke.model.stash_access import ConfigStash, StashAccess, StashBound
+
+if TYPE_CHECKING:
+    from pytest_cuke.model import Feature, Scenario, Step
 
 RuntimeStage = Literal["inactive", "collection", "setup", "running", "step", "teardown", "finished"]
 RuntimeHookPhase = Literal[
@@ -30,7 +32,16 @@ RuntimeHookPhase = Literal[
     "pytest_cuke_after_scenario",
     "pytest_runtest_teardown",
 ]
-RuntimeStatus = Literal["inactive", "pending", "running", "passed", "failed", "skipped", "undefined"]
+RuntimeStatus = Literal[
+    "inactive",
+    "pending",
+    "running",
+    "passed",
+    "failed",
+    "skipped",
+    "undefined",
+    "interrupted",
+]
 
 
 @define(slots=True)
@@ -138,7 +149,7 @@ class RunContext(StashBound):
         self,
         step_run: StepRun,
         *,
-        status: Literal["passed", "failed", "skipped", "undefined"] = "passed",
+        status: Literal["passed", "failed", "skipped", "undefined", "interrupted"] = "passed",
         result: Any = None,
         exception: BaseException | None = None,
         failure_reason: str | None = None,
@@ -159,7 +170,7 @@ class RunContext(StashBound):
     def finish_active(
         self,
         *,
-        status: Literal["passed", "failed", "skipped", "undefined"],
+        status: Literal["passed", "failed", "skipped", "undefined", "interrupted"],
         exception: BaseException | None = None,
         hook_phase: RuntimeHookPhase = "pytest_cuke_after_scenario",
     ) -> None:
@@ -177,14 +188,23 @@ class RunContext(StashBound):
     def enter_teardown(self) -> None:
         self.transition(stage="teardown", hook_phase="pytest_runtest_teardown", status=self._active_status())
 
-    def record_teardown_error(self, exception: BaseException) -> None:
+    def record_teardown_error(
+        self,
+        exception: BaseException,
+        *,
+        status: Literal["failed", "interrupted"] = "failed",
+    ) -> None:
         self.last_error = exception
         scenario_run = self.active_scenario_run
         if scenario_run is not None:
-            scenario_run.fail(exception, duration=scenario_run.duration)
-        self.transition(stage="teardown", hook_phase="pytest_runtest_teardown", status="failed")
+            scenario_run.finish(status=status, duration=scenario_run.duration, exception=exception)
+        self.transition(stage="teardown", hook_phase="pytest_runtest_teardown", status=status)
 
-    def record_setup_error(self, exception: BaseException, status: Literal["failed", "skipped", "undefined"]) -> None:
+    def record_setup_error(
+        self,
+        exception: BaseException,
+        status: Literal["failed", "skipped", "undefined", "interrupted"],
+    ) -> None:
         self.last_error = exception
         scenario_run = self.active_scenario_run
         if scenario_run is not None:

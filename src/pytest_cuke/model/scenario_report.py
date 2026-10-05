@@ -8,7 +8,7 @@ from attrs import define, field
 if TYPE_CHECKING:
     from pytest_cuke.model.scenario_run import ScenarioRun, StepRun
 
-RuntimeStepStatus = Literal["passed", "failed", "skipped", "undefined"]
+RuntimeStepStatus = Literal["passed", "failed", "skipped", "undefined", "interrupted"]
 
 
 class StepReportData(TypedDict, total=False):

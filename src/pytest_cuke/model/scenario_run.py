@@ -105,6 +105,8 @@ class ScenarioMessageState:
     test_step_start_timestamps: dict[str, Any] = field(factory=dict)
     active_test_step_id: str | None = None
     test_step_exception_traces: dict[str, str] = field(factory=dict)
+    pending_test_step_finish: Any = None
+    defer_test_case_finish: bool = False
 
 
 @define(slots=True)

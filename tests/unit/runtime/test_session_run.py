@@ -135,6 +135,28 @@ def test_run_context_tracks_step_transitions_attempt_and_teardown_snapshot() -> 
     assert context.transition_index > final_snapshot_transition
 
 
+def test_run_context_retains_interrupted_outcome_after_clearing_active_references() -> None:
+    feature = Feature(name="Interrupted", uri="interrupted.feature")
+    scenario = Scenario(name="Interrupted scenario")
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="interrupted.feature::Interrupted scenario",
+        feature=feature,
+        scenario=scenario,
+    )
+    interruption = KeyboardInterrupt("interrupt sentinel")
+
+    context.finish_active(status="interrupted", exception=interruption)
+    context.clear_active()
+
+    assert context.active_feature_binding is None
+    assert context.active_scenario_run is None
+    assert context.status == "inactive"
+    assert context.last_error is interruption
+    assert scenario_run.status == "interrupted"
+    assert scenario_run.exception is interruption
+
+
 def test_runtime_attempt_ids_exist_without_messages_and_are_isolated() -> None:
     context = RunContext()
     feature = Feature(name="Runtime attempts", uri="attempts.feature")
