@@ -4,6 +4,7 @@ import math
 import re
 from dataclasses import dataclass
 from ipaddress import ip_address
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -89,6 +90,7 @@ class DebugMcpOptions:
     lease_seconds: float = 10.0
     host: str = "127.0.0.1"
     port: int | None = None
+    artifacts_root: Path | None = None
 
     @classmethod
     def from_config(cls, config: Config) -> DebugMcpOptions:
@@ -105,6 +107,8 @@ class DebugMcpOptions:
         host = _host(configured("cuke_mcp_host", "cuke_mcp_host"))
         raw_port = configured("cuke_mcp_port", "cuke_mcp_port")
         parsed_port = parse_port(raw_port)
+        raw_artifacts_root = configured("cuke_mcp_artifacts", "cuke_mcp_artifacts")
+        artifacts_root = Path(str(raw_artifacts_root)) if raw_artifacts_root else None
         if parsed_port == "auto":
             port = None
         else:
@@ -116,6 +120,7 @@ class DebugMcpOptions:
             lease_seconds=lease,
             host=host,
             port=port,
+            artifacts_root=artifacts_root,
         )
 
     @property
@@ -184,3 +189,12 @@ def add_options(parser: Parser) -> None:
     parser.addini("cuke_mcp_lease", "Debug MCP heartbeat lease, as a positive duration.", default="10s")
     parser.addini("cuke_mcp_host", "Debug MCP server bind host.", default="127.0.0.1")
     parser.addini("cuke_mcp_port", "Debug MCP debugger port, or auto.", default="auto")
+    group.addoption(
+        "--cuke-mcp-artifacts",
+        action="store",
+        dest="cuke_mcp_artifacts",
+        metavar="DIR",
+        default=None,
+        help="directory where Debug MCP investigation JSON and Markdown artifacts are written",
+    )
+    parser.addini("cuke_mcp_artifacts", "Directory for Debug MCP investigation artifacts.", default="")

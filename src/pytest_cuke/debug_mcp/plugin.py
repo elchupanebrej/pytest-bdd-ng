@@ -7,6 +7,7 @@ from uuid import uuid4
 
 import pytest
 
+from pytest_cuke.debug_mcp.artifacts import ArtifactSink
 from pytest_cuke.debug_mcp.discovery import DiscoveryPublisher
 from pytest_cuke.debug_mcp.server import (
     DebuggerMcpProcess,
@@ -34,6 +35,7 @@ class DebugMcpPlugin:
         self.options = options
         self.discovery: DiscoveryPublisher | None = None
         self.queue: FailureQueue | None = None
+        self.artifact_sink: ArtifactSink | None = None
         self.debugger: DebuggerMcpProcess | None = None
         self.inspection: InspectionMcpServer | None = None
         self._closed = False
@@ -102,12 +104,19 @@ class DebugMcpPlugin:
         inspection_port = allocate_port(self.options.host, excluding={debugger_port})
 
         session_id = self._session_id()
+        self.artifact_sink = ArtifactSink(_artifact_root(self.config, self.options.artifacts_root, session_id))
         self.queue = FailureQueue(
             session_id=session_id,
             timeout_seconds=self.options.timeout_seconds,
             lease_seconds=self.options.lease_seconds,
         )
-        self.inspection = InspectionMcpServer(queue=self.queue, host=self.options.host, port=inspection_port)
+        self.inspection = InspectionMcpServer(
+            queue=self.queue,
+            host=self.options.host,
+            port=inspection_port,
+            artifact_sink=self.artifact_sink,
+            pluginmanager=self.config.pluginmanager,
+        )
         self.inspection.start()
 
         self.debugger = DebuggerMcpProcess(
@@ -250,6 +259,16 @@ def _cache_discovery_path(config: Any) -> Path:
         root = getattr(config, "rootpath", getattr(config, "rootdir", Path.cwd()))
         cache_dir = Path(root) / cache_dir
     return cache_dir / "cuke" / "debug-mcp" / "session.json"
+
+
+def _artifact_root(config: Any, configured_root: Path | None, session_id: str) -> Path:
+    if configured_root is None:
+        return (_cache_discovery_path(config).parent / "artifacts" / session_id).resolve()
+    root = configured_root
+    if not root.is_absolute():
+        pytest_root = getattr(config, "rootpath", getattr(config, "rootdir", Path.cwd()))
+        root = Path(pytest_root) / root
+    return root.resolve()
 
 
 def _active_step(scenario_run: ScenarioRun | None) -> Any | None:
