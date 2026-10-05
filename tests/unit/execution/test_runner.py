@@ -144,6 +144,7 @@ def test_ignored_tolerant_body_error_does_not_inject_target_or_run_after_hook(mo
     assert str(result.exception) == "step body"
     assert injected_fixtures == []
     request.config.hook.pytest_cuke_step_error.assert_called_once()
+    assert request.config.hook.pytest_cuke_step_error.call_args.kwargs["tolerated"] is True
     request.config.hook.pytest_cuke_after_step.assert_not_called()
 
 

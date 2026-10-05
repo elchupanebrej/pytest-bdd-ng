@@ -144,6 +144,7 @@ class StepRunner:
             "previous_step": previous_step,
             "step_func": None,
             "step_func_args": {},
+            "tolerated": False,
         }
 
         try:

@@ -201,3 +201,46 @@ Feature: Tolerant step status policy
     When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored -n2 --dist=each -q"
     Then pytest should exit with a non-zero code
     And consumer xdist continuation artifacts should show "worker-ignored" on 2 workers
+
+  Scenario: Ambiguous tolerant definitions keep the first match and continue
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer exposes tolerant steps and a continuation artifact
+    And the installed consumer exposes two duplicate tolerant step definitions
+    And consumer file "features/tolerant-status.feature" contains:
+      """gherkin
+      Feature: Ambiguous tolerant bindings
+        Scenario: The first matching definition runs and the next step continues
+          When the ambiguous tolerant operation matches two definitions
+          Then the continuation records "after-ambiguity"
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-summary -q"
+    Then pytest should exit with code 0
+    And the test outcome should have 1 passed scenarios
+    And pytest output should include "Alternative step definitions are found"
+    And consumer continuation artifact should list "first,after-ambiguity"
+
+  Scenario: Consecutive pytest.main sessions resolve opposite tolerant policies independently
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer exposes tolerant steps and a continuation artifact
+    And consumer file "features/tolerant-status.feature" contains:
+      """gherkin
+      Feature: Tolerant policy across repeated sessions
+        Scenario: The first session may continue the tolerant failure
+          When the first tolerant operation raises an AssertionError
+          Then the continuation records "repeat-session"
+      """
+    When I run installed pytest twice in one process with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=ignored.ndjson --cuke-summary -q" and then "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=failed --cuke-messages-ndjson=failed.ndjson --cuke-summary -q"
+    Then consumer repeated pytest sessions should exit with codes "0,1"
+    And consumer artifact "ignored.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "The first session may continue the tolerant failure" and TestRunFinished success "true"
+    And consumer artifact "failed.ndjson" should keep tolerant step statuses "FAILED,SKIPPED" and exception messages "first tolerant assertion sentinel" for scenario "The first session may continue the tolerant failure" and TestRunFinished success "false"
+    And consumer continuation artifact should list "repeat-session"
+
+  Scenario: The checked-in tolerant steps example runs from an installed consumer
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer stages the checked-in tolerant steps example
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json --cuke-summary -q"
+    Then pytest should exit with code 0
+    And the test outcome should have 1 passed scenarios
+    And consumer continuation artifact should list "continued"
+    And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "Ignored tolerant step lets later steps run" and TestRunFinished success "true"
+    And consumer artifact "cucumber.json" should report scenario "Ignored tolerant step lets later steps run" with step statuses "failed,passed" and error messages "first tolerant assertion sentinel"
