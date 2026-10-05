@@ -19,11 +19,11 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           run_context = request.getfixturevalue("run_context")
           _scenario_hook_observations.append(
               {
-                  "scenario_name": scenario.name,
+                  "scenario_name": run.scenario.name,
                   "run_context": run_context,
                   "scenario_run": run_context.active_scenario_run,
               }
@@ -119,7 +119,7 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           global _run_context, _scenario_nodeid
           _run_context = request.getfixturevalue("run_context")
           _scenario_nodeid = request.node.nodeid
@@ -256,17 +256,17 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _snapshot(request.getfixturevalue("run_context"), "pytest_cuke_before_scenario")
 
 
       @hookimpl
-      def pytest_cuke_before_step(request, feature, scenario, step, step_func):
+      def pytest_cuke_before_step(request, run, step_func):
           _snapshot(request.getfixturevalue("run_context"), "pytest_cuke_before_step")
 
 
       @hookimpl
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           run_context = request.getfixturevalue("run_context")
           scenario_run = run_context.active_scenario_run
           assert scenario_run is not None
@@ -386,7 +386,7 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _run_contexts[request.node.nodeid] = request.getfixturevalue("run_context")
 
 
@@ -496,7 +496,7 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _terminal_run_contexts[request.node.nodeid] = request.getfixturevalue("run_context")
 
 
@@ -840,7 +840,7 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl(hookwrapper=True, trylast=True)
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           yield
           run_context = request.getfixturevalue("run_context")
           scenario_run = run_context.active_scenario_run
@@ -900,7 +900,7 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           global _bdd_run_context, _bdd_nodeid
           _bdd_run_context = request.getfixturevalue("run_context")
           _bdd_nodeid = request.node.nodeid
@@ -1081,7 +1081,7 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           global _run_context, _scenario_nodeid
           _run_context = request.getfixturevalue("run_context")
           _scenario_nodeid = request.node.nodeid
@@ -1093,12 +1093,12 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           scenario_run = _run_context.active_scenario_run
           _write_snapshot(
               "interrupt-after-scenario.json",
               {
-                  "scenario_name": scenario.name,
+                  "scenario_name": run.scenario.name,
                   "scenario_status": scenario_run.status if scenario_run is not None else None,
                   "exception_type": (
                       type(scenario_run.exception).__name__
@@ -1213,21 +1213,21 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           global _run_context, _scenario_nodeid
           _run_context = request.getfixturevalue("run_context")
           _scenario_nodeid = request.node.nodeid
 
 
       @hookimpl
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           scenario_run = _run_context.active_scenario_run
           assert scenario_run is not None
           _write_runtime_snapshot(
               "teardown-after-scenario.json",
               scenario_run,
               _run_context,
-              scenario_name=scenario.name,
+              scenario_name=run.scenario.name,
           )
 
 
@@ -1292,7 +1292,7 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           scenario_run = request.getfixturevalue("run_context").active_scenario_run
           assert scenario_run is not None
           Path("terminal-skip-before-teardown.json").write_text(
@@ -1377,14 +1377,14 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           global _run_context, _scenario_nodeid
           _run_context = request.getfixturevalue("run_context")
           _scenario_nodeid = request.node.nodeid
 
 
       @hookimpl
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           scenario_run = _run_context.active_scenario_run
           assert scenario_run is not None
           terminal_step = scenario_run.steps[-1]
@@ -1476,21 +1476,21 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           global _run_context, _scenario_nodeid
           _run_context = request.getfixturevalue("run_context")
           _scenario_nodeid = request.node.nodeid
 
 
       @hookimpl
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           scenario_run = _run_context.active_scenario_run
           assert scenario_run is not None
           Path("middle-skip-before-teardown.json").write_text(
               json.dumps(
                   {
                       "scenario_status": scenario_run.status,
-                      "scenario_step_count": len(scenario.steps),
+                      "scenario_step_count": len(run.scenario.steps),
                       "executed_step_names": [step_run.step.text for step_run in scenario_run.steps],
                       "executed_step_statuses": [step_run.status for step_run in scenario_run.steps],
                   },
@@ -1570,14 +1570,14 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           global _run_context, _scenario_nodeid
           _run_context = request.getfixturevalue("run_context")
           _scenario_nodeid = request.node.nodeid
 
 
       @hookimpl
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           scenario_run = _run_context.active_scenario_run
           assert scenario_run is not None
           Path("tolerant-before-teardown.json").write_text(
@@ -1667,14 +1667,14 @@ Feature: Session-owned scenario runtime integration
 
 
       @hookimpl
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           global _run_context, _scenario_nodeid
           _run_context = request.getfixturevalue("run_context")
           _scenario_nodeid = request.node.nodeid
 
 
       @hookimpl
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           scenario_run = _run_context.active_scenario_run
           assert scenario_run is not None
           Path("undefined-before-teardown.json").write_text(

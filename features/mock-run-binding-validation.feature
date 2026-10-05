@@ -22,35 +22,35 @@ Feature: Binding-only mock run validation
           _record("step-body")
 
 
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _record("before-scenario")
 
 
-      def pytest_cuke_run_scenario(request, feature, scenario):
+      def pytest_cuke_run_scenario(request, run):
           _record("run-scenario")
 
 
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           _record("after-scenario")
 
 
-      def pytest_cuke_before_step(request, feature, scenario, step, step_func):
+      def pytest_cuke_before_step(request, run, step_func):
           _record("before-step")
 
 
-      def pytest_cuke_before_step_call(request, feature, scenario, step, step_func, step_func_args, step_definition):
+      def pytest_cuke_before_step_call(request, run, step_func, step_func_args, step_definition):
           _record("before-step-call")
 
 
-      def pytest_cuke_after_step(request, feature, scenario, step, step_func, step_func_args, step_definition):
+      def pytest_cuke_after_step(request, run, step_func, step_func_args, step_definition):
           _record("after-step")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           _record("step-lookup-error")
 
 
-      def pytest_cuke_step_error(request, feature, scenario, step, step_func, step_func_args, exception, step_definition, tolerated=False):
+      def pytest_cuke_step_error(request, run, step_func, step_func_args, exception, step_definition, tolerated=False):
           _record("step-error")
 
 
@@ -104,35 +104,35 @@ Feature: Binding-only mock run validation
           _record("step-body")
 
 
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _record("before-scenario")
 
 
-      def pytest_cuke_run_scenario(request, feature, scenario):
+      def pytest_cuke_run_scenario(request, run):
           _record("run-scenario")
 
 
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           _record("after-scenario")
 
 
-      def pytest_cuke_before_step(request, feature, scenario, step, step_func):
+      def pytest_cuke_before_step(request, run, step_func):
           _record("before-step")
 
 
-      def pytest_cuke_before_step_call(request, feature, scenario, step, step_func, step_func_args, step_definition):
+      def pytest_cuke_before_step_call(request, run, step_func, step_func_args, step_definition):
           _record("before-step-call")
 
 
-      def pytest_cuke_after_step(request, feature, scenario, step, step_func, step_func_args, step_definition):
+      def pytest_cuke_after_step(request, run, step_func, step_func_args, step_definition):
           _record("after-step")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           _record("step-lookup-error")
 
 
-      def pytest_cuke_step_error(request, feature, scenario, step, step_func, step_func_args, exception, step_definition, tolerated=False):
+      def pytest_cuke_step_error(request, run, step_func, step_func_args, exception, step_definition, tolerated=False):
           _record("step-error")
 
 
@@ -177,23 +177,23 @@ Feature: Binding-only mock run validation
               stream.write(name + "\n")
 
 
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _record("before-scenario")
 
 
-      def pytest_cuke_run_scenario(request, feature, scenario):
+      def pytest_cuke_run_scenario(request, run):
           _record("run-scenario")
 
 
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           _record("after-scenario")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           _record("step-lookup-error")
 
 
-      def pytest_cuke_step_error(request, feature, scenario, step, step_func, step_func_args, exception, step_definition, tolerated=False):
+      def pytest_cuke_step_error(request, run, step_func, step_func_args, exception, step_definition, tolerated=False):
           _record("step-error")
 
 
@@ -289,31 +289,31 @@ Feature: Binding-only mock run validation
           _record("step-body")
 
 
-      def pytest_cuke_before_scenario(request, feature, scenario):
+      def pytest_cuke_before_scenario(request, run):
           _record("before-scenario")
 
 
-      def pytest_cuke_run_scenario(request, feature, scenario):
+      def pytest_cuke_run_scenario(request, run):
           _record("run-scenario")
 
 
-      def pytest_cuke_after_scenario(request, feature, scenario):
+      def pytest_cuke_after_scenario(request, run):
           _record("after-scenario")
 
 
-      def pytest_cuke_before_step(request, feature, scenario, step, step_func):
+      def pytest_cuke_before_step(request, run, step_func):
           _record("before-step")
 
 
-      def pytest_cuke_before_step_call(request, feature, scenario, step, step_func, step_func_args, step_definition):
+      def pytest_cuke_before_step_call(request, run, step_func, step_func_args, step_definition):
           _record("before-step-call")
 
 
-      def pytest_cuke_after_step(request, feature, scenario, step, step_func, step_func_args, step_definition):
+      def pytest_cuke_after_step(request, run, step_func, step_func_args, step_definition):
           _record("after-step")
 
 
-      def pytest_cuke_step_error(request, feature, scenario, step, step_func, step_func_args, exception, step_definition, tolerated=False):
+      def pytest_cuke_step_error(request, run, step_func, step_func_args, exception, step_definition, tolerated=False):
           _record("step-error")
 
 
@@ -405,11 +405,11 @@ Feature: Binding-only mock run validation
           raise AssertionError("mock-run must not execute step bodies")
 
 
-      def pytest_cuke_step_func_lookup_error(request, feature, scenario, step, exception):
+      def pytest_cuke_step_func_lookup_error(request, run, exception):
           _record("step-lookup-error")
 
 
-      def pytest_cuke_step_error(request, feature, scenario, step, step_func, step_func_args, exception, step_definition, tolerated=False):
+      def pytest_cuke_step_error(request, run, step_func, step_func_args, exception, step_definition, tolerated=False):
           _record("step-error")
 
 

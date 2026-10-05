@@ -71,6 +71,52 @@ def test_feature_binding_indexes_source_tree_and_outline_row(tmp_path: Path) -> 
         step.name = "mutated"
 
 
+def test_run_context_exposes_only_the_scoped_step_and_previous_step() -> None:
+    first_step = Step(name="first", keyword="Given ", id="step-1")
+    second_step = Step(name="second", keyword="When ", id="step-2")
+    feature = Feature(name="Inspection", uri="inspection.feature")
+    scenario = Scenario(name="Inspection scenario", steps=(first_step, second_step))
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="inspection.feature::Inspection scenario",
+        feature=feature,
+        scenario=scenario,
+    )
+
+    with context.inspect_step(
+        feature=feature,
+        scenario=scenario,
+        step=first_step,
+        previous_step=None,
+    ) as run:
+        assert run is context
+        assert run.feature is feature
+        assert run.scenario is scenario
+        assert run.step is first_step
+        assert run.previous_step is None
+        with pytest.raises(RuntimeError, match=r"pytest_cuke_before_step.*previous step"):
+            run.require_previous_step("pytest_cuke_before_step")
+
+    assert context.step is None
+    assert context.previous_step is None
+    assert scenario_run.current_step_run is None
+
+    with context.inspect_step(
+        feature=feature,
+        scenario=scenario,
+        step=second_step,
+        previous_step=first_step,
+    ) as run:
+        assert run.step is second_step
+        assert run.previous_step is first_step
+        assert run.require_previous_step("pytest_cuke_before_step") is first_step
+
+    inactive = RunContext()
+    assert inactive.feature is inactive.scenario is inactive.step is inactive.previous_step is None
+    with pytest.raises(RuntimeError, match=r"pytest_cuke_match_step_definition_to_step.*current step"):
+        inactive.require_step("pytest_cuke_match_step_definition_to_step")
+
+
 def test_run_context_tracks_step_transitions_attempt_and_teardown_snapshot() -> None:
     first_step = Step(name="first", keyword="Given ", id="step-1")
     second_step = Step(name="second", keyword="Then ", id="step-2")
@@ -97,7 +143,7 @@ def test_run_context_tracks_step_transitions_attempt_and_teardown_snapshot() -> 
         test_case_started_id="attempt-1",
     )
     first_run = context.start_step(first_step)
-    assert context.stage == "step"
+    assert context.stage == "step-running"
     assert context.hook_phase == "pytest_cuke_before_step"
     context.finish_step(first_run)
     second_run = context.start_step(second_step)

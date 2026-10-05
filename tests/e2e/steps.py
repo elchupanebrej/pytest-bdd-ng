@@ -40,7 +40,7 @@ except ImportError:
         pytest.skip("pytest_httpserver is not installed")
 
 
-from pytest_cuke import given, parsers, step, then, when
+from pytest_cuke import given, step, then, when
 from pytest_cuke.compatibility.pytest import assert_outcomes
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model.message_types import Envelope, message_from_dict
@@ -2888,6 +2888,689 @@ def install_pytest_cuke_test_group_consumer(
         env=environment,
         artifact=_pytest_cuke_group_wheel,
     )
+
+
+@given("the installed consumer registers the run-aware lifecycle extension plugin")
+def install_run_aware_lifecycle_extension(consumer: ConsumerProject) -> None:
+    (consumer.path / "conftest.py").write_text(
+        dedent(
+            '''\
+            pytest_plugins = ["run_aware_plugin"]
+
+            from pytest_cuke import given, parsers, then, when
+
+
+            def _record_body(label):
+                with open("run-aware-body-effects.log", "a", encoding="utf-8") as stream:
+                    stream.write(label + "\\n")
+
+
+            @given(parsers.parse('the first run-aware step records "{label}"'))
+            def first_run_aware_step(label):
+                _record_body(label)
+                return label
+
+
+            @when(parsers.parse('the next run-aware step records "{label}"'))
+            def next_run_aware_step(label):
+                _record_body(label)
+                return label
+
+
+            @when(parsers.parse('the custom caller step records "{label}"'), target_fixture="custom_middle")
+            def custom_caller_step(label):
+                _record_body(label)
+                return label
+
+
+            @when(parsers.parse('the run-aware body raises "{message}"'))
+            def run_aware_body_raises(message):
+                _record_body("body-before-error")
+                raise AssertionError(message)
+
+
+            @when(parsers.parse('a replaceable run-aware step receives "{label}"'))
+            def replaceable_run_aware_step(label):
+                _record_body("original-replaceable-body")
+                return label
+
+
+            @when("the observer hook raises")
+            def observer_hook_raises():
+                _record_body("hook-body-must-not-run")
+
+
+            @then(parsers.parse('the last run-aware step records "{label}"'))
+            def last_run_aware_step(label, custom_middle):
+                if label == "custom-end":
+                    assert custom_middle == "custom-middle"
+                else:
+                    assert custom_middle is None
+                with open("run-aware-target-fixtures.log", "a", encoding="utf-8") as stream:
+                    stream.write(f"{label}={custom_middle!r}\\n")
+                _record_body(label)
+                return label
+
+
+            def pytest_collection_modifyitems(items):
+                items.sort(key=lambda item: "pytest_cuke_scenario" not in [
+                    marker.name for marker in item.iter_markers()
+                ])
+            '''
+        ),
+        encoding="utf-8",
+    )
+    (consumer.path / "run_aware_plugin.py").write_text(
+        dedent(
+            '''\
+            from __future__ import annotations
+
+            import json
+            import os
+            from pathlib import Path
+            from typing import Any
+
+            from pytest import hookimpl
+
+
+            _sequence = 0
+            _replacement_payload = {}
+
+
+            def _step_name(value: Any) -> str | None:
+                if value is None:
+                    return None
+                step = getattr(value, "step", value)
+                return getattr(step, "name", getattr(step, "text", None))
+
+
+            def _step_index(run, step):
+                scenario = run.scenario
+                if scenario is None or step is None:
+                    return None
+                return next(
+                    (index for index, candidate in enumerate(scenario.steps) if candidate == step),
+                    None,
+                )
+
+
+            def _record(event, run, *, request=None, step=None, previous_step=None,
+                        step_func=None, step_func_args=None, step_definition=None,
+                        exception=None, selection=None):
+                global _sequence
+                _sequence += 1
+                current = run.step
+                previous = run.previous_step
+                definition_func = getattr(step_definition, "func", None)
+                row = {
+                    "sequence": _sequence,
+                    "event": event,
+                    "run_id": run.run_id,
+                    "run_identity": id(run),
+                    "worker_id": run.worker_id,
+                    "request_nodeid": request.node.nodeid if request is not None else None,
+                    "feature_name": getattr(run.feature, "name", None),
+                    "scenario_name": getattr(run.scenario, "name", None),
+                    "stage": run.stage,
+                    "hook_phase": run.hook_phase,
+                    "status": run.status,
+                    "transition_index": run.transition_index,
+                    "step_name": _step_name(step),
+                    "previous_step_name": _step_name(previous_step) or _step_name(run.previous_step),
+                    "context_step_name": _step_name(run.step),
+                    "context_previous_step_name": _step_name(run.previous_step),
+                    "current_step_index": _step_index(run, current),
+                    "previous_step_index": _step_index(run, previous),
+                    "scenario_status": run.status,
+                    "step_func": getattr(step_func, "__name__", None),
+                    "step_func_identity": id(step_func) if step_func is not None else None,
+                    "step_func_args": step_func_args,
+                    "step_definition_func": getattr(definition_func, "__name__", None),
+                    "step_definition_identity": id(step_definition) if step_definition is not None else None,
+                    "step_definition_func_identity": id(definition_func) if definition_func is not None else None,
+                    "exception_type": type(exception).__name__ if exception is not None else None,
+                    "exception_message": str(exception) if exception is not None else None,
+                    "selection": selection,
+                }
+                worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+                with Path(f"run-aware-{worker}.jsonl").open("a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(row, sort_keys=True, default=repr) + "\\n")
+
+
+            @hookimpl
+            def pytest_cuke_before_scenario(request, run):
+                _record("before_scenario", run, request=request)
+
+
+            @hookimpl
+            def pytest_cuke_run_scenario(request, run):
+                _record("run_scenario", run, request=request)
+
+
+            @hookimpl
+            def pytest_cuke_after_scenario(run):
+                _record("after_scenario", run)
+
+
+            @hookimpl
+            def pytest_cuke_before_step(request, run, step_func):
+                step = run.step
+                _record("before_step", run, request=request, step=step, step_func=step_func)
+                if _step_name(step) == "the observer hook raises":
+                    raise RuntimeError("observer hook failure sentinel")
+
+
+            @hookimpl
+            def pytest_cuke_before_step_call(run, step_func, step_func_args, step_definition):
+                _record("before_step_call", run, step=run.step, step_func=step_func,
+                        step_func_args=step_func_args, step_definition=step_definition)
+                if _step_name(run.step) == 'a replaceable run-aware step receives "callable payload sentinel"':
+                    def replacement_callable(label):
+                        actual_kwargs = {"label": label}
+                        _record("replacement_callable", run, step=run.step,
+                                step_func=replacement_callable, step_func_args=actual_kwargs,
+                                step_definition=step_definition)
+                        raise RuntimeError("replacement callable failure sentinel")
+
+                    step_definition.func = replacement_callable
+                    _replacement_payload.update(
+                        definition=step_definition,
+                        callable=replacement_callable,
+                        kwargs=step_func_args,
+                    )
+                    _record("replacement_installed", run, step=run.step,
+                            step_func=replacement_callable, step_func_args=step_func_args,
+                            step_definition=step_definition)
+
+
+            @hookimpl
+            def pytest_cuke_after_step(run):
+                _record("after_step", run, step=run.step)
+
+
+            @hookimpl
+            def pytest_cuke_step_error(
+                request, run, step_func, step_func_args, exception, step_definition, tolerated
+            ):
+                selection = "tolerated" if tolerated else "ordinary"
+                if _step_name(run.step) == 'a replaceable run-aware step receives "callable payload sentinel"':
+                    assert step_definition is _replacement_payload["definition"]
+                    assert step_func is step_definition.func is _replacement_payload["callable"]
+                    assert isinstance(step_func_args, dict)
+                    assert step_func_args is _replacement_payload["kwargs"]
+                    assert step_func_args == {"label": "callable payload sentinel"}
+                    assert isinstance(exception, RuntimeError)
+                    assert str(exception) == "replacement callable failure sentinel"
+                    selection = "replacement_payload_matches"
+                _record("step_error", run, request=request, step=run.step, step_func=step_func,
+                        step_func_args=step_func_args, step_definition=step_definition,
+                        exception=exception, selection=selection)
+
+
+            @hookimpl
+            def pytest_cuke_step_func_lookup_error(request, run, exception):
+                _record("lookup_error", run, request=request, step=run.step, exception=exception)
+
+
+            @hookimpl
+            def pytest_cuke_match_step_definition_to_step(request, run):
+                use_custom = (
+                    getattr(run.scenario, "name", None) == "Custom dispatcher invokes run-step and caller"
+                    and (_step_name(run.step) or "").startswith("the custom caller step records ")
+                )
+                step_definition = None
+                if use_custom:
+                    step_registry = request.getfixturevalue("step_registry")
+                    matches = []
+                    while step_registry is not None:
+                        matches.extend(
+                            definition
+                            for definition in step_registry
+                            if definition.func.__name__ == "custom_caller_step"
+                        )
+                        step_registry = step_registry.parent
+                    assert len(matches) == 1, matches
+                    step_definition = matches[0]
+                _record("matcher", run, request=request, step=run.step, previous_step=run.previous_step,
+                        step_definition=step_definition,
+                        selection="custom" if use_custom else "default_fallback")
+                return step_definition
+
+
+            @hookimpl
+            def pytest_cuke_get_step_caller(request, run, step_func, step_func_args, step_definition):
+                step = run.step
+                use_custom = (_step_name(step) or "").startswith("the custom caller step records ")
+                if use_custom:
+                    assert isinstance(step_func_args, dict)
+                    assert step_func_args == {"label": "custom-middle"}
+                if _step_name(step) == 'a replaceable run-aware step receives "callable payload sentinel"':
+                    assert step_func is step_definition.func is _replacement_payload["callable"]
+                    assert step_func_args is _replacement_payload["kwargs"]
+                _record("caller", run, request=request, step=step, step_func=step_func,
+                        step_func_args=step_func_args, step_definition=step_definition,
+                        selection="custom" if use_custom else "default_fallback")
+                if use_custom:
+                    return lambda: step_func(**step_func_args)
+                return None
+
+
+            @hookimpl
+            def pytest_cuke_get_step_dispatcher(request, run):
+                use_custom = getattr(run.scenario, "name", None) == (
+                    "Custom dispatcher invokes run-step and caller"
+                )
+                _record("dispatcher", run, request=request,
+                        selection="custom" if use_custom else "default_fallback")
+                if not use_custom:
+                    return None
+
+                def dispatch(left_steps):
+                    while left_steps:
+                        step = left_steps.popleft()
+                        run.start_step(step)
+                        request.config.hook.pytest_cuke_run_step(request=request, run=run)
+
+                return dispatch
+            '''
+        ),
+        encoding="utf-8",
+    )
+
+
+def _run_aware_consumer_rows(relative_path: str, consumer: ConsumerProject) -> list[dict[str, Any]]:
+    artifact = _consumer_artifact_path(relative_path, consumer)
+    assert artifact.is_file(), f"run-aware hook artifact {relative_path!r} does not exist"
+    rows = [json.loads(line) for line in artifact.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert all(isinstance(row, dict) for row in rows), rows
+    return rows
+
+
+@given(re.compile(r'the staged E2E example "(?P<relative_path>[^"]+)" is copied to the installed consumer'))
+def install_staged_e2e_example_in_consumer(relative_path: str, testdir: Any, consumer: ConsumerProject) -> None:
+    source = Path(str(testdir.tmpdir)) / relative_path
+    if Path(relative_path).is_absolute() or ".." in Path(relative_path).parts:
+        raise ValueError("staged E2E example paths must stay inside the test directory")
+    assert source.is_dir(), f"the staged E2E example directory does not exist: {source}"
+    destination = consumer.path / Path(relative_path).name
+    shutil.copytree(source, destination, dirs_exist_ok=True)
+
+
+@then(re.compile(r'consumer run-aware hook artifact "(?P<relative_path>[^"]+)" should show successful run transitions'))
+def consumer_run_aware_successful_lifecycle(relative_path: str, consumer: ConsumerProject) -> None:
+    rows = _run_aware_consumer_rows(relative_path, consumer)
+    scenarios = {
+        "Default dispatcher and caller fallbacks": ("default_fallback", ["alpha", "beta", "omega"]),
+        "Custom dispatcher invokes run-step and caller": ("custom", ["custom-start", "custom-middle", "custom-end"]),
+    }
+    assert {row["scenario_name"] for row in rows} == set(scenarios), rows
+    assert len({row["run_id"] for row in rows}) == 1, rows
+    assert len({row["run_identity"] for row in rows}) == 1, rows
+
+    for scenario_name, (dispatcher_selection, expected_labels) in scenarios.items():
+        scenario_rows = [row for row in rows if row["scenario_name"] == scenario_name]
+        events = [row["event"] for row in scenario_rows]
+        assert events[0] == "before_scenario", scenario_rows
+        assert (
+            events.index("before_scenario") < events.index("dispatcher") < events.index("after_scenario")
+        ), scenario_rows
+        assert (
+            events.index("before_scenario") < events.index("run_scenario") < events.index("after_scenario")
+        ), scenario_rows
+        assert events[-1] == "after_scenario", scenario_rows
+        assert all(row["feature_name"] == "Run-aware lifecycle consumer" for row in scenario_rows)
+        assert all(
+            row["request_nodeid"]
+            for row in scenario_rows
+            if row["event"] in {"before_scenario", "run_scenario"}
+        ), scenario_rows
+
+        before_scenario = next(row for row in scenario_rows if row["event"] == "before_scenario")
+        after_scenario = scenario_rows[-1]
+        assert (before_scenario["stage"], before_scenario["hook_phase"], before_scenario["status"]) == (
+            "setup",
+            "pytest_cuke_before_scenario",
+            "running",
+        ), before_scenario
+        assert (after_scenario["stage"], after_scenario["hook_phase"], after_scenario["status"]) == (
+            "finished",
+            "pytest_cuke_after_scenario",
+            "passed",
+        ), after_scenario
+        assert after_scenario["request_nodeid"] is None, after_scenario
+
+        dispatchers = [row for row in scenario_rows if row["event"] == "dispatcher"]
+        assert len(dispatchers) == 1 and dispatchers[0]["selection"] == dispatcher_selection, dispatchers
+        matcher_rows = [row for row in scenario_rows if row["event"] == "matcher"]
+        caller_rows = [row for row in scenario_rows if row["event"] == "caller"]
+        assert len(matcher_rows) == 3, matcher_rows
+        if dispatcher_selection == "custom":
+            selected_matchers = [row for row in matcher_rows if row["selection"] == "custom"]
+            assert len(selected_matchers) == 1, matcher_rows
+            selected_matcher = selected_matchers[0]
+            assert selected_matcher["step_name"] == 'the custom caller step records "custom-middle"', (
+                selected_matcher
+            )
+            assert selected_matcher["step_definition_func"] == "custom_caller_step", selected_matcher
+            assert all(
+                row["selection"] == ("custom" if row is selected_matcher else "default_fallback")
+                for row in matcher_rows
+            ), matcher_rows
+        else:
+            assert all(row["selection"] == "default_fallback" for row in matcher_rows)
+        assert len(caller_rows) == 3, caller_rows
+        if dispatcher_selection == "custom":
+            assert [row["selection"] for row in caller_rows].count("custom") == 1, caller_rows
+            custom_caller = next(row for row in caller_rows if row["selection"] == "custom")
+            assert isinstance(custom_caller["step_func_args"], dict), custom_caller
+            assert custom_caller["step_func_args"] == {"label": "custom-middle"}, custom_caller
+        else:
+            assert all(row["selection"] == "default_fallback" for row in caller_rows), caller_rows
+
+        step_rows = [row for row in scenario_rows if row["event"] == "before_step"]
+        call_rows = [row for row in scenario_rows if row["event"] == "before_step_call"]
+        after_step_rows = [row for row in scenario_rows if row["event"] == "after_step"]
+        assert len(step_rows) == len(call_rows) == len(after_step_rows) == 3, scenario_rows
+        assert [row["current_step_index"] for row in step_rows] == [0, 1, 2], step_rows
+        assert [row["current_step_index"] for row in call_rows] == [0, 1, 2], call_rows
+        assert [row["current_step_index"] for row in after_step_rows] == [0, 1, 2], after_step_rows
+        assert [row["step_func_args"]["label"] for row in call_rows] == expected_labels, call_rows
+        assert all(row["step_func"] == row["step_definition_func"] for row in call_rows), call_rows
+        target_fixture_value = "custom-middle" if dispatcher_selection == "custom" else None
+        assert call_rows[-1]["step_func_args"]["custom_middle"] == target_fixture_value, call_rows[-1]
+        assert all(row["request_nodeid"] is None for row in call_rows + after_step_rows), scenario_rows
+        assert all(
+            row["stage"] == "step-running"
+            and row["hook_phase"] == "pytest_cuke_step_call"
+            for row in call_rows
+        ), call_rows
+        assert all(
+            row["stage"] == "step-running"
+            and row["hook_phase"] == "pytest_cuke_after_step"
+            for row in after_step_rows
+        ), after_step_rows
+
+        for index, row in enumerate(step_rows):
+            expected_previous = None if index == 0 else step_rows[index - 1]["step_name"]
+            assert row["context_step_name"] == row["step_name"], row
+            assert (
+                row["previous_step_name"]
+                == row["context_previous_step_name"]
+                == expected_previous
+            ), row
+            assert (row["stage"], row["hook_phase"], row["status"]) == (
+                "step-running",
+                "pytest_cuke_before_step",
+                "running",
+            ), row
+
+            matching_events = [
+                item["event"]
+                for item in scenario_rows
+                if item["step_name"] == row["step_name"]
+                or item["context_step_name"] == row["step_name"]
+            ]
+            assert matching_events.index("matcher") < matching_events.index("before_step")
+            assert matching_events.index("before_step") < matching_events.index("before_step_call")
+            assert matching_events.index("before_step_call") < matching_events.index("caller")
+            assert matching_events.index("caller") < matching_events.index("after_step")
+
+        transition_indexes = [row["transition_index"] for row in scenario_rows]
+        assert transition_indexes == sorted(transition_indexes), scenario_rows
+
+    body_effects = _consumer_artifact_path("run-aware-body-effects.log", consumer).read_text(
+        encoding="utf-8"
+    ).splitlines()
+    assert body_effects == [
+        "alpha",
+        "beta",
+        "omega",
+        "custom-start",
+        "custom-middle",
+        "custom-end",
+    ], body_effects
+
+    target_fixture_effects = _consumer_artifact_path("run-aware-target-fixtures.log", consumer).read_text(
+        encoding="utf-8"
+    ).splitlines()
+    assert target_fixture_effects == ["omega=None", "custom-end='custom-middle'"], target_fixture_effects
+
+
+@then(
+    re.compile(
+        r'consumer run-aware example artifact "(?P<relative_path>[^"]+)" should show all scenarios, lifecycle context, and the attachment'
+    )
+)
+def consumer_run_aware_example_observations(relative_path: str, consumer: ConsumerProject) -> None:
+    rows = _run_aware_consumer_rows(relative_path, consumer)
+    scenarios = {
+        "First scenario starts without a previous step": (
+            [
+                'the first hook step records "first-start"',
+                'the next hook step records "first-middle"',
+                'the final hook step records "first-end"',
+            ],
+            ["first-start", "first-middle", "first-end"],
+        ),
+        "Second scenario also starts without a previous step": (
+            [
+                'the first hook step records "second-start"',
+                'the next hook step records "second-middle"',
+                'the final hook step records "second-end"',
+            ],
+            ["second-start", "second-middle", "second-end"],
+        ),
+        "Attachment hooks receive the active run": (["the example attaches a report"], [None]),
+    }
+    assert {row["scenario_name"] for row in rows} == set(scenarios), rows
+    assert all(row["feature_name"] == "Run-aware lifecycle hooks" for row in rows), rows
+    assert len({row["run_id"] for row in rows}) == 1, rows
+
+    for scenario_name, (expected_step_names, expected_labels) in scenarios.items():
+        scenario_rows = [row for row in rows if row["scenario_name"] == scenario_name]
+        assert scenario_rows[0]["event"] == "before_scenario", scenario_rows
+        assert scenario_rows[-1]["event"] == "after_scenario", scenario_rows
+        before_scenario = scenario_rows[0]
+        after_scenario = scenario_rows[-1]
+        assert (before_scenario["stage"], before_scenario["hook_phase"], before_scenario["status"]) == (
+            "setup",
+            "pytest_cuke_before_scenario",
+            "running",
+        ), before_scenario
+        assert (after_scenario["stage"], after_scenario["hook_phase"], after_scenario["status"]) == (
+            "finished",
+            "pytest_cuke_after_scenario",
+            "passed",
+        ), after_scenario
+        assert len([row for row in scenario_rows if row["event"] == "dispatcher_fallback"]) == 1, scenario_rows
+        assert len([row for row in scenario_rows if row["event"] == "matcher_fallback"]) == len(
+            expected_step_names
+        ), scenario_rows
+        assert len([row for row in scenario_rows if row["event"] == "caller_fallback"]) == len(
+            expected_step_names
+        ), scenario_rows
+
+        steps = [row for row in scenario_rows if row["event"] == "before_step"]
+        calls = [row for row in scenario_rows if row["event"] == "before_step_call"]
+        after_steps = [row for row in scenario_rows if row["event"] == "after_step"]
+        assert [row["step_name"] for row in steps] == expected_step_names, steps
+        assert [row["step_name"] for row in calls] == expected_step_names, calls
+        assert [row["current_step_index"] for row in steps] == list(range(len(expected_step_names))), steps
+        for row, expected_label in zip(calls, expected_labels, strict=True):
+            if expected_label is None:
+                assert row["step_func_args"] == {"attach": "add_attachment"}, row
+            else:
+                assert row["step_func_args"]["label"] == expected_label, row
+        assert all(row["step_func"] == row["step_definition_func"] for row in calls), calls
+        assert [row["step_name"] for row in after_steps] == expected_step_names, after_steps
+
+        for index, row in enumerate(steps):
+            expected_previous = None if index == 0 else expected_step_names[index - 1]
+            assert row["previous_step_name"] == expected_previous, row
+            assert (row["stage"], row["hook_phase"], row["status"]) == (
+                "step-running",
+                "pytest_cuke_before_step",
+                "running",
+            ), row
+        assert all(row["stage"] == "step-running" for row in calls + after_steps), scenario_rows
+        assert [row["transition_index"] for row in scenario_rows] == sorted(
+            row["transition_index"] for row in scenario_rows
+        ), scenario_rows
+
+    attachments = [row for row in rows if row["event"] == "attachment"]
+    assert len(attachments) == 1, attachments
+    attachment = attachments[0]
+    assert attachment["scenario_name"] == "Attachment hooks receive the active run", attachment
+    assert attachment["step_name"] == "the example attaches a report", attachment
+    assert attachment["previous_step_name"] is None, attachment
+    assert (attachment["stage"], attachment["status"]) == ("step-running", "running"), attachment
+    assert attachment["hook_phase"], attachment
+    assert attachment["attachment"] == "run-aware attachment sentinel", attachment
+    assert attachment["media_type"] == "text/plain", attachment
+    assert attachment["file_name"] == "run-aware-report.txt", attachment
+    assert attachment["request_nodeid"], attachment
+
+
+@then(
+    re.compile(
+        r'consumer run-aware hook artifact "(?P<relative_path>[^"]+)" should distinguish failures and cleanup'
+    )
+)
+def consumer_run_aware_failure_cleanup(relative_path: str, consumer: ConsumerProject) -> None:
+    rows = _run_aware_consumer_rows(relative_path, consumer)
+    failure_expectations = {
+        "Body failure remains a step error": ("step_error", "AssertionError", "body failure sentinel", "failed"),
+        "Replacement callable failure preserves hook payload": (
+            "step_error",
+            "RuntimeError",
+            "replacement callable failure sentinel",
+            "failed",
+        ),
+        "Lookup failure remains a lookup error": (
+            "lookup_error",
+            "StepDefinitionNotFoundError",
+            "Step definition is not found",
+            "undefined",
+        ),
+        "Hook failure is cleaned up": (
+            "step_error",
+            "RuntimeError",
+            "observer hook failure sentinel",
+            "failed",
+        ),
+    }
+    for scenario_name, (event, error_type, error_message, status) in failure_expectations.items():
+        scenario_rows = [row for row in rows if row["scenario_name"] == scenario_name]
+        error_rows = [row for row in scenario_rows if row["event"] == event]
+        assert len(error_rows) == 1, (scenario_name, scenario_rows)
+        error = error_rows[0]
+        assert error["exception_type"] == error_type, error
+        assert error_message in error["exception_message"], error
+        assert error["status"] == status, error
+        expected_error_phase = (
+            "pytest_cuke_step_func_lookup_error" if event == "lookup_error" else "pytest_cuke_step_error"
+        )
+        assert error["stage"] == "step-running" and error["hook_phase"] == expected_error_phase, error
+        assert not [row for row in scenario_rows if row["event"] == "after_step"], scenario_rows
+        finish_rows = [row for row in scenario_rows if row["event"] == "after_scenario"]
+        assert len(finish_rows) == 1, scenario_rows
+        finish = finish_rows[0]
+        assert finish["stage"] == "finished" and finish["hook_phase"] == "pytest_cuke_after_scenario", finish
+        assert finish["status"] == status and finish["scenario_status"] == status, finish
+
+    replacement_rows = [
+        row
+        for row in rows
+        if row["scenario_name"] == "Replacement callable failure preserves hook payload"
+    ]
+    installed = next(row for row in replacement_rows if row["event"] == "replacement_installed")
+    invoked = next(row for row in replacement_rows if row["event"] == "replacement_callable")
+    replacement_error = next(row for row in replacement_rows if row["event"] == "step_error")
+    assert installed["step_func"] == installed["step_definition_func"] == "replacement_callable", installed
+    assert invoked["step_func_args"] == {"label": "callable payload sentinel"}, invoked
+    assert replacement_error["selection"] == "replacement_payload_matches", replacement_error
+    assert replacement_error["step_func"] == replacement_error["step_definition_func"] == "replacement_callable", (
+        replacement_error
+    )
+    assert replacement_error["step_func_identity"] == installed["step_func_identity"], replacement_error
+    assert replacement_error["step_func_identity"] == replacement_error["step_definition_func_identity"], (
+        replacement_error
+    )
+    assert replacement_error["step_definition_identity"] == installed["step_definition_identity"], (
+        replacement_error
+    )
+    assert replacement_error["step_func_args"] == {"label": "callable payload sentinel"}, replacement_error
+    assert replacement_error["exception_message"] == "replacement callable failure sentinel", replacement_error
+    assert not [row for row in replacement_rows if row["event"] == "after_step"], replacement_rows
+
+    body_rows = [row for row in rows if row["scenario_name"] == "Body failure remains a step error"]
+    lookup_rows = [row for row in rows if row["scenario_name"] == "Lookup failure remains a lookup error"]
+    assert not [row for row in body_rows if row["event"] == "lookup_error"], body_rows
+    assert not [row for row in lookup_rows if row["event"] == "step_error"], lookup_rows
+
+    fresh_rows = [row for row in rows if row["scenario_name"] == "Fresh scenario starts without prior steps"]
+    fresh_first_step = next(row for row in fresh_rows if row["event"] == "before_step")
+    assert fresh_first_step["current_step_index"] == 0, fresh_first_step
+    assert fresh_first_step["previous_step_name"] is None, fresh_first_step
+    assert fresh_first_step["context_previous_step_name"] is None, fresh_first_step
+    fresh_finish = next(row for row in fresh_rows if row["event"] == "after_scenario")
+    assert fresh_finish["status"] == "passed" and fresh_finish["stage"] == "finished", fresh_finish
+
+    cleanup = json.loads(_consumer_artifact_path("run-aware-cleanup.json", consumer).read_text(encoding="utf-8"))
+    assert cleanup == {
+        "active_feature": False,
+        "active_scenario": False,
+        "feature": None,
+        "scenario": None,
+        "step": None,
+        "previous_step": None,
+        "stage": "inactive",
+        "hook_phase": "inactive",
+        "status": "inactive",
+    }, cleanup
+    body_effects = _consumer_artifact_path("run-aware-body-effects.log", consumer).read_text(
+        encoding="utf-8"
+    ).splitlines()
+    assert "hook-body-must-not-run" not in body_effects, body_effects
+
+
+@then("consumer run-aware observations should isolate two pytest.main sessions")
+def consumer_run_aware_pytest_main_isolation(consumer: ConsumerProject) -> None:
+    rows = _run_aware_consumer_rows("run-aware-master.jsonl", consumer)
+    expected = {
+        "First pytest.main session starts clean",
+        "Second pytest.main session starts clean",
+    }
+    starts = [row for row in rows if row["event"] == "before_scenario"]
+    assert {row["scenario_name"] for row in starts} == expected, starts
+    assert len({row["run_id"] for row in starts}) == 2, starts
+    assert len({row["run_identity"] for row in starts}) == 2, starts
+    for row in starts:
+        assert row["stage"] == "setup" and row["status"] == "running", row
+        assert row["current_step_index"] is None and row["previous_step_name"] is None, row
+    assert all(row["worker_id"] == "master" for row in rows), rows
+
+
+@then("consumer run-aware xdist artifacts should show isolated contexts on two workers")
+def consumer_run_aware_xdist_isolation(consumer: ConsumerProject) -> None:
+    artifacts = sorted(consumer.path.glob("run-aware-gw*.jsonl"))
+    assert len(artifacts) == 2, artifacts
+    worker_run_ids: set[str] = set()
+    expected_scenarios = {"First xdist worker scenario", "Second xdist worker scenario"}
+    for artifact in artifacts:
+        rows = _run_aware_consumer_rows(artifact.name, consumer)
+        assert {row["scenario_name"] for row in rows} == expected_scenarios, rows
+        assert all(row["worker_id"] == artifact.stem.removeprefix("run-aware-") for row in rows), rows
+        first_steps = [row for row in rows if row["event"] == "before_step"]
+        assert len(first_steps) == 2, first_steps
+        assert all(
+            row["current_step_index"] == 0 and row["previous_step_name"] is None for row in first_steps
+        ), first_steps
+        run_ids = {row["run_id"] for row in rows}
+        assert len(run_ids) == 1, rows
+        assert len({row["run_identity"] for row in rows}) == 1, rows
+        worker_run_ids.update(run_ids)
+    assert len(worker_run_ids) == 2, worker_run_ids
 
 
 @given("the consumer records monotonic test start and terminal events")
@@ -6518,16 +7201,18 @@ def _record_continuation(value):
 
 
 @pytest.hookimpl
-def pytest_cuke_before_step(request, feature, scenario, step, step_func):
-    if "not-implemented" in step.name:
+def pytest_cuke_before_step(request, run, step_func):
+    step = run.step
+    if step is not None and "not-implemented" in step.name:
         _record_effect("before-step")
 
 
 @pytest.hookimpl
 def pytest_cuke_before_step_call(
-    request, feature, scenario, step, step_func, step_func_args, step_definition
+    request, run, step_func, step_func_args, step_definition
 ):
-    if "not-implemented" in step.name:
+    step = run.step
+    if step is not None and "not-implemented" in step.name:
         _record_effect("before-call")
 
 

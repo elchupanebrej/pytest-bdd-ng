@@ -1,0 +1,5 @@
+.pytest_cache/
+__pycache__/
+.venv/
+run-aware-observations.jsonl
+run-aware-effects.log

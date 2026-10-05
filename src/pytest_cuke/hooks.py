@@ -13,40 +13,34 @@ if TYPE_CHECKING:
     from pytest_cuke.model import Feature
     from pytest_cuke.model.message_extension import EventEnvelope as Message
     from pytest_cuke.model.scenario import Scenario
-    from pytest_cuke.model.step import Step
+    from pytest_cuke.model.session_run import RunContext
 
 """Pytest-bdd pytest hooks."""
 
 
-def pytest_cuke_before_scenario(request: FixtureRequest, feature: Feature, scenario: Scenario) -> None:
+def pytest_cuke_before_scenario(request: FixtureRequest, run: RunContext) -> None:
     """Called before scenario is executed."""
 
 
-def pytest_cuke_run_scenario(request: FixtureRequest, feature: Feature, scenario: Scenario) -> Any:
+def pytest_cuke_run_scenario(request: FixtureRequest, run: RunContext) -> Any:
     """Execution scenario protocol"""
 
 
-def pytest_cuke_after_scenario(request: FixtureRequest, feature: Feature, scenario: Scenario) -> None:
+def pytest_cuke_after_scenario(request: FixtureRequest, run: RunContext) -> None:
     """Called after scenario is executed."""
 
 
-def pytest_cuke_run_step(
-    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, previous_step: Step | None
-) -> Any:
+def pytest_cuke_run_step(request: FixtureRequest, run: RunContext) -> Any:
     """Execution of run step protocol"""
 
 
-def pytest_cuke_before_step(
-    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, step_func: Any
-) -> None:
+def pytest_cuke_before_step(request: FixtureRequest, run: RunContext, step_func: Any) -> None:
     """Called before step function is set up."""
 
 
 def pytest_cuke_step_bypassed(
     request: FixtureRequest,
-    feature: Feature,
-    scenario: Scenario,
-    step: Step,
+    run: RunContext,
     step_definition: Any,
     status: Literal["passed", "skipped"],
     message: str | None = None,
@@ -56,11 +50,9 @@ def pytest_cuke_step_bypassed(
 
 def pytest_cuke_before_step_call(
     request: FixtureRequest,
-    feature: Feature,
-    scenario: Scenario,
-    step: Step,
+    run: RunContext,
     step_func: Any,
-    step_func_args: tuple[Any, ...],
+    step_func_args: dict[str, Any],
     step_definition: Any,
 ) -> None:
     """Called before step function is executed."""
@@ -68,11 +60,9 @@ def pytest_cuke_before_step_call(
 
 def pytest_cuke_after_step(
     request: FixtureRequest,
-    feature: Feature,
-    scenario: Scenario,
-    step: Step,
+    run: RunContext,
     step_func: Any,
-    step_func_args: tuple[Any, ...],
+    step_func_args: dict[str, Any],
     step_definition: Any,
 ) -> None:
     """Called after step function is successfully executed."""
@@ -80,11 +70,9 @@ def pytest_cuke_after_step(
 
 def pytest_cuke_step_error(
     request: FixtureRequest,
-    feature: Feature,
-    scenario: Scenario,
-    step: Step,
+    run: RunContext,
     step_func: Any,
-    step_func_args: tuple[Any, ...],
+    step_func_args: dict[str, Any],
     exception: BaseException,
     step_definition: Any,
     tolerated: bool,
@@ -98,7 +86,7 @@ def pytest_cuke_step_error(
 
 
 def pytest_cuke_step_func_lookup_error(
-    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, exception: Exception
+    request: FixtureRequest, run: RunContext, exception: Exception
 ) -> None:
     """Called when step lookup failed."""
 
@@ -120,7 +108,7 @@ def pytest_cuke_convert_tag_to_marks(feature: Feature, scenario: Scenario, tag: 
 
 @hookspec(firstresult=True)
 def pytest_cuke_match_step_definition_to_step(
-    request: FixtureRequest, feature: Feature, scenario: Scenario, step: Step, previous_step: Step | None
+    request: FixtureRequest, run: RunContext
 ) -> Any:
     """Find match between scenario step and user defined step function"""
 
@@ -128,18 +116,16 @@ def pytest_cuke_match_step_definition_to_step(
 @hookspec(firstresult=True)
 def pytest_cuke_get_step_caller(
     request: FixtureRequest,
-    feature: Feature,
-    scenario: Scenario,
-    step: Step,
+    run: RunContext,
     step_func: Any,
-    step_func_args: tuple[Any, ...],
+    step_func_args: dict[str, Any],
     step_definition: Any,
 ) -> Any:
     """Provide alternative approach to execute step"""
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_get_step_dispatcher(request: FixtureRequest, feature: Feature, scenario: Any) -> Any:
+def pytest_cuke_get_step_dispatcher(request: FixtureRequest, run: RunContext) -> Any:
     """Provide alternative approach to execute scenario steps"""
 
 
@@ -168,6 +154,7 @@ def pytest_cuke_get_mimetype(config: Config, path: Path) -> str | None:
 
 def pytest_cuke_attach(
     request: FixtureRequest,
+    run: RunContext,
     attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase,
     media_type: str | None,
     file_name: str | None,
