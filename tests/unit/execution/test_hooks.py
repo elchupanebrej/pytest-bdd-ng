@@ -95,4 +95,5 @@ def test_hook_caller_dispatch() -> None:
         step_func_args={},
         exception=exc,
         step_definition=step_def,
+        tolerated=False,
     )

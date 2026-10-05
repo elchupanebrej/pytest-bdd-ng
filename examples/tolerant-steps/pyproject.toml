@@ -1,0 +1,11 @@
+[project]
+name = "pytest-cuke-tolerant-steps-example"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["pytest-cuke>=2.3.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["features"]
+cuke_autoload = true
+cuke_features_dir = "features"
+cuke_tolerant_status = "ignored"

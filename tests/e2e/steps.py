@@ -6294,6 +6294,52 @@ def pytest_collection_modifyitems(items):
     )
 
 
+@given("the installed consumer exposes two duplicate tolerant step definitions")
+def add_duplicate_tolerant_step_definitions(consumer: ConsumerProject) -> None:
+    conftest_path = consumer.path / "conftest.py"
+    conftest = conftest_path.read_text(encoding="utf-8")
+    assert "from pytest_cuke.steps import tolerant" in conftest, conftest
+    assert "def record_continuation(labels):" in conftest, conftest
+    conftest_path.write_text(
+        conftest
+        + dedent(
+            """\
+
+            @tolerant
+            @when("the ambiguous tolerant operation matches two definitions")
+            def first_ambiguous_tolerant_operation():
+                record_continuation("first")
+
+
+            @when("the ambiguous tolerant operation matches two definitions")
+            @tolerant
+            def second_ambiguous_tolerant_operation():
+                record_continuation("second")
+            """
+        ),
+        encoding="utf-8",
+    )
+
+
+@given("the consumer stages the checked-in tolerant steps example")
+def stage_checked_in_tolerant_steps_example(consumer: ConsumerProject) -> None:
+    example_root = Path(__file__).resolve().parents[2] / "examples" / "tolerant-steps"
+    relative_files = (
+        Path("README.md"),
+        Path("pyproject.toml"),
+        Path("requirements.txt"),
+        Path("conftest.py"),
+        Path(".gitignore"),
+        Path("features/tolerant-steps.feature"),
+    )
+    missing = [str(relative_path) for relative_path in relative_files if not (example_root / relative_path).is_file()]
+    assert not missing, f"the runnable tolerant steps example is missing files: {missing!r}"
+    for relative_path in relative_files:
+        destination = consumer.path / relative_path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(example_root / relative_path, destination)
+
+
 @then(re.compile(r'consumer continuation artifact should list "(?P<labels>[^"]+)"'))
 def consumer_continuation_artifact_has_expected_labels(labels: str, consumer: ConsumerProject) -> None:
     artifact = consumer.path / "continuations.log"
@@ -6391,7 +6437,7 @@ def consumer_tolerant_step_messages(
 @then(
     re.compile(
         r'consumer artifact "(?P<relative_path>[^"]+)" should report scenario "(?P<scenario_name>[^"]+)" '
-        r'with step statuses "(?P<statuses>[a-z, ]+)" and error messages "(?P<messages>[^"]+)"'
+        r'with step statuses "(?P<statuses>[a-z, ]+)" and error messages "(?P<messages>[^"]*)"'
     )
 )
 def consumer_tolerant_cucumber_json(
@@ -6417,7 +6463,8 @@ def consumer_tolerant_cucumber_json(
         for step in steps
         if step["result"]["status"] == "failed" and step["result"].get("error_message")
     ]
-    assert actual_messages == messages.split(","), (actual_messages, steps)
+    expected_messages = messages.split(",") if messages else []
+    assert actual_messages == expected_messages, (actual_messages, expected_messages, steps)
 
 
 @then(

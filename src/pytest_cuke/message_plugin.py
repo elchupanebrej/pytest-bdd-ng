@@ -1395,7 +1395,7 @@ class MessagePlugin:
         step_func_args: dict[str, Any],
         exception: BaseException,
         step_definition: Any,
-        tolerated: bool = False,
+        tolerated: bool,
     ) -> None:
         if self.is_disabled:
             return

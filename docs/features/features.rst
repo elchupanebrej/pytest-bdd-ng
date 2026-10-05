@@ -36,6 +36,11 @@ launch
 step-definition
 ---------------
 
+tolerant-step-status
+####################
+
+.. include:: step-definition/tolerant-step-status.rst
+
 pytest-fixtures-substitution
 ############################
 

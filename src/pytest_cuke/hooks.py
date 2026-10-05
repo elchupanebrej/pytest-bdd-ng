@@ -87,7 +87,7 @@ def pytest_cuke_step_error(
     step_func_args: tuple[Any, ...],
     exception: BaseException,
     step_definition: Any,
-    tolerated: bool = False,
+    tolerated: bool,
 ) -> None:
     """Called when a step body or its setup failed to execute.
 
