@@ -57,7 +57,9 @@ def test_passed_wip_policy_bypasses_body_hooks_and_target_fixtures(monkeypatch: 
     request.config.getini.return_value = "failed"
     request.config.hook.pytest_cuke_match_step_definition_to_step.return_value = definition
     injected_fixtures: list[str] = []
-    monkeypatch.setattr("pytest_cuke.runner.inject_fixture", lambda _request, name, _value: injected_fixtures.append(name))
+    monkeypatch.setattr(
+        "pytest_cuke.runner.inject_fixture", lambda _request, name, _value: injected_fixtures.append(name)
+    )
 
     result = StepRunner().run_step(
         request,
@@ -126,7 +128,9 @@ def test_ignored_tolerant_body_error_does_not_inject_target_or_run_after_hook(mo
         RuntimeError("step body")
     )
     injected_fixtures: list[str] = []
-    monkeypatch.setattr("pytest_cuke.runner.inject_fixture", lambda _request, name, _value: injected_fixtures.append(name))
+    monkeypatch.setattr(
+        "pytest_cuke.runner.inject_fixture", lambda _request, name, _value: injected_fixtures.append(name)
+    )
 
     result = StepRunner().run_step(
         request,
@@ -195,6 +199,38 @@ def test_scenario_runner_init_and_context() -> None:
 
     with scen_runner.extended_step_context(feat, scen, step):
         pass
+
+
+def test_scenario_runner_classifies_keyboard_interrupt_as_interrupted() -> None:
+    assert ScenarioRunner._status_for_exception(KeyboardInterrupt("interrupt")) == "interrupted"
+
+
+def test_step_runner_dispatches_step_error_for_keyboard_interrupt() -> None:
+    @when(string("the step is interrupted"))
+    def interrupted_step() -> None:
+        pass
+
+    definition = next(iter(interrupted_step.__pytest_cuke_step_definitions__))
+    request = MagicMock()
+    request.node.iter_markers.return_value = iter(())
+    request.config.option.cuke_tolerant_status = "failed"
+    request.config.getini.return_value = "failed"
+    request.config.hook.pytest_cuke_match_step_definition_to_step.return_value = definition
+    request.config.hook.pytest_cuke_get_step_caller.return_value = lambda: (_ for _ in ()).throw(
+        KeyboardInterrupt("interrupt")
+    )
+
+    with pytest.raises(KeyboardInterrupt, match="interrupt"):
+        StepRunner().run_step(
+            request,
+            Feature(name="Feature"),
+            Scenario(name="Scenario"),
+            Step(name="the step is interrupted", keyword="When "),
+            None,
+        )
+
+    request.config.hook.pytest_cuke_step_error.assert_called_once()
+    assert isinstance(request.config.hook.pytest_cuke_step_error.call_args.kwargs["exception"], KeyboardInterrupt)
 
 
 def test_mock_run_aggregates_missing_steps_and_keeps_previous_step_context(

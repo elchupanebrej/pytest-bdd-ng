@@ -219,7 +219,13 @@ class StepRunner:
             self.inject_target_fixtures(request, step_definition, step_result)
             request.config.hook.pytest_cuke_after_step(**hook_kwargs)
             return step_result
-        except (Exception, pytest.skip.Exception, pytest.fail.Exception, pytest.xfail.Exception) as exception:
+        except (
+            Exception,
+            pytest.skip.Exception,
+            pytest.fail.Exception,
+            pytest.xfail.Exception,
+            KeyboardInterrupt,
+        ) as exception:
             if not step_error_hook_called:
                 hook_kwargs["exception"] = exception
                 request.config.hook.pytest_cuke_step_error(**hook_kwargs)
@@ -375,13 +381,15 @@ class ScenarioRunner:
     @staticmethod
     def _status_for_exception(
         exception: BaseException | None,
-    ) -> Literal["passed", "failed", "skipped", "undefined"]:
+    ) -> Literal["passed", "failed", "skipped", "undefined", "interrupted"]:
         if exception is None:
             return "passed"
         if isinstance(exception, exceptions.StepDefinitionNotFoundError):
             return "undefined"
         if isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
             return "skipped"
+        if isinstance(exception, KeyboardInterrupt):
+            return "interrupted"
         return "failed"
 
     @pytest.hookimpl(hookwrapper=True, tryfirst=True)
@@ -398,7 +406,11 @@ class ScenarioRunner:
         try:
             exc_info = getattr(outcome, "excinfo", None)
             if exc_info is not None and context is not None and is_active_scenario:
-                context.record_teardown_error(cast("BaseException", exc_info[1]))
+                exception = cast("BaseException", exc_info[1])
+                context.record_teardown_error(
+                    exception,
+                    status="interrupted" if isinstance(exception, KeyboardInterrupt) else "failed",
+                )
         finally:
             if context is not None and is_active_scenario:
                 context.clear_active()
@@ -462,11 +474,8 @@ class ScenarioRunner:
         try:
             result = self.step_runner.run_step(request, feature, scenario, step, previous_step)
         except BaseException as exception:
-            if isinstance(exception, exceptions.StepDefinitionNotFoundError):
-                status: Literal["failed", "skipped", "undefined"] = "undefined"
-            elif isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
-                status = "skipped"
-            else:
+            status = self._status_for_exception(exception)
+            if status == "passed":
                 status = "failed"
             context.finish_step(
                 step_run,
@@ -532,7 +541,12 @@ class ScenarioRunner:
     ) -> None:
         context = get_run_context(request.config)
         if context is not None and context.active_scenario_run is not None:
-            context.transition(stage="step", hook_phase="pytest_cuke_step_error", status="failed")
+            status = self._status_for_exception(exception)
+            context.transition(
+                stage="step",
+                hook_phase="pytest_cuke_step_error",
+                status="failed" if status == "passed" else status,
+            )
 
     def pytest_cuke_after_step(
         self,

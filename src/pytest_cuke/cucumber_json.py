@@ -8,9 +8,13 @@ import os
 import time
 from enum import Enum
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict
+
+from pytest_cuke.model.session_run import RunContext
+from pytest_cuke.reporting import ScenarioReport
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_cuke.compatibility.pytest import Config as BaseConfig
@@ -208,6 +212,7 @@ class LogBDDCucumberJSON:
         logfile_str = os.path.expanduser(os.path.expandvars(str(logfile)))
         self.logfile = os.path.normpath(os.path.abspath(logfile_str))
         self.features: dict[str, dict[str, Any]] = {}
+        self.reported_elements_by_nodeid: dict[str, dict[str, Any]] = {}
         self.suite_start_time: float = 0.0
 
     def _get_result(self, step: dict[str, Any], report: TestReport, error_message: bool = False) -> dict[str, Any]:
@@ -216,17 +221,26 @@ class LogBDDCucumberJSON:
         :param step: Step dict we get result for
         :param report: pytest `TestReport` object
         :param error_message: whether to include error message
-        :return: `dict` in form {"status": "<passed|failed|skipped>", ["error_message": "<error_message>"]}
+        :return: `dict` with the step status and an optional error message. Supported statuses are `passed`, `failed`,
+            `skipped`, `undefined`, and `unknown`.
         """
         result: dict[str, Any] = {}
         if step.get("skipped", False) or step.get("status") == "skipped":
             result = {"status": "skipped"}
+        elif step.get("status") == "undefined":
+            result = {"status": "undefined"}
+            if message := step.get("error_message"):
+                result["error_message"] = message
         elif step.get("status") == "failed" or (report.failed and step.get("failed", False)):
             message = step.get("error_message")
             if not message and error_message:
                 message = str(report.longrepr)
             result = {"status": "failed"}
             if message:
+                result["error_message"] = message
+        elif step.get("status") == "unknown":
+            result = {"status": "unknown"}
+            if message := step.get("error_message"):
                 result["error_message"] = message
         elif report.skipped:
             result = {"status": "skipped"}
@@ -256,8 +270,11 @@ class LogBDDCucumberJSON:
             # skip if scenario has no steps
             return
 
-        if report.when not in ("call", "setup") or (report.when == "setup" and not (report.skipped or report.failed)):
+        if report.when not in ("call", "setup", "teardown") or (
+            report.when == "setup" and not (report.skipped or report.failed)
+        ):
             return
+        nodeid = getattr(report, "nodeid", None)
 
         def stepmap(step: dict[str, Any]) -> dict[str, Any]:
             error_message = False
@@ -306,12 +323,42 @@ class LogBDDCucumberJSON:
         }
         if external_source := scenario.get("external_examples_source"):
             element["external_examples_source"] = external_source
-        self.features[filename]["elements"].append(element)
+        existing_element = self.reported_elements_by_nodeid.get(nodeid) if isinstance(nodeid, str) else None
+        if report.when == "teardown" and existing_element is not None:
+            existing_element["steps"] = element["steps"]
+        else:
+            self.features[filename]["elements"].append(element)
+            if isinstance(nodeid, str):
+                self.reported_elements_by_nodeid[nodeid] = element
 
     def pytest_sessionstart(self) -> None:
         self.suite_start_time = time.time()
 
-    def pytest_sessionfinish(self) -> None:
+    def pytest_sessionfinish(self, session: Any) -> None:
+        """Reconcile scenario artifacts with their final runtime snapshots."""
+        run_context = RunContext.find_in_config(session.config)
+        if run_context is not None:
+            for nodeid, scenario_run in run_context.scenario_runs_by_nodeid.items():
+                if scenario_run.scenario is None or scenario_run.status not in (
+                    "passed",
+                    "failed",
+                    "skipped",
+                    "undefined",
+                    "interrupted",
+                ):
+                    continue
+                report = SimpleNamespace(
+                    nodeid=nodeid,
+                    when="teardown",
+                    passed=scenario_run.status == "passed",
+                    failed=scenario_run.status in ("failed", "undefined"),
+                    skipped=scenario_run.status == "skipped",
+                    item={"name": scenario_run.scenario.name},
+                    scenario=ScenarioReport.from_scenario_run(scenario_run).serialize(),
+                    longrepr=None,
+                )
+                self.pytest_runtest_logreport(cast("TestReport", report))
+
         Path(self.logfile).parent.mkdir(parents=True, exist_ok=True)
         with open(self.logfile, "w", encoding="utf-8") as logfile:
             for feature in self.features.values():

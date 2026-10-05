@@ -729,7 +729,6 @@ Feature: Session-owned scenario runtime integration
               "scenario_name": scenario_run.scenario.name,
               "feature_uri": scenario_run.feature_binding.uri,
               "binding_identity": id(binding),
-              "pickle_id": scenario_run.scenario.id,
               "source_scenario_id": source_scenario.id,
               "source_scenario_name": source_scenario.name,
               "source_ast_node_ids": list(scenario_run.scenario.source_ast_node_ids),
@@ -879,3 +878,853 @@ Feature: Session-owned scenario runtime integration
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer xdist runtime artifacts should show separate run roots in "xdist-runtime.ndjson"
+
+  Scenario: A plain pytest report stays inactive after an autoloaded BDD scenario
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+      from pytest import fixture, hookimpl
+      from pytest_cuke import given
+
+
+      _bdd_run_context = None
+      _bdd_nodeid = None
+
+
+      def _append_observation(value):
+          with Path("inactive-reporting-observations.jsonl").open("a", encoding="utf-8") as stream:
+              stream.write(json.dumps(value, sort_keys=True) + "\n")
+
+
+      @hookimpl
+      def pytest_cuke_before_scenario(request, feature, scenario):
+          global _bdd_run_context, _bdd_nodeid
+          _bdd_run_context = request.getfixturevalue("run_context")
+          _bdd_nodeid = request.node.nodeid
+
+
+      @given("the BDD reporting scenario is active")
+      def bdd_reporting_scenario_is_active(run_context):
+          scenario_run = run_context.active_scenario_run
+          assert scenario_run is not None
+          assert run_context.active_feature_binding is scenario_run.feature_binding
+          assert scenario_run.test_case_started_id
+          _append_observation(
+              {
+                  "kind": "bdd",
+                  "nodeid": scenario_run.nodeid,
+                  "scenario_name": scenario_run.scenario.name,
+                  "run_context_identity": id(run_context),
+                  "run_id": run_context.run_id,
+                  "run_status": run_context.status,
+                  "scenario_identity": id(scenario_run),
+                  "test_case_id": scenario_run.test_case_id,
+                  "test_case_started_id": scenario_run.test_case_started_id,
+                  "test_step_ids": list(scenario_run.test_step_ids),
+              }
+          )
+
+
+      @fixture
+      def prior_bdd_run():
+          assert _bdd_run_context is not None
+          return _bdd_run_context
+
+
+      def pytest_collection_modifyitems(items):
+          items.sort(key=lambda item: item.get_closest_marker("pytest_cuke_scenario") is None)
+      """
+    And consumer file "features/inactive-reporting.feature" contains:
+      """gherkin
+      Feature: Reporting outside an active BDD scenario
+        Scenario: The BDD reporting scenario is the only reported scenario
+          Given the BDD reporting scenario is active
+      """
+    And consumer file "test_plain_reporting.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+
+      def test_plain_item_uses_inactive_session_runtime(run_context, prior_bdd_run):
+          assert run_context is prior_bdd_run
+          assert run_context.active_feature_binding is None
+          assert run_context.active_scenario_run is None
+          assert run_context.status == "inactive"
+          assert run_context.stage == "inactive"
+          assert run_context.hook_phase == "inactive"
+          assert run_context.get_scenario_run(next(iter(run_context.scenario_runs_by_nodeid))) is not None
+          Path("plain-reporting-observation.json").write_text(
+              json.dumps(
+                  {
+                      "run_context_identity": id(run_context),
+                      "run_id": run_context.run_id,
+                      "run_status": run_context.status,
+                      "run_stage": run_context.stage,
+                      "run_hook_phase": run_context.hook_phase,
+                      "active_feature_binding": run_context.active_feature_binding is not None,
+                      "active_scenario_run": run_context.active_scenario_run is not None,
+                      "scenario_count": len(run_context.scenario_runs_by_nodeid),
+                      "prior_nodeid": next(iter(run_context.scenario_runs_by_nodeid)),
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=inactive-reporting.ndjson --cuke-json=inactive-reporting.json -q"
+    Then pytest should exit with code 0
+    And pytest output should include "2 passed"
+    And consumer runtime artifacts "inactive-reporting-observations.jsonl", "plain-reporting-observation.json", "inactive-reporting.ndjson" and "inactive-reporting.json" should exclude plain pytest from BDD reporting
+
+  Scenario: Distinct feature sources keep overlapping scenario and step identities separate
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+      from pytest import hookimpl
+      from pytest_cuke import given
+
+
+      @given("the same source step name executes")
+      def the_same_source_step_name_executes():
+          pass
+
+
+      @hookimpl(hookwrapper=True, tryfirst=True)
+      def pytest_runtest_call(item):
+          if item.get_closest_marker("pytest_cuke_scenario") is None:
+              yield
+              return
+
+          run_context = item._request.getfixturevalue("run_context")
+          yield
+
+          scenario_run = run_context.active_scenario_run
+          assert scenario_run is not None
+          binding = scenario_run.feature_binding
+          source_scenario = next(
+              candidate
+              for candidate in binding.feature.all_scenarios
+              if candidate.id == scenario_run.scenario.id and candidate.name == scenario_run.scenario.name
+          )
+          source_scenario_id = source_scenario.id
+          assert source_scenario_id
+          runtime_steps = []
+          for step_run in scenario_run.steps:
+              source_step = binding.resolve_step(step_run.step)
+              assert source_step is not None
+              runtime_steps.append(
+                  {
+                      "name": step_run.step.name,
+                      "source_step_id": source_step.id,
+                      "source_line": source_step.line,
+                      "test_step_id": step_run.test_step_id,
+                      "status": step_run.status,
+                  }
+              )
+
+          observation = {
+              "scenario_name": scenario_run.scenario.name,
+              "feature_uri": binding.uri,
+              "binding_identity": id(binding),
+              "registered_binding_identity": id(run_context.feature_bindings_by_uri[binding.uri]),
+              "source_scenario_id": source_scenario_id,
+              "resolved_source_scenario_id": source_scenario.id,
+              "run_id": scenario_run.run_id,
+              "test_case_id": scenario_run.test_case_id,
+              "test_case_started_id": scenario_run.test_case_started_id,
+              "steps": runtime_steps,
+          }
+          with Path("source-identity-observations.jsonl").open("a", encoding="utf-8") as stream:
+              stream.write(json.dumps(observation, sort_keys=True) + "\n")
+      """
+    And consumer file "features/source-one.feature" contains:
+      """gherkin
+      Feature: Overlapping runtime source identities
+        Scenario: The same scenario name executes
+          Given the same source step name executes
+      """
+    And consumer file "features/source-two.feature" contains:
+      """gherkin
+      Feature: Overlapping runtime source identities
+        Scenario: The same scenario name executes
+          Given the same source step name executes
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=source-identity.ndjson --cuke-json=source-identity.json --cuke-summary -q"
+    Then pytest should exit with code 0
+    And the test outcome should have 2 passed scenarios
+    And consumer runtime artifacts "source-identity-observations.jsonl", "source-identity.ndjson" and "source-identity.json" should keep source bindings and report identities separate
+
+  Scenario: An interrupted scenario remains distinct from a failed scenario
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+      from pytest import hookimpl
+      from pytest_cuke import given
+
+
+      _run_context = None
+      _scenario_nodeid = None
+
+
+      def _write_snapshot(path, value):
+          Path(path).write_text(json.dumps(value, sort_keys=True), encoding="utf-8")
+
+
+      @hookimpl
+      def pytest_cuke_before_scenario(request, feature, scenario):
+          global _run_context, _scenario_nodeid
+          _run_context = request.getfixturevalue("run_context")
+          _scenario_nodeid = request.node.nodeid
+
+
+      @given("the runtime step interrupts pytest")
+      def runtime_step_interrupts_pytest():
+          raise KeyboardInterrupt("runtime interrupt sentinel")
+
+
+      @hookimpl
+      def pytest_cuke_after_scenario(request, feature, scenario):
+          scenario_run = _run_context.active_scenario_run
+          _write_snapshot(
+              "interrupt-after-scenario.json",
+              {
+                  "scenario_name": scenario.name,
+                  "scenario_status": scenario_run.status if scenario_run is not None else None,
+                  "exception_type": (
+                      type(scenario_run.exception).__name__
+                      if scenario_run is not None and scenario_run.exception is not None
+                      else None
+                  ),
+                  "exception_message": (
+                      str(scenario_run.exception)
+                      if scenario_run is not None and scenario_run.exception is not None
+                      else None
+                  ),
+                  "active_scenario_run": _run_context.active_scenario_run is not None,
+                  "test_case_id": scenario_run.test_case_id if scenario_run is not None else None,
+                  "test_case_started_id": scenario_run.test_case_started_id if scenario_run is not None else None,
+                  "test_step_ids": list(scenario_run.test_step_ids) if scenario_run is not None else [],
+              },
+          )
+
+
+      @hookimpl(trylast=True)
+      def pytest_sessionfinish(session, exitstatus):
+          if _run_context is None or _scenario_nodeid is None:
+              return
+
+          scenario_run = _run_context.get_scenario_run(_scenario_nodeid)
+          _write_snapshot(
+              "interrupt-session-history.json",
+              {
+                  "scenario_history_found": scenario_run is not None,
+                  "scenario_status": scenario_run.status if scenario_run is not None else None,
+                  "exception_type": (
+                      type(scenario_run.exception).__name__
+                      if scenario_run is not None and scenario_run.exception is not None
+                      else None
+                  ),
+                  "exception_message": (
+                      str(scenario_run.exception)
+                      if scenario_run is not None and scenario_run.exception is not None
+                      else None
+                  ),
+                  "active_feature_binding": _run_context.active_feature_binding is not None,
+                  "active_scenario_run": _run_context.active_scenario_run is not None,
+                  "active_step": scenario_run.current_step_run is not None if scenario_run is not None else None,
+                  "exit_status": int(exitstatus),
+              },
+          )
+      """
+    And consumer file "features/interrupted-runtime.feature" contains:
+      """gherkin
+      Feature: Interrupted runtime outcomes
+        Scenario: KeyboardInterrupt leaves an interrupted runtime outcome
+          Given the runtime step interrupts pytest
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=interrupt-messages.ndjson --cuke-json=interrupt-report.json --cuke-summary -q"
+    Then the interrupted consumer should exit with code 2, retain runtime artifacts "interrupt-after-scenario.json" and "interrupt-session-history.json", and report an UNKNOWN Messages step in "interrupt-messages.ndjson" and an UNKNOWN JSON result in "interrupt-report.json"
+
+  Scenario: A teardown KeyboardInterrupt is retained by runtime and reporting
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+      from pytest import fixture, hookimpl
+      from pytest_cuke import given, then, when
+
+
+      _run_context = None
+      _scenario_nodeid = None
+
+
+      def _write_runtime_snapshot(path, scenario_run, run_context, **extra):
+          Path(path).write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "exception_type": type(scenario_run.exception).__name__ if scenario_run.exception else None,
+                      "exception_message": str(scenario_run.exception) if scenario_run.exception else None,
+                      "test_case_id": scenario_run.test_case_id,
+                      "test_case_started_id": scenario_run.test_case_started_id,
+                      "test_step_ids": list(scenario_run.test_step_ids),
+                      "step_statuses": [step_run.status for step_run in scenario_run.steps],
+                      "active_feature_binding": run_context.active_feature_binding is not None,
+                      "active_scenario_run": run_context.active_scenario_run is not None,
+                      **extra,
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+
+
+      @fixture
+      def interrupting_teardown():
+          yield
+          raise KeyboardInterrupt("teardown interrupt sentinel")
+
+
+      @given("the scenario arms a KeyboardInterrupt during fixture teardown")
+      def scenario_arms_teardown_interrupt(interrupting_teardown):
+          assert interrupting_teardown is None
+
+
+      @when("the first runtime action completes")
+      def first_runtime_action_completes():
+          return "first action complete"
+
+
+      @then("the terminal runtime action completes before pytest teardown")
+      def terminal_runtime_action_completes():
+          return "terminal action complete"
+
+
+      @hookimpl
+      def pytest_cuke_before_scenario(request, feature, scenario):
+          global _run_context, _scenario_nodeid
+          _run_context = request.getfixturevalue("run_context")
+          _scenario_nodeid = request.node.nodeid
+
+
+      @hookimpl
+      def pytest_cuke_after_scenario(request, feature, scenario):
+          scenario_run = _run_context.active_scenario_run
+          assert scenario_run is not None
+          _write_runtime_snapshot(
+              "teardown-after-scenario.json",
+              scenario_run,
+              _run_context,
+              scenario_name=scenario.name,
+          )
+
+
+      @hookimpl(trylast=True)
+      def pytest_sessionfinish(session, exitstatus):
+          if _run_context is None or _scenario_nodeid is None:
+              return
+          scenario_run = _run_context.get_scenario_run(_scenario_nodeid)
+          assert scenario_run is not None
+          _write_runtime_snapshot(
+              "teardown-runtime.json",
+              scenario_run,
+              _run_context,
+              runtime_status=_run_context.status,
+              runtime_stage=_run_context.stage,
+              exit_status=int(exitstatus),
+          )
+      """
+    And consumer file "features/teardown-interrupted-runtime.feature" contains:
+      """gherkin
+      Feature: Runtime state after teardown interruption
+        Scenario: Fixture teardown interrupts a completed multi-step scenario
+          Given the scenario arms a KeyboardInterrupt during fixture teardown
+          When the first runtime action completes
+          Then the terminal runtime action completes before pytest teardown
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=teardown-interrupt-messages.ndjson --cuke-json=teardown-interrupt-report.json --cuke-summary -q"
+    Then pytest should exit with code 2
+    And consumer runtime artifacts "teardown-after-scenario.json", "teardown-runtime.json", "teardown-interrupt-messages.ndjson" and "teardown-interrupt-report.json" should retain the teardown interruption
+
+  Scenario: A teardown KeyboardInterrupt overrides a skipped terminal step
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+      import pytest
+      from pytest import fixture, hookimpl
+      from pytest_cuke import given, when, then
+
+
+      @fixture
+      def interrupting_teardown_after_skip():
+          yield
+          raise KeyboardInterrupt("teardown after skipped-step sentinel")
+
+
+      @given("the scenario arms teardown interruption after its terminal step")
+      def scenario_arms_teardown_interrupt_after_skip(interrupting_teardown_after_skip):
+          assert interrupting_teardown_after_skip is None
+
+
+      @when("the preliminary scenario action completes")
+      def preliminary_scenario_action_completes():
+          return "preliminary action complete"
+
+
+      @then("the terminal scenario step is skipped")
+      def terminal_scenario_step_is_skipped():
+          pytest.skip("terminal scenario step skip sentinel")
+
+
+      @hookimpl
+      def pytest_cuke_after_scenario(request, feature, scenario):
+          scenario_run = request.getfixturevalue("run_context").active_scenario_run
+          assert scenario_run is not None
+          Path("terminal-skip-before-teardown.json").write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "terminal_step_status": scenario_run.steps[-1].status,
+                      "exception_message": str(scenario_run.exception) if scenario_run.exception else None,
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+      """
+    And consumer file "features/terminal-skip-interrupted-runtime.feature" contains:
+      """gherkin
+      Feature: Runtime reporting after a skipped step and teardown interruption
+        Scenario: Fixture teardown interrupts after its terminal step skips
+          Given the scenario arms teardown interruption after its terminal step
+          When the preliminary scenario action completes
+          Then the terminal scenario step is skipped
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=terminal-skip-interrupt-messages.ndjson --cuke-json=terminal-skip-interrupt-report.json --cuke-summary -q"
+    Then pytest should exit with code 2
+    And consumer artifacts "terminal-skip-before-teardown.json", "terminal-skip-interrupt-messages.ndjson" and "terminal-skip-interrupt-report.json" should report the teardown interruption over the skipped terminal step
+
+  Scenario: A teardown KeyboardInterrupt preserves a terminal assertion failure
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+      from pytest import fixture, hookimpl
+      from pytest_cuke import given, when, then
+
+
+      _run_context = None
+      _scenario_nodeid = None
+
+
+      def _write_snapshot(path, scenario_run, run_context, **extra):
+          Path(path).write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "exception_type": type(scenario_run.exception).__name__ if scenario_run.exception else None,
+                      "exception_message": str(scenario_run.exception) if scenario_run.exception else None,
+                      "test_case_id": scenario_run.test_case_id,
+                      "test_case_started_id": scenario_run.test_case_started_id,
+                      "test_step_ids": list(scenario_run.test_step_ids),
+                      "step_statuses": [step_run.status for step_run in scenario_run.steps],
+                      "active_feature_binding": run_context.active_feature_binding is not None,
+                      "active_scenario_run": run_context.active_scenario_run is not None,
+                      **extra,
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+
+
+      @fixture
+      def interrupting_teardown_after_assertion():
+          yield
+          raise KeyboardInterrupt("teardown after assertion sentinel")
+
+
+      @given("the scenario arms teardown interruption after its terminal assertion")
+      def scenario_arms_teardown_interrupt_after_assertion(interrupting_teardown_after_assertion):
+          assert interrupting_teardown_after_assertion is None
+
+
+      @when("the preliminary assertion scenario action completes")
+      def preliminary_assertion_scenario_action_completes():
+          return "preliminary action complete"
+
+
+      @then("the terminal runtime assertion fails with its sentinel")
+      def terminal_runtime_assertion_fails_with_sentinel():
+          raise AssertionError("terminal assertion sentinel")
+
+
+      @hookimpl
+      def pytest_cuke_before_scenario(request, feature, scenario):
+          global _run_context, _scenario_nodeid
+          _run_context = request.getfixturevalue("run_context")
+          _scenario_nodeid = request.node.nodeid
+
+
+      @hookimpl
+      def pytest_cuke_after_scenario(request, feature, scenario):
+          scenario_run = _run_context.active_scenario_run
+          assert scenario_run is not None
+          terminal_step = scenario_run.steps[-1]
+          Path("assertion-before-teardown.json").write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "terminal_step_status": terminal_step.status,
+                      "terminal_step_exception_type": type(terminal_step.exception).__name__
+                      if terminal_step.exception
+                      else None,
+                      "terminal_step_exception_message": str(terminal_step.exception)
+                      if terminal_step.exception
+                      else None,
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+
+
+      @hookimpl(trylast=True)
+      def pytest_sessionfinish(session, exitstatus):
+          if _run_context is None or _scenario_nodeid is None:
+              return
+          scenario_run = _run_context.get_scenario_run(_scenario_nodeid)
+          assert scenario_run is not None
+          _write_snapshot(
+              "assertion-teardown-runtime.json",
+              scenario_run,
+              _run_context,
+              runtime_status=_run_context.status,
+              runtime_stage=_run_context.stage,
+              exit_status=int(exitstatus),
+          )
+      """
+    And consumer file "features/assertion-teardown-interrupted-runtime.feature" contains:
+      """gherkin
+      Feature: Runtime reporting after assertion failure and teardown interruption
+        Scenario: Fixture teardown interrupts after a terminal assertion fails
+          Given the scenario arms teardown interruption after its terminal assertion
+          When the preliminary assertion scenario action completes
+          Then the terminal runtime assertion fails with its sentinel
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=assertion-teardown-messages.ndjson --cuke-json=assertion-teardown-report.json --cuke-summary -q"
+    Then pytest should exit with code 2
+    And consumer runtime artifacts "assertion-before-teardown.json", "assertion-teardown-runtime.json", "assertion-teardown-messages.ndjson" and "assertion-teardown-report.json" should retain both assertion reporting and the teardown error
+
+  Scenario: A teardown KeyboardInterrupt preserves a middle skipped step
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+      import pytest
+      from pytest import fixture, hookimpl
+      from pytest_cuke import given, when, then
+
+
+      _run_context = None
+      _scenario_nodeid = None
+
+
+      @fixture
+      def interrupting_teardown_after_middle_skip():
+          yield
+          raise KeyboardInterrupt("teardown after middle skip sentinel")
+
+
+      @given("the scenario arms teardown interruption after its middle step")
+      def scenario_arms_teardown_interrupt_after_middle_skip(interrupting_teardown_after_middle_skip):
+          assert interrupting_teardown_after_middle_skip is None
+
+
+      @when("the first scenario action completes")
+      def first_scenario_action_completes():
+          return "first action complete"
+
+
+      @when("the middle scenario step is skipped")
+      def middle_scenario_step_is_skipped():
+          pytest.skip("middle scenario step skip sentinel")
+
+
+      @then("the final scenario step remains unstarted")
+      def final_scenario_step_remains_unstarted():
+          return "unreachable final action"
+
+
+      @hookimpl
+      def pytest_cuke_before_scenario(request, feature, scenario):
+          global _run_context, _scenario_nodeid
+          _run_context = request.getfixturevalue("run_context")
+          _scenario_nodeid = request.node.nodeid
+
+
+      @hookimpl
+      def pytest_cuke_after_scenario(request, feature, scenario):
+          scenario_run = _run_context.active_scenario_run
+          assert scenario_run is not None
+          Path("middle-skip-before-teardown.json").write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "scenario_step_count": len(scenario.steps),
+                      "executed_step_names": [step_run.step.text for step_run in scenario_run.steps],
+                      "executed_step_statuses": [step_run.status for step_run in scenario_run.steps],
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+
+
+      @hookimpl(trylast=True)
+      def pytest_sessionfinish(session, exitstatus):
+          if _run_context is None or _scenario_nodeid is None:
+              return
+          scenario_run = _run_context.get_scenario_run(_scenario_nodeid)
+          assert scenario_run is not None
+          Path("middle-skip-teardown-runtime.json").write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "exception_type": type(scenario_run.exception).__name__ if scenario_run.exception else None,
+                      "exception_message": str(scenario_run.exception) if scenario_run.exception else None,
+                      "runtime_status": _run_context.status,
+                      "active_feature_binding": _run_context.active_feature_binding is not None,
+                      "active_scenario_run": _run_context.active_scenario_run is not None,
+                      "exit_status": int(exitstatus),
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+      """
+    And consumer file "features/middle-skip-interrupted-runtime.feature" contains:
+      """gherkin
+      Feature: Runtime reporting after a middle step skip and teardown interruption
+        Scenario: Fixture teardown interrupts after the middle scenario step skips
+          Given the scenario arms teardown interruption after its middle step
+          When the first scenario action completes
+          When the middle scenario step is skipped
+          Then the final scenario step remains unstarted
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=middle-skip-interrupt-messages.ndjson --cuke-json=middle-skip-interrupt-report.json --cuke-summary -q"
+    Then pytest should exit with code 2
+    And consumer runtime artifacts "middle-skip-before-teardown.json", "middle-skip-teardown-runtime.json", "middle-skip-interrupt-messages.ndjson" and "middle-skip-interrupt-report.json" should preserve skipped and interrupted step outcomes
+
+  Scenario: A teardown KeyboardInterrupt marks only the passed terminal step unknown
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+      import pytest
+      from pytest import hookimpl
+      from pytest_cuke import then, when
+      from pytest_cuke.steps import tolerant
+
+
+      _run_context = None
+      _scenario_nodeid = None
+
+
+      @pytest.fixture(autouse=True)
+      def interrupting_teardown_after_tolerant_step():
+          yield
+          raise KeyboardInterrupt("teardown after tolerant step sentinel")
+
+
+      @tolerant
+      @when("the tolerant first step raises an AssertionError and continues")
+      def tolerant_first_step_records_failure():
+          raise AssertionError("tolerant first-step assertion sentinel")
+
+
+      @then("the terminal scenario step completes successfully")
+      def terminal_scenario_step_completes_successfully():
+          return "terminal step passed"
+
+
+      @hookimpl
+      def pytest_cuke_before_scenario(request, feature, scenario):
+          global _run_context, _scenario_nodeid
+          _run_context = request.getfixturevalue("run_context")
+          _scenario_nodeid = request.node.nodeid
+
+
+      @hookimpl
+      def pytest_cuke_after_scenario(request, feature, scenario):
+          scenario_run = _run_context.active_scenario_run
+          assert scenario_run is not None
+          Path("tolerant-before-teardown.json").write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "step_names": [step_run.step.text for step_run in scenario_run.steps],
+                      "step_statuses": [step_run.status for step_run in scenario_run.steps],
+                      "step_exception_messages": [
+                          str(step_run.exception) if step_run.exception is not None else None
+                          for step_run in scenario_run.steps
+                      ],
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+
+
+      @hookimpl(trylast=True)
+      def pytest_sessionfinish(session, exitstatus):
+          if _run_context is None or _scenario_nodeid is None:
+              return
+          scenario_run = _run_context.get_scenario_run(_scenario_nodeid)
+          assert scenario_run is not None
+          Path("tolerant-teardown-runtime.json").write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "exception_type": type(scenario_run.exception).__name__ if scenario_run.exception else None,
+                      "exception_message": str(scenario_run.exception) if scenario_run.exception else None,
+                      "runtime_status": _run_context.status,
+                      "active_feature_binding": _run_context.active_feature_binding is not None,
+                      "active_scenario_run": _run_context.active_scenario_run is not None,
+                      "exit_status": int(exitstatus),
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+      """
+    And consumer file "features/tolerant-teardown-interrupted-runtime.feature" contains:
+      """gherkin
+      Feature: Tolerant failure arbitration after teardown interruption
+        Scenario: Tolerant failure stays failed while terminal pass becomes interrupted
+          When the tolerant first step raises an AssertionError and continues
+          Then the terminal scenario step completes successfully
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=tolerant-teardown-messages.ndjson --cuke-json=tolerant-teardown-report.json --cuke-summary -q"
+    Then pytest should exit with code 2
+    And consumer runtime artifacts "tolerant-before-teardown.json", "tolerant-teardown-runtime.json", "tolerant-teardown-messages.ndjson" and "tolerant-teardown-report.json" should preserve the tolerant failure and interrupt sentinels
+
+  Scenario: A teardown KeyboardInterrupt follows an undefined step with unstarted steps
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      from pathlib import Path
+
+      from pytest import fixture, hookimpl
+      from pytest_cuke import given, then
+
+
+      _run_context = None
+      _scenario_nodeid = None
+
+
+      @fixture(autouse=True)
+      def interrupting_teardown_after_undefined_step():
+          yield
+          raise KeyboardInterrupt("teardown after undefined-step sentinel")
+
+
+      @given("the scenario arms teardown interruption before an undefined step")
+      def scenario_arms_teardown_interrupt_before_undefined_step():
+          pass
+
+
+      @then("the middle runtime step remains unstarted")
+      def middle_runtime_step_remains_unstarted():
+          return "unreachable middle action"
+
+
+      @then("the final runtime step remains unstarted")
+      def final_runtime_step_remains_unstarted():
+          return "unreachable final action"
+
+
+      @hookimpl
+      def pytest_cuke_before_scenario(request, feature, scenario):
+          global _run_context, _scenario_nodeid
+          _run_context = request.getfixturevalue("run_context")
+          _scenario_nodeid = request.node.nodeid
+
+
+      @hookimpl
+      def pytest_cuke_after_scenario(request, feature, scenario):
+          scenario_run = _run_context.active_scenario_run
+          assert scenario_run is not None
+          Path("undefined-before-teardown.json").write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "step_names": [step_run.step.text for step_run in scenario_run.steps],
+                      "step_statuses": [step_run.status for step_run in scenario_run.steps],
+                      "step_exception_messages": [
+                          str(step_run.exception) if step_run.exception is not None else None
+                          for step_run in scenario_run.steps
+                      ],
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+
+
+      @hookimpl(trylast=True)
+      def pytest_sessionfinish(session, exitstatus):
+          if _run_context is None or _scenario_nodeid is None:
+              return
+          scenario_run = _run_context.get_scenario_run(_scenario_nodeid)
+          assert scenario_run is not None
+          Path("undefined-teardown-runtime.json").write_text(
+              json.dumps(
+                  {
+                      "scenario_status": scenario_run.status,
+                      "exception_type": type(scenario_run.exception).__name__ if scenario_run.exception else None,
+                      "exception_message": str(scenario_run.exception) if scenario_run.exception else None,
+                      "runtime_status": _run_context.status,
+                      "active_feature_binding": _run_context.active_feature_binding is not None,
+                      "active_scenario_run": _run_context.active_scenario_run is not None,
+                      "exit_status": int(exitstatus),
+                  },
+                  sort_keys=True,
+              ),
+              encoding="utf-8",
+          )
+      """
+    And consumer file "features/undefined-teardown-interrupted-runtime.feature" contains:
+      """gherkin
+      Feature: Runtime reporting after an undefined step and teardown interruption
+        Scenario: Teardown interruption follows an undefined step
+          Given the scenario arms teardown interruption before an undefined step
+          When an undefined runtime step is encountered
+          Then the middle runtime step remains unstarted
+          And the final runtime step remains unstarted
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=undefined-teardown-messages.ndjson --cuke-json=undefined-teardown-report.json --cuke-summary -q"
+    Then pytest should exit with code 2
+    And consumer runtime artifacts "undefined-before-teardown.json", "undefined-teardown-runtime.json", "undefined-teardown-messages.ndjson" and "undefined-teardown-report.json" should preserve the undefined step and final teardown interruption

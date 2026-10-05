@@ -129,6 +129,155 @@ def test_scenario_report_skip_marks_remaining_steps_skipped() -> None:
     assert [step["status"] for step in serialized_steps] == ["skipped", "skipped"]
 
 
+def test_interrupted_scenario_run_keeps_unknown_step_and_marks_remaining_steps_skipped() -> None:
+    steps = (
+        Step(name="interrupted step", keyword="Given "),
+        Step(name="unstarted step", keyword="And "),
+    )
+    feature = Feature(name="Interrupted reporting")
+    scenario = Scenario(name="Interrupted", steps=steps)
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="runtime.feature::Interrupted",
+        feature=feature,
+        scenario=scenario,
+    )
+    step_run = context.start_step(steps[0])
+    context.finish_step(step_run, status="interrupted", exception=KeyboardInterrupt("interrupt sentinel"))
+    context.finish_active(status="interrupted", exception=KeyboardInterrupt("interrupt sentinel"))
+
+    report = ScenarioReport.from_scenario_run(scenario_run).serialize()
+
+    assert [step["status"] for step in report["steps"]] == ["unknown", "skipped"]
+    assert report["steps"][0]["error_message"] == "interrupt sentinel"
+
+
+def test_interrupted_before_first_step_is_not_serialized_as_passed() -> None:
+    steps = (Step(name="first step", keyword="Given "), Step(name="second step", keyword="And "))
+    feature = Feature(name="Interrupted setup")
+    scenario = Scenario(name="Before first step", steps=steps)
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="runtime.feature::Before first step",
+        feature=feature,
+        scenario=scenario,
+    )
+    context.finish_active(status="interrupted", exception=KeyboardInterrupt("setup interrupt"))
+
+    report = ScenarioReport.from_scenario_run(scenario_run).serialize()
+
+    assert [step["status"] for step in report["steps"]] == ["unknown", "skipped"]
+    assert report["steps"][0]["error_message"] == "setup interrupt"
+
+
+def test_teardown_interrupt_marks_terminal_completed_step_unknown() -> None:
+    steps = (
+        Step(name="completed first step", keyword="Given "),
+        Step(name="completed final step", keyword="Then "),
+    )
+    feature = Feature(name="Teardown interruption")
+    scenario = Scenario(name="Teardown interrupt", steps=steps)
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="runtime.feature::Teardown interrupt",
+        feature=feature,
+        scenario=scenario,
+    )
+
+    for step in steps:
+        step_run = context.start_step(step)
+        context.finish_step(step_run, status="passed")
+    context.finish_active(status="passed")
+    context.record_teardown_error(KeyboardInterrupt("teardown interrupt sentinel"), status="interrupted")
+
+    report = ScenarioReport.from_scenario_run(scenario_run).serialize()
+
+    assert [step["status"] for step in report["steps"]] == ["passed", "unknown"]
+    assert report["steps"][-1]["error_message"] == "teardown interrupt sentinel"
+
+
+def test_teardown_interrupt_overrides_skipped_terminal_step() -> None:
+    steps = (Step(name="skipped step", keyword="Given "),)
+    feature = Feature(name="Teardown interruption")
+    scenario = Scenario(name="Skipped step then teardown interrupt", steps=steps)
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="runtime.feature::Skipped step then teardown interrupt",
+        feature=feature,
+        scenario=scenario,
+    )
+    step_run = context.start_step(steps[0])
+    context.finish_step(step_run, status="skipped", failure_reason="step skip sentinel")
+    context.finish_active(status="skipped")
+    context.record_teardown_error(KeyboardInterrupt("teardown interrupt sentinel"), status="interrupted")
+
+    report = ScenarioReport.from_scenario_run(scenario_run).serialize()
+
+    assert report["steps"][0]["status"] == "unknown"
+    assert report["steps"][0]["skipped"] is False
+    assert report["steps"][0]["error_message"] == "teardown interrupt sentinel"
+
+
+def test_teardown_interrupt_after_nonterminal_skip_marks_final_unstarted_step_unknown() -> None:
+    steps = (
+        Step(name="completed step", keyword="Given "),
+        Step(name="skipped step", keyword="When "),
+        Step(name="final unstarted step", keyword="Then "),
+    )
+    feature = Feature(name="Teardown interruption")
+    scenario = Scenario(name="Nonterminal skip then teardown interrupt", steps=steps)
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="runtime.feature::Nonterminal skip then teardown interrupt",
+        feature=feature,
+        scenario=scenario,
+    )
+    completed_run = context.start_step(steps[0])
+    context.finish_step(completed_run, status="passed")
+    skipped_run = context.start_step(steps[1])
+    context.finish_step(skipped_run, status="skipped", failure_reason="step skip sentinel")
+    context.finish_active(status="skipped")
+    context.record_teardown_error(KeyboardInterrupt("teardown interrupt sentinel"), status="interrupted")
+
+    report = ScenarioReport.from_scenario_run(scenario_run).serialize()
+
+    assert [step["status"] for step in report["steps"]] == ["passed", "skipped", "unknown"]
+    assert report["steps"][1]["skipped"] is True
+    assert report["steps"][2]["skipped"] is False
+    assert report["steps"][2]["error_message"] == "teardown interrupt sentinel"
+
+
+@pytest.mark.parametrize("step_status", ("failed", "undefined"))
+def test_teardown_interrupt_after_nonterminal_error_preserves_error_and_marks_final_step_unknown(
+    step_status: str,
+) -> None:
+    steps = (
+        Step(name="error step", keyword="Given "),
+        Step(name="unstarted middle step", keyword="When "),
+        Step(name="final unstarted step", keyword="Then "),
+    )
+    feature = Feature(name="Teardown interruption")
+    scenario = Scenario(name="Nonterminal step error then teardown interrupt", steps=steps)
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid=f"runtime.feature::Nonterminal {step_status} then teardown interrupt",
+        feature=feature,
+        scenario=scenario,
+    )
+    step_run = context.start_step(steps[0])
+    context.finish_step(step_run, status=step_status, exception=RuntimeError("earlier step error sentinel"))
+    context.finish_active(status=step_status, exception=RuntimeError("earlier step error sentinel"))
+    context.record_teardown_error(KeyboardInterrupt("teardown interrupt sentinel"), status="interrupted")
+
+    report = ScenarioReport.from_scenario_run(scenario_run).serialize()
+
+    assert [step["status"] for step in report["steps"]] == [step_status, "skipped", "unknown"]
+    assert report["steps"][0]["error_message"] == "earlier step error sentinel"
+    assert report["steps"][1]["skipped"] is True
+    assert report["steps"][2]["skipped"] is False
+    assert report["steps"][2]["error_message"] == "teardown interrupt sentinel"
+
+
 def test_plain_test_call_does_not_inherit_previous_scenario_report() -> None:
     plugin = ScenarioReporterPlugin()
     report = SimpleNamespace(passed=True, failed=False, skipped=False)
