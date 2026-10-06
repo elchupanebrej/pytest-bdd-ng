@@ -289,3 +289,4 @@ Feature: Not-implemented step status policy
     When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed -n2 --dist=each --cuke-summary -q"
     Then pytest should exit with a non-zero code
     And consumer xdist continuation artifacts should show "xdist-passed" on 2 workers
+    And consumer xdist WIP side-effect artifacts should show "before-step,before-call,body:raise" on 2 workers
