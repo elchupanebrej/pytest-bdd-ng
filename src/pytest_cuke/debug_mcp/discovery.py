@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-import json
 import os
 import threading
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
-from uuid import uuid4
+
+from pytest_cuke.debug_mcp.json_io import write_json_atomically
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -22,9 +24,16 @@ class DiscoveryPublisher:
         debugger_endpoint: str,
         inspection_endpoint: str,
         debugger_pid: int,
+        worker_id: str | None = None,
+        root_session_id: str | None = None,
+        on_publish: Callable[[dict[str, Any]], None] | None = None,
+        on_remove: Callable[[str], None] | None = None,
     ) -> None:
         self.path = path
         self._lock = threading.Lock()
+        self._worker_id = worker_id
+        self._on_publish = on_publish
+        self._on_remove = on_remove
         self._record: dict[str, Any] = {
             "session_id": session_id,
             "status": "waiting",
@@ -36,6 +45,11 @@ class DiscoveryPublisher:
             "active_failure": None,
             "last_release": None,
         }
+        if worker_id is not None:
+            if not root_session_id or on_publish is None or on_remove is None:
+                raise ValueError("worker discovery requires a root session ID and index callbacks")
+            self._record["root_session_id"] = root_session_id
+            self._record["worker_id"] = worker_id
 
     def write_initial(self) -> None:
         with self._lock:
@@ -63,17 +77,13 @@ class DiscoveryPublisher:
 
     def remove(self) -> None:
         with self._lock:
-            self.path.unlink(missing_ok=True)
+            if self._worker_id is not None and self._on_remove is not None:
+                self._on_remove(self._worker_id)
+            else:
+                self.path.unlink(missing_ok=True)
 
     def _write_locked(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_name(f".{self.path.name}.{uuid4().hex}.tmp")
-        try:
-            with temporary.open("w", encoding="utf-8") as stream:
-                json.dump(self._record, stream, ensure_ascii=False, indent=2, sort_keys=True)
-                stream.write("\n")
-                stream.flush()
-                os.fsync(stream.fileno())
-            os.replace(temporary, self.path)
-        finally:
-            temporary.unlink(missing_ok=True)
+        if self._on_publish is None:
+            write_json_atomically(self.path, self._record)
+        else:
+            self._on_publish(deepcopy(self._record))

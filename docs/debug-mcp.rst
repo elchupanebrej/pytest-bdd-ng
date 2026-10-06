@@ -112,3 +112,27 @@ Heartbeats only extend that failure's lease. If no client heartbeats before
 the lease expires, or the overall timeout is reached, pytest resumes with the
 original failure. Session shutdown closes both servers and records a closed
 status with null endpoints in the discovery file.
+
+pytest-xdist workers
+--------------------
+
+With ``pytest-xdist`` installed, Debug MCP supports local ``popen`` workers.
+The controller publishes a deterministic worker index at
+``.pytest_cache/cuke/debug-mcp/workers.json`` and each worker publishes its
+own record under ``.pytest_cache/cuke/debug-mcp/workers/``. The configured
+pytest ``cache_dir`` changes both paths. Each worker has its own session ID,
+failure sequence, MCP endpoints and release state. Use the session ID and
+sequence from the same worker record when calling ``heartbeat`` or
+``release_failure``. The root index status is ``holding_failure`` while any
+worker is holding a failure; inspect the worker records to select a failure.
+If a worker exits unexpectedly, the controller retains its last failure context,
+marks it ``worker_crashed`` and clears its debugger and inspection endpoints.
+
+Workers allocate their debugger and inspection ports independently, so leave
+the debugger port at its default ``auto`` value when using xdist. A fixed
+``--cuke-mcp-port`` is rejected for xdist workers because multiple workers
+cannot bind the same debugger port. Remote execnet gateways are unsupported:
+workers must be able to publish to the controller's cache directory on a
+shared local filesystem. Enabling Debug MCP with a remote gateway reports an
+error before starting workers. Run without Debug MCP or use local xdist
+workers for this workflow.
