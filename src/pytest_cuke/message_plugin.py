@@ -1511,6 +1511,7 @@ class MessagePlugin:
                 and terminal_step is not None
                 and terminal_step.status == "failed"
                 and terminal_step.exception is scenario_run.exception
+                and terminal_step.test_step_id == pending.test_step.id
                 and pending.status not in (Status.failed, Status.undefined, Status.unknown)
             ):
                 fallback_status = Status.failed

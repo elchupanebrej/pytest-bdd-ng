@@ -147,6 +147,42 @@ Feature: Tolerant step status policy
     And the consumer file "continuations.log" should not exist
     And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,SKIPPED" and exception messages "ordinary runtime sentinel" for scenario "An undecorated exception remains a failure" and TestRunFinished success "false"
 
+  Scenario: Fixture lookup errors remain strict under the ignored policy
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer exposes tolerant steps and a continuation artifact
+    And the installed consumer exposes a tolerant step that requests a missing fixture
+    And consumer file "features/tolerant-status.feature" contains:
+      """gherkin
+      Feature: Tolerant fixture lookup
+        Scenario: A missing fixture is not supplied to a tolerant step
+          When the tolerant operation requests a missing fixture
+          Then the continuation records "missing-fixture-should-not-run"
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json --cuke-summary -q"
+    Then pytest should exit with a non-zero code
+    And pytest output should include "fixture 'tolerant_missing_fixture' not found"
+    And the consumer file "continuations.log" should not exist
+    And the consumer file "missing-fixture-step-body.log" should not exist
+    And consumer artifacts "messages.ndjson" and "cucumber.json" should report strict tolerant fixture lookup "tolerant_missing_fixture" for scenario "A missing fixture is not supplied to a tolerant step"
+
+  Scenario: An ignored tolerant failure leaves a real target fixture available
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer exposes tolerant steps and a continuation artifact
+    And the installed consumer declares a real target fixture for a failing tolerant step
+    And consumer file "features/tolerant-target-fixture.feature" contains:
+      """gherkin
+      Feature: Tolerant target fixture
+        Scenario: The later step consumes the real target fixture
+          When the tolerant setup raises before returning its target fixture
+          Then the later step consumes the real target fixture
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json --cuke-summary -q"
+    Then pytest should exit with code 0
+    And the test outcome should have 1 passed scenarios
+    And consumer continuation artifact should list "fixture-provided-target"
+    And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "tolerant target failure sentinel" for scenario "The later step consumes the real target fixture" and TestRunFinished success "true"
+    And consumer artifact "cucumber.json" should report scenario "The later step consumes the real target fixture" with step statuses "failed,passed" and error messages "tolerant target failure sentinel"
+
   Scenario: An invalid CLI policy fails before executing a scenario
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer exposes tolerant steps and a continuation artifact

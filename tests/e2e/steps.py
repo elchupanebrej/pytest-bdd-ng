@@ -8492,6 +8492,61 @@ def add_duplicate_tolerant_step_definitions(consumer: ConsumerProject) -> None:
     )
 
 
+@given("the installed consumer exposes a tolerant step that requests a missing fixture")
+def add_tolerant_missing_fixture_step(consumer: ConsumerProject) -> None:
+    conftest_path = consumer.path / "conftest.py"
+    conftest = conftest_path.read_text(encoding="utf-8")
+    assert "from pytest_cuke.steps import tolerant" in conftest, conftest
+    conftest_path.write_text(
+        conftest
+        + dedent(
+            """\
+
+            @tolerant
+            @when("the tolerant operation requests a missing fixture")
+            def tolerant_step_with_missing_fixture(tolerant_missing_fixture):
+                Path("missing-fixture-step-body.log").write_text("ran", encoding="utf-8")
+            """
+        ),
+        encoding="utf-8",
+    )
+
+
+@given("the installed consumer declares a real target fixture for a failing tolerant step")
+def add_tolerant_target_fixture_consumer(consumer: ConsumerProject) -> None:
+    conftest_path = consumer.path / "conftest.py"
+    conftest = conftest_path.read_text(encoding="utf-8")
+    assert "from pytest_cuke.steps import tolerant" in conftest, conftest
+    assert "from pytest_cuke import parsers, then, when" in conftest, conftest
+    conftest_path.write_text(
+        conftest
+        + dedent(
+            """\
+
+            @pytest.fixture
+            def tolerant_target_value():
+                return "fixture-provided-target"
+
+
+            @tolerant
+            @when(
+                "the tolerant setup raises before returning its target fixture",
+                target_fixture="tolerant_target_value",
+            )
+            def tolerant_setup_raises_before_target_return():
+                raise AssertionError("tolerant target failure sentinel")
+
+
+            @then("the later step consumes the real target fixture")
+            def consume_real_tolerant_target_fixture(tolerant_target_value):
+                assert tolerant_target_value == "fixture-provided-target"
+                record_continuation(tolerant_target_value)
+            """
+        ),
+        encoding="utf-8",
+    )
+
+
 @given("the consumer stages the checked-in tolerant steps example")
 def stage_checked_in_tolerant_steps_example(consumer: ConsumerProject) -> None:
     example_root = Path(__file__).resolve().parents[2] / "examples" / "tolerant-steps"
@@ -8658,6 +8713,42 @@ def consumer_tolerant_skip_and_undefined_messages(relative_path: str, consumer: 
     assert [result.get("status") for _, result in undefined_steps] == ["UNDEFINED", "SKIPPED"], undefined_steps
     assert all(result.get("status") != "PASSED" for _, result in (*skip_steps, *undefined_steps))
     assert run_success is False
+
+
+@then(
+    re.compile(
+        r'consumer artifacts "(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" should report strict '
+        r'tolerant fixture lookup "(?P<fixture_name>[^"]+)" for scenario "(?P<scenario_name>[^"]+)"'
+    )
+)
+def consumer_tolerant_fixture_lookup_failure(
+    messages_path: str,
+    json_path: str,
+    fixture_name: str,
+    scenario_name: str,
+    consumer: ConsumerProject,
+) -> None:
+    message_steps, run_success = _tolerant_scenario_step_results(messages_path, scenario_name, consumer)
+    assert [result.get("status") for _, result in message_steps] == ["FAILED", "SKIPPED"], message_steps
+    lookup_exception = message_steps[0][1].get("exception")
+    assert isinstance(lookup_exception, dict), message_steps
+    assert lookup_exception.get("type") == "FixtureLookupError", lookup_exception
+    assert fixture_name in str(lookup_exception.get("message")), lookup_exception
+    assert message_steps[1][1].get("exception") is None, message_steps
+    assert run_success is False
+
+    report = json.loads((consumer.path / json_path).read_text(encoding="utf-8"))
+    scenarios = [
+        scenario
+        for feature in report
+        for scenario in feature.get("elements", [])
+        if scenario.get("name") == scenario_name
+    ]
+    assert len(scenarios) == 1, scenarios
+    json_steps = scenarios[0]["steps"]
+    assert [step["result"]["status"] for step in json_steps] == ["failed", "skipped"], json_steps
+    assert fixture_name in json_steps[0]["result"].get("error_message", ""), json_steps
+    assert not json_steps[1]["result"].get("error_message"), json_steps
 
 
 @given("the installed consumer exposes not-implemented steps and policy probes")
