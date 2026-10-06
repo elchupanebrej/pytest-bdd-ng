@@ -12776,6 +12776,9 @@ def consumer_xdist_stream_reports_failed_root_after_run_hook(
         run_start_ids,
         after_hook_starts,
     )
+    started_run_ids = {started.get("testRunStartedId") for started in after_hook_starts}
+    assert started_run_ids == set(run_start_ids), (started_run_ids, run_start_ids, after_hook_starts)
+    after_hook_starts_by_id = {started["id"]: started for started in after_hook_starts}
 
     after_hook_finishes = [
         finished
@@ -12787,18 +12790,22 @@ def consumer_xdist_stream_reports_failed_root_after_run_hook(
     finished_after_hook_ids = [finish.get("testRunHookStartedId") for finish in after_hook_finishes]
     assert len(finished_after_hook_ids) == len(set(finished_after_hook_ids)), after_hook_finishes
     assert set(finished_after_hook_ids) == set(after_hook_start_ids), (after_hook_starts, after_hook_finishes)
-    failed_after_hooks = []
+    failed_after_hook_run_ids: set[str] = set()
     for finish in after_hook_finishes:
         result = finish.get("result")
         if not isinstance(result, dict) or result.get("status") != "FAILED":
             continue
         if failure_sentinel in _reporting_spine_hook_failure_evidence(result):
-            failed_after_hooks.append(finish)
-    assert failed_after_hooks, (failure_sentinel, after_hook_finishes)
-    failed_after_hook_processes = {
-        finish["testRunHookStartedId"].split(":", 1)[0]
-        for finish in failed_after_hooks
-    }
+            started = after_hook_starts_by_id[finish["testRunHookStartedId"]]
+            run_id = started.get("testRunStartedId")
+            assert isinstance(run_id, str) and run_id, (started, finish)
+            failed_after_hook_run_ids.add(run_id)
+    assert failed_after_hook_run_ids == set(run_start_ids), (
+        f"every root/worker test run must have a failed AFTER_TEST_RUN hook containing {failure_sentinel!r}",
+        run_start_ids,
+        failed_after_hook_run_ids,
+        after_hook_finishes,
+    )
 
     pickles_by_id = {
         pickle["id"]: pickle
@@ -12896,7 +12903,30 @@ def consumer_xdist_stream_reports_failed_root_after_run_hook(
         ):
             passed_scenario_steps.append(step)
     assert passed_scenario_steps and worker_ids, (passed_scenario_steps, worker_ids)
-    assert "master" in failed_after_hook_processes, failed_after_hook_processes
+    assert any(run_id.startswith("master:") for run_id in failed_after_hook_run_ids), failed_after_hook_run_ids
+
+
+@then(
+    re.compile(
+        r'consumer output and Messages artifact "(?P<relative_path>[^"]+)" should exclude xdist diagnostics '
+        r'"(?P<diagnostics>[a-z_,]+)"'
+    )
+)
+def consumer_xdist_reporting_has_no_manifest_diagnostics(
+    relative_path: str,
+    diagnostics: str,
+    consumer: ConsumerProject,
+) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}".casefold()
+    envelopes = _reporting_spine_artifact(relative_path, consumer)
+    artifact = json.dumps(envelopes, ensure_ascii=False, sort_keys=True).casefold()
+    codes = [code.strip().casefold() for code in diagnostics.split(",") if code.strip()]
+    assert codes, diagnostics
+    for code in codes:
+        assert code not in output, f"pytest output unexpectedly reported {code!r}:\n{output}"
+        assert code not in artifact, f"Messages artifact unexpectedly reported {code!r}:\n{artifact}"
 
 
 @then(

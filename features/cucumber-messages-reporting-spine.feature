@@ -67,6 +67,43 @@ Feature: Cucumber Messages reporting spine
     And pytest output should contain "external tryfirst pytest_sessionfinish failure sentinel"
     And consumer Messages artifact "messages.ndjson" should record the failed terminal run and AFTER_TEST_RUN diagnostic after an external tryfirst session-finish failure
 
+  Scenario: A late-registered tryfirst session-finish failure appears in Messages
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And consumer file "conftest.py" contains:
+      """python
+      import pytest
+      from pytest_cuke import given
+
+
+      @given("the xdist reporting spine step passes")
+      def xdist_reporting_spine_step_passes():
+          pass
+
+
+      class LateExternalSessionFinish:
+          @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+          def pytest_sessionfinish(self, session, exitstatus):
+              yield
+              raise RuntimeError("external tryfirst pytest_sessionfinish failure sentinel")
+
+
+      @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+      def pytest_sessionstart(session):
+          yield
+          session.config.pluginmanager.register(LateExternalSessionFinish(), "late-external-session-finish")
+      """
+    And consumer file "features/late-external-session-finish-failure.feature" contains:
+      """gherkin
+      Feature: Late external session-finish failure
+        Scenario: The step passes before session finish fails
+          Given the xdist reporting spine step passes
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-parser=python -n2 --dist=load --max-worker-restart=0 --color=no -q features/late-external-session-finish-failure.feature"
+    Then pytest should exit with code 1
+    And pytest output should contain "external tryfirst pytest_sessionfinish failure sentinel"
+    And consumer output and Messages artifact "messages.ndjson" should exclude xdist diagnostics "missing_worker_manifest,partial_stream"
+    And consumer Messages artifact "messages.ndjson" should report a failed root AFTER_TEST_RUN hook with sentinel "external tryfirst pytest_sessionfinish failure sentinel", a passed worker step, and an unsuccessful root run
+
   Scenario: Before and after session hooks emit linked Cucumber Messages events
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer installs reporting-spine run-hook probe "failing-after-hook"
@@ -136,6 +173,7 @@ Feature: Cucumber Messages reporting spine
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-parser=python -n2 --dist=load --max-worker-restart=0 --color=no -q features/xdist-tryfirst-run-hook.feature"
     Then pytest should exit with code 1
     And pytest output should contain "xdist external tryfirst session-finish failure sentinel"
+    And consumer output and Messages artifact "messages.ndjson" should exclude xdist diagnostics "missing_worker_manifest,partial_stream"
     And consumer Messages artifact "messages.ndjson" should report a failed root AFTER_TEST_RUN hook with sentinel "xdist external tryfirst session-finish failure sentinel", a passed worker step, and an unsuccessful root run
 
   Scenario: A multi-payload extension event is rejected before either sink
