@@ -2038,7 +2038,7 @@ class MessageSessionFinishHookAdapter:
             return
         yield from message_plugin._pytest_sessionfinish(session, exitstatus)
 
-    @hookimpl(hookwrapper=True, trylast=True)
+    @hookimpl(hookwrapper=True, tryfirst=True)
     def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> Generator[None, Any, Any]:
         yield from self._run(session, exitstatus)
 

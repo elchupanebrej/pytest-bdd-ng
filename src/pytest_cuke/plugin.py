@@ -597,6 +597,17 @@ def pytest_sessionstart(session: Any) -> None:
     """Create session-scoped collection and runtime state before tests are collected."""
     CollectionBatchService.for_session(session, session.config)
     RunContext.from_config(session.config).begin_collection()
+    plugin_manager = session.config.pluginmanager
+    session_finish_hook = plugin_manager.get_plugin("pytest_cuke_messages_session_finish")
+    if isinstance(session_finish_hook, MessageSessionFinishHookAdapter):
+        # Conftest hooks load after the early adapter registration. Re-register
+        # after configuration so a tryfirst adapter encloses external tryfirst
+        # wrappers and can record their teardown exceptions before finalizing.
+        plugin_manager.unregister(name="pytest_cuke_messages_session_finish")
+        plugin_manager.register(
+            session_finish_hook,
+            name="pytest_cuke_messages_session_finish",
+        )
 
 
 def pytest_collection_finish(session: Any) -> None:
