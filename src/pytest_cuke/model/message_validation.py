@@ -19,7 +19,7 @@ from pytest_cuke.model.message_extension import PAYLOAD_KINDS, get_payload_kind
 from pytest_cuke.model.message_types import message_to_dict
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Mapping
 
     from pytest_cuke.model import message_types as messages
 
@@ -163,24 +163,17 @@ def _diagnostic(
     )
 
 
-def validate_envelope(
-    envelope: messages.Envelope,
-    *,
-    position: int = 0,
-) -> tuple[MessageValidationDiagnostic, ...]:
-    """Validate payload cardinality and one envelope against its official v28 schema."""
-    payload_kind = get_payload_kind(envelope)
-    payload_count = sum(getattr(envelope, name, None) is not None for name in PAYLOAD_KINDS)
-    if payload_count != 1 or payload_kind is None:
-        return (
-            _diagnostic(
-                code="INVALID_PAYLOAD_SHAPE",
-                position=position,
-                payload_kind=None,
-                message=f"Envelope must contain exactly one payload; found {payload_count}",
-            ),
-        )
+def _snake_to_camel(value: str) -> str:
+    head, *tail = value.split("_")
+    return head + "".join(part[:1].upper() + part[1:] for part in tail)
 
+
+def _validate_envelope_instance(
+    instance: dict[str, Any],
+    *,
+    payload_kind: str | None,
+    position: int,
+) -> tuple[MessageValidationDiagnostic, ...]:
     try:
         expected_version = _supported_protocol_version()
         schemas, registry = _schema_registry()
@@ -191,18 +184,6 @@ def validate_envelope(
                 position=position,
                 payload_kind=payload_kind,
                 message=str(error),
-            ),
-        )
-
-    try:
-        instance = message_to_dict(envelope)
-    except Exception as serialization_error:  # defensive against model_construct() callers
-        return (
-            _diagnostic(
-                code="SCHEMA_VALIDATION_ERROR",
-                position=position,
-                payload_kind=payload_kind,
-                message=f"Envelope could not be serialized for schema validation: {serialization_error}",
             ),
         )
 
@@ -237,26 +218,75 @@ def validate_envelope(
         wire_meta_data = instance.get("meta")
         wire_meta = cast("dict[str, Any]", wire_meta_data) if isinstance(wire_meta_data, dict) else None
         protocol_version = wire_meta.get("protocolVersion") if wire_meta is not None else None
-        if isinstance(protocol_version, str) and (
-            expected_version is None or protocol_version != expected_version
-        ):
-            expected = (
-                expected_version if expected_version is not None else "a version supported by this installation"
-            )
+        if isinstance(protocol_version, str) and (expected_version is None or protocol_version != expected_version):
+            expected = expected_version if expected_version is not None else "a version supported by this installation"
             errors.append(
                 _diagnostic(
                     code="UNSUPPORTED_PROTOCOL_VERSION",
                     position=position,
                     payload_kind=payload_kind,
-                    message=(
-                        f"Meta protocolVersion {protocol_version!r} is unsupported; "
-                        f"expected {expected!r}"
-                    ),
+                    message=(f"Meta protocolVersion {protocol_version!r} is unsupported; expected {expected!r}"),
                     instance_path=("meta", "protocolVersion"),
                 )
             )
 
     return tuple(errors)
+
+
+def validate_envelope_data(
+    envelope_data: Mapping[str, object],
+    *,
+    position: int = 0,
+) -> tuple[MessageValidationDiagnostic, ...]:
+    """Validate raw wire data before a model converter can discard unknown fields."""
+    payload_kinds = {_snake_to_camel(kind): kind for kind in PAYLOAD_KINDS}
+    found_kinds = [kind for wire_name, kind in payload_kinds.items() if wire_name in envelope_data]
+    payload_kind = found_kinds[0] if len(found_kinds) == 1 else None
+    errors: list[MessageValidationDiagnostic] = []
+    if len(found_kinds) != 1:
+        errors.append(
+            _diagnostic(
+                code="INVALID_PAYLOAD_SHAPE",
+                position=position,
+                payload_kind=payload_kind,
+                message=f"Envelope must contain exactly one payload; found {len(found_kinds)}",
+            )
+        )
+    errors.extend(_validate_envelope_instance(dict(envelope_data), payload_kind=payload_kind, position=position))
+    return tuple(errors)
+
+
+def validate_envelope(
+    envelope: messages.Envelope,
+    *,
+    position: int = 0,
+) -> tuple[MessageValidationDiagnostic, ...]:
+    """Validate payload cardinality and one envelope against its official v28 schema."""
+    payload_kind = get_payload_kind(envelope)
+    payload_count = sum(getattr(envelope, name, None) is not None for name in PAYLOAD_KINDS)
+    if payload_count != 1 or payload_kind is None:
+        return (
+            _diagnostic(
+                code="INVALID_PAYLOAD_SHAPE",
+                position=position,
+                payload_kind=None,
+                message=f"Envelope must contain exactly one payload; found {payload_count}",
+            ),
+        )
+
+    try:
+        instance = message_to_dict(envelope)
+    except Exception as serialization_error:  # defensive against model_construct() callers
+        return (
+            _diagnostic(
+                code="SCHEMA_VALIDATION_ERROR",
+                position=position,
+                payload_kind=payload_kind,
+                message=f"Envelope could not be serialized for schema validation: {serialization_error}",
+            ),
+        )
+
+    return validate_envelope_data(instance, position=position)
 
 
 __all__ = [
@@ -267,4 +297,5 @@ __all__ = [
     "MessageValidationSeverity",
     "integration_diagnostic",
     "validate_envelope",
+    "validate_envelope_data",
 ]

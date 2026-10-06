@@ -261,6 +261,90 @@ package resources. Package imports never start synchronization or access the
 network. See ``message-schema-provenance.rst`` for the exact upstream source
 pin.
 
+Governing Cucumber Messages capabilities
+----------------------------------------
+
+``messages capabilities`` manages a deterministic field inventory and the
+release decisions made against it. Capability IDs use the form
+``payload_kind.field.path`` with snake_case segments, for example
+``test_run_started.timestamp.seconds``. Inventory snapshots include the
+baseline release, source schema reference, relevance and category for each
+field. The committed policy for the pinned Messages 28.0.0 schema is in
+``specs/message-capability-governance/``.
+
+Synchronize an inventory from the installed schema assets, validate a decision
+file, and compare snapshots without changing either input:
+
+.. code-block:: console
+
+   cuke messages capabilities sync --baseline-release 28.0.0 \
+     --output build/capabilities-v28-0-0.json
+   cuke messages capabilities validate-decision \
+     --input specs/message-capability-governance/decisions-v28-0-0.json
+   cuke messages capabilities diff \
+     --previous-baseline 27.0.0 --previous build/capabilities-v27-0-0.json \
+     --current-baseline 28.0.0 --current build/capabilities-v28-0-0.json \
+     --previous-decisions specs/message-capability-governance/decisions-v27-0-0.json \
+     --current-decisions specs/message-capability-governance/decisions-v28-0-0.json
+
+When ``--schema-dir`` is omitted, sync accepts only the exact baseline pinned
+to the installed ``cucumber-messages`` package. Pass an explicit schema
+directory when synchronizing a different release.
+
+The diff reports sorted added, removed and changed capability IDs and decision
+IDs. Sync writes a new inventory; it never edits decisions. Decision files are
+JSON arrays or objects with a ``decisions`` array. Each record has a
+``capability_id``, ``status`` and ``release_target``. ``next-release`` is an
+explicit fallback; a decision for the exact baseline takes precedence. A
+status is one of ``Implemented``, ``Partly-Applicable``, ``Non-Implementable``,
+``Not-Acceptable``, ``Not-Applicable`` or ``Pending``. A non-implemented
+status requires a non-empty ``comment``. Conflicting or
+duplicate decisions for the same capability and release are errors.
+
+Create JSON or Markdown release checklists from the committed baseline, scope
+and decisions:
+
+.. code-block:: console
+
+   cuke messages capabilities checklist \
+     --capabilities specs/message-capability-governance/capabilities-v28-0-0.json \
+     --decisions specs/message-capability-governance/decisions-v28-0-0.json \
+     --mandatory-capabilities-file specs/message-capability-governance/mandatory-v28-0-0.txt \
+     --format markdown --output build/messages-checklist.md
+
+Scope files contain one canonical or camelCase capability ID per line; blank
+lines and lines beginning with ``#`` are ignored. Checklist entries are sorted
+and include status, decision comment, baseline change and release-blocker
+state. Removed fields from an optional baseline diff remain visible for review.
+
+Coverage reports read and validate the complete Messages NDJSON stream. The
+caller must label its provenance with ``--input-kind runtime`` or
+``--input-kind synthetic``. Synthetic samples remain visible as samples and
+never satisfy runtime-required coverage. Runtime observation does not replace
+an explicit implementation decision for mandatory fields.
+
+.. code-block:: console
+
+   cuke messages capabilities report \
+     --messages-file build/runtime-messages.ndjson --input-kind runtime \
+     --capabilities specs/message-capability-governance/capabilities-v28-0-0.json \
+     --decisions specs/message-capability-governance/decisions-v28-0-0.json \
+     --mandatory-capabilities-file specs/message-capability-governance/mandatory-v28-0-0.txt \
+     --runtime-required-capabilities-file specs/message-capability-governance/runtime-required-v28-0-0.txt \
+     --require-fully-governed --require-runtime-required-covered --format json
+
+``--require-fully-governed`` fails when mandatory fields lack explicit
+``Implemented`` decisions. ``--require-runtime-required-covered`` fails when
+the runtime stream omits a runtime-required field.
+``--require-non-runtime-classified`` fails when an uncovered relevant field
+outside the runtime-required scope lacks
+an explicit non-runtime classification. Each gate is independent. A gate
+failure returns exit code 1 and preserves the report with offending IDs;
+malformed inputs return exit code 2 and do not replace an existing output.
+JSON and Markdown reports include the baseline, scope, observed fields and
+selected explicit decisions in stable order. Reports against supplied files
+use local schema and policy artifacts and do not access the network.
+
 Converting saved Cucumber Messages to Allure
 ---------------------------------------------
 
