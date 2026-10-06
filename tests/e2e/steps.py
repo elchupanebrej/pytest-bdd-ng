@@ -12665,6 +12665,16 @@ def _reporting_spine_artifact(relative_path: str, consumer: ConsumerProject) -> 
     return envelopes
 
 
+def _reporting_spine_hook_failure_evidence(result: dict[str, Any]) -> str:
+    exception = result.get("exception")
+    evidence = (
+        result.get("message"),
+        exception.get("message") if isinstance(exception, dict) else None,
+        exception.get("stackTrace") if isinstance(exception, dict) else None,
+    )
+    return " ".join(value for value in evidence if isinstance(value, str))
+
+
 def _reporting_spine_event_ids(envelopes: list[dict[str, Any]]) -> list[tuple[str, object]]:
     identities: list[tuple[str, object]] = []
     for envelope in envelopes:
@@ -12782,17 +12792,7 @@ def consumer_xdist_stream_reports_failed_root_after_run_hook(
         result = finish.get("result")
         if not isinstance(result, dict) or result.get("status") != "FAILED":
             continue
-        exception = result.get("exception")
-        evidence = " ".join(
-            value
-            for value in (
-                result.get("message"),
-                exception.get("message") if isinstance(exception, dict) else None,
-                exception.get("stackTrace") if isinstance(exception, dict) else None,
-            )
-            if isinstance(value, str)
-        )
-        if failure_sentinel in evidence:
+        if failure_sentinel in _reporting_spine_hook_failure_evidence(result):
             failed_after_hooks.append(finish)
     assert failed_after_hooks, (failure_sentinel, after_hook_finishes)
     failed_after_hook_processes = {
@@ -13071,19 +13071,10 @@ def consumer_messages_external_session_finish_failure(
     after_hook_result = after_hook_finishes[0].get("result")
     assert isinstance(after_hook_result, dict), after_hook_finishes[0]
     assert after_hook_result.get("status") == "FAILED", after_hook_result
-    exception = after_hook_result.get("exception")
-    failure_evidence = [
-        value
-        for value in (
-            after_hook_result.get("message"),
-            exception.get("message") if isinstance(exception, dict) else None,
-            exception.get("stackTrace") if isinstance(exception, dict) else None,
-        )
-        if isinstance(value, str)
-    ]
-    assert any("external tryfirst pytest_sessionfinish failure sentinel" in evidence for evidence in failure_evidence), (
+    failure_evidence = _reporting_spine_hook_failure_evidence(after_hook_result)
+    assert "external tryfirst pytest_sessionfinish failure sentinel" in failure_evidence, (
         after_hook_result,
-        exception,
+        failure_evidence,
     )
 
     pickles = [envelope["pickle"] for envelope in envelopes if isinstance(envelope.get("pickle"), dict)]
