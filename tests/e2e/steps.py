@@ -13,7 +13,7 @@ import tarfile
 import time
 import venv
 import zipfile
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from functools import reduce
 from operator import attrgetter, itemgetter
@@ -86,6 +86,11 @@ class ConsumerProject:
     concurrent_group_events: list[dict[str, object]] | None = None
     feature_source_session_results: list[subprocess.CompletedProcess[str]] | None = None
     feature_url_session_results: list[subprocess.CompletedProcess[str]] | None = None
+    socket_gateway_addresses: list[str] | None = None
+    socket_gateway_processes: list[Any] | None = None
+    socket_gateway_remote_roots: list[Path] | None = None
+    socket_gateway_log_paths: list[Path] | None = None
+    socket_gateway_filesystem_isolated: bool = False
 
 
 def _validate_messages_envelope_compatibly(payload: Any) -> Envelope:
@@ -1068,6 +1073,811 @@ def consumer_messages_artifact(relative_path, scenario_count, step_count, consum
     run_finished = [message for message in messages if isinstance(message, TestRunFinished)]
     assert len(run_finished) == 1
     assert run_finished[0].success is True
+
+
+def _local_xdist_messages_artifact(relative_path: str, consumer: ConsumerProject) -> list[dict[str, Any]]:
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    assert artifact_path.is_file(), f"local xdist Messages artifact was not written: {artifact_path}"
+    envelopes: list[dict[str, Any]] = []
+    for line_number, raw_line in enumerate(artifact_path.read_text(encoding="utf-8").splitlines(), start=1):
+        assert raw_line.strip(), f"local xdist Messages artifact has a blank line at {line_number}"
+        envelope = json.loads(raw_line)
+        assert isinstance(envelope, dict), f"local xdist Messages line {line_number} is not an object: {envelope!r}"
+        payload_keys = [key for key, value in envelope.items() if value is not None]
+        assert len(payload_keys) == 1, f"local xdist Messages line {line_number} is not one payload: {envelope!r}"
+        _validate_messages_envelope_compatibly(envelope)
+        envelopes.append(envelope)
+    assert envelopes, f"local xdist Messages artifact is empty: {artifact_path}"
+    return envelopes
+
+
+def _message_identifier_graph(value: object) -> tuple[list[str], list[str]]:
+    object_ids: list[str] = []
+    references: list[str] = []
+
+    def collect(value: object) -> None:
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                if key == "workerId":
+                    continue
+                if key == "id":
+                    assert isinstance(nested, str) and nested, (key, nested)
+                    object_ids.append(nested)
+                elif key.endswith(("Id", "Ids", "_id", "_ids")):
+                    identifiers = nested if isinstance(nested, list) else [nested]
+                    for identifier in identifiers:
+                        assert isinstance(identifier, str) and identifier, (key, identifier)
+                        references.append(identifier)
+                collect(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                collect(nested)
+
+    collect(value)
+    return object_ids, references
+
+
+def _assert_local_xdist_messages_graph(
+    envelopes: list[dict[str, Any]],
+    observations: list[dict[str, str]] | None,
+) -> None:
+    expected_cases = [
+        "worker case standalone completes",
+        "worker case alpha completes",
+        "worker case beta completes",
+        "worker case alpha completes",
+    ]
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    started = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    case_finished = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    step_started = [envelope["testStepStarted"] for envelope in envelopes if "testStepStarted" in envelope]
+    step_finished = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
+    run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+
+    assert len([envelope for envelope in envelopes if "meta" in envelope]) == 1, envelopes
+    assert len([envelope for envelope in envelopes if "source" in envelope]) == 1, envelopes
+    assert len([envelope for envelope in envelopes if "gherkinDocument" in envelope]) == 1, envelopes
+    assert len(pickles) == len(cases) == 4
+    assert len(started) == len(case_finished) == 4
+    assert len(step_started) == len(step_finished) == 4
+    assert len(run_started) == len(run_finished) == 1
+    assert run_finished[0].get("success") is True, run_finished[0]
+    assert envelopes[-1].get("testRunFinished") == run_finished[0], "testRunFinished must close the merged stream"
+    if observations is not None:
+        assert len(observations) == 4, observations
+        assert Counter(observation["case"] for observation in observations) == Counter(
+            ["standalone", "alpha", "beta", "alpha"]
+        ), observations
+        observed_workers = {observation["worker_id"] for observation in observations}
+    else:
+        observed_workers = {attempt.get("workerId") for attempt in started}
+        assert all(isinstance(worker_id, str) and worker_id for worker_id in observed_workers), started
+    assert len(observed_workers) == 2, observations
+
+    pickle_step_texts = [pickle["steps"][0]["text"] for pickle in pickles]
+    assert len(pickle_step_texts) == 4, pickle_step_texts
+    assert Counter(pickle_step_texts) == Counter(expected_cases), pickle_step_texts
+
+    pickles_by_id = {pickle["id"]: pickle for pickle in pickles}
+    cases_by_id = {case["id"]: case for case in cases}
+    starts_by_id = {attempt["id"]: attempt for attempt in started}
+    assert len(pickles_by_id) == len(pickles), pickles
+    assert len(cases_by_id) == len(cases), cases
+    assert len(starts_by_id) == len(started), started
+    assert {case["pickleId"] for case in cases} == set(pickles_by_id), cases
+    assert {finish["testCaseStartedId"] for finish in case_finished} == set(starts_by_id), case_finished
+    assert len(case_finished) == len({finish["testCaseStartedId"] for finish in case_finished}), case_finished
+
+    started_case_names: list[str] = []
+    for attempt in started:
+        case = cases_by_id[attempt["testCaseId"]]
+        pickle = pickles_by_id[case["pickleId"]]
+        case_step_text = pickle["steps"][0]["text"]
+        assert case_step_text in expected_cases, case_step_text
+        assert attempt.get("workerId") in observed_workers, (attempt, observed_workers)
+        assert attempt["attempt"] == 0, attempt
+        started_case_names.append(case_step_text)
+        pickle_step_ids = [step["id"] for step in pickle["steps"]]
+        case_steps = case["testSteps"]
+        assert [step["pickleStepId"] for step in case_steps] == pickle_step_ids, (case, pickle)
+        assert len(case_steps) == 1, case
+    assert Counter(started_case_names) == Counter(expected_cases), started_case_names
+
+    valid_steps_by_case_id = {
+        case["id"]: {step["id"] for step in case["testSteps"]}
+        for case in cases
+    }
+    started_references = [
+        (event["testCaseStartedId"], event["testStepId"])
+        for event in step_started
+    ]
+    finished_references = [
+        (event["testCaseStartedId"], event["testStepId"])
+        for event in step_finished
+    ]
+    assert len(started_references) == len(set(started_references)) == 4, step_started
+    assert len(finished_references) == len(set(finished_references)) == 4, step_finished
+    assert set(started_references) == set(finished_references), (step_started, step_finished)
+    for event in [*step_started, *step_finished]:
+        attempt = starts_by_id.get(event["testCaseStartedId"])
+        assert attempt is not None, f"step event references a missing attempt: {event!r}"
+        case_id = attempt["testCaseId"]
+        assert event["testStepId"] in valid_steps_by_case_id[case_id], (event, case_id)
+    assert all(event["testStepResult"]["status"] == "PASSED" for event in step_finished), step_finished
+
+    object_ids, references = _message_identifier_graph(envelopes)
+    assert len(object_ids) == len(set(object_ids)), f"worker-scoped Messages IDs were not namespaced: {object_ids}"
+    namespace_prefixes = {f"{worker_id}:" for worker_id in observed_workers} | {"master:"}
+    identifiers = [*object_ids, *references]
+    assert all(identifier.startswith(tuple(namespace_prefixes)) for identifier in identifiers), identifiers
+    assert set(references) <= set(object_ids), f"Messages references point to missing nested or envelope IDs: {set(references) - set(object_ids)}"
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should be one complete local xdist Messages stream '
+        r"for the four selected rows"
+    )
+)
+def consumer_local_xdist_messages_stream(relative_path: str, consumer: ConsumerProject) -> None:
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    envelopes = _local_xdist_messages_artifact(relative_path, consumer)
+    observation_directory = artifact_path.with_name(f"{artifact_path.name}.worker-observations")
+    assert observation_directory.is_dir(), f"xdist worker observations are missing: {observation_directory}"
+    observations: list[dict[str, str]] = []
+    for observation_path in observation_directory.glob("*.json"):
+        observation = json.loads(observation_path.read_text(encoding="utf-8"))
+        assert isinstance(observation, dict), observation
+        case_token = observation.get("case")
+        worker_id = observation.get("worker_id")
+        assert isinstance(case_token, str) and case_token, observation
+        assert isinstance(worker_id, str) and worker_id and worker_id != "master", observation
+        observations.append({"case": case_token, "worker_id": worker_id})
+    _assert_local_xdist_messages_graph(envelopes, observations)
+    shutil.rmtree(observation_directory)
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should be one complete subprocess gateway Messages stream '
+        r"for the four selected rows"
+    )
+)
+def consumer_subprocess_gateway_messages_stream(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _local_xdist_messages_artifact(relative_path, consumer)
+    _assert_local_xdist_messages_graph(envelopes, observations=None)
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should contain incomplete live worker batches'
+    )
+)
+def consumer_local_xdist_live_batches(relative_path: str, consumer: ConsumerProject) -> None:
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    assert artifact_path.is_file(), f"live xdist batch artifact was not written: {artifact_path}"
+    raw_batches = artifact_path.read_text(encoding="utf-8").splitlines()
+    assert raw_batches, f"live xdist batch artifact is empty: {artifact_path}"
+    batches: list[dict[str, Any]] = []
+    for line_number, raw_batch in enumerate(raw_batches, start=1):
+        assert raw_batch.strip(), f"live xdist batch artifact has a blank line at {line_number}"
+        batch = json.loads(raw_batch)
+        assert isinstance(batch, dict), batch
+        assert batch.get("complete") is False, f"live worker batches must remain explicitly incomplete: {batch!r}"
+        worker_id = batch.get("worker_id")
+        sequence = batch.get("sequence")
+        envelopes = batch.get("envelopes")
+        assert isinstance(worker_id, str) and worker_id and worker_id != "master", batch
+        assert isinstance(sequence, int) and not isinstance(sequence, bool) and sequence >= 0, batch
+        assert isinstance(envelopes, list) and envelopes, batch
+        for envelope in envelopes:
+            _validate_messages_envelope_compatibly(envelope)
+        batches.append(batch)
+
+    worker_sequences: dict[str, list[int]] = defaultdict(list)
+    for batch in batches:
+        worker_sequences[batch["worker_id"]].append(batch["sequence"])
+        for envelope in batch["envelopes"]:
+            object_ids, references = _message_identifier_graph(envelope)
+            prefix = f"{batch['worker_id']}:"
+            assert all(identifier.startswith(prefix) for identifier in [*object_ids, *references]), batch
+
+    assert len(worker_sequences) >= 2, f"live transport should expose at least two workers: {worker_sequences}"
+    for worker_id, sequences in worker_sequences.items():
+        assert len(sequences) == len(set(sequences)), (worker_id, sequences)
+        assert sorted(sequences) == list(range(len(sequences))), (worker_id, sequences)
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<manifest_path>[^\"]+)" should report complete manifests matching '
+        r'"(?P<batches_path>[^\"]+)"(?P<expected_test_failure> despite the expected test failure)?'
+    )
+)
+def consumer_local_xdist_manifests_match_batches(
+    manifest_path: str,
+    batches_path: str,
+    consumer: ConsumerProject,
+    expected_test_failure: str | None = None,
+) -> None:
+    manifest_artifact = _consumer_artifact_path(manifest_path, consumer)
+    batch_artifact = _consumer_artifact_path(batches_path, consumer)
+    assert manifest_artifact.is_file(), f"worker manifest artifact was not written: {manifest_artifact}"
+    assert batch_artifact.is_file(), f"live batch artifact was not written: {batch_artifact}"
+    records = [json.loads(line) for line in manifest_artifact.read_text(encoding="utf-8").splitlines() if line]
+    batches = [json.loads(line) for line in batch_artifact.read_text(encoding="utf-8").splitlines() if line]
+    assert records, f"worker manifest artifact is empty: {manifest_artifact}"
+    assert len(records) == 2, records
+
+    observed_batches: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for batch in batches:
+        observed_batches[batch["worker_id"]].append(batch)
+    seen_workers: set[str] = set()
+    for record in records:
+        worker_id = record.get("worker_id")
+        transport = record.get("transport")
+        assert isinstance(worker_id, str) and worker_id, record
+        assert worker_id not in seen_workers, f"worker published more than one completion record: {record!r}"
+        seen_workers.add(worker_id)
+        assert record.get("error") is None, record
+        allowed_exit_statuses = (None, 0, 1) if expected_test_failure else (None, 0)
+        assert record.get("exitstatus") in allowed_exit_statuses, record
+        assert isinstance(transport, dict), record
+        manifest = transport.get("manifest")
+        tail_batch = transport.get("tail_batch")
+        assert isinstance(manifest, dict), record
+        assert manifest.get("complete") is True, record
+        assert manifest.get("worker_id") == worker_id, record
+        worker_batches = observed_batches.pop(worker_id, [])
+        if isinstance(tail_batch, dict):
+            worker_batches.append(tail_batch)
+        sequences = sorted(batch.get("sequence") for batch in worker_batches)
+        envelope_count = sum(len(batch.get("envelopes", [])) for batch in worker_batches)
+        assert sequences == list(range(manifest["batch_count"])), (record, sequences)
+        assert manifest.get("batch_count") == len(worker_batches), (record, len(worker_batches))
+        assert manifest.get("envelope_count") == envelope_count, (record, envelope_count)
+        assert manifest.get("last_sequence") == (sequences[-1] if sequences else None), (record, sequences)
+    assert not observed_batches, f"live batches have no corresponding worker manifest: {observed_batches}"
+    assert len(seen_workers) == 2, seen_workers
+    manifest_artifact.unlink()
+
+
+@given("the installed consumer pins pytest-xdist below 4 for socket rsync staging")
+def pin_consumer_xdist_below_four_for_socket_rsync(consumer: ConsumerProject) -> None:
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "socket gateway consumer setup requires uv to pin pytest-xdist"
+    result = subprocess.run(
+        [uv_executable, "pip", "install", "--python", str(consumer.python), "pytest-xdist<4"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"could not install xdist with rsync support:\n{result.stdout}\n{result.stderr}"
+
+
+@given("a test-managed isolated localhost execnet socket gateway is listening")
+def start_isolated_localhost_execnet_socket_gateway(
+    consumer: ConsumerProject,
+    request,
+) -> None:
+    _start_execnet_socket_gateways(consumer, request, filesystem_isolated=False)
+
+
+@given("a test-managed filesystem-isolated localhost execnet socket gateway is listening")
+def start_filesystem_isolated_localhost_execnet_socket_gateway(
+    consumer: ConsumerProject,
+    request,
+) -> None:
+    import pytest
+
+    if sys.platform != "linux":
+        pytest.skip("@external filesystem-isolation gateway acceptance requires Linux bubblewrap")
+    bubblewrap = shutil.which("bwrap")
+    if bubblewrap is None:
+        pytest.skip("@external filesystem-isolation gateway acceptance requires bubblewrap; remote parity is unverified")
+    _start_execnet_socket_gateways(
+        consumer,
+        request,
+        filesystem_isolated=True,
+        bubblewrap=bubblewrap,
+    )
+
+
+def _start_execnet_socket_gateways(
+    consumer: ConsumerProject,
+    request,
+    *,
+    filesystem_isolated: bool,
+    bubblewrap: str | None = None,
+) -> None:
+    import socket
+    import tempfile
+
+    addresses: list[str] = []
+    processes: list[Any] = []
+    remote_roots: list[Path] = []
+    log_paths: list[Path] = []
+    consumer.socket_gateway_addresses = addresses
+    consumer.socket_gateway_processes = processes
+    consumer.socket_gateway_remote_roots = remote_roots
+    consumer.socket_gateway_log_paths = log_paths
+    consumer.socket_gateway_filesystem_isolated = filesystem_isolated
+
+    def stop_gateway() -> None:
+        for process in processes:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+        for remote_root in remote_roots:
+            shutil.rmtree(remote_root, ignore_errors=True)
+
+    request.addfinalizer(stop_gateway)
+
+    server_environment = consumer.env.copy()
+    server_environment["PYTHONUNBUFFERED"] = "1"
+    if filesystem_isolated:
+        assert bubblewrap is not None
+        server_environment["HOME"] = "/tmp"
+        server_environment["TMPDIR"] = "/tmp"
+        server_environment["PATH"] = "/opt/pytest-cuke-remote/bin:/usr/bin:/bin"
+        server_environment["VIRTUAL_ENV"] = "/opt/pytest-cuke-remote"
+        server_environment["PYTEST_CUKE_HIDDEN_CONSUMER_ROOT"] = str(consumer.path.resolve())
+    for gateway_index in range(2):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+            listener.bind(("127.0.0.1", 0))
+            host, port = listener.getsockname()
+        address = f"{host}:{port}"
+        remote_root = Path(tempfile.mkdtemp(prefix=f"pytest-cuke-execnet-remote-{gateway_index}-"))
+        log_path = remote_root / "socketserver.log"
+        addresses.append(address)
+        remote_roots.append(remote_root)
+        log_paths.append(log_path)
+        log_stream = log_path.open("w", encoding="utf-8")
+        server_command = [str(consumer.python), "-m", "execnet.script.socketserver", address]
+        server_cwd = remote_root
+        if filesystem_isolated:
+            checkout_root = Path(__file__).resolve().parents[2]
+            remote_venv = Path(consumer.python).parent.parent
+            server_command = [
+                bubblewrap,
+                "--unshare-user",
+                "--unshare-pid",
+                "--unshare-ipc",
+                "--unshare-uts",
+                "--die-with-parent",
+                "--ro-bind",
+                "/",
+                "/",
+                "--proc",
+                "/proc",
+                "--dev",
+                "/dev",
+                "--tmpfs",
+                "/opt",
+                "--dir",
+                "/opt/pytest-cuke-remote",
+                "--ro-bind",
+                str(remote_venv),
+                "/opt/pytest-cuke-remote",
+                "--tmpfs",
+                "/tmp",
+                "--tmpfs",
+                "/mnt",
+                "--tmpfs",
+                str(checkout_root),
+                "--chdir",
+                "/tmp",
+                "/opt/pytest-cuke-remote/bin/python",
+                "-m",
+                "execnet.script.socketserver",
+                address,
+            ]
+            server_cwd = Path("/")
+        try:
+            process = subprocess.Popen(
+                server_command,
+                cwd=server_cwd,
+                env=server_environment,
+                stdin=subprocess.DEVNULL,
+                stdout=log_stream,
+                stderr=subprocess.STDOUT,
+            )
+        finally:
+            log_stream.close()
+        processes.append(process)
+
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if process.poll() is not None:
+                break
+            if log_path.is_file() and "Entering Accept loop" in log_path.read_text(
+                encoding="utf-8", errors="replace"
+            ):
+                break
+            time.sleep(0.05)
+        server_output = log_path.read_text(encoding="utf-8", errors="replace") if log_path.is_file() else ""
+        assert process.poll() is None and "Entering Accept loop" in server_output, (
+            f"test-managed execnet socket gateway {gateway_index} did not start:\n{server_output}"
+        )
+        assert consumer.path.resolve() not in remote_root.resolve().parents, (
+            "localhost socket servers must run outside the consumer project tree"
+        )
+
+
+@when(
+    re.compile(
+        r'I run installed pytest through two localhost execnet socket gateways with arguments "(?P<arguments>[^\"]*)"'
+    ),
+    target_fixture="pytest_run_result",
+)
+def run_installed_pytest_through_localhost_socket_gateways(arguments: str, consumer: ConsumerProject):
+    addresses = consumer.socket_gateway_addresses
+    assert addresses and len(addresses) == 2, "two test-managed localhost socket gateways have not started"
+    pytest_arguments = shlex.split(arguments)
+    rewritten_arguments: list[str] = []
+    for argument in pytest_arguments:
+        if argument == "--rootdir=.":
+            rewritten_arguments.extend(("--rootdir", str(consumer.path.resolve())))
+        elif argument == "features" or argument.startswith("features/"):
+            rewritten_arguments.append(str(consumer.path / argument))
+        else:
+            rewritten_arguments.append(argument)
+    command = [
+        str(consumer.pytest),
+        *rewritten_arguments,
+        *(f"--tx=socket={address}" for address in addresses),
+    ]
+    try:
+        result = subprocess.run(
+            command,
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+    except subprocess.TimeoutExpired as error:
+        consumer.pytest_watchdog_expired = True
+        result = subprocess.CompletedProcess(
+            command,
+            124,
+            error.stdout.decode() if isinstance(error.stdout, bytes) else error.stdout or "",
+            error.stderr.decode() if isinstance(error.stderr, bytes) else error.stderr or "",
+        )
+    else:
+        consumer.pytest_watchdog_expired = False
+    if result.returncode != 0:
+        remote_roots = consumer.socket_gateway_remote_roots or []
+        remote_diagnostics = []
+        for index, root in enumerate(remote_roots):
+            entries = sorted(path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file())
+            log_path = root / "socketserver.log"
+            server_log = log_path.read_text(encoding="utf-8", errors="replace") if log_path.is_file() else ""
+            remote_diagnostics.append(
+                f"socket gateway {index} root files={entries!r}; server log={server_log!r}"
+            )
+        result.stdout = f"{result.stdout}\n" + "\n".join(remote_diagnostics)
+    consumer.pytest_result = result
+    return result
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should be one complete localhost socket gateway Messages stream '
+        r"for the four selected rows"
+    )
+)
+def consumer_localhost_socket_gateway_messages_stream(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _local_xdist_messages_artifact(relative_path, consumer)
+    _assert_local_xdist_messages_graph(envelopes, observations=None)
+
+
+@then("consumer artifact \"isolated.ndjson\" should be a complete filesystem-isolated gateway Messages stream")
+def consumer_filesystem_isolated_gateway_messages_stream(consumer: ConsumerProject) -> None:
+    from pytest_cuke.model.message_stream_validation import MessageStreamValidator
+
+    envelopes = _local_xdist_messages_artifact("isolated.ndjson", consumer)
+    validator = MessageStreamValidator()
+    for envelope in envelopes:
+        validator.accept(message_from_dict(envelope))
+    diagnostics = validator.finish()
+    assert not diagnostics, f"filesystem-isolated gateway stream has structural or reference errors: {diagnostics!r}"
+
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    started = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    finished = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+
+    assert len(pickles) == len(cases) == len(started) == len(finished) == 2, envelopes
+    assert len(run_finished) == 1 and run_finished[0].get("success") is True, run_finished
+    assert envelopes[-1].get("testRunFinished") == run_finished[0], "the isolated gateway stream must be finalized"
+    pickles_by_id = {pickle["id"]: pickle for pickle in pickles}
+    cases_by_id = {case["id"]: case for case in cases}
+    assert {pickles_by_id[cases_by_id[attempt["testCaseId"]]["pickleId"]]["name"] for attempt in started} == {
+        "First worker case",
+        "Second worker case",
+    }
+    assert len({attempt.get("workerId") for attempt in started}) == 2, started
+
+    object_ids, references = _message_identifier_graph(envelopes)
+    assert len(object_ids) == len(set(object_ids)), f"isolated worker IDs were not namespaced: {object_ids}"
+    assert set(references) <= set(object_ids), (
+        f"isolated worker references point to missing IDs: {set(references) - set(object_ids)}"
+    )
+
+
+@then("the socket consumer should have no worker-shared observation artifacts")
+def consumer_socket_gateway_has_no_shared_observations(consumer: ConsumerProject) -> None:
+    observation_paths = sorted(consumer.path.rglob("*.worker-observations"))
+    assert not observation_paths, f"socket worker observations unexpectedly used shared consumer paths: {observation_paths}"
+    remote_roots = consumer.socket_gateway_remote_roots
+    assert remote_roots and len(remote_roots) == 2, "the isolated socket server roots are unavailable"
+    assert all(root.is_dir() for root in remote_roots), remote_roots
+    remote_observations = sorted(path for root in remote_roots for path in root.rglob("*.worker-observations"))
+    assert not remote_observations, f"socket worker observations were created in the isolated server root: {remote_observations}"
+
+
+@then("pytest output should report one passed one failed and one skipped BDD scenario")
+def consumer_mixed_xdist_outcomes(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert re.search(r"\b1 passed BDD scenarios, 1 failed, 1 skipped\b", output), output
+    assert "expected worker case failure" in output, output
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should contain the complete mixed local xdist Messages stream'
+    )
+)
+def consumer_mixed_xdist_messages_stream(relative_path: str, consumer: ConsumerProject) -> None:
+    from pytest_cuke.model.message_stream_validation import MessageStreamValidator
+
+    envelopes = _local_xdist_messages_artifact(relative_path, consumer)
+    validator = MessageStreamValidator()
+    for envelope in envelopes:
+        validator.accept(message_from_dict(envelope))
+    diagnostics = validator.finish()
+    assert not diagnostics, f"the mixed outcome stream has structural or reference errors: {diagnostics!r}"
+
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    started = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    case_finished = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    step_started = [envelope["testStepStarted"] for envelope in envelopes if "testStepStarted" in envelope]
+    step_finished = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
+    run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+
+    assert len(pickles) == len(cases) == len(started) == len(case_finished) == 3
+    assert len(step_started) == len(step_finished) == 3
+    assert len(run_started) == len(run_finished) == 1
+    assert run_finished[0].get("success") is False, run_finished[0]
+    assert envelopes[-1].get("testRunFinished") == run_finished[0], "testRunFinished must close the merged stream"
+
+    expected_names = {"mixed worker case passed completes", "mixed worker case failed completes", "mixed worker case skipped completes"}
+    pickles_by_id = {pickle["id"]: pickle for pickle in pickles}
+    cases_by_id = {case["id"]: case for case in cases}
+    starts_by_id = {attempt["id"]: attempt for attempt in started}
+    finishes_by_attempt = {finish["testCaseStartedId"]: finish for finish in case_finished}
+    assert len(pickles_by_id) == len(cases_by_id) == len(starts_by_id) == 3
+    assert set(finishes_by_attempt) == set(starts_by_id), case_finished
+    assert len(finishes_by_attempt) == 3, case_finished
+    assert {case["pickleId"] for case in cases} == set(pickles_by_id), cases
+
+    attempts_by_name: dict[str, dict[str, Any]] = {}
+    for attempt in started:
+        case = cases_by_id[attempt["testCaseId"]]
+        pickle = pickles_by_id[case["pickleId"]]
+        name = pickle["steps"][0]["text"]
+        assert name in expected_names, (name, pickle)
+        assert name not in attempts_by_name, f"selected row was started more than once: {name!r}"
+        assert attempt.get("attempt") == 0, attempt
+        assert isinstance(attempt.get("workerId"), str) and attempt["workerId"].startswith("gw"), attempt
+        assert len(case["testSteps"]) == 1, case
+        attempts_by_name[name] = attempt
+    assert set(attempts_by_name) == expected_names, attempts_by_name
+
+    statuses_by_name: dict[str, str] = {}
+    for name, attempt in attempts_by_name.items():
+        assert attempt["id"] in finishes_by_attempt, (name, attempt)
+        matching_steps = [
+            event
+            for event in step_finished
+            if event["testCaseStartedId"] == attempt["id"]
+        ]
+        assert len(matching_steps) == 1, matching_steps
+        step_status = matching_steps[0]["testStepResult"]["status"]
+        statuses_by_name[name] = step_status
+    assert statuses_by_name == {
+        "mixed worker case passed completes": "PASSED",
+        "mixed worker case failed completes": "FAILED",
+        "mixed worker case skipped completes": "SKIPPED",
+    }, statuses_by_name
+
+    object_ids, references = _message_identifier_graph(envelopes)
+    assert len(object_ids) == len(set(object_ids)), f"worker-scoped Messages IDs were not namespaced: {object_ids}"
+    assert set(references) <= set(object_ids), (
+        f"Messages references point to missing nested or envelope IDs: {set(references) - set(object_ids)}"
+    )
+
+
+@then("pytest output should report the crashed xdist worker and partial Messages diagnostics")
+def consumer_crashed_xdist_worker_diagnostics(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    assert not consumer.pytest_watchdog_expired, f"the xdist crash run exceeded its watchdog:\n{result.stdout}\n{result.stderr}"
+    output = f"{result.stdout}\n{result.stderr}"
+    for code in ("interrupted_worker_transfer", "missing_worker_manifest", "partial_stream"):
+        assert code in output, f"missing {code!r} diagnostic from the controlled worker crash:\n{output}"
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should contain the flushed partial local xdist Messages stream'
+    )
+)
+def consumer_crashed_xdist_partial_stream(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _local_xdist_messages_artifact(relative_path, consumer)
+    run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    case_finished = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    assert len(run_started) == len(run_finished) == 1, envelopes
+    assert run_finished[0].get("success") is False, run_finished[0]
+    assert envelopes[-1].get("testRunFinished") == run_finished[0], "the partial stream must flush its terminal message"
+    assert case_finished, f"the survivor worker's completed case was not flushed: {envelopes!r}"
+
+
+@then(re.compile(r'consumer artifact "(?P<relative_path>[^\"]+)" should record the crashed worker'))
+def consumer_crashed_xdist_worker_record(relative_path: str, consumer: ConsumerProject) -> None:
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    assert artifact_path.is_file(), f"worker shutdown probe artifact was not written: {artifact_path}"
+    records = [json.loads(line) for line in artifact_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(records) == 2, records
+    crashed = [record for record in records if record.get("error")]
+    assert len(crashed) == 1, records
+    crashed_record = crashed[0]
+    assert crashed_record.get("worker_id") in {"gw0", "gw1"}, crashed_record
+    transport = crashed_record.get("transport")
+    assert not isinstance(transport, dict) or not isinstance(transport.get("manifest"), dict), crashed_record
+    survivor_records = [record for record in records if record is not crashed_record]
+    assert len(survivor_records) == 1, records
+    survivor_transport = survivor_records[0].get("transport")
+    assert isinstance(survivor_transport, dict), survivor_records[0]
+    survivor_manifest = survivor_transport.get("manifest")
+    assert isinstance(survivor_manifest, dict) and survivor_manifest.get("complete") is True, survivor_records[0]
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<relative_path>[^\"]+)" should contain the accepted stream after a publisher failure'
+    )
+)
+def consumer_batch_publisher_failure_stream(relative_path: str, consumer: ConsumerProject) -> None:
+    from pytest_cuke.model.message_stream_validation import MessageStreamValidator
+
+    envelopes = _local_xdist_messages_artifact(relative_path, consumer)
+    validator = MessageStreamValidator()
+    for envelope in envelopes:
+        validator.accept(message_from_dict(envelope))
+    diagnostics = validator.finish()
+    assert not diagnostics, f"the accepted stream should remain structurally valid: {diagnostics!r}"
+
+    pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    started = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    finished = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+
+    assert len(pickles) == len(cases) == len(started) == len(finished) == 2, envelopes
+    assert len(run_started) == len(run_finished) == 1, envelopes
+    assert run_finished[0].get("success") is False, run_finished[0]
+    assert envelopes[-1].get("testRunFinished") == run_finished[0], "the failed-publisher stream must be finalized"
+
+
+def _normalized_local_xdist_messages(envelopes: list[dict[str, Any]]) -> list[object]:
+    identifiers: dict[str, str] = {}
+    json_attachment_media_types = {
+        "application/vnd.pytest-bdd.launch+json",
+        "application/vnd.pytest-bdd.step-binding+json",
+        "application/vnd.pytest-bdd.diagnostic+json",
+    }
+
+    def normalize(value: object, field_name: str | None = None) -> object:
+        if field_name in {"timestamp", "duration", "workerId"}:
+            return None
+        if isinstance(value, dict):
+            media_type = value.get("mediaType")
+            normalized_values: dict[str, object] = {}
+            for key, item in value.items():
+                if key in {"timestamp", "duration", "workerId"}:
+                    continue
+                if (
+                    key == "body"
+                    and isinstance(media_type, str)
+                    and media_type in json_attachment_media_types
+                    and isinstance(item, str)
+                ):
+                    try:
+                        body = json.loads(item)
+                    except json.JSONDecodeError:
+                        normalized = item
+                    else:
+                        normalized_body = normalize(body)
+                        normalized = json.dumps(
+                            normalized_body,
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        )
+                else:
+                    normalized = normalize(item, key)
+                if normalized is not None:
+                    normalized_values[key] = normalized
+            return normalized_values
+        if isinstance(value, list):
+            if isinstance(field_name, str) and (
+                field_name == "id" or field_name.endswith(("Id", "Ids", "_id", "_ids"))
+            ):
+                return [normalize_identifier(item) for item in value]
+            return [normalize(item) for item in value]
+        if isinstance(value, str) and (
+            field_name == "id"
+            or (isinstance(field_name, str) and field_name.endswith(("Id", "Ids", "_id", "_ids")))
+        ):
+            return normalize_identifier(value)
+        return value
+
+    def normalize_identifier(value: object) -> object:
+        if not isinstance(value, str):
+            return normalize(value)
+        if value not in identifiers:
+            identifiers[value] = f"message-id-{len(identifiers) + 1}"
+        return identifiers[value]
+
+    return [normalize(envelope) for envelope in envelopes]
+
+
+@then(
+    re.compile(
+        r'consumer artifacts "(?P<first_path>[^\"]+)" and "(?P<second_path>[^\"]+)" '
+        r"should have identical normalized local xdist output"
+    )
+)
+def consumer_local_xdist_messages_are_deterministic(
+    first_path: str,
+    second_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    first = _local_xdist_messages_artifact(first_path, consumer)
+    second = _local_xdist_messages_artifact(second_path, consumer)
+    first_normalized = _normalized_local_xdist_messages(first)
+    second_normalized = _normalized_local_xdist_messages(second)
+    assert first_normalized == second_normalized, (
+        "equivalent local xdist runs should produce the same normalized Cucumber Messages stream"
+    )
+
+
+@then("the installed consumer should have no leftover local Messages worker fragments")
+def consumer_has_no_local_xdist_message_fragments(consumer: ConsumerProject) -> None:
+    root = consumer.path.resolve()
+    leftover_paths: list[str] = []
+    worker_terms = ("worker-fragment", "worker-manifest", "message-worker", "worker-message")
+    for path in root.rglob("*"):
+        relative = path.relative_to(root).as_posix().casefold()
+        if any(term in relative for term in worker_terms):
+            leftover_paths.append(relative)
+    assert not leftover_paths, f"local Messages worker fragments or manifests were left behind: {leftover_paths}"
 
 
 @then(

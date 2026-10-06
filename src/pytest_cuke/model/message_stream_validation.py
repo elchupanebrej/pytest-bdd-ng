@@ -45,7 +45,7 @@ class MessageStreamValidator:
         self._run_started_id: str | None = None
         self._hook_types: dict[str, str | None] = {}
         self._started_run_hooks: dict[str, str] = {}
-        self._started_run_hooks_by_definition: dict[str, str] = {}
+        self._started_run_hooks_by_definition: set[str] = set()
         self._active_run_hooks: set[str] = set()
         self._finished_run_hooks: set[str] = set()
         self._after_run_hook_started = False
@@ -297,16 +297,6 @@ class MessageStreamValidator:
                         (started_id,),
                     )
                 )
-            if hook_id in self._started_run_hooks_by_definition:
-                errors.append(
-                    self._make_diagnostic(
-                        "DUPLICATE_LIFECYCLE_ID",
-                        position,
-                        payload_kind,
-                        f"Run hook definition '{hook_id}' was started more than once",
-                        (hook_id,),
-                    )
-                )
             if self._active_run_hooks:
                 errors.append(
                     self._make_diagnostic(
@@ -337,16 +327,6 @@ class MessageStreamValidator:
                             payload_kind,
                             "after-test-run hook started while test case attempts were active",
                             tuple(active_cases),
-                        )
-                    )
-                if self._after_run_hook_started:
-                    errors.append(
-                        self._make_diagnostic(
-                            "DUPLICATE_LIFECYCLE_ID",
-                            position,
-                            payload_kind,
-                            "An after-test-run hook has already started",
-                            (hook_id,),
                         )
                     )
         elif payload_kind == "test_run_hook_finished":
@@ -696,7 +676,7 @@ class MessageStreamValidator:
             started_id = payload["id"]
             hook_id = payload["hookId"]
             self._started_run_hooks[started_id] = hook_id
-            self._started_run_hooks_by_definition[hook_id] = started_id
+            self._started_run_hooks_by_definition.add(hook_id)
             self._active_run_hooks.add(started_id)
             if self._hook_types.get(hook_id) == "AFTER_TEST_RUN":
                 self._after_run_hook_started = True

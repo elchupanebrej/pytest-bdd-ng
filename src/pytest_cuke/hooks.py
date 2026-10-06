@@ -137,6 +137,14 @@ def pytest_cuke_message_validated(config: Config, message: Message) -> None:
     """Receive one envelope after schema and stream validation accepts it."""
 
 
+def pytest_cuke_message_batch(config: Config, batch: dict[str, Any]) -> None:
+    """Receive a partial worker message batch on the xdist controller.
+
+    Batches carry a worker ID, a sequence number, and JSON Cucumber Messages
+    envelopes. They are transport evidence, not a complete or final stream.
+    """
+
+
 @hookspec(firstresult=True)
 def pytest_cuke_is_collectible(config: Config, path: Path) -> bool | None:
     """Verifies if path could be collected by pytest_cuke"""

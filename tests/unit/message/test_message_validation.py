@@ -213,6 +213,70 @@ def test_stream_validator_rejects_duplicate_case_attempt_ids() -> None:
     assert captured.value.diagnostics[0].offending_ids == ("attempt-1",)
 
 
+def test_stream_validator_accepts_run_hooks_repeated_by_distributed_workers() -> None:
+    validator = MessageStreamValidator()
+    run_id = "run-1"
+    validator.accept(
+        messages.Envelope(
+            test_run_started=messages.TestRunStarted(
+                id=run_id,
+                timestamp=messages.Timestamp(seconds=100, nanos=0),
+            )
+        )
+    )
+    hooks = (
+        ("before-hook", messages.HookType.before_test_run),
+        ("after-hook", messages.HookType.after_test_run),
+    )
+    for hook_id, hook_type in hooks:
+        validator.accept(
+            messages.Envelope(
+                hook=messages.Hook(
+                    id=hook_id,
+                    type=hook_type,
+                    source_reference=messages.SourceReference(uri="pytest-cuke:runtime", location=messages.Location(line=1)),
+                )
+            )
+        )
+
+    for sequence, hook_id in enumerate(("before-hook", "before-hook", "after-hook", "after-hook")):
+        started_id = f"hook-run-{sequence}"
+        timestamp = messages.Timestamp(seconds=101 + sequence, nanos=0)
+        validator.accept(
+            messages.Envelope(
+                test_run_hook_started=messages.TestRunHookStarted(
+                    id=started_id,
+                    hook_id=hook_id,
+                    test_run_started_id=run_id,
+                    timestamp=timestamp,
+                )
+            )
+        )
+        validator.accept(
+            messages.Envelope(
+                test_run_hook_finished=messages.TestRunHookFinished(
+                    test_run_hook_started_id=started_id,
+                    result=messages.TestStepResult(
+                        duration=messages.Duration(seconds=0, nanos=0),
+                        status=messages.Status.passed,
+                    ),
+                    timestamp=timestamp,
+                )
+            )
+        )
+    validator.accept(
+        messages.Envelope(
+            test_run_finished=messages.TestRunFinished(
+                success=True,
+                timestamp=messages.Timestamp(seconds=110, nanos=0),
+                test_run_started_id=run_id,
+            )
+        )
+    )
+
+    assert validator.finish() == ()
+
+
 def test_finish_reports_open_run_case_and_step_starts() -> None:
     validator = MessageStreamValidator()
     messages_in = _fixture_messages()
