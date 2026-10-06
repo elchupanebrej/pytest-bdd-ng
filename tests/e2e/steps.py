@@ -469,6 +469,41 @@ def _consumer_artifact_path(relative_path: str, consumer: ConsumerProject) -> Pa
     return artifact_path
 
 
+def _repository_file_path(relative_path: str) -> Path:
+    source = Path(relative_path)
+    if (
+        source.is_absolute()
+        or ".." in source.parts
+        or "\\" in relative_path
+        or re.match(r"^[A-Za-z]:", relative_path) is not None
+    ):
+        raise ValueError("repository source paths must stay inside the product checkout")
+    repository_root = Path(__file__).resolve().parents[2]
+    source_path = (repository_root / source).resolve()
+    try:
+        source_path.relative_to(repository_root)
+    except ValueError as exc:
+        raise ValueError("repository source paths must stay inside the product checkout") from exc
+    if not source_path.is_file():
+        raise ValueError(f"repository source file does not exist: {relative_path}")
+    return source_path
+
+
+@given(
+    re.compile(
+        r'repository file "(?P<source_path>[^\"]+)" is copied to consumer file "(?P<destination_path>[^\"]+)"'
+    )
+)
+def copy_repository_file_to_consumer(source_path: str, destination_path: str, consumer: ConsumerProject) -> None:
+    source = _repository_file_path(source_path)
+    if "\\" in destination_path or re.match(r"^[A-Za-z]:", destination_path) is not None:
+        raise ValueError("consumer artifact paths must stay inside the consumer project")
+    destination = _consumer_artifact_path(destination_path, consumer)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination = _consumer_artifact_path(destination_path, consumer)
+    shutil.copy2(source, destination)
+
+
 def _consumer_allure_attachment_file(result_directory: Path, reference: dict[str, Any]) -> Path:
     source = reference.get("source")
     assert isinstance(source, str) and source, reference
@@ -2428,6 +2463,160 @@ def consumer_command_json_includes(consumer: ConsumerProject, step) -> None:
             assert actual_value == expected_value, (expected_value, actual_value)
 
     assert_subset(expected, actual)
+
+
+@then(
+    re.compile(
+        r'the capability report should cover IDs from consumer files '
+        r'"(?P<mandatory_path>[^"]+)" and "(?P<runtime_required_path>[^"]+)"'
+    )
+)
+def consumer_capability_report_covers_policy_ids(
+    mandatory_path: str,
+    runtime_required_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    result = consumer.command_result
+    assert result is not None, "a capability report command has not been run"
+    report = json.loads(result.stdout)
+    assert isinstance(report, dict), report
+
+    def ids_from_consumer_file(relative_path: str) -> set[str]:
+        scope_file = _consumer_artifact_path(relative_path, consumer)
+        assert scope_file.is_file(), f"capability scope file is missing: {relative_path}"
+        return {
+            line.strip()
+            for line in scope_file.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        }
+
+    mandatory_ids = ids_from_consumer_file(mandatory_path)
+    runtime_required_ids = ids_from_consumer_file(runtime_required_path)
+    assert mandatory_ids, f"mandatory capability scope is empty: {mandatory_path}"
+    assert runtime_required_ids, f"runtime-required capability scope is empty: {runtime_required_path}"
+    scope = report.get("scope")
+    assert isinstance(scope, dict), report
+    reported_mandatory = scope.get("mandatory_capability_ids")
+    reported_runtime_required = scope.get("runtime_required_capability_ids")
+    assert isinstance(reported_mandatory, list), scope
+    assert isinstance(reported_runtime_required, list), scope
+    assert mandatory_ids <= set(reported_mandatory), (mandatory_ids, reported_mandatory)
+    assert runtime_required_ids <= set(reported_runtime_required), (runtime_required_ids, reported_runtime_required)
+
+    capabilities = report.get("capabilities")
+    assert isinstance(capabilities, list), report
+    rows_by_id = {
+        row["capability_id"]: row
+        for row in capabilities
+        if isinstance(row, dict) and isinstance(row.get("capability_id"), str)
+    }
+    expected_ids = mandatory_ids | runtime_required_ids
+    assert expected_ids <= rows_by_id.keys(), (expected_ids - rows_by_id.keys())
+
+    observations = report.get("observations")
+    assert isinstance(observations, dict), report
+    observed_ids = observations.get("capability_ids")
+    assert isinstance(observed_ids, list), observations
+    assert runtime_required_ids <= set(observed_ids), (runtime_required_ids, observed_ids)
+    for capability_id in mandatory_ids:
+        assert rows_by_id[capability_id].get("mandatory") is True, rows_by_id[capability_id]
+        assert rows_by_id[capability_id].get("status") == "Implemented", rows_by_id[capability_id]
+    for capability_id in runtime_required_ids:
+        assert rows_by_id[capability_id].get("runtime_required") is True, rows_by_id[capability_id]
+        assert rows_by_id[capability_id].get("observed_runtime") is True, rows_by_id[capability_id]
+
+    decisions = report.get("decisions")
+    assert isinstance(decisions, list), report
+    decision_ids = {
+        decision.get("capability_id")
+        for decision in decisions
+        if isinstance(decision, dict) and isinstance(decision.get("capability_id"), str)
+    }
+    assert mandatory_ids <= decision_ids, (mandatory_ids - decision_ids, decisions)
+
+
+@then(
+    re.compile(
+        r'the report should show the v28 non-runtime classification for "(?P<capability_id>[^"]+)" '
+        r"and actionable unresolved IDs"
+    )
+)
+def consumer_capability_report_shows_non_runtime_classification_and_gaps(
+    capability_id: str,
+    consumer: ConsumerProject,
+) -> None:
+    result = consumer.command_result
+    assert result is not None, "a capability report command has not been run"
+    report = json.loads(result.stdout)
+    assert isinstance(report, dict), report
+    assert report.get("baseline_release") == "28.0.0", report
+
+    observations = report.get("observations")
+    assert isinstance(observations, dict), report
+    assert observations.get("source_kind") == "runtime", observations
+
+    gates = report.get("gates")
+    assert isinstance(gates, dict), report
+    assert gates.get("passed") is False, gates
+    failures = gates.get("failures")
+    assert isinstance(failures, list), gates
+    failure_prefix = "require-non-runtime-classified: missing explicit classifications for: "
+    matching_failures = [
+        failure for failure in failures if isinstance(failure, str) and failure.startswith(failure_prefix)
+    ]
+    assert len(matching_failures) == 1, failures
+    missing_ids = matching_failures[0][len(failure_prefix) :].split(", ")
+    assert missing_ids and all(missing_ids), matching_failures[0]
+    assert missing_ids == sorted(set(missing_ids)), missing_ids
+    assert capability_id not in missing_ids, missing_ids
+
+    capabilities = report.get("capabilities")
+    assert isinstance(capabilities, list), report
+    rows_by_id = {
+        row["capability_id"]: row
+        for row in capabilities
+        if isinstance(row, dict) and isinstance(row.get("capability_id"), str)
+    }
+    assert capability_id in rows_by_id, capabilities
+    classified_row = rows_by_id[capability_id]
+    assert classified_row.get("status") == "Not-Applicable", classified_row
+    assert classified_row.get("runtime_required") is False, classified_row
+    assert classified_row.get("observed_runtime") is False, classified_row
+    rationale = classified_row.get("comment")
+    assert isinstance(rationale, str) and "testRunHookStartedId" in rationale, classified_row
+
+    decisions = report.get("decisions")
+    assert isinstance(decisions, list), report
+    matching_decisions = [
+        decision
+        for decision in decisions
+        if isinstance(decision, dict) and decision.get("capability_id") == capability_id
+    ]
+    assert matching_decisions == [
+        {
+            "capability_id": capability_id,
+            "comment": rationale,
+            "release_target": "28.0.0",
+            "status": "Not-Applicable",
+        }
+    ], matching_decisions
+
+    runtime_scope = report.get("scope")
+    assert isinstance(runtime_scope, dict), report
+    runtime_required_ids = runtime_scope.get("runtime_required_capability_ids")
+    assert isinstance(runtime_required_ids, list), runtime_scope
+    assert capability_id not in runtime_required_ids, runtime_required_ids
+    summary = report.get("summary")
+    assert isinstance(summary, dict), report
+    assert summary.get("non_runtime_classified", 0) >= 1, summary
+
+    for missing_id in missing_ids:
+        row = rows_by_id.get(missing_id)
+        assert row is not None, (missing_id, rows_by_id.keys())
+        assert row.get("relevance") == "relevant", row
+        assert row.get("runtime_required") is False, row
+        assert row.get("observed_runtime") is False, row
+        assert row.get("status") == "Pending", row
 
 
 @then("the regular heading scan findings are stored")
