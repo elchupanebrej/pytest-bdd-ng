@@ -8583,6 +8583,20 @@ def consumer_xdist_tolerant_continuations(label: str, count: str, consumer: Cons
     assert all(lines == expected for lines in actual.values()), actual
 
 
+@then(
+    re.compile(
+        r'consumer xdist WIP side-effect artifacts should show "(?P<effects>[^"]+)" '
+        r'on (?P<count>\d+) workers'
+    )
+)
+def consumer_xdist_wip_side_effects(effects: str, count: str, consumer: ConsumerProject) -> None:
+    artifacts = sorted(consumer.path.glob("wip-effects-gw*.log"))
+    assert len(artifacts) == int(count), f"expected {count} worker artifacts, found {artifacts!r}"
+    actual = {artifact.name: artifact.read_text(encoding="utf-8").splitlines() for artifact in artifacts}
+    expected = effects.split(",")
+    assert all(lines == expected for lines in actual.values()), (expected, actual)
+
+
 def _tolerant_scenario_step_results(
     relative_path: str,
     scenario_name: str,
@@ -8769,6 +8783,10 @@ assert not hasattr(pytest_cuke, "not_implemented"), "not_implemented must stay i
 def _record_effect(value):
     with Path("wip-effects.log").open("a", encoding="utf-8") as stream:
         stream.write(value + "\\n")
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    if worker != "master":
+        with Path(f"wip-effects-{worker}.log").open("a", encoding="utf-8") as stream:
+            stream.write(value + "\\n")
 
 
 def _record_continuation(value):
