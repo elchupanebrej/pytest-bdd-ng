@@ -28,7 +28,7 @@ Feature: Convert saved Cucumber Messages to Allure results
       {"testRunFinished":{"success":true,"timestamp":{"seconds":1700000004,"nanos":0}}}
       """
     And I remember the exact bytes of consumer file "messages.ndjson"
-    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-results"
+    When I run command "cuke" with arguments "convert allure messages.ndjson"
     Then the command should exit with code 0
     And the consumer file "features/saved.feature" should not exist
     And consumer file "messages.ndjson" should match its remembered bytes
@@ -378,6 +378,7 @@ Feature: Convert saved Cucumber Messages to Allure results
     Then pytest should exit with code 0
     And consumer artifact "messages.ndjson" should be a valid Cucumber Messages stream for 1 passed scenario and 1 passed steps
     And consumer Allure result directory "allure-native" should preserve scenario "Save an order for Ada", tag "@smoke", and outline parameter "customer" value "Ada"
+    And consumer Allure result directory "allure-native" should satisfy the result and container required-field contract
     When I remove consumer file "features/orders.feature"
     And I remove consumer file "conftest.py"
     Given consumer file "conftest.py" contains:
@@ -387,11 +388,15 @@ Feature: Convert saved Cucumber Messages to Allure results
     When I run installed pytest with arguments "--rootdir=. --cuke-allure=allure-imported --cuke-allure-messages-in=messages.ndjson -q"
     Then pytest should exit with code 0
     And consumer Allure result directory "allure-imported" should preserve scenario "Save an order for Ada", tag "@smoke", and outline parameter "customer" value "Ada"
+    And consumer Allure result directory "allure-imported" should satisfy the result and container required-field contract
     When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-converted"
     Then the command should exit with code 0
     And the consumer file "features/orders.feature" should not exist
     And consumer Allure result directory "allure-converted" should preserve scenario "Save an order for Ada", tag "@smoke", and outline parameter "customer" value "Ada"
+    And consumer Allure result directory "allure-converted" should satisfy the result and container required-field contract
+    And consumer Allure result directories "allure-native" and "allure-imported" should be semantically equivalent
     And consumer Allure result directories "allure-native" and "allure-converted" should be semantically equivalent
+    And consumer Allure result directories "allure-imported" and "allure-converted" should be semantically equivalent
     And consumer Allure result directories "allure-native" and "allure-converted" should preserve no-attempt Messages extensions for their scenarios from "messages.ndjson"
 
   Scenario: Convert failed step diagnostics and attached evidence
@@ -422,7 +427,7 @@ Feature: Convert saved Cucumber Messages to Allure results
     Then the command should exit with code 0
     And the consumer file "features/failure-evidence.feature" should not exist
     And the consumer file "conftest.py" should not exist
-    And consumer Allure result directory "allure-results" should preserve failed diagnostics, portable attachments, and a linked container
+    And consumer Allure result directory "allure-results" should preserve failed diagnostics, portable attachments, and linked containers
 
   Scenario: Preserve distinct exception and step-result failure messages
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -481,7 +486,56 @@ Feature: Convert saved Cucumber Messages to Allure results
     Then the command should exit with code 0
     And the consumer file "features/store-order.feature" should not exist
     And the consumer file "conftest.py" should not exist
-    And consumer Allure result directory "allure-background" should preserve the Background step before scenario steps and a linked container
+    And consumer Allure result directory "allure-background" should preserve the Background step before scenario steps and linked containers
+
+  Scenario: Convert a pytest-produced failed Background after deleting its sources
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given, when
+
+
+      @given("the shop is open")
+      def shop_is_open():
+          pass
+
+
+      @given("the inventory reconciliation fails")
+      def inventory_reconciliation_fails():
+          raise AssertionError("background failure sentinel")
+
+
+      @given("the customer is Ada")
+      def customer_is_ada():
+          pass
+
+
+      @when("the order is saved")
+      def order_is_saved():
+          pass
+      """
+    And consumer file "features/store-order-failure.feature" contains:
+      """gherkin
+      Feature: Store customer orders
+        Background:
+          Given the shop is open
+          And the inventory reconciliation fails
+
+        Scenario: Save Ada's order
+          Given the customer is Ada
+          When the order is saved
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    Then pytest should exit with code 1
+    And consumer Messages artifact "messages.ndjson" should preserve the failed Background step diagnostic and step order
+    When I remove consumer file "features/store-order-failure.feature"
+    And I remove consumer file "conftest.py"
+    And I run command "cuke" with arguments "convert allure messages.ndjson --output allure-background-failure"
+    Then the command should exit with code 0
+    And the consumer file "features/store-order-failure.feature" should not exist
+    And the consumer file "conftest.py" should not exist
+    And consumer Allure result directory "allure-background-failure" should preserve the failed Background step diagnostic, order, and linked containers
+    And consumer Allure result directory "allure-background-failure" should satisfy the result and container required-field contract
 
   Scenario: Convert a described scenario with DocString and DataTable steps
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -624,3 +678,67 @@ Feature: Convert saved Cucumber Messages to Allure results
     And the consumer file "conftest.py" should not exist
     And consumer Allure result directory "allure-results" should contain both scenarios with ordered steps and linked containers
     And consumer Allure result directories "allure-imported" and "allure-results" should preserve no-attempt Messages extensions for their scenarios from "messages.ndjson"
+
+  Scenario: Convert Cucumber Messages v28 run hooks into Allure container fixtures
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "messages.ndjson" contains:
+      """ndjson
+      {"pickle":{"id":"pickle-run-hooks","uri":"features/run-hooks.feature","name":"Run-hook scenario","language":"en","steps":[{"id":"pickle-step-run-hooks","astNodeIds":["ast-step-run-hooks"],"type":"Context","text":"the saved step"}],"tags":[],"astNodeIds":["ast-scenario-run-hooks"]}}
+      {"testCase":{"id":"case-run-hooks","pickleId":"pickle-run-hooks","testSteps":[{"id":"step-run-hooks","pickleStepId":"pickle-step-run-hooks"}]}}
+      {"hook":{"id":"hook-before-run","name":"Prepare reporting endpoint","sourceReference":{"uri":"conftest.py","location":{"line":10}},"type":"BEFORE_TEST_RUN"}}
+      {"hook":{"id":"hook-after-run","name":"Flush audit log","sourceReference":{"uri":"conftest.py","location":{"line":20}},"type":"AFTER_TEST_RUN"}}
+      {"testRunStarted":{"id":"run-hooks","timestamp":{"seconds":1700000000,"nanos":0}}}
+      {"testRunHookStarted":{"id":"run-hook-before","testRunStartedId":"run-hooks","hookId":"hook-before-run","timestamp":{"seconds":1700000000,"nanos":100000000}}}
+      {"testRunHookFinished":{"testRunHookStartedId":"run-hook-before","result":{"duration":{"seconds":0,"nanos":100000000},"status":"PASSED"},"timestamp":{"seconds":1700000000,"nanos":200000000}}}
+      {"testCaseStarted":{"attempt":0,"id":"attempt-run-hooks","testCaseId":"case-run-hooks","timestamp":{"seconds":1700000000,"nanos":300000000}}}
+      {"testStepStarted":{"testCaseStartedId":"attempt-run-hooks","testStepId":"step-run-hooks","timestamp":{"seconds":1700000000,"nanos":400000000}}}
+      {"testStepFinished":{"testCaseStartedId":"attempt-run-hooks","testStepId":"step-run-hooks","testStepResult":{"duration":{"seconds":0,"nanos":100000000},"status":"PASSED"},"timestamp":{"seconds":1700000000,"nanos":500000000}}}
+      {"testCaseFinished":{"testCaseStartedId":"attempt-run-hooks","timestamp":{"seconds":1700000000,"nanos":600000000},"willBeRetried":false}}
+      {"testRunHookStarted":{"id":"run-hook-after","testRunStartedId":"run-hooks","hookId":"hook-after-run","timestamp":{"seconds":1700000000,"nanos":700000000}}}
+      {"attachment":{"body":"after run hook attachment bytes","contentEncoding":"IDENTITY","fileName":"after-run.log","mediaType":"text/plain","testRunHookStartedId":"run-hook-after","timestamp":{"seconds":1700000000,"nanos":800000000}}}
+      {"attachment":{"body":"AP8=","contentEncoding":"BASE64","fileName":"after-run.bin","mediaType":"application/octet-stream","testRunHookStartedId":"run-hook-after","timestamp":{"seconds":1700000000,"nanos":850000000}}}
+      {"testRunHookFinished":{"testRunHookStartedId":"run-hook-after","result":{"duration":{"seconds":0,"nanos":200000000},"message":"after run hook failure sentinel","status":"FAILED","exception":{"type":"RuntimeError","message":"after run hook failure sentinel","stackTrace":"RuntimeError: after run hook failure sentinel\n  at conftest.py:20"}},"timestamp":{"seconds":1700000000,"nanos":900000000}}}
+      {"testRunFinished":{"testRunStartedId":"run-hooks","success":false,"timestamp":{"seconds":1700000001,"nanos":0}}}
+      """
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-run-hooks"
+    Then the command should exit with code 0
+    And consumer Allure result directory "allure-run-hooks" should preserve Cucumber run-hook fixtures and attachment evidence
+    And consumer Allure result directory "allure-run-hooks" should satisfy the result and container required-field contract
+
+  Scenario: Preserve pytest-produced v28 run hooks across Allure reporting modes
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+
+      @given("the pytest session hook scenario passes")
+      def session_hook_scenario_passes():
+          pass
+      """
+    And consumer file "features/session-run-hooks.feature" contains:
+      """gherkin
+      Feature: Session run hooks
+        Scenario: Session hook scenario
+          Given the pytest session hook scenario passes
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-allure=allure-native -q"
+    Then pytest should exit with code 0
+    And consumer Messages artifact "messages.ndjson" should preserve pytest-generated v28 run hooks around one passed scenario
+    And consumer Allure result directory "allure-native" should preserve pytest session run-hook fixtures
+    And consumer Allure result directory "allure-native" should satisfy the result and container required-field contract
+    When I remove consumer file "features/session-run-hooks.feature"
+    And I remove consumer file "conftest.py"
+    And I run installed pytest with arguments "--rootdir=. --cuke-allure=allure-imported --cuke-allure-messages-in=messages.ndjson -q"
+    Then pytest should exit with code 0
+    And consumer Allure result directory "allure-imported" should preserve pytest session run-hook fixtures
+    And consumer Allure result directory "allure-imported" should satisfy the result and container required-field contract
+    When I run command "cuke" with arguments "convert allure messages.ndjson --output allure-converted"
+    Then the command should exit with code 0
+    And the consumer file "features/session-run-hooks.feature" should not exist
+    And the consumer file "conftest.py" should not exist
+    And consumer Allure result directory "allure-converted" should preserve pytest session run-hook fixtures
+    And consumer Allure result directory "allure-converted" should satisfy the result and container required-field contract
+    And consumer Allure result directories "allure-native" and "allure-imported" should be semantically equivalent
+    And consumer Allure result directories "allure-native" and "allure-converted" should be semantically equivalent
+    And consumer Allure result directories "allure-imported" and "allure-converted" should be semantically equivalent
