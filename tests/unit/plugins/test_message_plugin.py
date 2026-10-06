@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
+from pytest_cuke.model.message_validation import MessageValidationDiagnostic
 from pytest_cuke.model.message_types import (
     Attachment,
     ContentEncoding,
@@ -27,7 +28,7 @@ from pytest_cuke.model.message_types import (
     message_to_dict,
 )
 from pytest import ExitCode
-from pytest_cuke.message_plugin import MessagePlugin
+from pytest_cuke.message_plugin import MessagePlugin, message_session_finish_hook
 from pytest_cuke.message_schema_sync import resolve_upstream_release
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.scenario import Scenario
@@ -302,6 +303,42 @@ def test_message_plugin_meta_uses_the_installed_protocol_release() -> None:
     ]
 
 
+def test_late_message_diagnostics_are_written_after_terminal_summary() -> None:
+    terminalreporter = MagicMock()
+    config = SimpleNamespace(
+        option=SimpleNamespace(cuke_messages_ndjson=None, cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        pluginmanager=SimpleNamespace(get_plugin=lambda name: terminalreporter),
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.message_diagnostics_summary_emitted = True
+    diagnostic = MessageValidationDiagnostic(
+        code="partial_stream",
+        severity="error",
+        position=0,
+        payload_kind=None,
+        message="worker transfer was incomplete",
+    )
+    next_diagnostic = MessageValidationDiagnostic(
+        code="missing_worker_manifest",
+        severity="error",
+        position=1,
+        payload_kind=None,
+        message="worker manifest was not published",
+    )
+
+    plugin._report_message_diagnostics((diagnostic,))
+    plugin._report_message_diagnostics((next_diagnostic,))
+
+    assert [call.args[0] for call in terminalreporter.write_line.call_args_list] == [
+        'PYTEST_CUKE_MESSAGE_DIAGNOSTIC={"code":"partial_stream","severity":"error","position":0,'
+        '"payload_kind":null,"message":"worker transfer was incomplete","offending_ids":[],"instance_path":null}',
+        'PYTEST_CUKE_MESSAGE_DIAGNOSTIC={"code":"missing_worker_manifest","severity":"error","position":1,'
+        '"payload_kind":null,"message":"worker manifest was not published","offending_ids":[],"instance_path":null}',
+    ]
+    assert plugin.message_diagnostics == [diagnostic, next_diagnostic]
+
+
 def test_invalid_stream_marks_terminal_message_and_pytest_run_failed() -> None:
     config = SimpleNamespace(
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
@@ -328,7 +365,7 @@ def test_invalid_stream_marks_terminal_message_and_pytest_run_failed() -> None:
     )
     session = SimpleNamespace(config=config, exitstatus=ExitCode.OK)
 
-    _complete_hook_wrapper(plugin.pytest_sessionfinish(session, ExitCode.OK))
+    _complete_hook_wrapper(message_session_finish_hook(plugin).pytest_sessionfinish(session, ExitCode.OK))
 
     envelopes = _drain_messages(plugin)
     terminal = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
