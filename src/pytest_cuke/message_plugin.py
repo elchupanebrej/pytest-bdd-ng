@@ -9,6 +9,7 @@ import sys
 import tempfile
 import traceback
 from base64 import b64encode
+from contextlib import suppress
 from inspect import getfile, getsourcelines
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
@@ -47,7 +48,13 @@ from pytest_cuke.ide_bindings import (
 )
 from pytest_cuke.message_schema_sync import resolve_upstream_release
 from pytest_cuke.model.execution_steps import execution_steps
+from pytest_cuke.model.message_consolidation import (
+    MessageFragment,
+    consolidate_message_fragments,
+    namespace_envelope_ids,
+)
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_pickle_id, scenario_to_pickle
+from pytest_cuke.model.message_stream_validation import MessageStreamValidator
 from pytest_cuke.model.message_transport import MessageEnvelopeView, ValidatedMessageTransport
 from pytest_cuke.model.message_types import (
     Attachment,
@@ -82,7 +89,17 @@ from pytest_cuke.model.message_types import (
     message_to_dict,
 )
 from pytest_cuke.model.message_types import Envelope as Message
-from pytest_cuke.model.message_validation import MessageValidationError, message_diagnostic_to_dict
+from pytest_cuke.model.message_validation import (
+    MessageValidationCode,
+    MessageValidationError,
+    integration_diagnostic,
+    message_diagnostic_to_dict,
+)
+from pytest_cuke.model.message_worker_transport import (
+    MessageBatch,
+    MessageBatcher,
+    WorkerMessageReceiver,
+)
 from pytest_cuke.model.run_access import get_run_context
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource
@@ -100,6 +117,57 @@ if TYPE_CHECKING:
     from pytest_cuke.compatibility.pytest import Item, Metafunc, TestReport
     from pytest_cuke.model import Step
     from pytest_cuke.model.message_validation import MessageValidationDiagnostic
+
+_WORKER_MESSAGE_BATCH_KEY = "pytest_cuke_message_batch"
+_WORKER_MESSAGE_OUTPUT_KEY = "pytest_cuke_message_transport"
+
+
+def _set_test_run_success(envelopes: list[dict[str, Any]], success: bool) -> None:
+    for envelope in reversed(envelopes):
+        test_run_finished = envelope.get("testRunFinished")
+        if isinstance(test_run_finished, dict):
+            test_run_finished["success"] = success
+            return
+
+
+def _write_message_stream(path: Path, envelopes: Iterable[dict[str, Any]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle, temporary_path = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(handle, "w", encoding="utf-8", newline="\n") as stream:
+            for envelope in envelopes:
+                stream.write(json.dumps(envelope, ensure_ascii=False, separators=(",", ":")))
+                stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, path)
+    except Exception:
+        with suppress(OSError):
+            os.unlink(temporary_path)
+        raise
+
+
+def _worker_id_from_config(config: Config) -> str | None:
+    worker_input = getattr(config, "workerinput", None)
+    if not isinstance(worker_input, dict):
+        return None
+    for key in ("workerid", "gateway", "gateway_id"):
+        worker_id = worker_input.get(key)
+        if isinstance(worker_id, str) and worker_id:
+            return worker_id
+    return None
+
+
+def _xdist_controller_requested(config: Config) -> bool:
+    option = getattr(config, "option", None)
+    numprocesses = getattr(option, "numprocesses", None)
+    if isinstance(numprocesses, int):
+        if numprocesses > 0:
+            return True
+    elif isinstance(numprocesses, str) and numprocesses.strip().lower() not in {"", "0", "none"}:
+        return True
+    transactions = getattr(option, "tx", None)
+    return isinstance(transactions, (list, tuple)) and bool(transactions)
 
 
 @attrs(frozen=True, slots=True)
@@ -134,6 +202,12 @@ class MessagePlugin:
     after_test_run_hook_id: str | None = attrib(default=None)
     test_run_hook_failed: bool = attrib(default=False)
     message_diagnostics: list[Any] = attrib(factory=list)
+    accepted_message_payloads: list[dict[str, Any]] = attrib(factory=list)
+    is_xdist_worker: bool = attrib(default=False)
+    is_xdist_controller: bool = attrib(default=False)
+    xdist_worker_id: str | None = attrib(default=None)
+    worker_message_batcher: MessageBatcher | None = attrib(default=None)
+    worker_message_receiver: WorkerMessageReceiver | None = attrib(default=None)
     npm_formatter_package: ClassVar[str] = "@cucumber/html-formatter"
 
     def _configured_output(self, name: str) -> str | None:
@@ -245,6 +319,14 @@ class MessagePlugin:
         if self.is_disabled:
             return
 
+        self.xdist_worker_id = _worker_id_from_config(self.config)
+        self.is_xdist_worker = self.xdist_worker_id is not None
+        self.is_xdist_controller = not self.is_xdist_worker and _xdist_controller_requested(self.config)
+        if self.is_xdist_worker:
+            self.worker_message_batcher = MessageBatcher(cast("str", self.xdist_worker_id))
+        elif self.is_xdist_controller:
+            self.worker_message_receiver = WorkerMessageReceiver()
+
         self.is_messages_file_temp = messages_path is None
         if self.is_messages_file_temp:
             handle, messages_file_path_raw = tempfile.mkstemp()
@@ -256,7 +338,9 @@ class MessagePlugin:
             self.messages_file_path = Path(messages_path)
 
         self.message_transport = ValidatedMessageTransport()
-        self.message_transport.add_sink(self._deliver_validated_message, name="pytest_cuke_message_validated")
+        if not self.is_xdist_worker:
+            self.message_transport.add_sink(self._deliver_validated_message, name="pytest_cuke_message_validated")
+        self.message_transport.add_sink(self._capture_accepted_message, name="Cucumber Messages memory fragment")
         self.message_transport.add_sink(self._queue_validated_message, name="Cucumber Messages NDJSON writer")
 
         if html_path is not None:
@@ -269,6 +353,8 @@ class MessagePlugin:
             self.process_messages_error = None
             self.process_messages_error_reported = False
             self.process_messages_closed = False
+        if self.is_xdist_worker:
+            return
         self.process_messages_thread = Thread(
             target=self._process_messages_safely,
             daemon=True,
@@ -582,8 +668,95 @@ class MessagePlugin:
 
         self._report_message_diagnostics(sink_diagnostics)
 
+    def _capture_accepted_message(self, message: Message) -> None:
+        self.accepted_message_payloads.append(message_to_dict(message))
+
     def _deliver_validated_message(self, message: Message) -> None:
         self.config.hook.pytest_cuke_message_validated(config=self.config, message=message)
+
+    @staticmethod
+    def _worker_id_for_node(node: Any) -> str | None:
+        gateway = getattr(node, "gateway", None)
+        worker_id = getattr(gateway, "id", None)
+        if isinstance(worker_id, str) and worker_id:
+            return worker_id
+        worker_input = getattr(node, "workerinput", None)
+        worker_id = worker_input.get("workerid") if isinstance(worker_input, dict) else None
+        return worker_id if isinstance(worker_id, str) and worker_id else None
+
+    def _take_worker_message_batch(self) -> dict[str, Any] | None:
+        if self.worker_message_batcher is None or not hasattr(self, "process_messages_io_queue"):
+            return None
+        envelopes: list[dict[str, Any]] = []
+        while True:
+            try:
+                raw_message = self.process_messages_io_queue.get_nowait()
+            except Empty:
+                break
+            else:
+                try:
+                    payload = json.loads(raw_message)
+                    if isinstance(payload, dict):
+                        envelopes.append(payload)
+                finally:
+                    self.process_messages_io_queue.task_done()
+        if not envelopes:
+            return None
+        return self.worker_message_batcher.make_batch(envelopes).to_payload()
+
+    def _receive_worker_message_batch(self, payload: Any) -> None:
+        if not isinstance(payload, dict) or self.worker_message_receiver is None:
+            return
+        try:
+            batch = MessageBatch.from_payload(payload)
+        except ValueError:
+            self.worker_message_receiver.receive_batch(payload)
+            return
+        self.worker_message_receiver.receive_batch(batch.to_payload())
+        live_batch = {
+            "worker_id": batch.worker_id,
+            "sequence": batch.sequence,
+            "envelopes": [
+                namespace_envelope_ids(envelope, worker_id=batch.worker_id) for envelope in batch.envelopes
+            ],
+            "complete": False,
+        }
+        try:
+            self.config.hook.pytest_cuke_message_batch(config=self.config, batch=live_batch)
+        except Exception as error:
+            if self.message_transport is not None:
+                diagnostic = self.message_transport.record_sink_failure("pytest_cuke_message_batch", error)
+                self._report_message_diagnostics((diagnostic,))
+
+    @hookimpl(optionalhook=True, hookwrapper=True, tryfirst=True)
+    def pytest_report_to_serializable(self, config: Config, report: Any) -> Generator[None, Any, Any]:
+        del config
+        batch = self._take_worker_message_batch() if self.is_xdist_worker else None
+        if batch is not None:
+            setattr(report, _WORKER_MESSAGE_BATCH_KEY, batch)
+        outcome = yield
+        serialized = outcome.get_result()
+        if batch is not None and isinstance(serialized, dict):
+            serialized[_WORKER_MESSAGE_BATCH_KEY] = batch
+
+    @hookimpl(optionalhook=True, hookwrapper=True, tryfirst=True)
+    def pytest_report_from_serializable(
+        self,
+        config: Config,
+        data: dict[str, Any],
+    ) -> Generator[None, Any, Any]:
+        batch = data.pop(_WORKER_MESSAGE_BATCH_KEY, None) if self.is_xdist_controller else None
+        if batch is not None:
+            self._receive_worker_message_batch(batch)
+        yield
+
+    @hookimpl(optionalhook=True)
+    def pytest_configure_node(self, node: Any) -> None:
+        if self.is_disabled or not self.is_xdist_controller or self.worker_message_receiver is None:
+            return
+        worker_id = self._worker_id_for_node(node)
+        if worker_id is not None:
+            self.worker_message_receiver.register_expected_worker(worker_id)
 
     def _with_exception_stack_trace(self, message: Message) -> Message:
         finished_step = message.test_step_finished
@@ -763,11 +936,24 @@ class MessagePlugin:
             self._emit_ide_attachment(config, IDE_DIAGNOSTIC_MEDIA_TYPE, diagnostic)
 
     @hookimpl(optionalhook=True)
-    def pytest_testnodedown(self, node: Any) -> None:
+    def pytest_testnodedown(self, node: Any, error: object | None) -> None:
         """Merge worker collection and execution identities on the xdist controller."""
         worker_output = getattr(node, "workeroutput", None)
         if isinstance(worker_output, dict):
             self.ide_bindings.merge_worker_output(worker_output.get(IDE_BINDING_WORKER_OUTPUT_KEY))
+        if not self.is_xdist_controller or self.worker_message_receiver is None:
+            return
+        worker_id = self._worker_id_for_node(node) or "unknown"
+        if isinstance(worker_output, dict):
+            transport_output = worker_output.get(_WORKER_MESSAGE_OUTPUT_KEY)
+            if isinstance(transport_output, dict):
+                tail_batch = transport_output.get("tail_batch")
+                if isinstance(tail_batch, dict):
+                    self.worker_message_receiver.receive_batch(tail_batch)
+                manifest = transport_output.get("manifest")
+                if isinstance(manifest, dict):
+                    self.worker_message_receiver.record_manifest(manifest, expected_worker_id=worker_id)
+        self.worker_message_receiver.mark_worker_down(worker_id, error)
 
     def _get_current_test_case(self) -> TestCase:
         if self.current_test_case is None:
@@ -820,7 +1006,8 @@ class MessagePlugin:
         error = outcome.excinfo[1] if outcome.excinfo is not None else None
         self._finish_test_run_hook(config, hook_started_id, started_at, error)
 
-    @hookimpl(hookwrapper=True, tryfirst=True)
+    # xdist sends workeroutput as its sessionfinish wrapper unwinds; publish manifests before that.
+    @hookimpl(hookwrapper=True, trylast=True)
     def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> Generator[None, Any, Any]:
         if self.is_disabled:
             yield
@@ -880,11 +1067,22 @@ class MessagePlugin:
             if self.message_transport.has_errors:
                 self._mark_session_failed(session)
 
-        try:
-            self.finish_process_messages_thread()
-        except Exception as error:
-            self._record_final_sink_failure(session, "Cucumber Messages NDJSON writer", error)
+        if not self.is_xdist_worker:
+            try:
+                self.finish_process_messages_thread()
+            except Exception as error:
+                self._record_final_sink_failure(session, "Cucumber Messages NDJSON writer", error)
         self._report_process_messages_error(session)
+        if self.is_xdist_worker:
+            self._publish_worker_message_manifest(session)
+            if self.is_messages_file_temp and self.messages_file_path.exists():
+                try:
+                    os.unlink(self.messages_file_path)
+                except OSError as error:
+                    self._record_final_sink_failure(session, "temporary Cucumber Messages cleanup", error)
+            return
+        if self.is_xdist_controller:
+            self._finalize_xdist_message_stream(session)
         try:
             if self._configured_output("cuke_html") is not None:
                 try:
@@ -910,6 +1108,85 @@ class MessagePlugin:
 
         if self.message_transport is not None and self.message_transport.has_errors:
             self._mark_session_failed(session)
+
+    def _publish_worker_message_manifest(self, session: Session) -> None:
+        worker_output = getattr(session.config, "workeroutput", None)
+        batcher = self.worker_message_batcher
+        if not isinstance(worker_output, dict) or batcher is None:
+            self._record_final_sink_failure(
+                session,
+                "xdist worker Messages manifest",
+                RuntimeError("pytest-xdist did not provide workeroutput for the Messages completion manifest"),
+            )
+            return
+        tail_batch = self._take_worker_message_batch()
+        complete = self.message_transport is not None and not self.message_transport.has_errors
+        manifest = batcher.make_manifest(
+            complete=complete,
+            interruption_reason=None if complete else "worker message validation or a transport sink failed",
+        )
+        worker_output[_WORKER_MESSAGE_OUTPUT_KEY] = {
+            "manifest": manifest.to_payload(),
+            "tail_batch": tail_batch,
+        }
+        with self.process_messages_lock:
+            self.process_messages_closed = True
+
+    def _finalize_xdist_message_stream(self, session: Session) -> None:
+        receiver = self.worker_message_receiver
+        if receiver is None:
+            return
+        received = receiver.finalize()
+        fragments = [
+            MessageFragment(worker_id="master", role="controller", envelopes=tuple(self.accepted_message_payloads))
+        ]
+        fragments.extend(
+            MessageFragment(worker_id=fragment.worker_id, role="worker", envelopes=fragment.envelopes)
+            for fragment in received.fragments
+        )
+        consolidated = consolidate_message_fragments(fragments)
+        diagnostics = [
+            integration_diagnostic(
+                code=cast("MessageValidationCode", diagnostic.code),
+                position=len(consolidated.envelope_dicts),
+                payload_kind=None,
+                message=diagnostic.message,
+                offending_ids=(diagnostic.worker_id,) if diagnostic.worker_id is not None else (),
+            )
+            for diagnostic in received.diagnostics
+        ]
+        diagnostics.extend(
+            integration_diagnostic(
+                code=cast("MessageValidationCode", diagnostic.code),
+                position=len(consolidated.envelope_dicts),
+                payload_kind=None,
+                message=diagnostic.message,
+                offending_ids=(diagnostic.worker_id,) if diagnostic.worker_id is not None else (),
+            )
+            for diagnostic in consolidated.diagnostics
+        )
+
+        wire_stream = [json.loads(json.dumps(envelope, ensure_ascii=False)) for envelope in consolidated.envelope_dicts]
+        if diagnostics:
+            _set_test_run_success(wire_stream, False)
+
+        validator = MessageStreamValidator()
+        for payload in wire_stream:
+            try:
+                validator.accept(message_from_dict(payload, Message))
+            except MessageValidationError as error:
+                diagnostics.extend(error.diagnostics)
+        diagnostics.extend(validator.finish())
+        if diagnostics:
+            _set_test_run_success(wire_stream, False)
+            for diagnostic in diagnostics:
+                self._report_message_diagnostics((diagnostic,))
+            self._mark_session_failed(session)
+
+        try:
+            _write_message_stream(self.messages_file_path, wire_stream)
+        except Exception as error:
+            self._record_final_sink_failure(session, "consolidated Cucumber Messages writer", error)
 
     @staticmethod
     def _mark_session_failed(session: Session) -> None:
@@ -1182,6 +1459,7 @@ class MessagePlugin:
                     },
                 )
 
+    @hookimpl(tryfirst=True)
     def pytest_runtest_logreport(self, report: TestReport) -> None:
         if self.is_disabled or report.when != "teardown":
             return
