@@ -98,7 +98,7 @@ Feature: Cucumber Messages reporting spine
       def pytest_sessionfinish(session, exitstatus):
           outcome = yield
           outcome.force_exception(RuntimeError("xdist reporting spine after-session hook sentinel"))
-      """
+    """
     And consumer file "features/xdist-run-hook.feature" contains:
       """gherkin
       Feature: Reporting spine xdist hook lifecycle
@@ -107,7 +107,36 @@ Feature: Cucumber Messages reporting spine
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-parser=python -n2 --max-worker-restart=0 --color=no -q features/xdist-run-hook.feature"
     Then pytest output should contain "xdist reporting spine after-session hook sentinel"
-    And consumer Messages artifact "messages.ndjson" should record a failed after run hook in the xdist stream
+    And consumer Messages artifact "messages.ndjson" should report a failed root AFTER_TEST_RUN hook with sentinel "xdist reporting spine after-session hook sentinel", a passed worker step, and an unsuccessful root run
+
+  Scenario: A tryfirst session-finish failure marks the root Messages run unsuccessful under xdist
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And consumer file "conftest.py" contains:
+      """python
+      import pytest
+      from pytest_cuke import given
+
+
+      @given("the xdist reporting spine step passes")
+      def xdist_reporting_spine_step_passes():
+          pass
+
+
+      @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+      def pytest_sessionfinish(session, exitstatus):
+          outcome = yield
+          raise RuntimeError("xdist external tryfirst session-finish failure sentinel")
+      """
+    And consumer file "features/xdist-tryfirst-run-hook.feature" contains:
+      """gherkin
+      Feature: External xdist session-finish failure
+        Scenario: The step passes before an external session-finish failure
+          Given the xdist reporting spine step passes
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-parser=python -n2 --dist=load --max-worker-restart=0 --color=no -q features/xdist-tryfirst-run-hook.feature"
+    Then pytest should exit with code 1
+    And pytest output should contain "xdist external tryfirst session-finish failure sentinel"
+    And consumer Messages artifact "messages.ndjson" should report a failed root AFTER_TEST_RUN hook with sentinel "xdist external tryfirst session-finish failure sentinel", a passed worker step, and an unsuccessful root run
 
   Scenario: A multi-payload extension event is rejected before either sink
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
