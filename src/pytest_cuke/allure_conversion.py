@@ -9,6 +9,7 @@ import os
 import re
 import tempfile
 from base64 import b64decode
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -17,6 +18,7 @@ from pydantic import ValidationError
 
 from pytest_cuke.model.message_converter import envelope_from_dict
 from pytest_cuke.model.message_extension import PAYLOAD_KINDS, get_payload_kind
+from pytest_cuke.model.message_validation import validate_envelope_data
 
 if TYPE_CHECKING:
     from pytest_cuke.model import message_types as messages
@@ -26,19 +28,40 @@ class AllureConversionError(Exception):
     """An input stream cannot be converted to Allure results."""
 
 
+@dataclass(frozen=True)
+class _ParsedMessages:
+    envelopes: list[messages.Envelope]
+    exception_traces: dict[tuple[str, str], str]
+    run_finished_trace: str | None
+    raw_extensions: list[bytes]
+    run_hook_traces: dict[str, str]
+
+
+@dataclass(frozen=True)
+class _NormalizedEnvelope:
+    validation_payload: dict[str, Any]
+    step_trace: str | None
+    run_trace: str | None
+    run_hook_trace: tuple[str, str] | None
+
+
 def convert_allure_messages(input_path: Path, output_dir: Path) -> None:
     """Convert every completed scenario attempt in one Cucumber Messages run."""
-    envelopes, exception_traces, run_finished_trace, raw_extensions = _read_envelopes(input_path)
-    converted, attachments, results_by_case_id = _convert_scenarios(envelopes, exception_traces)
-    _materialize_unscoped_attachments(envelopes, converted, attachments, results_by_case_id)
+    parsed = _read_envelopes(input_path)
+    converted, attachments, results_by_case_id = _convert_scenarios(parsed.envelopes, parsed.exception_traces)
+    run_hook_container, run_hook_attachments = _convert_run_hooks(
+        parsed.envelopes, converted, parsed.run_hook_traces
+    )
+    attachments.extend(run_hook_attachments)
+    _materialize_unscoped_attachments(parsed.envelopes, converted, attachments, results_by_case_id)
     _attach_run_diagnostics(
         converted,
         attachments,
-        _one(envelopes, "test_run_finished"),
-        run_finished_trace,
+        _one(parsed.envelopes, "test_run_finished"),
+        parsed.run_finished_trace,
     )
-    _attach_raw_extensions(converted, attachments, raw_extensions)
-    artifacts = _render_artifacts(converted, attachments)
+    _attach_raw_extensions(converted, attachments, parsed.raw_extensions)
+    artifacts = _render_artifacts(converted, attachments, run_hook_container)
 
     try:
         _write_artifacts_transactionally(output_dir, artifacts)
@@ -50,7 +73,7 @@ def convert_allure_messages(input_path: Path, output_dir: Path) -> None:
 
 def _read_envelopes(
     input_path: Path,
-) -> tuple[list[messages.Envelope], dict[tuple[str, str], str], str | None, list[bytes]]:
+) -> _ParsedMessages:
     try:
         raw_content = input_path.read_bytes()
     except OSError as exc:
@@ -64,6 +87,7 @@ def _read_envelopes(
     exception_traces: dict[tuple[str, str], str] = {}
     run_finished_trace: str | None = None
     raw_extensions: list[bytes] = []
+    run_hook_traces: dict[str, str] = {}
     known_payload_names = _known_payload_names()
     raw_lines = raw_content.split(b"\n")
     for line_number, raw_line in enumerate(raw_lines, start=1):
@@ -87,16 +111,27 @@ def _read_envelopes(
                 f"invalid Cucumber message in {input_path} at line {line_number}: "
                 f"unknown top-level payload field(s) {names}"
             )
-        validation_payload, stack_trace, run_trace = _without_exception_stack_trace(payload)
+        diagnostics = validate_envelope_data(payload, position=line_number)
+        if diagnostics:
+            details = "; ".join(
+                f"{'.'.join(str(part) for part in diagnostic.instance_path)}: {diagnostic.message}"
+                if diagnostic.instance_path
+                else diagnostic.message
+                for diagnostic in diagnostics
+            )
+            raise AllureConversionError(
+                f"invalid Cucumber message in {input_path} at line {line_number}: {details}"
+            )
+        normalized = _without_exception_stack_trace(payload)
         try:
-            envelope = envelope_from_dict(validation_payload)
+            envelope = envelope_from_dict(normalized.validation_payload)
         except (TypeError, ValueError, ValidationError) as exc:
             detail = _validation_summary(exc)
             raise AllureConversionError(
                 f"invalid Cucumber message in {input_path} at line {line_number}: {detail}"
             ) from exc
         envelopes.append(envelope)
-        if stack_trace is not None:
+        if normalized.step_trace is not None:
             if envelope.test_step_finished is None:
                 raise AllureConversionError(
                     f"exception stack trace in {input_path} at line {line_number} has no test step"
@@ -104,19 +139,28 @@ def _read_envelopes(
             key = (envelope.test_step_finished.test_case_started_id, envelope.test_step_finished.test_step_id)
             if key in exception_traces:
                 raise AllureConversionError(f"duplicate exception stack trace in {input_path} at line {line_number}")
-            exception_traces[key] = stack_trace
-        if run_trace is not None:
+            exception_traces[key] = normalized.step_trace
+        if normalized.run_trace is not None:
             if envelope.test_run_finished is None:
                 raise AllureConversionError(
                     f"run exception stack trace in {input_path} at line {line_number} has no test run finish"
                 )
             if run_finished_trace is not None:
-                raise AllureConversionError(f"duplicate run exception stack trace in {input_path} at line {line_number}")
-            run_finished_trace = run_trace
+                raise AllureConversionError(
+                    f"duplicate run exception stack trace in {input_path} at line {line_number}"
+                )
+            run_finished_trace = normalized.run_trace
+        if normalized.run_hook_trace is not None:
+            started_id, trace = normalized.run_hook_trace
+            if started_id in run_hook_traces:
+                raise AllureConversionError(
+                    f"duplicate run hook exception stack trace in {input_path} at line {line_number}"
+                )
+            run_hook_traces[started_id] = trace
 
     if not envelopes:
         raise AllureConversionError(f"input contains no Cucumber messages: {input_path}")
-    return envelopes, exception_traces, run_finished_trace, raw_extensions
+    return _ParsedMessages(envelopes, exception_traces, run_finished_trace, raw_extensions, run_hook_traces)
 
 
 def _known_payload_names() -> set[str]:
@@ -130,10 +174,13 @@ def _camel_payload_name(kind: str) -> str:
     return first + "".join(part.title() for part in rest)
 
 
-def _without_exception_stack_trace(payload: dict[str, Any]) -> tuple[dict[str, Any], str | None, str | None]:
+def _without_exception_stack_trace(
+    payload: dict[str, Any],
+) -> _NormalizedEnvelope:
     """Keep schema-valid stackTrace data despite the older generated messages model."""
     step_trace: str | None = None
     run_trace: str | None = None
+    run_hook_trace: tuple[str, str] | None = None
     validation_payload = payload
 
     for event_key in ("testStepFinished", "test_step_finished"):
@@ -166,7 +213,29 @@ def _without_exception_stack_trace(payload: dict[str, Any]) -> tuple[dict[str, A
             validation_payload = _payload_without_stack_trace(payload, event_key, exception)
         break
 
-    return validation_payload, step_trace, run_trace
+    for event_key in ("testRunHookFinished", "test_run_hook_finished"):
+        test_run_hook_finished = payload.get(event_key)
+        if not isinstance(test_run_hook_finished, dict):
+            continue
+        test_run_hook_result = test_run_hook_finished.get("result")
+        if isinstance(test_run_hook_result, dict):
+            exception = test_run_hook_result.get("exception")
+            if isinstance(exception, dict) and "stackTrace" in exception:
+                started_id = test_run_hook_finished.get(
+                    "testRunHookStartedId", test_run_hook_finished.get("test_run_hook_started_id")
+                )
+                if not isinstance(started_id, str) or not started_id:
+                    raise AllureConversionError("test run hook exception stack trace has no started hook id")
+                run_hook_trace = (started_id, _stack_trace_value(exception))
+                validation_payload = _payload_without_stack_trace(
+                    payload,
+                    event_key,
+                    exception,
+                    nested_result_key="result",
+                )
+        break
+
+    return _NormalizedEnvelope(validation_payload, step_trace, run_trace, run_hook_trace)
 
 
 def _stack_trace_value(exception: dict[str, Any]) -> str:
@@ -191,7 +260,7 @@ def _payload_without_stack_trace(
     else:
         nested_result = validation_event.get(nested_result_key)
         if not isinstance(nested_result, dict):
-            raise AllureConversionError(f"Cucumber test step result {nested_result_key!r} must be an object")
+            raise AllureConversionError(f"Cucumber result {nested_result_key!r} must be an object")
         validation_result = dict(nested_result)
         validation_result["exception"] = validation_exception
         validation_event[nested_result_key] = validation_result
@@ -536,6 +605,162 @@ def _validate_exception_traces(
             )
 
 
+def _convert_run_hooks(
+    envelopes: list[messages.Envelope],
+    converted: list[tuple[dict[str, Any], dict[str, Any]]],
+    run_hook_traces: dict[str, str],
+) -> tuple[dict[str, Any] | None, list[tuple[str, bytes]]]:
+    """Map Cucumber test-run hooks to a shared Allure fixture container."""
+    run_started = _one(envelopes, "test_run_started")
+    run_finished = _one(envelopes, "test_run_finished")
+    hooks = _index_by_id(_messages(envelopes, "hook"), "hook")
+    run_started_position = next(pos for pos, env in enumerate(envelopes) if env.test_run_started is not None)
+    run_finished_position = next(pos for pos, env in enumerate(envelopes) if env.test_run_finished is not None)
+    case_started_positions = [pos for pos, env in enumerate(envelopes) if env.test_case_started is not None]
+    case_finished_positions = [pos for pos, env in enumerate(envelopes) if env.test_case_finished is not None]
+    run_start_time = _timestamp_nanos(run_started.timestamp)
+    run_finish_time = _timestamp_nanos(run_finished.timestamp)
+    if run_finished.test_run_started_id is not None and run_finished.test_run_started_id != run_started.id:
+        raise AllureConversionError("test run finished refers to a different test run start")
+
+    starts: dict[str, tuple[int, Any, Any, str]] = {}
+    finishes: dict[str, tuple[int, Any]] = {}
+    active_started_id: str | None = None
+    for position, envelope in enumerate(envelopes):
+        started = envelope.test_run_hook_started
+        if started is not None:
+            if active_started_id is not None:
+                raise AllureConversionError("test run hooks overlap in the Messages stream")
+            if started.id in starts:
+                raise AllureConversionError(f"duplicate test run hook start {started.id!r}")
+            if not run_started_position < position < run_finished_position:
+                raise AllureConversionError(f"test run hook {started.id!r} is outside the test run lifecycle")
+            if run_started.id is None or started.test_run_started_id != run_started.id:
+                raise AllureConversionError(
+                    f"test run hook {started.id!r} refers to an unknown test run {started.test_run_started_id!r}"
+                )
+            hook = hooks.get(started.hook_id)
+            if hook is None:
+                raise AllureConversionError(
+                    f"test run hook {started.id!r} refers to unknown hook {started.hook_id!r}"
+                )
+            hook_type = getattr(hook.type, "value", hook.type)
+            if hook_type not in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}:
+                raise AllureConversionError(
+                    f"hook {hook.id!r} has unsupported test run hook type {hook_type!r}"
+                )
+            before_case_started = hook_type == "BEFORE_TEST_RUN" and any(
+                case_position < position for case_position in case_started_positions
+            )
+            if before_case_started:
+                raise AllureConversionError(f"before-test-run hook {hook.id!r} started after a test case")
+            if hook_type == "AFTER_TEST_RUN" and any(
+                case_position > position for case_position in case_finished_positions
+            ):
+                raise AllureConversionError(f"after-test-run hook {hook.id!r} started before all test cases finished")
+            hook_start_time = _timestamp_nanos(started.timestamp)
+            if not run_start_time <= hook_start_time <= run_finish_time:
+                raise AllureConversionError(f"test run hook {started.id!r} timestamp is outside the test run")
+            starts[started.id] = (position, started, hook, hook_type)
+            active_started_id = started.id
+            continue
+
+        finished = envelope.test_run_hook_finished
+        if finished is None:
+            continue
+        started_id = finished.test_run_hook_started_id
+        if started_id in finishes:
+            raise AllureConversionError(f"duplicate test run hook finish for {started_id!r}")
+        started_entry = starts.get(started_id)
+        if started_entry is None:
+            raise AllureConversionError(f"test run hook finish refers to unknown start {started_id!r}")
+        if active_started_id != started_id:
+            raise AllureConversionError(f"test run hook {started_id!r} finished out of order")
+        start_position, started, _hook, _hook_type = started_entry
+        if not start_position < position < run_finished_position:
+            raise AllureConversionError(f"test run hook {started_id!r} finish is outside its lifecycle")
+        hook_finish_time = _timestamp_nanos(finished.timestamp)
+        if not _timestamp_nanos(started.timestamp) <= hook_finish_time <= run_finish_time:
+            raise AllureConversionError(f"test run hook {started_id!r} timestamps are out of order")
+        finishes[started_id] = (position, finished)
+        active_started_id = None
+
+    if active_started_id is not None:
+        raise AllureConversionError(f"test run hook {active_started_id!r} did not finish")
+    missing_finishes = sorted(set(starts) - set(finishes))
+    if missing_finishes:
+        raise AllureConversionError(f"test run hooks did not finish: {missing_finishes!r}")
+    unknown_traces = sorted(set(run_hook_traces) - set(starts))
+    if unknown_traces:
+        raise AllureConversionError(f"test run hook exception traces refer to unknown hooks: {unknown_traces!r}")
+
+    before_fixtures: list[tuple[int, dict[str, Any]]] = []
+    after_fixtures: list[tuple[int, dict[str, Any]]] = []
+    fixtures_by_started_id: dict[str, dict[str, Any]] = {}
+    for started_id, (start_position, started, hook, hook_type) in sorted(
+        starts.items(), key=lambda item: item[1][0]
+    ):
+        finished = finishes[started_id][1]
+        result = finished.result
+        status = _allure_status(result.status.value)
+        details = _status_details(result, run_hook_traces.get(started_id))
+        default_name = "Before test run" if hook_type == "BEFORE_TEST_RUN" else "After test run"
+        fixture: dict[str, Any] = {
+            "uuid": str(uuid4()),
+            "name": hook.name or default_name,
+            "status": status,
+            "stage": "finished",
+            "start": _timestamp_millis(started.timestamp),
+            "stop": _timestamp_millis(finished.timestamp),
+        }
+        if details:
+            fixture["statusDetails"] = details
+        fixtures_by_started_id[started_id] = fixture
+        fixture_group = before_fixtures if hook_type == "BEFORE_TEST_RUN" else after_fixtures
+        fixture_group.append((start_position, fixture))
+
+    attachment_files: list[tuple[str, bytes]] = []
+    for position, envelope in enumerate(envelopes):
+        attachment = envelope.attachment
+        if attachment is None or attachment.test_run_hook_started_id is None:
+            continue
+        started_id = attachment.test_run_hook_started_id
+        fixture_target = fixtures_by_started_id.get(started_id)
+        lifecycle = starts.get(started_id)
+        finish = finishes.get(started_id)
+        if fixture_target is None or lifecycle is None or finish is None:
+            raise AllureConversionError(
+                f"attachment {attachment.file_name or '<unnamed>'!r} refers to unknown test run hook {started_id!r}"
+            )
+        if attachment.test_case_started_id is not None or attachment.test_step_id is not None:
+            raise AllureConversionError(
+                f"attachment {attachment.file_name or '<unnamed>'!r} has conflicting test run and case correlations"
+            )
+        if (
+            attachment.test_run_started_id is not None
+            and attachment.test_run_started_id != run_started.id
+        ):
+            raise AllureConversionError(
+                f"attachment {attachment.file_name or '<unnamed>'!r} refers to an unknown test run "
+                f"{attachment.test_run_started_id!r}"
+            )
+        if not lifecycle[0] < position < finish[0]:
+            raise AllureConversionError(
+                f"attachment {attachment.file_name or '<unnamed>'!r} is outside test run hook {started_id!r}"
+            )
+        _materialize_attachment(attachment, fixture_target, attachment_files)
+
+    if not before_fixtures and not after_fixtures:
+        return None, attachment_files
+    run_hook_container = {
+        "uuid": str(uuid4()),
+        "children": [result["uuid"] for result, _container in converted],
+        "befores": [fixture for _position, fixture in before_fixtures],
+        "afters": [fixture for _position, fixture in after_fixtures],
+    }
+    return run_hook_container, attachment_files
+
+
 def _convert_attempt(
     envelopes: list[messages.Envelope],
     exception_traces: dict[tuple[str, str], str],
@@ -747,7 +972,11 @@ def _materialize_unscoped_attachments(
     """Attach no-attempt messages to their case or mark them as a run fallback."""
     for envelope in envelopes:
         attachment = envelope.attachment
-        if attachment is None or attachment.test_case_started_id is not None:
+        if (
+            attachment is None
+            or attachment.test_case_started_id is not None
+            or attachment.test_run_hook_started_id is not None
+        ):
             continue
         case_id = _attachment_case_id(attachment)
         fallback_label: str | None = None
@@ -906,12 +1135,15 @@ def _attach_run_diagnostics(
 def _render_artifacts(
     converted: list[tuple[dict[str, Any], dict[str, Any]]],
     attachments: list[tuple[str, bytes]],
+    run_hook_container: dict[str, Any] | None = None,
 ) -> list[tuple[str, bytes]]:
     """Serialize every output file in memory before the destination is changed."""
     artifacts = list(attachments)
     for result, container in converted:
         artifacts.append((f"{result['uuid']}-result.json", _json_bytes(result)))
         artifacts.append((f"{container['uuid']}-container.json", _json_bytes(container)))
+    if run_hook_container is not None:
+        artifacts.append((f"{run_hook_container['uuid']}-container.json", _json_bytes(run_hook_container)))
     return _validate_artifacts(artifacts)
 
 
