@@ -39,7 +39,7 @@ from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp.options import add_options as add_debug_mcp_options
 from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin
 from pytest_cuke.feature_sources import resolve_feature_sources
-from pytest_cuke.message_plugin import MessagePlugin
+from pytest_cuke.message_plugin import MessagePlugin, MessageSessionFinishHookAdapter, message_session_finish_hook
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import Feature, Scenario
 from pytest_cuke.model.execution_steps import execution_steps
@@ -514,6 +514,11 @@ def pytest_load_initial_conftests(early_config: Config) -> None:
     """Keep saved-stream conversion independent from consumer conftest files."""
     if _allure_messages_input(early_config) is not None:
         early_config.known_args_namespace.noconftest = True
+        return
+    early_config.pluginmanager.register(
+        message_session_finish_hook(),
+        name="pytest_cuke_messages_session_finish",
+    )
 
 
 @pytest.mark.trylast
@@ -554,7 +559,16 @@ def pytest_configure(config: Config) -> None:
     gherkin_terminal_reporter.configure(config)
     config.pluginmanager.register(ScenarioReporterPlugin())
     config.pluginmanager.register(ScenarioRunner(), name="pytest_cuke_scenario_runner")
-    config.pluginmanager.register(MessagePlugin(config=config), name="pytest_cuke_messages")
+    message_plugin = MessagePlugin(config=config)
+    config.pluginmanager.register(message_plugin, name="pytest_cuke_messages")
+    session_finish_hook = config.pluginmanager.get_plugin("pytest_cuke_messages_session_finish")
+    if isinstance(session_finish_hook, MessageSessionFinishHookAdapter):
+        session_finish_hook.bind(message_plugin)
+    else:
+        config.pluginmanager.register(
+            message_session_finish_hook(message_plugin),
+            name="pytest_cuke_messages_session_finish",
+        )
     summary_enabled = config.option.cuke_summary
     if summary_enabled is None:
         summary_enabled = config.getini("cuke_summary")
@@ -611,6 +625,7 @@ def pytest_unconfigure(config: Config) -> None:
     if run_context is not None:
         run_context.clear_active()
     clear_parser_registrations(config)
+    config.pluginmanager.unregister(name="pytest_cuke_messages_session_finish")
     config.pluginmanager.unregister(name="pytest_cuke_messages")
     config.pluginmanager.unregister(name="pytest_cuke_summary")
     with suppress(AttributeError):

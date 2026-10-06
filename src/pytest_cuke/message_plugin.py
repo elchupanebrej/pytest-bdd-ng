@@ -202,6 +202,8 @@ class MessagePlugin:
     after_test_run_hook_id: str | None = attrib(default=None)
     test_run_hook_failed: bool = attrib(default=False)
     message_diagnostics: list[Any] = attrib(factory=list)
+    message_diagnostics_summary_emitted: bool = attrib(default=False)
+    message_diagnostics_reported_after_summary: int = attrib(default=0)
     accepted_message_payloads: list[dict[str, Any]] = attrib(factory=list)
     is_xdist_worker: bool = attrib(default=False)
     is_xdist_controller: bool = attrib(default=False)
@@ -795,17 +797,36 @@ class MessagePlugin:
             self.process_messages_io_queue.put_nowait(message_json)
 
     def _report_message_diagnostics(self, diagnostics: Iterable[MessageValidationDiagnostic]) -> None:
-        self.message_diagnostics.extend(diagnostics)
+        pending = tuple(diagnostics)
+        if not pending:
+            return
+        self.message_diagnostics.extend(pending)
+        if not self.message_diagnostics_summary_emitted:
+            return
+        terminalreporter = self.config.pluginmanager.get_plugin("terminalreporter")
+        if terminalreporter is not None:
+            first_unreported = self.message_diagnostics_reported_after_summary
+            pending_after_summary = self.message_diagnostics[first_unreported:]
+            self._write_message_diagnostics(terminalreporter, pending_after_summary)
+            self.message_diagnostics_reported_after_summary = len(self.message_diagnostics)
 
-    @hookimpl(trylast=True)
-    def pytest_terminal_summary(self, terminalreporter: Any, exitstatus: int | ExitCode, config: Config) -> None:
-        del exitstatus, config
-        for diagnostic in self.message_diagnostics:
+    @staticmethod
+    def _write_message_diagnostics(
+        terminalreporter: Any, diagnostics: Iterable[MessageValidationDiagnostic]
+    ) -> None:
+        for diagnostic in diagnostics:
             payload = message_diagnostic_to_dict(diagnostic)
             terminalreporter.write_line(
                 "PYTEST_CUKE_MESSAGE_DIAGNOSTIC=" + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
             )
+
+    @hookimpl(trylast=True)
+    def pytest_terminal_summary(self, terminalreporter: Any, exitstatus: int | ExitCode, config: Config) -> None:
+        del exitstatus, config
+        self.message_diagnostics_summary_emitted = True
+        self._write_message_diagnostics(terminalreporter, self.message_diagnostics)
         self.message_diagnostics.clear()
+        self.message_diagnostics_reported_after_summary = 0
 
     def _emit_test_run_hook_definition(self, config: Config, phase: Literal["before", "after"]) -> str:
         generator = cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator
@@ -1006,9 +1027,7 @@ class MessagePlugin:
         error = outcome.excinfo[1] if outcome.excinfo is not None else None
         self._finish_test_run_hook(config, hook_started_id, started_at, error)
 
-    # xdist sends workeroutput as its sessionfinish wrapper unwinds; publish manifests before that.
-    @hookimpl(hookwrapper=True, trylast=True)
-    def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> Generator[None, Any, Any]:
+    def _pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> Generator[None, Any, Any]:
         if self.is_disabled:
             yield
             return
@@ -1499,11 +1518,6 @@ class MessagePlugin:
                 fallback_status = Status.unknown
                 fallback_type = "KeyboardInterrupt"
                 fallback_message = "Scenario interrupted during teardown."
-            elif scenario_run.status == "failed" and not step_statuses.intersection({"failed", "undefined"}):
-                fallback_status = Status.failed
-                fallback_type = "RuntimeError"
-                fallback_message = "Scenario failed during teardown."
-
             if fallback_status is not None:
                 status = fallback_status
                 error = scenario_run.exception
@@ -2008,3 +2022,26 @@ class MessagePlugin:
             ]
         ):
             pytest.exit(f"Npm package '{self.npm_formatter_package}' wasn't found so unable generate html report")
+
+
+class MessageSessionFinishHookAdapter:
+    def __init__(self, message_plugin: MessagePlugin | None = None) -> None:
+        self.message_plugin = message_plugin
+
+    def bind(self, message_plugin: MessagePlugin) -> None:
+        self.message_plugin = message_plugin
+
+    def _run(self, session: Session, exitstatus: int | ExitCode) -> Generator[None, Any, Any]:
+        message_plugin = self.message_plugin
+        if message_plugin is None:
+            yield
+            return
+        yield from message_plugin._pytest_sessionfinish(session, exitstatus)
+
+    @hookimpl(hookwrapper=True, trylast=True)
+    def pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> Generator[None, Any, Any]:
+        yield from self._run(session, exitstatus)
+
+
+def message_session_finish_hook(message_plugin: MessagePlugin | None = None) -> MessageSessionFinishHookAdapter:
+    return MessageSessionFinishHookAdapter(message_plugin)
