@@ -17,6 +17,14 @@ from pytest_cuke.debug_mcp.server import (
     ensure_optional_dependencies,
 )
 from pytest_cuke.debug_mcp.state import FailureQueue
+from pytest_cuke.debug_mcp.xdist import (
+    XdistDiscoveryError,
+    XdistDiscoveryIndex,
+    is_local_xdist_spec,
+    is_xdist_controller,
+    xdist_root_session_id,
+    xdist_worker_id,
+)
 from pytest_cuke.model import Feature, Scenario
 from pytest_cuke.model.session_run import RunContext
 
@@ -38,6 +46,10 @@ class DebugMcpPlugin:
         self.artifact_sink: ArtifactSink | None = None
         self.debugger: DebuggerMcpProcess | None = None
         self.inspection: InspectionMcpServer | None = None
+        self.xdist_index: XdistDiscoveryIndex | None = None
+        self.worker_id: str | None = None
+        self.root_session_id = uuid4().hex
+        self._xdist_controller = False
         self._closed = False
 
     def pytest_sessionstart(self, session: Any) -> None:
@@ -46,8 +58,13 @@ class DebugMcpPlugin:
         if self._closed:
             return
         try:
+            self.worker_id = xdist_worker_id(self.config)
+            self._xdist_controller = self.worker_id is None and is_xdist_controller(self.config)
             self._start()
         except Exception as error:
+            if self.worker_id is not None and self.xdist_index is not None and self.discovery is None:
+                with suppress(Exception):
+                    self.xdist_index.mark_worker_down(self.worker_id, str(error))
             self._cleanup(remove_discovery=True)
             if isinstance(error, pytest.UsageError):
                 raise
@@ -93,11 +110,113 @@ class DebugMcpPlugin:
         if config is self.config:
             self._cleanup(remove_discovery=False)
 
+    @pytest.hookimpl(optionalhook=True)
+    def pytest_xdist_setupnodes(self, specs: Any) -> None:
+        """Reject unsupported remote discovery before xdist starts worker processes."""
+        if not self.options.enabled:
+            return
+        for spec in specs:
+            if not is_local_xdist_spec(spec):
+                raise pytest.UsageError(
+                    "Debug MCP xdist discovery supports local popen workers on a shared filesystem; "
+                    "remote gateways are unsupported because workers must publish to the root cache. "
+                    "Use local pytest-xdist workers or disable --cuke-mcp-on-fail."
+                )
+
+    @pytest.hookimpl(optionalhook=True)
+    def pytest_configure_node(self, node: Any) -> None:
+        """Share the controller's run identity with each worker and register it as starting."""
+        if not self.options.enabled or not is_xdist_controller(self.config):
+            return
+        if self.xdist_index is None:
+            raise pytest.UsageError("Debug MCP worker discovery index was not initialized before xdist setup")
+        worker_id = _worker_id_for_node(node)
+        worker_input = getattr(node, "workerinput", None)
+        if not isinstance(worker_input, dict):
+            raise pytest.UsageError(f"Debug MCP xdist worker {worker_id!r} has no worker input record")
+        worker_input["cuke_debug_mcp_root_session_id"] = self.root_session_id
+        try:
+            self.xdist_index.register_worker(worker_id)
+        except XdistDiscoveryError as error:
+            raise pytest.UsageError(str(error)) from error
+
+    @pytest.hookimpl(optionalhook=True)
+    def pytest_testnodedown(self, node: Any, error: object | None) -> None:
+        """Clear endpoints for a worker that exited without a normal closed record."""
+        if not self.options.enabled or not is_xdist_controller(self.config) or self.xdist_index is None:
+            return
+        if error is None:
+            return
+        worker_id = _worker_id_for_node(node)
+        try:
+            self.xdist_index.mark_worker_down(worker_id, str(error))
+        except XdistDiscoveryError as publish_error:
+            reporter = self.config.pluginmanager.get_plugin("terminalreporter")
+            if reporter is not None:
+                reporter.write_line(f"Debug MCP worker discovery error for {worker_id}: {publish_error}", yellow=True)
+
     def _start(self) -> None:
+        if self._xdist_controller:
+            self._start_xdist_controller()
+            return
+        if self.worker_id is not None:
+            self._start_xdist_worker()
+            return
+
+        cache_path = _cache_discovery_path(self.config)
+        cache_path.unlink(missing_ok=True)
+        _xdist_index(self.config).clear_previous()
+        self._start_services(discovery_path=cache_path)
+
+    def _start_xdist_controller(self) -> None:
         cache_path = _cache_discovery_path(self.config)
         cache_path.unlink(missing_ok=True)
         ensure_optional_dependencies()
+        self.xdist_index = XdistDiscoveryIndex(
+            path=_xdist_index_path(self.config),
+            workers_dir=_xdist_workers_dir(self.config),
+            session_id=self.root_session_id,
+        )
+        try:
+            self.xdist_index.initialize()
+        except XdistDiscoveryError as error:
+            raise DebugMcpDependencyError(str(error)) from error
+        reporter = self.config.pluginmanager.get_plugin("terminalreporter")
+        if reporter is not None:
+            reporter.write_line(f"Debug MCP worker discovery index: {_xdist_index_path(self.config)}")
 
+    def _start_xdist_worker(self) -> None:
+        root_session_id = xdist_root_session_id(self.config)
+        if root_session_id is None or self.worker_id is None:
+            raise DebugMcpDependencyError("Debug MCP xdist worker identity is missing")
+        self.root_session_id = root_session_id
+        self.xdist_index = XdistDiscoveryIndex(
+            path=_xdist_index_path(self.config),
+            workers_dir=_xdist_workers_dir(self.config),
+            session_id=root_session_id,
+        )
+        if self.options.port is not None:
+            raise DebugMcpDependencyError(
+                "Debug MCP xdist workers need --cuke-mcp-port=auto so each worker can bind a distinct debugger endpoint"
+            )
+        self._start_services(
+            discovery_path=self.xdist_index.worker_path(self.worker_id),
+            worker_id=self.worker_id,
+            root_session_id=root_session_id,
+            on_publish=self.xdist_index.publish_worker,
+            on_remove=self.xdist_index.remove_worker,
+        )
+
+    def _start_services(
+        self,
+        *,
+        discovery_path: Path,
+        worker_id: str | None = None,
+        root_session_id: str | None = None,
+        on_publish: Any | None = None,
+        on_remove: Any | None = None,
+    ) -> None:
+        ensure_optional_dependencies()
         debugger_port = self.options.port
         if debugger_port is None:
             debugger_port = allocate_port(self.options.host)
@@ -127,18 +246,24 @@ class DebugMcpPlugin:
         self.debugger.start()
 
         self.discovery = DiscoveryPublisher(
-            path=cache_path,
+            path=discovery_path,
             session_id=session_id,
             host=self.options.host,
             debugger_endpoint=self.debugger.endpoint,
             inspection_endpoint=self.inspection.endpoint,
             debugger_pid=self.debugger.process.pid if self.debugger.process is not None else 0,
+            worker_id=worker_id,
+            root_session_id=root_session_id,
+            on_publish=on_publish,
+            on_remove=on_remove,
         )
         self.queue.set_change_callback(self._publish_state)
         self.discovery.write_initial()
         self._announce()
 
     def _session_id(self) -> str:
+        if self.worker_id is not None:
+            return uuid4().hex
         context = RunContext.find_in_config(self.config)
         return context.run_id if context is not None else uuid4().hex
 
@@ -190,12 +315,20 @@ class DebugMcpPlugin:
                 self.queue.close()
         if self.discovery is not None:
             if remove_discovery:
-                with suppress(OSError):
+                with suppress(Exception):
                     self.discovery.remove()
             else:
                 last_release = self.queue.last_release if self.queue is not None else None
-                with suppress(OSError):
+                with suppress(Exception):
                     self.discovery.close(last_release)
+        if self._xdist_controller and self.xdist_index is not None:
+            try:
+                if remove_discovery:
+                    self.xdist_index.remove()
+                else:
+                    self.xdist_index.close()
+            except Exception as error:
+                errors.append(error)
         if errors:
             reporter = self.config.pluginmanager.get_plugin("terminalreporter")
             if reporter is not None:
@@ -259,6 +392,36 @@ def _cache_discovery_path(config: Any) -> Path:
         root = getattr(config, "rootpath", getattr(config, "rootdir", Path.cwd()))
         cache_dir = Path(root) / cache_dir
     return cache_dir / "cuke" / "debug-mcp" / "session.json"
+
+
+def _xdist_index_path(config: Any) -> Path:
+    return _cache_discovery_path(config).with_name("workers.json")
+
+
+def _xdist_workers_dir(config: Any) -> Path:
+    return _cache_discovery_path(config).with_name("workers")
+
+
+def _xdist_index(config: Any) -> XdistDiscoveryIndex:
+    return XdistDiscoveryIndex(
+        path=_xdist_index_path(config),
+        workers_dir=_xdist_workers_dir(config),
+        session_id=uuid4().hex,
+    )
+
+
+def _worker_id_for_node(node: Any) -> str:
+    worker_input = getattr(node, "workerinput", None)
+    if isinstance(worker_input, dict):
+        for key in ("workerid", "gateway", "gateway_id"):
+            worker_id = worker_input.get(key)
+            if isinstance(worker_id, str) and worker_id.strip():
+                return worker_id
+    gateway = getattr(node, "gateway", None)
+    worker_id = getattr(gateway, "id", None)
+    if isinstance(worker_id, str) and worker_id.strip():
+        return worker_id
+    raise XdistDiscoveryError("pytest-xdist worker node has no worker or gateway identity")
 
 
 def _artifact_root(config: Any, configured_root: Path | None, session_id: str) -> Path:
