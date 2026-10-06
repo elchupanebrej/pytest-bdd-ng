@@ -22,6 +22,10 @@ from pytest_cuke.allure_conversion_command import (
 from pytest_cuke.compatibility_cli import configure_compatibility_parser, run_compatibility_command
 from pytest_cuke.generation_command import configure_generate_steps_parser, run_generate_steps
 from pytest_cuke.heading_validation_cli import configure_validation_parser, run_validation_command
+from pytest_cuke.message_capability_governance_cli import (
+    configure_capability_governance_parser,
+    run_capability_governance_command,
+)
 from pytest_cuke.message_schema_cli import configure_message_schema_parser, run_message_schema_command
 from pytest_cuke.packaging import get_distribution_version
 
@@ -152,6 +156,13 @@ def _build_registry() -> CommandRegistry:
         None,
         parser_configurer=configure_message_schema_parser,
         namespace_handler=run_message_schema_command,
+    )
+    registry.add(
+        ("messages", "capabilities"),
+        "inventory and govern Cucumber Messages fields",
+        None,
+        parser_configurer=configure_capability_governance_parser,
+        namespace_handler=run_capability_governance_command,
     )
 
     for extension in entry_points(group="pytest_cuke.commands"):
