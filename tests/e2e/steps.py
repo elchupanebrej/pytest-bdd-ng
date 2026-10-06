@@ -1989,6 +1989,101 @@ def consumer_messages_failure_attachment_correlations(relative_path: str, consum
     assert b64decode(binary.body, validate=True) == b"\x00\xffbinary evidence"
 
 
+@then(
+    re.compile(
+        r'consumer Messages artifact "(?P<relative_path>[^"]+)" should preserve the failed Background step '
+        r'diagnostic and step order'
+    )
+)
+def consumer_messages_failed_background_step(relative_path: str, consumer: ConsumerProject) -> None:
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    envelopes = [
+        json.loads(line)
+        for line in artifact_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert all(isinstance(envelope, dict) for envelope in envelopes), envelopes
+
+    meta = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
+    assert len(meta) == 1 and meta[0].get("protocolVersion") == "28.0.0", meta
+
+    pickles = [envelope["pickle"] for envelope in envelopes if isinstance(envelope.get("pickle"), dict)]
+    test_cases = [envelope["testCase"] for envelope in envelopes if isinstance(envelope.get("testCase"), dict)]
+    assert len(pickles) == len(test_cases) == 1, (pickles, test_cases)
+    pickle_steps = pickles[0].get("steps")
+    test_steps = test_cases[0].get("testSteps")
+    assert isinstance(pickle_steps, list) and len(pickle_steps) == 4, pickle_steps
+    assert isinstance(test_steps, list) and len(test_steps) == len(pickle_steps), test_steps
+    expected_step_texts = [
+        "the shop is open",
+        "the inventory reconciliation fails",
+        "the customer is Ada",
+        "the order is saved",
+    ]
+    assert [step.get("text") for step in pickle_steps if isinstance(step, dict)] == expected_step_texts, pickle_steps
+    pickle_step_ids = [step.get("id") for step in pickle_steps if isinstance(step, dict)]
+    assert all(isinstance(step_id, str) and step_id for step_id in pickle_step_ids), pickle_steps
+    assert [step.get("pickleStepId") for step in test_steps if isinstance(step, dict)] == pickle_step_ids, test_steps
+
+    case_started = [
+        envelope["testCaseStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCaseStarted"), dict)
+    ]
+    case_finished = [
+        envelope["testCaseFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCaseFinished"), dict)
+    ]
+    run_finished = [
+        envelope["testRunFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunFinished"), dict)
+    ]
+    assert len(case_started) == len(case_finished) == len(run_finished) == 1, (
+        case_started,
+        case_finished,
+        run_finished,
+    )
+    attempt_id = case_started[0].get("id")
+    assert isinstance(attempt_id, str) and attempt_id, case_started[0]
+    assert case_finished[0].get("testCaseStartedId") == attempt_id, case_finished[0]
+    assert run_finished[0].get("success") is False, run_finished[0]
+
+    failed_pickle_step_id = pickle_step_ids[1]
+    failed_test_step = next(
+        test_step
+        for test_step in test_steps
+        if isinstance(test_step, dict) and test_step.get("pickleStepId") == failed_pickle_step_id
+    )
+    failed_step_id = failed_test_step.get("id")
+    assert isinstance(failed_step_id, str) and failed_step_id, failed_test_step
+    started_events = [
+        envelope["testStepStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testStepStarted"), dict)
+        and envelope["testStepStarted"].get("testStepId") == failed_step_id
+    ]
+    finished_events = [
+        envelope["testStepFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testStepFinished"), dict)
+        and envelope["testStepFinished"].get("testStepId") == failed_step_id
+    ]
+    assert len(started_events) == len(finished_events) == 1, (started_events, finished_events)
+    assert started_events[0].get("testCaseStartedId") == attempt_id, started_events[0]
+    assert finished_events[0].get("testCaseStartedId") == attempt_id, finished_events[0]
+    result = finished_events[0].get("testStepResult")
+    assert isinstance(result, dict) and result.get("status") == "FAILED", finished_events[0]
+    assert result.get("message") == "background failure sentinel", result
+    exception = result.get("exception")
+    assert isinstance(exception, dict), result
+    assert exception.get("type") == "AssertionError", exception
+    assert exception.get("message") == "background failure sentinel", exception
+    trace = exception.get("stackTrace")
+    assert isinstance(trace, str) and "AssertionError: background failure sentinel" in trace, exception
+
+
 @then("consumer reports should preserve external row identities, source URIs, Background steps, and outcomes")
 def consumer_external_examples_reports(consumer: ConsumerProject):
     json_report = json.loads((consumer.path / "report.json").read_text(encoding="utf-8"))
@@ -2300,6 +2395,400 @@ def consumer_allure_result_directory_has_one_passed_step(
 
 @then(
     re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^"]+)" should preserve Cucumber run-hook fixtures '
+        r'and attachment evidence'
+    )
+)
+def consumer_allure_run_hook_fixtures(relative_path: str, consumer: ConsumerProject) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+    assert result.get("name") == "Run-hook scenario", result
+    assert result.get("status") == "passed", result
+    assert result.get("stage") == "finished", result
+    steps = result.get("steps")
+    assert isinstance(steps, list) and len(steps) == 1, result
+    assert isinstance(steps[0], dict), steps
+    assert steps[0].get("name") == "the saved step", steps[0]
+    assert steps[0].get("status") == "passed", steps[0]
+    assert steps[0].get("stage") == "finished", steps[0]
+
+    result_uuid = result.get("uuid")
+    assert isinstance(result_uuid, str) and result_uuid, result
+    containers = _assert_allure_container_result_links(result_directory, {result_uuid})
+    container = _assert_allure_shared_run_hook_container(containers, {result_uuid})
+
+    befores = container.get("befores")
+    assert isinstance(befores, list) and len(befores) == 1, container
+    before = befores[0]
+    assert isinstance(before, dict), before
+    assert before.get("name") == "Prepare reporting endpoint", before
+    assert before.get("status") == "passed", before
+    assert before.get("stage") == "finished", before
+    assert (before.get("start"), before.get("stop")) == (1700000000100, 1700000000200), before
+
+    afters = container.get("afters")
+    assert isinstance(afters, list) and len(afters) == 1, container
+    after = afters[0]
+    assert isinstance(after, dict), after
+    assert after.get("name") == "Flush audit log", after
+    assert after.get("status") == "failed", after
+    assert after.get("stage") == "finished", after
+    assert (after.get("start"), after.get("stop")) == (1700000000700, 1700000000900), after
+    status_details = after.get("statusDetails")
+    assert isinstance(status_details, dict), after
+    assert status_details.get("message") == "after run hook failure sentinel", status_details
+    assert status_details.get("trace") == (
+        "RuntimeError: after run hook failure sentinel\n  at conftest.py:20"
+    ), status_details
+
+    attachments = after.get("attachments")
+    assert isinstance(attachments, list) and len(attachments) == 2, after
+    expected_attachments = {
+        "after-run.log": ("text/plain", b"after run hook attachment bytes"),
+        "after-run.bin": ("application/octet-stream", b"\x00\xff"),
+    }
+    seen_attachments: set[str] = set()
+    for attachment in attachments:
+        assert isinstance(attachment, dict), attachment
+        name = attachment.get("name")
+        assert isinstance(name, str) and name in expected_attachments, attachment
+        assert name not in seen_attachments, attachments
+        seen_attachments.add(name)
+        media_type, expected_bytes = expected_attachments[name]
+        assert attachment.get("type") == media_type, attachment
+        attachment_path = _consumer_allure_attachment_file(result_directory, attachment)
+        assert attachment_path.read_bytes() == expected_bytes, attachment
+    assert seen_attachments == set(expected_attachments), attachments
+
+
+def _assert_allure_attachment_sources(value: Any, result_directory: Path) -> None:
+    if isinstance(value, dict):
+        attachments = value.get("attachments")
+        if attachments is not None:
+            assert isinstance(attachments, list), attachments
+            for attachment in attachments:
+                assert isinstance(attachment, dict), attachment
+                for field in ("name", "source", "type"):
+                    assert isinstance(attachment.get(field), str) and attachment[field], attachment
+                assert _consumer_allure_attachment_file(result_directory, attachment).is_file(), attachment
+        for key, nested_value in value.items():
+            if key != "attachments":
+                _assert_allure_attachment_sources(nested_value, result_directory)
+    elif isinstance(value, list):
+        for nested_value in value:
+            _assert_allure_attachment_sources(nested_value, result_directory)
+
+
+def _assert_allure_container_result_links(
+    result_directory: Path,
+    result_ids: set[str],
+) -> list[dict[str, Any]]:
+    container_files = sorted(result_directory.glob("*-container.json"))
+    assert container_files, f"expected Allure container files in {result_directory}"
+    linked_ids: list[str] = []
+    containers: list[dict[str, Any]] = []
+    for container_file in container_files:
+        container = json.loads(container_file.read_text(encoding="utf-8"))
+        assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
+        container_uuid = container.get("uuid")
+        assert isinstance(container_uuid, str) and container_uuid, container
+        assert container_file.name == f"{container_uuid}-container.json", container
+        children = container.get("children")
+        assert isinstance(children, list) and children, container
+        assert all(isinstance(child, str) and child for child in children), container
+        assert len(children) == len(set(children)), container
+        unknown_ids = set(children) - result_ids
+        assert not unknown_ids, {"container": container, "unknown_result_ids": unknown_ids}
+        linked_ids.extend(children)
+        containers.append(container)
+
+    assert set(linked_ids) == result_ids, {"linked_result_ids": linked_ids, "expected_result_ids": result_ids}
+    return containers
+
+
+def _assert_allure_shared_run_hook_container(
+    containers: list[dict[str, Any]],
+    result_ids: set[str],
+) -> dict[str, Any]:
+    fixture_containers = [
+        container
+        for container in containers
+        if container.get("befores") or container.get("afters")
+    ]
+    assert len(fixture_containers) == 1, fixture_containers
+    shared_container = fixture_containers[0]
+    assert set(shared_container.get("children", [])) == result_ids, shared_container
+    return shared_container
+
+
+@then(
+    re.compile(
+        r'consumer Messages artifact "(?P<relative_path>[^"]+)" should preserve pytest-generated v28 run hooks '
+        r"around one passed scenario"
+    )
+)
+def consumer_messages_pytest_generated_run_hooks(relative_path: str, consumer: ConsumerProject) -> None:
+    artifact_path = _consumer_artifact_path(relative_path, consumer)
+    envelopes = [
+        json.loads(line)
+        for line in artifact_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert all(isinstance(envelope, dict) for envelope in envelopes), envelopes
+
+    metas = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
+    assert len(metas) == 1 and metas[0].get("protocolVersion") == "28.0.0", metas
+
+    run_started_events = [
+        envelope["testRunStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunStarted"), dict)
+    ]
+    run_finished_events = [
+        envelope["testRunFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunFinished"), dict)
+    ]
+    assert len(run_started_events) == len(run_finished_events) == 1, (
+        run_started_events,
+        run_finished_events,
+    )
+    run_id = run_started_events[0].get("id")
+    assert isinstance(run_id, str) and run_id, run_started_events[0]
+    assert run_finished_events[0].get("testRunStartedId") == run_id, run_finished_events[0]
+    assert run_finished_events[0].get("success") is True, run_finished_events[0]
+
+    hook_definitions = {
+        hook.get("type"): hook
+        for envelope in envelopes
+        if isinstance((hook := envelope.get("hook")), dict)
+        and hook.get("type") in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}
+    }
+    assert set(hook_definitions) == {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}, hook_definitions
+    expected_names = {
+        "BEFORE_TEST_RUN": "pytest session start",
+        "AFTER_TEST_RUN": "pytest session finish",
+    }
+    for hook_type, hook in hook_definitions.items():
+        assert hook.get("name") == expected_names[hook_type], hook
+        assert isinstance(hook.get("id"), str) and hook["id"], hook
+        assert hook.get("sourceReference") == {
+            "uri": "pytest-cuke:runtime",
+            "location": {"line": 1},
+        }, hook
+
+    run_hook_starts: dict[str, dict[str, Any]] = {}
+    run_hook_start_positions: dict[str, int] = {}
+    for index, envelope in enumerate(envelopes):
+        started = envelope.get("testRunHookStarted")
+        if not isinstance(started, dict):
+            continue
+        hook_type = next(
+            (
+                kind
+                for kind, hook in hook_definitions.items()
+                if hook.get("id") == started.get("hookId")
+            ),
+            None,
+        )
+        assert hook_type is not None, started
+        assert hook_type not in run_hook_starts, (hook_type, run_hook_starts, started)
+        assert started.get("testRunStartedId") == run_id, started
+        assert isinstance(started.get("id"), str) and started["id"], started
+        run_hook_starts[hook_type] = started
+        run_hook_start_positions[hook_type] = index
+    assert set(run_hook_starts) == {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}, run_hook_starts
+
+    run_hook_finishes: dict[str, dict[str, Any]] = {}
+    run_hook_finish_positions: dict[str, int] = {}
+    for index, envelope in enumerate(envelopes):
+        finished = envelope.get("testRunHookFinished")
+        if not isinstance(finished, dict):
+            continue
+        started_id = finished.get("testRunHookStartedId")
+        hook_type = next(
+            (kind for kind, started in run_hook_starts.items() if started.get("id") == started_id),
+            None,
+        )
+        assert hook_type is not None and hook_type not in run_hook_finishes, finished
+        result = finished.get("result")
+        assert isinstance(result, dict) and result.get("status") == "PASSED", finished
+        run_hook_finishes[hook_type] = finished
+        run_hook_finish_positions[hook_type] = index
+    assert set(run_hook_finishes) == {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}, run_hook_finishes
+
+    case_starts = [
+        (index, envelope["testCaseStarted"])
+        for index, envelope in enumerate(envelopes)
+        if isinstance(envelope.get("testCaseStarted"), dict)
+    ]
+    case_finishes = [
+        (index, envelope["testCaseFinished"])
+        for index, envelope in enumerate(envelopes)
+        if isinstance(envelope.get("testCaseFinished"), dict)
+    ]
+    assert len(case_starts) == len(case_finishes) == 1, (case_starts, case_finishes)
+    case_start_index, case_started = case_starts[0]
+    case_finish_index, case_finished = case_finishes[0]
+    assert case_finished.get("testCaseStartedId") == case_started.get("id"), case_finished
+    assert case_finished.get("willBeRetried") is False, case_finished
+
+    pickle_messages = [envelope["pickle"] for envelope in envelopes if isinstance(envelope.get("pickle"), dict)]
+    test_case_messages = [
+        envelope["testCase"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCase"), dict)
+    ]
+    assert len(pickle_messages) == len(test_case_messages) == 1, (pickle_messages, test_case_messages)
+    assert pickle_messages[0].get("name") == "Session hook scenario", pickle_messages[0]
+    assert test_case_messages[0].get("pickleId") == pickle_messages[0].get("id"), test_case_messages[0]
+
+    step_starts = [
+        (index, envelope["testStepStarted"])
+        for index, envelope in enumerate(envelopes)
+        if isinstance(envelope.get("testStepStarted"), dict)
+    ]
+    step_finishes = [
+        (index, envelope["testStepFinished"])
+        for index, envelope in enumerate(envelopes)
+        if isinstance(envelope.get("testStepFinished"), dict)
+    ]
+    assert len(step_starts) == len(step_finishes) == 1, (step_starts, step_finishes)
+    step_start_index, step_started = step_starts[0]
+    step_finish_index, step_finished = step_finishes[0]
+    assert step_started.get("testCaseStartedId") == case_started.get("id"), step_started
+    assert step_finished.get("testCaseStartedId") == case_started.get("id"), step_finished
+    assert step_started.get("testStepId") == step_finished.get("testStepId"), (step_started, step_finished)
+    step_result = step_finished.get("testStepResult")
+    assert isinstance(step_result, dict) and step_result.get("status") == "PASSED", step_finished
+
+    run_start_index = next(index for index, envelope in enumerate(envelopes) if "testRunStarted" in envelope)
+    run_finish_index = next(index for index, envelope in enumerate(envelopes) if "testRunFinished" in envelope)
+    before_start = run_hook_start_positions["BEFORE_TEST_RUN"]
+    before_finish = run_hook_finish_positions["BEFORE_TEST_RUN"]
+    after_start = run_hook_start_positions["AFTER_TEST_RUN"]
+    after_finish = run_hook_finish_positions["AFTER_TEST_RUN"]
+    assert (
+        run_start_index
+        < before_start
+        < before_finish
+        < case_start_index
+        < step_start_index
+        < step_finish_index
+        < case_finish_index
+        < after_start
+        < after_finish
+        < run_finish_index
+    ), {
+        "positions": {
+            "run_start": run_start_index,
+            "before_start": before_start,
+            "before_finish": before_finish,
+            "case_start": case_start_index,
+            "step_start": step_start_index,
+            "step_finish": step_finish_index,
+            "case_finish": case_finish_index,
+            "after_start": after_start,
+            "after_finish": after_finish,
+            "run_finish": run_finish_index,
+        }
+    }
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^"]+)" should preserve pytest session run-hook fixtures'
+    )
+)
+def consumer_allure_pytest_session_run_hook_fixtures(relative_path: str, consumer: ConsumerProject) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, f"expected one Allure result file, found {result_files!r}"
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), result
+    result_uuid = result.get("uuid")
+    assert isinstance(result_uuid, str) and result_uuid, result
+    assert result_files[0].name == f"{result_uuid}-result.json", result
+    assert result.get("name") == "Session hook scenario", result
+    assert result.get("status") == "passed", result
+    assert result.get("stage") == "finished", result
+    steps = result.get("steps")
+    assert isinstance(steps, list) and len(steps) == 1, result
+    assert isinstance(steps[0], dict), steps
+    assert steps[0].get("name") == "the pytest session hook scenario passes", steps[0]
+    assert steps[0].get("status") == "passed", steps[0]
+
+    containers = _assert_allure_container_result_links(result_directory, {result_uuid})
+    shared_container = _assert_allure_shared_run_hook_container(containers, {result_uuid})
+    expected_fixtures = {
+        "befores": "pytest session start",
+        "afters": "pytest session finish",
+    }
+    for fixture_group_name, fixture_name in expected_fixtures.items():
+        fixtures = shared_container.get(fixture_group_name)
+        assert isinstance(fixtures, list) and len(fixtures) == 1, shared_container
+        fixture = fixtures[0]
+        assert isinstance(fixture, dict), fixture
+        assert fixture.get("name") == fixture_name, fixture
+        assert fixture.get("status") == "passed", fixture
+        assert fixture.get("stage") == "finished", fixture
+        assert type(fixture.get("start")) is int and type(fixture.get("stop")) is int, fixture
+        assert fixture["start"] <= fixture["stop"], fixture
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^"]+)" should satisfy the result and container required-field '
+        r'contract'
+    )
+)
+def consumer_allure_result_and_container_field_contract(relative_path: str, consumer: ConsumerProject) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert result_files, f"expected Allure result files in {result_directory}"
+
+    result_ids: set[str] = set()
+    for result_file in result_files:
+        result = json.loads(result_file.read_text(encoding="utf-8"))
+        assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
+        for field in ("uuid", "name", "fullName", "testCaseId", "historyId", "stage"):
+            assert isinstance(result.get(field), str) and result[field], result
+        assert result_file.name == f"{result['uuid']}-result.json", result
+        assert result.get("status") in {"passed", "failed", "broken", "skipped", "unknown"}, result
+        for field in ("steps", "labels", "parameters"):
+            assert isinstance(result.get(field), list), result
+        for field in ("start", "stop"):
+            assert type(result.get(field)) is int, result
+        assert result["start"] <= result["stop"], result
+        result_ids.add(result["uuid"])
+        _assert_allure_attachment_sources(result, result_directory)
+
+    containers = _assert_allure_container_result_links(result_directory, result_ids)
+    _assert_allure_shared_run_hook_container(containers, result_ids)
+    for container in containers:
+        for field in ("befores", "afters"):
+            fixtures = container.get(field)
+            assert isinstance(fixtures, list), container
+            for fixture_result in fixtures:
+                assert isinstance(fixture_result, dict), fixture_result
+                for fixture_field in ("uuid", "name", "stage"):
+                    assert (
+                        isinstance(fixture_result.get(fixture_field), str) and fixture_result[fixture_field]
+                    ), fixture_result
+                assert fixture_result.get("status") in {"passed", "failed", "broken", "skipped", "unknown"}, (
+                    fixture_result
+                )
+                for fixture_field in ("start", "stop"):
+                    assert type(fixture_result.get(fixture_field)) is int, fixture_result
+                assert fixture_result["start"] <= fixture_result["stop"], fixture_result
+        _assert_allure_attachment_sources(container, result_directory)
+
+
+@then(
+    re.compile(
         r'consumer Allure result directory "(?P<relative_path>[^\"]+)" should emit two retry attempts for scenario '
         r'"(?P<scenario_name>[^\"]+)" with linked containers'
     )
@@ -2379,14 +2868,7 @@ def consumer_allure_status_mappings(relative_path: str, consumer: ConsumerProjec
     assert [item.get("status") for item in steps] == ["skipped", "broken", "broken", "broken", "unknown"], steps
     assert all(item.get("stage") == "finished" for item in steps), steps
 
-    container_files = sorted(result_directory.glob("*-container.json"))
-    assert len(container_files) == 1, f"expected one Allure container file, found {container_files!r}"
-    container = json.loads(container_files[0].read_text(encoding="utf-8"))
-    assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
-    container_uuid = container.get("uuid")
-    assert isinstance(container_uuid, str) and container_uuid, container
-    assert container_files[0].name == f"{container_uuid}-container.json", container
-    assert container.get("children") == [result_uuid], container
+    _assert_allure_container_result_links(result_directory, {result_uuid})
 
 
 @then(
@@ -2454,14 +2936,7 @@ def consumer_allure_run_finished_diagnostics(
     assert actual_bytes == expected_bytes, reference
     assert json.loads(actual_bytes) == expected_diagnostics, reference
 
-    container_files = sorted(result_directory.glob("*-container.json"))
-    assert len(container_files) == 1, f"expected one Allure container file, found {container_files!r}"
-    container = json.loads(container_files[0].read_text(encoding="utf-8"))
-    assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
-    container_uuid = container.get("uuid")
-    assert isinstance(container_uuid, str) and container_uuid, container
-    assert container_files[0].name == f"{container_uuid}-container.json", container
-    assert container.get("children") == [result_uuid], container
+    _assert_allure_container_result_links(result_directory, {result_uuid})
 
 
 @then(
@@ -2765,14 +3240,8 @@ def consumer_allure_outline_result_metadata(
     ]
     assert outline_parameters == [{"name": parameter_name, "value": parameter_value}], result
 
-    container_files = sorted(result_directory.glob("*-container.json"))
-    assert len(container_files) == 1, f"expected one Allure container file, found {container_files!r}"
-    container = json.loads(container_files[0].read_text(encoding="utf-8"))
-    assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
-    container_uuid = container.get("uuid")
-    assert isinstance(container_uuid, str) and container_uuid, container
-    assert container_files[0].name == f"{container_uuid}-container.json", container
-    assert container.get("children") == [result_uuid], container
+    containers = _assert_allure_container_result_links(result_directory, {result_uuid})
+    _assert_allure_shared_run_hook_container(containers, {result_uuid})
 
 
 @then(
@@ -2823,21 +3292,19 @@ def consumer_allure_result_directories_semantically_equivalent(
         assert isinstance(result_uuid, str) and result_uuid, result
         assert result_files[0].name == f"{result_uuid}-result.json", result
 
-        container_files = sorted(result_directory.glob("*-container.json"))
-        assert len(container_files) == 1, (
-            f"expected one Allure container file in {relative_path!r}, found {container_files!r}"
-        )
-        container = json.loads(container_files[0].read_text(encoding="utf-8"))
-        assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
-        container_uuid = container.get("uuid")
-        assert isinstance(container_uuid, str) and container_uuid, container
-        assert container_files[0].name == f"{container_uuid}-container.json", container
-        assert container.get("children") == [result_uuid], container
+        result_ids = {result_uuid}
+        containers = _assert_allure_container_result_links(result_directory, result_ids)
+        _assert_allure_shared_run_hook_container(containers, result_ids)
 
         semantic_result = normalized(result)
-        semantic_container = normalized(container)
-        semantic_container["children"] = ["<linked-result>"]
-        semantic_artifacts.append((semantic_result, semantic_container))
+        semantic_containers = []
+        for container in containers:
+            semantic_container = normalized(container)
+            children = container["children"]
+            semantic_container["children"] = ["<linked-result>" for _ in children]
+            semantic_containers.append(semantic_container)
+        semantic_containers.sort(key=lambda item: json.dumps(item, sort_keys=True, separators=(",", ":")))
+        semantic_artifacts.append((semantic_result, semantic_containers))
 
     assert semantic_artifacts[0] == semantic_artifacts[1], {
         first_path: semantic_artifacts[0],
@@ -2983,7 +3450,7 @@ def consumer_allure_no_attempt_message_extensions(
 @then(
     re.compile(
         r'consumer Allure result directory "(?P<relative_path>[^"]+)" should preserve failed diagnostics, '
-        r"portable attachments, and a linked container"
+        r"portable attachments, and linked containers"
     )
 )
 def consumer_allure_failure_attachments_and_container(relative_path: str, consumer: ConsumerProject) -> None:
@@ -3033,14 +3500,10 @@ def consumer_allure_failure_attachments_and_container(relative_path: str, consum
         assert attachment_path.read_bytes() == expected_content, reference
     assert seen_names == set(expected_files), references
 
-    container_files = sorted(result_directory.glob("*-container.json"))
-    assert len(container_files) == 1, f"expected one Allure container file, found {container_files!r}"
-    container = json.loads(container_files[0].read_text(encoding="utf-8"))
-    assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
-    container_uuid = container.get("uuid")
-    assert isinstance(container_uuid, str) and container_uuid, container
-    assert container_files[0].name == f"{container_uuid}-container.json", container
-    assert container.get("children") == [result["uuid"]], container
+    result_uuid = result.get("uuid")
+    assert isinstance(result_uuid, str) and result_uuid, result
+    containers = _assert_allure_container_result_links(result_directory, {result_uuid})
+    _assert_allure_shared_run_hook_container(containers, {result_uuid})
 
 
 @then(
@@ -3125,29 +3588,16 @@ def consumer_allure_multiple_scenarios(relative_path: str, consumer: ConsumerPro
         results_by_uuid[result_uuid] = scenario_name
     assert set(results_by_uuid.values()) == set(expected_steps), results_by_uuid
 
-    container_files = sorted(result_directory.glob("*-container.json"))
-    assert len(container_files) == len(results_by_uuid), f"unexpected Allure container files: {container_files!r}"
-    linked_result_uuids: list[str] = []
-    for container_file in container_files:
-        container = json.loads(container_file.read_text(encoding="utf-8"))
-        assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
-        container_uuid = container.get("uuid")
-        assert isinstance(container_uuid, str) and container_uuid, container
-        assert container_file.name == f"{container_uuid}-container.json", container
-        children = container.get("children")
-        assert isinstance(children, list) and len(children) == 1, container
-        linked_result_uuids.append(children[0])
-    assert len(linked_result_uuids) == len(set(linked_result_uuids)), linked_result_uuids
-    assert set(linked_result_uuids) == set(results_by_uuid), {
-        "results": results_by_uuid,
-        "containers": linked_result_uuids,
-    }
+    result_ids = set(results_by_uuid)
+    containers = _assert_allure_container_result_links(result_directory, result_ids)
+    shared_container = _assert_allure_shared_run_hook_container(containers, result_ids)
+    assert set(shared_container["children"]) == result_ids, shared_container
 
 
 @then(
     re.compile(
         r'consumer Allure result directory "(?P<relative_path>[^"]+)" should preserve the Background step before '
-        r"scenario steps and a linked container"
+        r"scenario steps and linked containers"
     )
 )
 def consumer_allure_background_step_order(relative_path: str, consumer: ConsumerProject) -> None:
@@ -3170,14 +3620,55 @@ def consumer_allure_background_step_order(relative_path: str, consumer: Consumer
     ], steps
     assert all(isinstance(step, dict) and step.get("status") == "passed" for step in steps), steps
 
-    containers = sorted(result_directory.glob("*-container.json"))
-    assert len(containers) == 1, containers
-    container = json.loads(containers[0].read_text(encoding="utf-8"))
-    assert isinstance(container, dict), container
-    container_uuid = container.get("uuid")
-    assert isinstance(container_uuid, str) and container_uuid, container
-    assert containers[0].name == f"{container_uuid}-container.json", container
-    assert container.get("children") == [result_uuid], container
+    containers = _assert_allure_container_result_links(result_directory, {result_uuid})
+    _assert_allure_shared_run_hook_container(containers, {result_uuid})
+
+
+@then(
+    re.compile(
+        r'consumer Allure result directory "(?P<relative_path>[^"]+)" should preserve the failed Background step '
+        r'diagnostic, order, and linked containers'
+    )
+)
+def consumer_allure_failed_background_step(relative_path: str, consumer: ConsumerProject) -> None:
+    result_directory = _consumer_artifact_path(relative_path, consumer)
+    result_files = sorted(result_directory.glob("*-result.json"))
+    assert len(result_files) == 1, result_files
+    result = json.loads(result_files[0].read_text(encoding="utf-8"))
+    assert isinstance(result, dict), result
+    result_uuid = result.get("uuid")
+    assert isinstance(result_uuid, str) and result_uuid, result
+    assert result_files[0].name == f"{result_uuid}-result.json", result
+    assert result.get("name") == "Save Ada's order", result
+    assert result.get("status") == "failed", result
+    assert result.get("stage") == "finished", result
+    result_details = result.get("statusDetails")
+    assert isinstance(result_details, dict), result
+    assert result_details.get("message") == "background failure sentinel", result_details
+    result_trace = result_details.get("trace")
+    assert isinstance(result_trace, str) and "AssertionError: background failure sentinel" in result_trace, result_details
+
+    steps = result.get("steps")
+    assert isinstance(steps, list) and len(steps) == 4, result
+    assert all(isinstance(step, dict) for step in steps), steps
+    assert [step.get("name") for step in steps] == [
+        "the shop is open",
+        "the inventory reconciliation fails",
+        "the customer is Ada",
+        "the order is saved",
+    ], steps
+    assert steps[0].get("status") == "passed", steps[0]
+    failed_background_step = steps[1]
+    assert failed_background_step.get("status") == "failed", failed_background_step
+    step_details = failed_background_step.get("statusDetails")
+    assert isinstance(step_details, dict), failed_background_step
+    assert step_details.get("message") == "background failure sentinel", step_details
+    step_trace = step_details.get("trace")
+    assert isinstance(step_trace, str) and "AssertionError: background failure sentinel" in step_trace, step_details
+    assert all(step.get("status") != "passed" for step in steps[2:]), steps
+
+    containers = _assert_allure_container_result_links(result_directory, {result_uuid})
+    _assert_allure_shared_run_hook_container(containers, {result_uuid})
 
 
 @then(
