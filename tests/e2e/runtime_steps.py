@@ -39,6 +39,29 @@ def _messages_envelopes(relative_path: str, consumer: Any) -> list[dict[str, Any
     return _jsonl_artifact_rows(relative_path, consumer, "Messages artifact")
 
 
+@then(
+    re.compile(
+        r'consumer runtime artifact "(?P<observation_path>[^"]+)" should match the run ID in Messages '
+        r'"(?P<messages_path>[^"]+)"'
+    )
+)
+def consumer_runtime_run_id_matches_messages(
+    observation_path: str,
+    messages_path: str,
+    consumer: Any,
+) -> None:
+    observation = json.loads(_runtime_artifact_path(observation_path, consumer).read_text(encoding="utf-8"))
+    run_id = observation.get("run_id")
+    assert isinstance(run_id, str) and run_id, observation
+
+    envelopes = _messages_envelopes(messages_path, consumer)
+    run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    assert len(run_started) == 1, run_started
+    run_started_id = run_started[0].get("id")
+    assert isinstance(run_started_id, str), run_started
+    assert re.fullmatch(rf"{re.escape(run_id)}-\d+", run_started_id), (run_id, run_started_id)
+
+
 def _single_messages_case(
     relative_path: str,
     consumer: Any,
@@ -324,6 +347,84 @@ def consumer_terminal_outcomes_after_cleanup(runtime_path: str, messages_path: s
 
 @then(
     re.compile(
+        r'consumer runtime artifacts "(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" '
+        r"should retain both step and teardown errors"
+    )
+)
+def consumer_tolerant_step_and_teardown_failure_reporting(
+    messages_path: str,
+    json_path: str,
+    consumer: Any,
+) -> None:
+    problems: list[str] = []
+    scenario_name = "The tolerant failure and teardown error are both reported"
+    step_names = ["the nonterminal tolerant step fails", "a later step passes"]
+    assertion_message = "nonterminal tolerant assertion sentinel"
+    teardown_message = "late teardown failure sentinel"
+
+    messages_case = _single_messages_case(messages_path, consumer, len(step_names), problems)
+    if messages_case is not None:
+        case, _started, _test_steps, step_finishes, envelopes = messages_case
+        pickles = [envelope["pickle"] for envelope in envelopes if "pickle" in envelope]
+        if len(pickles) != 1:
+            problems.append(f"expected one Messages Pickle, got {len(pickles)}")
+        elif pickles[0].get("name") != scenario_name:
+            problems.append(f"Messages Pickle name={pickles[0].get('name')!r}, expected {scenario_name!r}")
+        if len(pickles) == 1 and case.get("pickleId") != pickles[0].get("id"):
+            problems.append("Messages TestCase does not reference its Pickle")
+
+        statuses = [finish.get("testStepResult", {}).get("status") for finish in step_finishes]
+        if statuses != ["FAILED", "FAILED"]:
+            problems.append(f"Messages test step statuses={statuses!r}, expected ['FAILED', 'FAILED']")
+        if len(step_finishes) == len(step_names):
+            first_result = step_finishes[0].get("testStepResult", {})
+            first_exception = first_result.get("exception", {})
+            if assertion_message not in str(first_exception.get("message")):
+                problems.append(
+                    f"tolerant Messages exception={first_exception!r}, expected to contain {assertion_message!r}"
+                )
+            terminal_result = step_finishes[-1].get("testStepResult", {})
+            terminal_exception = terminal_result.get("exception", {})
+            if teardown_message not in str(terminal_result.get("message")):
+                problems.append(
+                    f"terminal Messages message={terminal_result.get('message')!r}, "
+                    f"expected to contain {teardown_message!r}"
+                )
+            if teardown_message not in str(terminal_exception.get("message")):
+                problems.append(
+                    f"terminal Messages exception={terminal_exception!r}, expected to contain {teardown_message!r}"
+                )
+        run_finishes = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+        if len(run_finishes) != 1 or run_finishes[0].get("success") is not False:
+            problems.append(f"Messages TestRunFinished should report failure, got {run_finishes!r}")
+
+    json_steps = _single_json_scenario_steps(
+        json_path,
+        consumer,
+        "tolerant-teardown-runtime.feature",
+        scenario_name,
+        problems,
+    )
+    if json_steps is not None:
+        names = [step.get("name") for step in json_steps]
+        statuses = [step.get("result", {}).get("status") for step in json_steps]
+        if names != step_names:
+            problems.append(f"JSON scenario steps={names!r}, expected {step_names!r}")
+        if statuses != ["failed", "failed"]:
+            problems.append(f"JSON step statuses={statuses!r}, expected ['failed', 'failed']")
+        if len(json_steps) == len(step_names):
+            first_error = json_steps[0].get("result", {}).get("error_message")
+            if assertion_message not in str(first_error):
+                problems.append(f"tolerant JSON error={first_error!r}, expected to contain {assertion_message!r}")
+            terminal_error = json_steps[-1].get("result", {}).get("error_message")
+            if teardown_message not in str(terminal_error):
+                problems.append(f"terminal JSON error={terminal_error!r}, expected to contain {teardown_message!r}")
+
+    assert not problems, "tolerant step and teardown failure reporting contract failed:\n- " + "\n- ".join(problems)
+
+
+@then(
+    re.compile(
         r'consumer runtime artifacts "(?P<runtime_path>[^"]+)", "(?P<messages_path>[^"]+)" and '
         r'"(?P<json_path>[^"]+)" should agree on Rule Background step links'
     )
@@ -520,8 +621,26 @@ def consumer_xdist_runtime_roots(messages_path: str, consumer: Any) -> None:
         assert all(values) and len(set(values)) == 2, (field, values)
 
     envelopes = _messages_envelopes(messages_path, consumer)
-    started_ids = {envelope["testCaseStarted"]["id"] for envelope in envelopes if "testCaseStarted" in envelope}
-    assert started_ids == {row["test_case_started_id"] for row in observations}, (started_ids, observations)
+    started = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    cases = [envelope["testCase"] for envelope in envelopes if "testCase" in envelope]
+    assert len(started) == len(cases) == len(observations), (started, cases)
+    expected_started = {
+        (row["worker"], f"{row['worker']}:{row['test_case_started_id']}")
+        for row in observations
+    }
+    actual_started = {(attempt.get("workerId"), attempt.get("id")) for attempt in started}
+    assert actual_started == expected_started, (actual_started, expected_started)
+    expected_case_ids = {f"{row['worker']}:{row['test_case_id']}" for row in observations}
+    case_ids = {case.get("id") for case in cases}
+    assert case_ids == expected_case_ids, (case_ids, expected_case_ids)
+
+    started_by_worker = {attempt["workerId"]: attempt for attempt in started}
+    assert len(started_by_worker) == len(started), started
+    for row in observations:
+        worker = row["worker"]
+        attempt = started_by_worker[worker]
+        assert attempt["id"] == f"{worker}:{row['attempt_id']}", (attempt, row)
+        assert attempt["testCaseId"] == f"{worker}:{row['test_case_id']}", (attempt, row)
 
 
 @then(
@@ -1596,10 +1715,12 @@ __all__ = [
     "consumer_rule_background_runtime_links",
     "consumer_runtime_cleanup_isolation",
     "consumer_runtime_rows_are_isolated",
+    "consumer_runtime_run_id_matches_messages",
     "consumer_teardown_interrupt_is_retained",
     "consumer_teardown_interrupt_overrides_terminal_skip",
     "consumer_terminal_outcomes_after_cleanup",
     "consumer_tolerant_failure_teardown_interrupt_are_retained",
+    "consumer_tolerant_step_and_teardown_failure_reporting",
     "consumer_undefined_step_teardown_interrupt_are_retained",
     "consumer_xdist_runtime_roots",
 ]

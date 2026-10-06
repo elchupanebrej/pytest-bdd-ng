@@ -360,6 +360,16 @@ class RunContext(StashBound):
         self.last_error = exception
         scenario_run = self.active_scenario_run
         if scenario_run is not None:
+            earlier_step_failed = any(step.status == "failed" for step in scenario_run.steps[:-1])
+            if status == "failed" and earlier_step_failed and scenario_run.steps:
+                terminal_step = scenario_run.steps[-1]
+                if terminal_step.status == "passed":
+                    terminal_step.finish(
+                        status="failed",
+                        duration=terminal_step.duration,
+                        exception=exception,
+                        failure_reason=type(exception).__name__,
+                    )
             scenario_run.finish(status=status, duration=scenario_run.duration, exception=exception)
         self.transition(stage="teardown", hook_phase="pytest_runtest_teardown", status=status)
 

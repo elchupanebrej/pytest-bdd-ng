@@ -55,6 +55,7 @@ Feature: Session-owned scenario runtime integration
                       "step_context_identity": id(run_context),
                       "hook_scenario_run_identity": id(observation["scenario_run"]),
                       "step_scenario_run_identity": id(scenario_run),
+                      "run_id": run_context.run_id,
                       "scenario_run_id": scenario_run.run_id,
                       "test_case_started_id": scenario_run.test_case_started_id,
                   }
@@ -73,6 +74,7 @@ Feature: Session-owned scenario runtime integration
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer runtime observation "runtime-observation.json" should link to scenario "An autoloaded scenario observes its execution context" in Messages "messages.ndjson" and report "report.json"
+    And consumer runtime artifact "runtime-observation.json" should match the run ID in Messages "messages.ndjson"
 
   Scenario: Plain pytest receives a run context with no active BDD scenario
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -469,6 +471,43 @@ Feature: Session-owned scenario runtime integration
     Then pytest should exit with code 1
     And consumer runtime artifact "runtime-cleanup-observations.jsonl" should show failed teardown then clean BDD state
     And consumer runtime snapshot "plain-after-bdd-observation.json" should show clean plain pytest state after BDD teardown
+
+  Scenario: A nonterminal tolerant failure and teardown failure remain visible in reporting
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import pytest
+
+      from pytest_cuke import then, when
+      from pytest_cuke.steps import tolerant
+
+
+      @pytest.fixture
+      def fail_during_teardown():
+          yield
+          raise RuntimeError("late teardown failure sentinel")
+
+
+      @tolerant
+      @when("the nonterminal tolerant step fails")
+      def nonterminal_tolerant_step_fails():
+          raise AssertionError("nonterminal tolerant assertion sentinel")
+
+
+      @then("a later step passes")
+      def later_step_passes(fail_during_teardown):
+          assert fail_during_teardown is None
+      """
+    And consumer file "features/tolerant-teardown-runtime.feature" contains:
+      """gherkin
+      Feature: Reporting a tolerant step failure followed by teardown failure
+        Scenario: The tolerant failure and teardown error are both reported
+          When the nonterminal tolerant step fails
+          Then a later step passes
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=tolerant-teardown-runtime.ndjson --cuke-json=tolerant-teardown-runtime.json --cuke-summary -q"
+    Then pytest should exit with code 1
+    And consumer runtime artifacts "tolerant-teardown-runtime.ndjson" and "tolerant-teardown-runtime.json" should retain both step and teardown errors
 
   Scenario: Assertion failure, undefined lookup, and skip finish with distinct runtime outcomes
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
