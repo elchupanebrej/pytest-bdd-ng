@@ -590,23 +590,110 @@ def pytest_configure(config: Config) -> None:
             DebugMcpPlugin(config, debug_mcp_options),
             name="pytest_cuke_debug_mcp",
         )
+    config.pluginmanager.register(
+        _SessionFinishOrderingHookAdapter(),
+        name="pytest_cuke_session_finish_ordering",
+    )
 
 
-def pytest_sessionstart(session: Any) -> None:
-    """Create session-scoped collection and runtime state before tests are collected."""
-    CollectionBatchService.for_session(session, session.config)
-    RunContext.from_config(session.config).begin_collection()
-    plugin_manager = session.config.pluginmanager
+class _SessionFinishOrderingHookAdapter:
+    def __init__(self) -> None:
+        self._session_started = False
+
+    @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+    def pytest_sessionstart(self, session: Any) -> Generator[None, Any, Any]:
+        """Initialize runtime state, then order finish hooks after session startup completes."""
+        CollectionBatchService.for_session(session, session.config)
+        RunContext.from_config(session.config).begin_collection()
+        yield
+        self._session_started = True
+        _place_session_finish_adapter(session.config)
+
+    @pytest.hookimpl(optionalhook=True)
+    def pytest_plugin_registered(
+        self,
+        plugin: Any,
+        manager: PytestPluginManager,
+    ) -> None:
+        """Reorder finish hooks whenever a plugin adds new hook implementations."""
+        if not self._session_started or plugin is self:
+            return
+        session_finish_hook = manager.get_plugin("pytest_cuke_messages_session_finish")
+        if plugin is session_finish_hook:
+            return
+        if not any(
+            hookimpl.plugin is plugin
+            for hookimpl in manager.hook.pytest_sessionfinish.get_hookimpls()
+        ):
+            return
+        config = manager.get_plugin("pytestconfig")
+        if isinstance(config, Config):
+            _place_session_finish_adapter(config)
+
+
+def _place_session_finish_adapter(config: Config) -> None:
+    """Place the Messages finish wrapper outside conftests and inside xdist's worker wrapper."""
+    plugin_manager = config.pluginmanager
     session_finish_hook = plugin_manager.get_plugin("pytest_cuke_messages_session_finish")
-    if isinstance(session_finish_hook, MessageSessionFinishHookAdapter):
-        # Conftest hooks load after the early adapter registration. Re-register
-        # after configuration so a tryfirst adapter encloses external tryfirst
-        # wrappers and can record their teardown exceptions before finalizing.
-        plugin_manager.unregister(name="pytest_cuke_messages_session_finish")
-        plugin_manager.register(
-            session_finish_hook,
-            name="pytest_cuke_messages_session_finish",
+    if not isinstance(session_finish_hook, MessageSessionFinishHookAdapter):
+        return
+
+    message_plugin = plugin_manager.get_plugin("pytest_cuke_messages")
+    if not isinstance(message_plugin, MessagePlugin) or message_plugin.is_disabled:
+        return
+
+    plugin_manager.unregister(name="pytest_cuke_messages_session_finish")
+    plugin_manager.register(session_finish_hook, name="pytest_cuke_messages_session_finish")
+
+    if not hasattr(config, "workerinput"):
+        return
+
+    session_finish = plugin_manager.hook.pytest_sessionfinish
+    hookimpls = getattr(session_finish, "_hookimpls", None)
+    wrappers = getattr(session_finish, "_wrappers", None)
+    nonwrappers = getattr(session_finish, "_nonwrappers", None)
+    if isinstance(hookimpls, list):
+        ordered_hookimpls = hookimpls
+        orderable_impls = hookimpls
+    elif isinstance(wrappers, list) and isinstance(nonwrappers, list):
+        ordered_hookimpls = [*nonwrappers, *wrappers]
+        orderable_impls = wrappers
+    else:
+        raise pytest.UsageError(
+            "pytest-cuke cannot order session-finish reporting in this pytest-xdist worker "
+            "with the installed Pluggy version."
         )
+    adapter_impl = next((impl for impl in ordered_hookimpls if impl.plugin is session_finish_hook), None)
+    worker_impl = next(
+        (
+            impl
+            for impl in ordered_hookimpls
+            if impl.hookwrapper
+            and type(impl.plugin).__name__ == "WorkerInteractor"
+            and impl.function.__name__ == "pytest_sessionfinish"
+        ),
+        None,
+    )
+    if (
+        adapter_impl is None
+        or worker_impl is None
+        or adapter_impl not in orderable_impls
+        or worker_impl not in orderable_impls
+    ):
+        error_message = (
+            "pytest-cuke cannot find pytest-xdist's worker-finish wrapper "
+            "while ordering Cucumber Messages reporting."
+        )
+        raise pytest.UsageError(error_message)
+
+    # Pluggy has no public ordering API for placing a wrapper between xdist and
+    # consumer wrappers. Its HookCaller runs wrappers in reverse registration order.
+    # Keep workerfinished outside this adapter so workeroutput includes the manifest,
+    # while this adapter still wraps external tryfirst finish hooks.
+    call_order = list(reversed(orderable_impls))
+    call_order.remove(worker_impl)
+    call_order.remove(adapter_impl)
+    orderable_impls[:] = reversed([worker_impl, adapter_impl, *call_order])
 
 
 def pytest_collection_finish(session: Any) -> None:
