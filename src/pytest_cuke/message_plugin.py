@@ -1505,7 +1505,19 @@ class MessagePlugin:
             fallback_status: Status | None = None
             fallback_type = ""
             fallback_message = ""
+            terminal_step = scenario_run.steps[-1] if scenario_run.steps else None
             if (
+                scenario_run.status == "failed"
+                and terminal_step is not None
+                and terminal_step.status == "failed"
+                and terminal_step.exception is scenario_run.exception
+                and pending.status not in (Status.failed, Status.undefined, Status.unknown)
+            ):
+                fallback_status = Status.failed
+                error = terminal_step.exception
+                fallback_type = type(error).__name__ if error is not None else "Exception"
+                fallback_message = str(error) if error is not None else "Scenario failed during teardown."
+            elif (
                 scenario_run.status == "interrupted"
                 and "interrupted" not in step_statuses
                 and pending.status
