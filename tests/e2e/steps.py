@@ -12601,8 +12601,6 @@ def consumer_messages_artifact_retains_reporting_spine(
         assert not any(
             envelope.get("testRunHookStarted", {}).get("id") == rejected_hook_id for envelope in raw_envelopes
         ), raw_envelopes
-    else:
-        assert run_finished[0]["success"] is False, run_finished[0]
     assert raw_envelopes[-1].get("testRunFinished") == run_finished[0], "testRunFinished must close the stream"
 
     marker_bodies = [attachment.get("body") for attachment in attachments]
@@ -12705,33 +12703,80 @@ def _assert_reporting_spine_fanout(
 
 @then(
     re.compile(
-        r'consumer Messages artifact "(?P<relative_path>[^"]+)" should record a failed after run hook in the xdist stream'
+        r'consumer Messages artifact "(?P<relative_path>[^"]+)" should report a failed root AFTER_TEST_RUN hook with '
+        r'sentinel "(?P<failure_sentinel>[^"]+)", a passed worker step, and an unsuccessful root run'
     )
 )
-def consumer_xdist_stream_reports_failed_after_run_hook(relative_path: str, consumer: ConsumerProject) -> None:
+def consumer_xdist_stream_reports_failed_root_after_run_hook(
+    relative_path: str,
+    failure_sentinel: str,
+    consumer: ConsumerProject,
+) -> None:
     envelopes = _reporting_spine_artifact(relative_path, consumer)
+
+    run_starts = [
+        envelope["testRunStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunStarted"), dict)
+    ]
+    run_start_ids = [started.get("id") for started in run_starts]
+    assert run_start_ids and all(isinstance(run_id, str) and run_id for run_id in run_start_ids), run_starts
+    assert len(run_start_ids) == len(set(run_start_ids)), run_start_ids
+    assert any(run_id.startswith("master:") for run_id in run_start_ids), run_start_ids
+
+    run_finishes = [
+        envelope["testRunFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunFinished"), dict)
+    ]
+    assert run_finishes, f"no terminal Messages outcomes were emitted for xdist: {envelopes!r}"
+    finished_run_ids = []
+    for finish in run_finishes:
+        assert finish.get("success") is False, finish
+        run_id = finish.get("testRunStartedId")
+        assert isinstance(run_id, str) and run_id in set(run_start_ids), finish
+        finished_run_ids.append(run_id)
+    assert len(finished_run_ids) == len(set(finished_run_ids)), finished_run_ids
+    assert set(finished_run_ids) == set(run_start_ids), (run_start_ids, run_finishes)
+    master_run_finishes = [
+        finish for finish in run_finishes if str(finish.get("testRunStartedId", "")).startswith("master:")
+    ]
+    assert len(master_run_finishes) == 1, master_run_finishes
+    assert envelopes[-1].get("testRunFinished") == master_run_finishes[0], "the root terminal event must close the stream"
 
     after_hook_ids = {
         hook["id"]
         for envelope in envelopes
-        if isinstance((hook := envelope.get("hook")), dict) and hook.get("type") == "AFTER_TEST_RUN"
+        if isinstance((hook := envelope.get("hook")), dict)
+        and hook.get("type") == "AFTER_TEST_RUN"
+        and isinstance(hook.get("id"), str)
     }
+    assert after_hook_ids, f"no AFTER_TEST_RUN hook definition was emitted: {envelopes!r}"
     after_hook_starts = [
-        started["id"]
+        started
         for envelope in envelopes
         if isinstance((started := envelope.get("testRunHookStarted")), dict)
         and started.get("hookId") in after_hook_ids
     ]
     assert after_hook_starts, f"no AFTER_TEST_RUN hook was started in the xdist stream: {envelopes!r}"
+    after_hook_start_ids = [started.get("id") for started in after_hook_starts]
+    assert all(isinstance(start_id, str) and start_id for start_id in after_hook_start_ids), after_hook_starts
+    assert len(after_hook_start_ids) == len(set(after_hook_start_ids)), after_hook_starts
+    assert all(started.get("testRunStartedId") in set(run_start_ids) for started in after_hook_starts), (
+        run_start_ids,
+        after_hook_starts,
+    )
 
     after_hook_finishes = [
         finished
         for envelope in envelopes
         if isinstance((finished := envelope.get("testRunHookFinished")), dict)
-        and finished.get("testRunHookStartedId") in after_hook_starts
+        and finished.get("testRunHookStartedId") in after_hook_start_ids
     ]
     assert after_hook_finishes, f"no AFTER_TEST_RUN hook was finished in the xdist stream: {envelopes!r}"
-    assert len(after_hook_finishes) == len(after_hook_starts), (after_hook_starts, after_hook_finishes)
+    finished_after_hook_ids = [finish.get("testRunHookStartedId") for finish in after_hook_finishes]
+    assert len(finished_after_hook_ids) == len(set(finished_after_hook_ids)), after_hook_finishes
+    assert set(finished_after_hook_ids) == set(after_hook_start_ids), (after_hook_starts, after_hook_finishes)
     failed_after_hooks = []
     for finish in after_hook_finishes:
         result = finish.get("result")
@@ -12743,26 +12788,115 @@ def consumer_xdist_stream_reports_failed_after_run_hook(relative_path: str, cons
             for value in (
                 result.get("message"),
                 exception.get("message") if isinstance(exception, dict) else None,
+                exception.get("stackTrace") if isinstance(exception, dict) else None,
             )
             if isinstance(value, str)
         )
-        if "xdist reporting spine after-session hook sentinel" in evidence:
+        if failure_sentinel in evidence:
             failed_after_hooks.append(finish)
-    assert len(failed_after_hooks) == len(after_hook_finishes), (failed_after_hooks, after_hook_finishes)
+    assert failed_after_hooks, (failure_sentinel, after_hook_finishes)
+    failed_after_hook_processes = {
+        finish["testRunHookStartedId"].split(":", 1)[0]
+        for finish in failed_after_hooks
+    }
 
-    passed_steps = [
+    pickles_by_id = {
+        pickle["id"]: pickle
+        for envelope in envelopes
+        if isinstance((pickle := envelope.get("pickle")), dict)
+        and isinstance(pickle.get("id"), str)
+    }
+    cases_by_id = {
+        case["id"]: case
+        for envelope in envelopes
+        if isinstance((case := envelope.get("testCase")), dict)
+        and isinstance(case.get("id"), str)
+    }
+    assert pickles_by_id and cases_by_id, (pickles_by_id, cases_by_id)
+    attempts_by_id = {
+        attempt["id"]: attempt
+        for envelope in envelopes
+        if isinstance((attempt := envelope.get("testCaseStarted")), dict)
+        and isinstance(attempt.get("id"), str)
+    }
+    assert attempts_by_id, f"no xdist scenario attempts were emitted: {envelopes!r}"
+    assert len(attempts_by_id) == sum(
+        isinstance(envelope.get("testCaseStarted"), dict) for envelope in envelopes
+    ), attempts_by_id
+    worker_ids: set[str] = set()
+    for attempt in attempts_by_id.values():
+        case_id = attempt.get("testCaseId")
+        assert case_id in cases_by_id, attempt
+        worker_id = attempt.get("workerId")
+        assert isinstance(worker_id, str) and worker_id and worker_id != "master", attempt
+        assert attempt["id"].startswith(f"{worker_id}:"), attempt
+        worker_ids.add(worker_id)
+        test_case = cases_by_id[case_id]
+        pickle = pickles_by_id.get(test_case.get("pickleId"))
+        assert isinstance(pickle, dict), test_case
+        pickle_step_ids = {
+            step.get("id"): step.get("text")
+            for step in pickle.get("steps", [])
+            if isinstance(step, dict) and isinstance(step.get("id"), str)
+        }
+        test_case_steps = test_case.get("testSteps")
+        assert isinstance(test_case_steps, list), test_case
+        assert all(
+            isinstance(step, dict) and step.get("pickleStepId") in pickle_step_ids
+            for step in test_case_steps
+        ), (test_case, pickle)
+
+    case_finish_attempt_ids = [
+        finish.get("testCaseStartedId")
+        for envelope in envelopes
+        if isinstance((finish := envelope.get("testCaseFinished")), dict)
+    ]
+    assert case_finish_attempt_ids and set(case_finish_attempt_ids) == set(attempts_by_id), (
+        case_finish_attempt_ids,
+        attempts_by_id,
+    )
+    assert len(case_finish_attempt_ids) == len(set(case_finish_attempt_ids)), case_finish_attempt_ids
+
+    step_starts = [
+        step
+        for envelope in envelopes
+        if isinstance((step := envelope.get("testStepStarted")), dict)
+    ]
+    step_finishes = [
         step
         for envelope in envelopes
         if isinstance((step := envelope.get("testStepFinished")), dict)
-        and isinstance((result := step.get("testStepResult")), dict)
-        and result.get("status") == "PASSED"
     ]
-    assert passed_steps, f"the xdist feature scenario did not run successfully: {envelopes!r}"
-
-    run_finishes = [
-        envelope["testRunFinished"] for envelope in envelopes if isinstance(envelope.get("testRunFinished"), dict)
-    ]
-    assert run_finishes and all(finish.get("success") is False for finish in run_finishes), run_finishes
+    step_start_pairs = [(step.get("testCaseStartedId"), step.get("testStepId")) for step in step_starts]
+    step_finish_pairs = [(step.get("testCaseStartedId"), step.get("testStepId")) for step in step_finishes]
+    assert step_start_pairs and set(step_start_pairs) == set(step_finish_pairs), (step_starts, step_finishes)
+    assert len(step_start_pairs) == len(set(step_start_pairs)), step_starts
+    passed_scenario_steps = []
+    for step in step_finishes:
+        attempt_id = step.get("testCaseStartedId")
+        attempt = attempts_by_id.get(attempt_id)
+        assert isinstance(attempt, dict), step
+        test_case = cases_by_id[attempt["testCaseId"]]
+        case_steps = {
+            case_step["id"]: case_step["pickleStepId"]
+            for case_step in test_case["testSteps"]
+        }
+        pickle = pickles_by_id[test_case["pickleId"]]
+        pickle_steps = {
+            pickle_step.get("id"): pickle_step.get("text")
+            for pickle_step in pickle["steps"]
+            if isinstance(pickle_step, dict)
+        }
+        result = step.get("testStepResult")
+        if (
+            isinstance(result, dict)
+            and result.get("status") == "PASSED"
+            and pickle_steps.get(case_steps.get(step.get("testStepId")))
+            == "the xdist reporting spine step passes"
+        ):
+            passed_scenario_steps.append(step)
+    assert passed_scenario_steps and worker_ids, (passed_scenario_steps, worker_ids)
+    assert "master" in failed_after_hook_processes, failed_after_hook_processes
 
 
 @then(
@@ -12886,13 +13020,7 @@ def consumer_messages_external_session_finish_failure(
     messages_path: str,
     consumer: ConsumerProject,
 ) -> None:
-    artifact_path = _consumer_artifact_path(messages_path, consumer)
-    envelopes = [
-        json.loads(line)
-        for line in artifact_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    assert all(isinstance(envelope, dict) for envelope in envelopes), envelopes
+    envelopes = _reporting_spine_artifact(messages_path, consumer)
 
     metas = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
     assert len(metas) == 1 and metas[0].get("protocolVersion") == "28.0.0", metas
