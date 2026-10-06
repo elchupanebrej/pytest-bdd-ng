@@ -38,6 +38,35 @@ Feature: Cucumber Messages reporting spine
     And pytest output should contain "reporting spine teardown failure sentinel"
     And consumer reporting-spine artifacts "messages.ndjson" and "messages.validated.ndjson" should keep the passed step and failed run after teardown failure
 
+  Scenario: An external tryfirst session-finish failure marks the Messages run unsuccessful
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import pytest
+      from pytest_cuke import given
+
+
+      @given("the external session-finish scenario passes")
+      def external_session_finish_scenario_passes():
+          pass
+
+
+      @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+      def pytest_sessionfinish(session, exitstatus):
+          outcome = yield
+          raise RuntimeError("external tryfirst pytest_sessionfinish failure sentinel")
+      """
+    And consumer file "features/external-session-finish-failure.feature" contains:
+      """gherkin
+      Feature: External session-finish failure
+        Scenario: The step passes before session finish fails
+          Given the external session-finish scenario passes
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    Then pytest should exit with code 1
+    And pytest output should contain "external tryfirst pytest_sessionfinish failure sentinel"
+    And consumer Messages artifact "messages.ndjson" should record the failed terminal run and AFTER_TEST_RUN diagnostic after an external tryfirst session-finish failure
+
   Scenario: Before and after session hooks emit linked Cucumber Messages events
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer installs reporting-spine run-hook probe "failing-after-hook"

@@ -12515,7 +12515,14 @@ def consumer_captures_late_message_diagnostic(code: str, payload_kind: str, cons
     assert diagnostic.get("severity") == "error", diagnostic
     assert diagnostic.get("payload_kind") == payload_kind, diagnostic
     assert isinstance(diagnostic.get("position"), int) and diagnostic["position"] >= 0, diagnostic
-    assert "Cannot accept an envelope after stream validation has finished" in diagnostic.get("message", ""), diagnostic
+    message = diagnostic.get("message")
+    assert isinstance(message, str) and any(
+        expected_phrase in message
+        for expected_phrase in (
+            "Cannot accept an envelope after stream validation has finished",
+            "test_run_hook_started appeared while another run hook was active",
+        )
+    ), diagnostic
 
 
 @then(
@@ -12588,8 +12595,8 @@ def consumer_messages_artifact_retains_reporting_spine(
     attachments = [envelope["attachment"] for envelope in raw_envelopes if "attachment" in envelope]
     assert len(run_started) == 1, f"expected one testRunStarted message, got {run_started!r}"
     assert len(run_finished) == 1, f"expected one terminal testRunFinished message, got {run_finished!r}"
+    assert run_finished[0]["success"] is False, run_finished[0]
     if event_kind == "out-of-order-lifecycle":
-        assert run_finished[0]["success"] is True, run_finished[0]
         rejected_hook_id = "reporting-spine-duplicate-after-hook-start"
         assert not any(
             envelope.get("testRunHookStarted", {}).get("id") == rejected_hook_id for envelope in raw_envelopes
@@ -12620,8 +12627,6 @@ def consumer_messages_artifact_retains_reporting_spine(
         assert len(started) == 1, f"the duplicate attempt ID must be rejected before either sink: {started!r}"
     elif event_kind == "orphan-reference":
         assert "reporting-spine-orphan-attachment" not in marker_bodies, marker_bodies
-    elif event_kind == "out-of-order-lifecycle":
-        assert run_finished[0]["success"] is True, run_finished[0]
 
     for sink_name, envelopes in (
         ("configured NDJSON sink", raw_envelopes),
@@ -12869,6 +12874,123 @@ def consumer_reporting_spine_preserves_teardown_failure(
     assert case_finishes[0].get("testCaseStartedId") == starts[0].get("id")
     assert run_finishes[0].get("success") is False, run_finishes[0]
     assert envelopes[-1].get("testRunFinished") == run_finishes[0], "the terminal event must close the stream"
+
+
+@then(
+    re.compile(
+        r'consumer Messages artifact "(?P<messages_path>[^"]+)" should record the failed terminal run and '
+        r"AFTER_TEST_RUN diagnostic after an external tryfirst session-finish failure"
+    )
+)
+def consumer_messages_external_session_finish_failure(
+    messages_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    artifact_path = _consumer_artifact_path(messages_path, consumer)
+    envelopes = [
+        json.loads(line)
+        for line in artifact_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert all(isinstance(envelope, dict) for envelope in envelopes), envelopes
+
+    metas = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
+    assert len(metas) == 1 and metas[0].get("protocolVersion") == "28.0.0", metas
+    run_starts = [
+        envelope["testRunStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunStarted"), dict)
+    ]
+    run_finishes = [
+        envelope["testRunFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunFinished"), dict)
+    ]
+    assert len(run_starts) == len(run_finishes) == 1, (run_starts, run_finishes)
+    run_id = run_starts[0].get("id")
+    assert isinstance(run_id, str) and run_id, run_starts[0]
+    terminal_event = run_finishes[0]
+    assert terminal_event.get("testRunStartedId") == run_id, terminal_event
+    assert terminal_event.get("success") is False, terminal_event
+    assert envelopes[-1].get("testRunFinished") == terminal_event, "the terminal event must close the stream"
+
+    after_hooks = [
+        envelope["hook"]
+        for envelope in envelopes
+        if isinstance(envelope.get("hook"), dict)
+        and envelope["hook"].get("type") == "AFTER_TEST_RUN"
+    ]
+    assert len(after_hooks) == 1, after_hooks
+    after_hook_id = after_hooks[0].get("id")
+    assert isinstance(after_hook_id, str) and after_hook_id, after_hooks[0]
+    after_hook_starts = [
+        envelope["testRunHookStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunHookStarted"), dict)
+        and envelope["testRunHookStarted"].get("hookId") == after_hook_id
+    ]
+    assert len(after_hook_starts) == 1, after_hook_starts
+    after_hook_started_id = after_hook_starts[0].get("id")
+    assert isinstance(after_hook_started_id, str) and after_hook_started_id, after_hook_starts[0]
+    assert after_hook_starts[0].get("testRunStartedId") == run_id, after_hook_starts[0]
+    after_hook_finishes = [
+        envelope["testRunHookFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunHookFinished"), dict)
+        and envelope["testRunHookFinished"].get("testRunHookStartedId") == after_hook_started_id
+    ]
+    assert len(after_hook_finishes) == 1, after_hook_finishes
+    after_hook_result = after_hook_finishes[0].get("result")
+    assert isinstance(after_hook_result, dict), after_hook_finishes[0]
+    assert after_hook_result.get("status") == "FAILED", after_hook_result
+    exception = after_hook_result.get("exception")
+    failure_evidence = [
+        value
+        for value in (
+            after_hook_result.get("message"),
+            exception.get("message") if isinstance(exception, dict) else None,
+            exception.get("stackTrace") if isinstance(exception, dict) else None,
+        )
+        if isinstance(value, str)
+    ]
+    assert any("external tryfirst pytest_sessionfinish failure sentinel" in evidence for evidence in failure_evidence), (
+        after_hook_result,
+        exception,
+    )
+
+    pickles = [envelope["pickle"] for envelope in envelopes if isinstance(envelope.get("pickle"), dict)]
+    test_cases = [envelope["testCase"] for envelope in envelopes if isinstance(envelope.get("testCase"), dict)]
+    case_starts = [
+        envelope["testCaseStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCaseStarted"), dict)
+    ]
+    case_finishes = [
+        envelope["testCaseFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCaseFinished"), dict)
+    ]
+    step_finishes = [
+        envelope["testStepFinished"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testStepFinished"), dict)
+    ]
+    assert len(pickles) == len(test_cases) == len(case_starts) == len(case_finishes) == 1, (
+        pickles,
+        test_cases,
+        case_starts,
+        case_finishes,
+    )
+    assert len(step_finishes) == 1, step_finishes
+    assert pickles[0].get("name") == "The step passes before session finish fails", pickles[0]
+    assert test_cases[0].get("pickleId") == pickles[0].get("id"), test_cases[0]
+    assert case_starts[0].get("testCaseId") == test_cases[0].get("id"), case_starts[0]
+    attempt_id = case_starts[0].get("id")
+    assert isinstance(attempt_id, str) and attempt_id, case_starts[0]
+    assert case_finishes[0].get("testCaseStartedId") == attempt_id, case_finishes[0]
+    assert step_finishes[0].get("testCaseStartedId") == attempt_id, step_finishes[0]
+    step_result = step_finishes[0].get("testStepResult")
+    assert isinstance(step_result, dict) and step_result.get("status") == "PASSED", step_finishes[0]
 
 
 @then(
