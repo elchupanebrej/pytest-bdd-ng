@@ -34,6 +34,13 @@ MessageValidationCode: TypeAlias = Literal[
     "INCOMPLETE_LIFECYCLE",
     "SINK_FAILURE",
     "FINAL_STREAM_VALIDATION_ERROR",
+    "missing_worker_manifest",
+    "missing_worker_fragment",
+    "interrupted_worker_transfer",
+    "partial_stream",
+    "duplicate_worker_batch",
+    "duplicate_worker_manifest",
+    "worker_manifest_mismatch",
 ]
 MessageValidationSeverity: TypeAlias = Literal["error", "warning"]
 JsonPathComponent: TypeAlias = str | int
@@ -82,7 +89,7 @@ def message_diagnostic_to_dict(diagnostic: MessageValidationDiagnostic) -> dict[
 
 
 def integration_diagnostic(
-    code: Literal["SINK_FAILURE", "FINAL_STREAM_VALIDATION_ERROR"],
+    code: MessageValidationCode,
     *,
     position: int,
     payload_kind: str | None,
