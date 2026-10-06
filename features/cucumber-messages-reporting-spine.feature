@@ -52,6 +52,34 @@ Feature: Cucumber Messages reporting spine
     And pytest output should contain "reporting spine after-session hook sentinel"
     And consumer reporting-spine artifacts "messages.ndjson" and "messages.validated.ndjson" should preserve the ordered before and failed after run-hook lifecycle for protocol "28.0.0"
 
+  Scenario: A trylast session-finish hook stays failed under xdist
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And consumer file "conftest.py" contains:
+      """python
+      import pytest
+      from pytest_cuke import given
+
+
+      @given("the xdist reporting spine step passes")
+      def xdist_reporting_spine_step_passes():
+          pass
+
+
+      @pytest.hookimpl(hookwrapper=True, trylast=True)
+      def pytest_sessionfinish(session, exitstatus):
+          outcome = yield
+          outcome.force_exception(RuntimeError("xdist reporting spine after-session hook sentinel"))
+      """
+    And consumer file "features/xdist-run-hook.feature" contains:
+      """gherkin
+      Feature: Reporting spine xdist hook lifecycle
+        Scenario: A scenario passes before session finish fails
+          Given the xdist reporting spine step passes
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-parser=python -n2 --max-worker-restart=0 --color=no -q features/xdist-run-hook.feature"
+    Then pytest output should contain "xdist reporting spine after-session hook sentinel"
+    And consumer Messages artifact "messages.ndjson" should record a failed after run hook in the xdist stream
+
   Scenario: A multi-payload extension event is rejected before either sink
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And an installed consumer extension submits a "multi-payload" envelope through pytest_cuke_message

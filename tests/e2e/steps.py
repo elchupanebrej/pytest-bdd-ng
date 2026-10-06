@@ -1036,8 +1036,6 @@ def consumer_cucumber_json_feature_uri(relative_path: str, expected_uri: str, co
     assert len(report) == 1, report
     actual_uri = report[0].get("uri")
     assert actual_uri == expected_uri, f"expected feature URI {expected_uri!r}, got {actual_uri!r}"
-
-
 @then(
     re.compile(
         r'consumer artifact "(?P<relative_path>[^\"]+)" should be a valid Cucumber Messages stream for (?P<scenario_count>\d+) passed scenario and (?P<step_count>\d+) passed steps'
@@ -12206,6 +12204,69 @@ def _assert_reporting_spine_fanout(
         f"observer={observed!r}, ndjson={messages!r}"
     )
     return messages
+
+
+
+@then(
+    re.compile(
+        r'consumer Messages artifact "(?P<relative_path>[^"]+)" should record a failed after run hook in the xdist stream'
+    )
+)
+def consumer_xdist_stream_reports_failed_after_run_hook(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _reporting_spine_artifact(relative_path, consumer)
+
+    after_hook_ids = {
+        hook["id"]
+        for envelope in envelopes
+        if isinstance((hook := envelope.get("hook")), dict) and hook.get("type") == "AFTER_TEST_RUN"
+    }
+    after_hook_starts = [
+        started["id"]
+        for envelope in envelopes
+        if isinstance((started := envelope.get("testRunHookStarted")), dict)
+        and started.get("hookId") in after_hook_ids
+    ]
+    assert after_hook_starts, f"no AFTER_TEST_RUN hook was started in the xdist stream: {envelopes!r}"
+
+    after_hook_finishes = [
+        finished
+        for envelope in envelopes
+        if isinstance((finished := envelope.get("testRunHookFinished")), dict)
+        and finished.get("testRunHookStartedId") in after_hook_starts
+    ]
+    assert after_hook_finishes, f"no AFTER_TEST_RUN hook was finished in the xdist stream: {envelopes!r}"
+    assert len(after_hook_finishes) == len(after_hook_starts), (after_hook_starts, after_hook_finishes)
+    failed_after_hooks = []
+    for finish in after_hook_finishes:
+        result = finish.get("result")
+        if not isinstance(result, dict) or result.get("status") != "FAILED":
+            continue
+        exception = result.get("exception")
+        evidence = " ".join(
+            value
+            for value in (
+                result.get("message"),
+                exception.get("message") if isinstance(exception, dict) else None,
+            )
+            if isinstance(value, str)
+        )
+        if "xdist reporting spine after-session hook sentinel" in evidence:
+            failed_after_hooks.append(finish)
+    assert len(failed_after_hooks) == len(after_hook_finishes), (failed_after_hooks, after_hook_finishes)
+
+    passed_steps = [
+        step
+        for envelope in envelopes
+        if isinstance((step := envelope.get("testStepFinished")), dict)
+        and isinstance((result := step.get("testStepResult")), dict)
+        and result.get("status") == "PASSED"
+    ]
+    assert passed_steps, f"the xdist feature scenario did not run successfully: {envelopes!r}"
+
+    run_finishes = [
+        envelope["testRunFinished"] for envelope in envelopes if isinstance(envelope.get("testRunFinished"), dict)
+    ]
+    assert run_finishes and all(finish.get("success") is False for finish in run_finishes), run_finishes
 
 
 @then(

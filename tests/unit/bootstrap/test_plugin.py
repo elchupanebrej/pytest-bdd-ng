@@ -7,12 +7,14 @@ from unittest.mock import MagicMock
 
 from pytest_cuke import hooks
 from pytest_cuke.model.session_run import RunContext
+from pytest_cuke.message_plugin import MessagePlugin, MessageSessionFinishHookAdapter
 from pytest_cuke.plugin import (
     attach,
     pytest_addhooks,
     pytest_cuke_is_collectible,
     pytest_collection_finish,
     pytest_configure,
+    pytest_load_initial_conftests,
     pytest_unconfigure,
     pytestbdd_id_generator,
     pytestbdd_step_runner,
@@ -31,10 +33,28 @@ def test_pytest_addhooks() -> None:
     pluginmanager.add_hookspecs.assert_called_once_with(hooks)
 
 
+def test_pytest_load_initial_conftests_registers_a_deferred_session_finish_hook() -> None:
+    pluginmanager = MagicMock()
+    early_config = SimpleNamespace(
+        known_args_namespace=SimpleNamespace(cuke_allure_messages_in=None, noconftest=False),
+        getini=lambda name: "",
+        pluginmanager=pluginmanager,
+    )
+
+    pytest_load_initial_conftests(early_config)
+
+    plugin, = pluginmanager.register.call_args.args
+    assert isinstance(plugin, MessageSessionFinishHookAdapter)
+    assert plugin.message_plugin is None
+    pluginmanager.register.assert_called_once_with(plugin, name="pytest_cuke_messages_session_finish")
+
+
 def test_pytest_configure_lifecycle() -> None:
     config = MagicMock()
     config.stash = {}
     config.pluginmanager = MagicMock()
+    session_finish_hook = MessageSessionFinishHookAdapter()
+    config.pluginmanager.get_plugin.return_value = session_finish_hook
     config.option = MagicMock()
     config.option.cuke_json = None
     config.option.cuke_progress = False
@@ -66,6 +86,13 @@ def test_pytest_configure_lifecycle() -> None:
     assert IdGenerator.pytest_cuke_id_generator in config.stash
     assert IdGenerator.from_stash(config.stash).namespace == RunContext.from_config(config).run_id
     assert config.pluginmanager.register.call_count >= 2
+    message_plugins = [
+        call.args[0]
+        for call in config.pluginmanager.register.call_args_list
+        if call.args and isinstance(call.args[0], MessagePlugin)
+    ]
+    assert len(message_plugins) == 1
+    assert session_finish_hook.message_plugin is message_plugins[0]
 
 
 def test_pytest_unconfigure_lifecycle() -> None:
@@ -76,6 +103,7 @@ def test_pytest_unconfigure_lifecycle() -> None:
 
     pytest_unconfigure(config)
     config.pluginmanager.unregister.assert_any_call(name="pytest_cuke_messages")
+    config.pluginmanager.unregister.assert_any_call(name="pytest_cuke_messages_session_finish")
     config.pluginmanager.unregister.assert_any_call(name="pytest_cuke_summary")
     config.__allure_plugin__.unregister.assert_called_once_with(config)
 
@@ -129,6 +157,7 @@ def test_builtin_fixtures() -> None:
     assert isinstance(_unwrap_fixture(steps_left)(), deque)
 
     request = MagicMock()
+    request.config = config
     attach_fn = _unwrap_fixture(attach)(request)
     attach_fn(b"data", media_type="text/plain")
     request.config.hook.pytest_cuke_attach.assert_called_once()
