@@ -10198,11 +10198,30 @@ def consumer_all_unmatched_collection_usage_error(
     output = f"{result.stdout}\n{result.stderr}"
     expected_source = _consumer_artifact_path(feature_path, consumer)
     source_references = (str(expected_source), feature_path, f"file:{expected_source.name}", expected_source.name)
+    feature_lines = expected_source.read_text(encoding="utf-8").splitlines()
+    scenario_lines = [
+        line_number
+        for line_number, line in enumerate(feature_lines, start=1)
+        if line.strip() == f"Scenario: {scenario_name}"
+    ]
+    assert len(scenario_lines) == 1, (scenario_name, scenario_lines, feature_lines)
+    scenario_line = scenario_lines[0]
+    step_line_numbers: list[int] = []
+    for line_number, line in enumerate(feature_lines[scenario_line:], start=scenario_line + 1):
+        stripped = line.strip()
+        if stripped.startswith(("Scenario:", "Scenario Outline:", "Rule:", "Feature:")):
+            break
+        if re.match(r"^(?:Given|When|Then|And|But|\*)\s+", stripped):
+            step_line_numbers.append(line_number)
+    expected_line_references = [f"{expected_source}:{line_number}:" for line_number in (scenario_line, *step_line_numbers)]
     checks = {
         f"pytest UsageError exit code 4; got {result.returncode}": result.returncode == 4,
         "pytest emitted its UsageError summary": bool(re.search(r"(?im)^ERROR:", output))
         or "UsageError" in output,
         f"output identifies source {feature_path!r}": any(source_reference in output for source_reference in source_references),
+        f"output identifies exact scenario and step lines {expected_line_references!r}": all(
+            reference in output for reference in expected_line_references
+        ),
         f"output identifies scenario {scenario_name!r}": scenario_name in output,
         f"output identifies unmatched step {step_text!r}": step_text in output,
         f"runtime hook file {hook_path!r} was not created": not _consumer_artifact_path(hook_path, consumer).exists(),
@@ -10230,10 +10249,19 @@ def consumer_all_unmatched_skip_has_reason(
         re.search(r"unmatch|no (?:matching |bound )?steps?|step definitions?|empty scenario", output, re.IGNORECASE)
     )
     feature_source = _consumer_artifact_path(feature_path, consumer)
+    feature_lines = feature_source.read_text(encoding="utf-8").splitlines()
+    scenario_lines = [
+        line_number
+        for line_number, line in enumerate(feature_lines, start=1)
+        if line.strip() == f"Scenario: {scenario_name}"
+    ]
+    assert len(scenario_lines) == 1, (scenario_name, scenario_lines, feature_lines)
+    scenario_location = f"{feature_source}:{scenario_lines[0]}"
     checks = {
         f"pytest exited successfully; got {result.returncode}": result.returncode == 0,
         "pytest reports the selected scenario as skipped": has_skip,
         "pytest includes an informative no-binding reason": has_meaningful_reason,
+        f"pytest skip reason identifies source location {scenario_location!r}": scenario_location in output,
         f"pytest output identifies scenario {scenario_name!r}": scenario_name in output,
         f"pytest output identifies feature source {feature_path!r}": any(
             source in output for source in (str(feature_source), feature_path, feature_source.name)
@@ -10243,6 +10271,32 @@ def consumer_all_unmatched_skip_has_reason(
     }
     failures = [message for message, passed in checks.items() if not passed]
     assert not failures, f"all-unmatched skip checks failed: {failures}\npytest output:\n{output}"
+
+
+@then(
+    re.compile(
+        r'pytest output should identify source "(?P<reported_path>[^"]+)" at the line containing '
+        r'"(?P<source_text>[^"]+)" in consumer feature "(?P<feature_path>[^"]+)"'
+    )
+)
+def consumer_pytest_output_identifies_source_line(
+    reported_path: str, source_text: str, feature_path: str, consumer: ConsumerProject
+) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    source_path = _consumer_artifact_path(feature_path, consumer)
+    source_lines = source_path.read_text(encoding="utf-8").splitlines()
+    line_numbers = [
+        line_number
+        for line_number, line in enumerate(source_lines, start=1)
+        if line.strip() == source_text
+    ]
+    assert len(line_numbers) == 1, (source_text, line_numbers, source_lines)
+    expected_reference = f"{reported_path}:{line_numbers[0]}"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert expected_reference in output, (
+        f"pytest output did not identify source location {expected_reference!r}:\n{output}"
+    )
 
 
 @then("pytest output should report exactly 2 deselected items")
