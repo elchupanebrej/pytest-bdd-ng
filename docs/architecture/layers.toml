@@ -69,7 +69,7 @@ L7 = { order = 9, name = "bootstrap", allowed_imports = ["L0", "L1", "L2a", "L2b
 "pytest_cuke.scenario" = "L5"
 "pytest_cuke.reporting" = "L6"
 "pytest_cuke.cucumber_json" = "L6"
-"pytest_cuke.gherkin_terminal_reporter" = "L6"
+"pytest_cuke.cucumber_progress" = "L6"
 "pytest_cuke.allure_logging" = "L6"
 "pytest_cuke.struct_bdd" = "L6"
 "pytest_cuke.ide_bindings" = "L6"
