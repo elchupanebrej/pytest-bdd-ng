@@ -10450,6 +10450,21 @@ def _write_plain_pytest_failure(consumer: ConsumerProject, *, phase: str, delaye
     )
 
 
+@given("the installed consumer has a trailing pytest test that waits after release")
+def install_trailing_debug_mcp_test(consumer: ConsumerProject) -> None:
+    (consumer.path / "test_z_after_debug_mcp_failure.py").write_text(
+        dedent(
+            '''\
+            import time
+
+            def test_wait_after_debug_mcp_failure_release():
+                time.sleep(2.0)
+            '''
+        ),
+        encoding="utf-8",
+    )
+
+
 @given("the installed consumer exposes a plain pytest call failure")
 def install_plain_pytest_call_failure(consumer: ConsumerProject) -> None:
     _write_plain_pytest_failure(consumer, phase="call")
@@ -11486,6 +11501,347 @@ def _mcp_endpoint_port(endpoint: object) -> tuple[str, int]:
     assert parsed.scheme == "http" and parsed.hostname and parsed.port, endpoint
     assert parsed.path == "/mcp", endpoint
     return parsed.hostname, parsed.port
+
+
+def _debug_mcp_lease_expiry_client_script() -> str:
+    return dedent(
+        '''\
+        import asyncio
+        import json
+        import sys
+        import time
+        from pathlib import Path
+
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
+
+        def tool_payload(result):
+            structured = getattr(result, "structuredContent", None)
+            if isinstance(structured, dict):
+                return structured
+            for block in getattr(result, "content", []):
+                text = getattr(block, "text", None)
+                if isinstance(text, str):
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(payload, dict):
+                        return payload
+            raise AssertionError(f"MCP tool did not return structured JSON: {result!r}")
+
+        async def main(endpoint, output_path):
+            async with streamable_http_client(endpoint, terminate_on_close=False) as (
+                read_stream,
+                write_stream,
+                _get_session_id,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    inspected_result = await session.call_tool("inspect_failure", {})
+                    assert not getattr(inspected_result, "isError", False), inspected_result
+                    inspected = tool_payload(inspected_result)
+                    failure = inspected.get("active_failure")
+                    assert isinstance(failure, dict), inspected
+                    session_id = inspected.get("session_id")
+                    sequence = failure.get("sequence")
+                    assert isinstance(session_id, str) and session_id, inspected
+                    assert isinstance(sequence, int) and sequence > 0, failure
+
+                    heartbeat_result = await session.call_tool(
+                        "heartbeat", {"session_id": session_id, "sequence": sequence}
+                    )
+                    assert not getattr(heartbeat_result, "isError", False), heartbeat_result
+                    heartbeat = tool_payload(heartbeat_result)
+                    assert heartbeat.get("session_id") == session_id, heartbeat
+                    assert heartbeat.get("sequence") == sequence, heartbeat
+                    Path(output_path).write_text(
+                        json.dumps(
+                            {
+                                "inspection": inspected,
+                                "heartbeat": heartbeat,
+                                "heartbeat_at": time.monotonic(),
+                            },
+                            indent=2,
+                        ),
+                        encoding="utf-8",
+                    )
+
+        asyncio.run(main(sys.argv[1], sys.argv[2]))
+        '''
+    )
+
+
+@when("an external MCP client heartbeats once and stops renewing the lease")
+def run_external_debug_mcp_lease_expiry_client(consumer: ConsumerProject) -> None:
+    process = getattr(consumer, "_mcp_pytest_process", None)
+    assert isinstance(process, subprocess.Popen), "the MCP pytest process has not been started"
+    command = consumer._mcp_pytest_command
+    output_path = consumer._mcp_pytest_output_path
+    client_path = consumer.path / "debug-mcp-lease-client.py"
+    result_path = consumer.path / "debug-mcp-lease-client-result.json"
+    try:
+        discovery = _mcp_read_discovery_record(consumer)
+        assert discovery.get("status") == "holding_failure", discovery
+        failure = discovery.get("active_failure")
+        assert isinstance(failure, dict), discovery
+        assert failure.get("phase") == "call", failure
+        assert failure.get("error_message") == consumer._mcp_expected_plain_message, failure
+        endpoint = discovery.get("inspection_endpoint")
+        _mcp_endpoint_port(endpoint)
+        consumer._mcp_initial_discovery = discovery
+
+        client_path.write_text(_debug_mcp_lease_expiry_client_script(), encoding="utf-8")
+        client_result = subprocess.run(
+            [str(consumer.python), str(client_path), str(endpoint), str(result_path)],
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        consumer._mcp_lease_client_result = client_result
+        assert client_result.returncode == 0, (
+            f"external MCP lease client failed ({client_result.returncode}):\n"
+            f"{client_result.stdout}\n{client_result.stderr}"
+        )
+        observation = json.loads(result_path.read_text(encoding="utf-8"))
+        inspected = observation.get("inspection")
+        heartbeat = observation.get("heartbeat")
+        assert isinstance(inspected, dict) and isinstance(heartbeat, dict), observation
+        assert inspected.get("session_id") == discovery.get("session_id"), (inspected, discovery)
+        assert inspected.get("active_failure") == failure, (inspected, failure)
+        assert heartbeat.get("session_id") == discovery.get("session_id"), observation
+        assert heartbeat.get("sequence") == failure.get("sequence"), observation
+        heartbeat_at = observation.get("heartbeat_at")
+        assert isinstance(heartbeat_at, (int, float)), observation
+        consumer._mcp_lease_client_observation = observation
+
+        try:
+            return_code = process.wait(timeout=12)
+        except subprocess.TimeoutExpired as error:
+            raise AssertionError("pytest did not resume after the external MCP heartbeat lease expired") from error
+        elapsed = time.monotonic() - heartbeat_at
+        output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+        consumer.pytest_result = subprocess.CompletedProcess(command, return_code, output, "")
+        assert return_code != 0, f"lease expiry changed the failed pytest outcome to success:\n{output}"
+        assert 1.8 <= elapsed <= 12, f"pytest resumed {elapsed:.3f}s after the heartbeat:\n{output}"
+
+        final_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "session.json"
+        final_record = json.loads(final_path.read_text(encoding="utf-8"))
+        assert final_record.get("status") == "closed", final_record
+        assert final_record.get("active_failure") is None, final_record
+        release = final_record.get("last_release")
+        assert isinstance(release, dict), final_record
+        assert release.get("session_id") == discovery.get("session_id"), (release, discovery)
+        assert release.get("sequence") == failure.get("sequence"), (release, failure)
+        assert release.get("reason") == "lease_expired", final_record
+        endpoints = [final_record.get("debugger_endpoint"), final_record.get("inspection_endpoint")]
+        assert endpoints == [None, None], final_record
+        consumer._mcp_final_record = final_record
+        consumer._mcp_lease_elapsed = elapsed
+        consumer._mcp_advertised_endpoints_after_finish = endpoints
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+
+
+@then('the MCP lease observation should prove bounded release from the current hold with reason "lease_expired"')
+def consumer_mcp_lease_expiry_observation(consumer: ConsumerProject) -> None:
+    discovery = getattr(consumer, "_mcp_initial_discovery", None)
+    observation = getattr(consumer, "_mcp_lease_client_observation", None)
+    final_record = getattr(consumer, "_mcp_final_record", None)
+    elapsed = getattr(consumer, "_mcp_lease_elapsed", None)
+    assert isinstance(discovery, dict) and isinstance(observation, dict), (discovery, observation)
+    assert isinstance(final_record, dict), final_record
+    assert isinstance(elapsed, float) and 1.8 <= elapsed <= 12, elapsed
+    failure = discovery.get("active_failure")
+    heartbeat = observation.get("heartbeat")
+    release = final_record.get("last_release")
+    assert isinstance(failure, dict) and isinstance(heartbeat, dict) and isinstance(release, dict)
+    assert heartbeat.get("sequence") == failure.get("sequence"), (heartbeat, failure)
+    assert release.get("sequence") == failure.get("sequence"), (release, failure)
+    assert release.get("reason") == "lease_expired", release
+    assert final_record.get("active_failure") is None, final_record
+
+
+def _debug_mcp_repeated_release_client_script() -> str:
+    return dedent(
+        '''\
+        import asyncio
+        import json
+        import sys
+        from pathlib import Path
+
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
+
+        def tool_payload(result):
+            structured = getattr(result, "structuredContent", None)
+            if isinstance(structured, dict):
+                return structured
+            for block in getattr(result, "content", []):
+                text = getattr(block, "text", None)
+                if isinstance(text, str):
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(payload, dict):
+                        return payload
+            raise AssertionError(f"MCP tool did not return structured JSON: {result!r}")
+
+        def error_snapshot(result):
+            return {
+                "is_error": bool(getattr(result, "isError", False)),
+                "messages": [
+                    getattr(block, "text", "")
+                    for block in getattr(result, "content", [])
+                    if isinstance(getattr(block, "text", None), str)
+                ],
+            }
+
+        async def main(endpoint, output_path):
+            async with streamable_http_client(endpoint, terminate_on_close=False) as (
+                read_stream,
+                write_stream,
+                _get_session_id,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    inspected_result = await session.call_tool("inspect_failure", {})
+                    assert not getattr(inspected_result, "isError", False), inspected_result
+                    inspected = tool_payload(inspected_result)
+                    failure = inspected.get("active_failure")
+                    session_id = inspected.get("session_id")
+                    assert isinstance(failure, dict) and isinstance(session_id, str), inspected
+                    sequence = failure.get("sequence")
+                    assert isinstance(sequence, int) and sequence > 0, failure
+
+                    release_result = await session.call_tool(
+                        "release_failure", {"session_id": session_id, "sequence": sequence}
+                    )
+                    assert not getattr(release_result, "isError", False), release_result
+                    release = tool_payload(release_result)
+                    assert release.get("released") is True, release
+
+                    repeated_release_result = await session.call_tool(
+                        "release_failure", {"session_id": session_id, "sequence": sequence}
+                    )
+                    repeated_release = error_snapshot(repeated_release_result)
+                    assert repeated_release["is_error"], repeated_release
+                    assert any(
+                        "there is no active failure matching this Debug MCP session and sequence" in message
+                        for message in repeated_release["messages"]
+                    ), repeated_release
+                    Path(output_path).write_text(
+                        json.dumps(
+                            {
+                                "inspection": inspected,
+                                "release": release,
+                                "repeated_release": repeated_release,
+                            },
+                            indent=2,
+                        ),
+                        encoding="utf-8",
+                    )
+
+        asyncio.run(main(sys.argv[1], sys.argv[2]))
+        '''
+    )
+
+
+@when("an external MCP client releases the held failure and retries release")
+def run_external_debug_mcp_repeated_release_client(consumer: ConsumerProject) -> None:
+    process = getattr(consumer, "_mcp_pytest_process", None)
+    assert isinstance(process, subprocess.Popen), "the MCP pytest process has not been started"
+    command = consumer._mcp_pytest_command
+    output_path = consumer._mcp_pytest_output_path
+    client_path = consumer.path / "debug-mcp-repeated-release-client.py"
+    result_path = consumer.path / "debug-mcp-repeated-release-client-result.json"
+    try:
+        discovery = _mcp_read_discovery_record(consumer)
+        assert discovery.get("status") == "holding_failure", discovery
+        failure = discovery.get("active_failure")
+        assert isinstance(failure, dict), discovery
+        endpoint = discovery.get("inspection_endpoint")
+        _mcp_endpoint_port(endpoint)
+        consumer._mcp_initial_discovery = discovery
+
+        client_path.write_text(_debug_mcp_repeated_release_client_script(), encoding="utf-8")
+        client_result = subprocess.run(
+            [str(consumer.python), str(client_path), str(endpoint), str(result_path)],
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        consumer._mcp_repeated_release_client_result = client_result
+        assert client_result.returncode == 0, (
+            f"external MCP repeated-release client failed ({client_result.returncode}):\n"
+            f"{client_result.stdout}\n{client_result.stderr}"
+        )
+        observation = json.loads(result_path.read_text(encoding="utf-8"))
+        assert observation.get("inspection", {}).get("active_failure") == failure, observation
+        assert observation.get("release", {}).get("released") is True, observation
+        consumer._mcp_repeated_release_observation = observation
+
+        try:
+            return_code = process.wait(timeout=15)
+        except subprocess.TimeoutExpired as error:
+            raise AssertionError("pytest did not resume after the external release") from error
+        output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+        consumer.pytest_result = subprocess.CompletedProcess(command, return_code, output, "")
+        assert return_code != 0, f"release changed the failed pytest outcome to success:\n{output}"
+        final_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "session.json"
+        final_record = json.loads(final_path.read_text(encoding="utf-8"))
+        assert final_record.get("status") == "closed", final_record
+        assert final_record.get("active_failure") is None, final_record
+        release = final_record.get("last_release")
+        assert isinstance(release, dict), final_record
+        assert release.get("reason") == "explicit", final_record
+        assert release.get("session_id") == discovery.get("session_id"), (release, discovery)
+        assert release.get("sequence") == failure.get("sequence"), (release, failure)
+        endpoints = [final_record.get("debugger_endpoint"), final_record.get("inspection_endpoint")]
+        assert endpoints == [None, None], final_record
+        consumer._mcp_final_record = final_record
+        consumer._mcp_advertised_endpoints_after_finish = endpoints
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+
+
+@then("the MCP repeated-release observation should report the controlled unavailable-failure error")
+def consumer_mcp_repeated_release_observation(consumer: ConsumerProject) -> None:
+    discovery = getattr(consumer, "_mcp_initial_discovery", None)
+    observation = getattr(consumer, "_mcp_repeated_release_observation", None)
+    final_record = getattr(consumer, "_mcp_final_record", None)
+    assert isinstance(discovery, dict) and isinstance(observation, dict), (discovery, observation)
+    assert isinstance(final_record, dict), final_record
+    failure = discovery.get("active_failure")
+    release = observation.get("release")
+    repeated_release = observation.get("repeated_release")
+    assert isinstance(failure, dict) and isinstance(release, dict) and isinstance(repeated_release, dict), observation
+    assert release.get("sequence") == failure.get("sequence"), (release, failure)
+    assert repeated_release.get("is_error") is True, repeated_release
+    assert any(
+        "there is no active failure matching this Debug MCP session and sequence" in message
+        for message in repeated_release.get("messages", [])
+    ), repeated_release
+    assert final_record.get("last_release", {}).get("reason") == "explicit", final_record
 
 
 def _debug_mcp_plain_failure_client_script() -> str:
