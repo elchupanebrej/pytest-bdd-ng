@@ -53,6 +53,10 @@ def test_parse_and_format_versions() -> None:
 
 def test_is_pair_compatible() -> None:
     assert is_pair_compatible("310", "80") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("312", "74") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("314", "84") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("314", "90") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("39", "80") == (False, REASON_EOL_PYTHON)
+    assert is_pair_compatible("313", "80")[0] is False
     assert is_pair_compatible("invalid", "80") == (False, REASON_PYTHON_UNAVAILABLE)
     assert is_pair_compatible("310", "unknown") == (False, REASON_PYTEST_UNAVAILABLE)

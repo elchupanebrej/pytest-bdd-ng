@@ -14,13 +14,19 @@ The project matrix is configured in `pyproject.toml`:
     pytest-factors = ["7.0", "8.0", "9.0", "latest"]
     execution-targets = ["lin", "mac", "win"]
     tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
-    compatibility-source = "pytest-metadata"
+    compatibility-source = "pytest-official-policy-and-release-notes"
 
 `python-factors` and `pytest-factors` accept dotted versions or tox-style
-factors. `latest` is an explicit policy entry resolved through the pinned
-compatibility bounds in `pytest_cuke.compatibility.runtime_compat`; the command
-does not query an installed pytest or infer runtime support from an environment
-name. Update those bounds deliberately when adding a pytest release line.
+factors. `latest` is an explicit policy entry resolved through the minimum
+supported Python floor in `pytest_cuke.compatibility.runtime_compat`; the
+command does not query an installed pytest or infer runtime support from an
+environment name. The configured release bounds reflect pytest's [Python
+support policy](https://docs.pytest.org/en/stable/backwards-compatibility.html)
+and release notes for when new Python versions gained support, including
+[Python 3.12 in pytest 7.3](https://docs.pytest.org/en/7.4.x/changelog.html),
+[Python 3.13 in pytest 8.2](https://docs.pytest.org/en/8.4.x/changelog.html),
+and [Python 3.14 in pytest 8.4](https://docs.pytest.org/en/8.4.x/changelog.html).
+Update those bounds deliberately when adding a pytest release line.
 `tox-env-template` must include `{python}`, `{pytest}`, and either `{target}` or
 `{platform}`. Expansion emits names only for pairs accepted by both upstream
 compatibility bounds and the project's minimum supported Python/pytest versions.
@@ -109,3 +115,71 @@ registrations remain. Invalid thresholds, unreadable or malformed feature and
 Python files, invalid explicit roots, and malformed config return actionable
 diagnostics on stderr with status 2. JSON output is written to stdout without
 diagnostic text.
+
+## Supported environment inventory and acceptance
+
+`config/env-matrix.yaml` is the source for the supported runtime, platform,
+optional-capability and CI-cell inventory. It records each cell's concrete tox
+environments, CI selector, prerequisites and runnable carrier. Unsupported
+combinations include a source-backed reason. The checker compares these entries
+with the resolved tox listing and GitHub Actions selectors; an environment
+name alone does not establish that a lane ran. The fast PR selector excludes
+`slow`, `e2e`, `external` and `typecheck`; full runtime tox commands exclude
+`e2e`, `external` and `typecheck`. Dedicated browser, native and remote jobs
+install or verify their own prerequisites. xdist proof is reported as
+`parallel`, separately from serial runtime proof.
+
+Install the development and inventory tools, inspect resolved tox environments,
+and validate the inventory from the repository root:
+
+    python -m pip install -e ".[test,struct-bdd,env-matrix]"
+    tox list --no-desc
+    cuke compatibility --check-environments --inventory config/env-matrix.yaml --json
+
+Probe a lane's declared prerequisites and real test carrier with
+`--lane <lane-id>`. A missing requested tool or empty carrier selection fails
+with a diagnostic and remedy:
+
+    cuke compatibility --check-environments --inventory config/env-matrix.yaml --lane optional-dependency-probe --json
+    cuke compatibility --check-environments --inventory config/env-matrix.yaml --lane browser-report --json
+
+For a full acceptance run, execute the inventory-selected jobs on a push or
+workflow dispatch. The `full-supported-proof-<sha>` artifact contains the
+aggregate summary, each environment's exact SHA, tox environment, installed
+versions, resolved command, selected and passed test counts and result, and the
+source evidence JSON from each matrix cell. Aggregation fails if a cell is missing or
+duplicated, the SHA differs, the actual interpreter or pytest version conflicts
+with the inventory/tox factor, a declared environment fails, or a test lane
+selects no tests. Quality tool lanes are recorded without pretending that a
+pytest test count applies to them.
+
+`tox run` executes the complete declared tox environment list. To run the two
+manual CPython 3.12 platform lanes explicitly:
+
+    tox run -e py312-pytest73-coverage-mac,py312-pytest74-coverage-mac,py312-pytest80-coverage-mac,py312-pytest81-coverage-mac,py312-pytest73-coverage-win,py312-pytest74-coverage-win,py312-pytest80-coverage-win,py312-pytest81-coverage-win
+
+The remote xdist environments require a working Docker Engine and Compose;
+the SSH mode also requires `ssh-keygen`. The browser-report environment requires
+Node.js/npm/npx and Chromium with its system libraries. The native Go parser
+environment requires Go and a C compiler; the Windows workflow installs MinGW
+before running it. Missing prerequisites fail the selected lane with the
+required tool named in the diagnostic.
+
+The fast pull-request selector is only a Linux CPython 3.13 feedback run:
+
+    python -m pytest -m "not e2e and not external and not slow and not typecheck" -q
+
+The fast selector excludes `slow`, `e2e`, `external` and `typecheck`. Full
+runtime tox commands exclude `e2e`, `external` and `typecheck`; dedicated
+browser, native and remote jobs run their own contracts and prerequisites.
+On push and manual workflow dispatch, the full runtime matrix, browser report,
+native parser, remote xdist and quality jobs upload JSON evidence tied to the
+workflow's exact Git SHA. Each record contains the tox environment, resolved
+command, selected test count where applicable, actual Python/pytest and
+optional package versions, selected and passed test counts, and outcome. The `aggregate-proof` job requires
+every inventory environment, including the `serial`, `parallel`, `e2e`,
+`external` and `quality` groups, and publishes
+`full-supported-proof-<sha>`. Missing, duplicated, mismatched or failed cell
+evidence, and test lanes with no selected tests, fail the aggregate. The
+separate native-parser workflow remains available for pull requests and manual
+dispatch; push proof is collected by the main workflow.

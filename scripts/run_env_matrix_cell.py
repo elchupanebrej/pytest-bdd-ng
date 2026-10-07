@@ -1,0 +1,215 @@
+"""Run one inventory cell and record the exact tox/runtime evidence."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import platform
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+from env_matrix import load_cells
+from environment_evidence import (
+    OPTIONAL_VERSION_KEYS,
+    TEST_EVIDENCE_GROUPS,
+    evidence_group,
+    required_optional_versions,
+)
+
+_OPTIONAL_PACKAGES = ("pytest", *OPTIONAL_VERSION_KEYS)
+
+
+def _installed_versions(python: Path) -> dict[str, Any]:
+    package_names = json.dumps(_OPTIONAL_PACKAGES)
+    query = "\n".join(
+        (
+            "import importlib.metadata as metadata, json, platform",
+            f"names = {package_names}",
+            "installed = {dist.metadata['Name'].casefold(): dist.version for dist in metadata.distributions()}",
+            "versions = {name: installed.get(name.casefold()) for name in names}",
+            "payload = {'python': platform.python_version(),",
+            "'runtime': platform.python_implementation(), 'packages': versions}",
+            "print(json.dumps(payload))",
+        )
+    )
+    result = subprocess.run(  # noqa: S603 - executable is the tox environment's Python path
+        [str(python), "-c", query], capture_output=True, text=True, check=False
+    )
+    if result.returncode:
+        raise RuntimeError(f"cannot inspect tox environment with {python}: {result.stderr.strip()}")
+    return json.loads(result.stdout)
+
+
+def _python_in_tox_environment(project_root: Path, env_name: str) -> Path:
+    environment = project_root / ".tox" / env_name
+    executable = "python.exe" if os.name == "nt" else "python"
+    scripts_dir = "Scripts" if os.name == "nt" else "bin"
+    python = environment / scripts_dir / executable
+    if not python.is_file():
+        raise RuntimeError(f"tox environment {env_name!r} has no Python executable at {python}")
+    return python
+
+
+def _test_counts(output: str) -> dict[str, int] | None:
+    for line in reversed(output.splitlines()):
+        counts = re.findall(r"\b(\d+)\s+(passed|failed|errors?|skipped|xfailed|xpassed)\b", line)
+        if counts:
+            summary: dict[str, int] = {}
+            for count, outcome in counts:
+                key = "error" if outcome in {"error", "errors"} else outcome
+                summary[key] = summary.get(key, 0) + int(count)
+            return summary
+    return None
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--job", required=True)
+    parser.add_argument("--cell", required=True)
+    parser.add_argument("--inventory", type=Path, default=Path("config/env-matrix.yaml"))
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--sha", default=os.environ.get("GITHUB_SHA"))
+    args = parser.parse_args()
+
+    if not args.sha:
+        print("run-env-matrix: pass --sha or set GITHUB_SHA so evidence is tied to an exact commit", file=sys.stderr)
+        return 2
+    tox = shutil.which("tox")
+    if tox is None:
+        print(
+            "run-env-matrix: tox is not installed; run `python -m pip install 'pytest-cuke[env-matrix]'`",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        cells = load_cells(args.inventory, args.job)
+    except RuntimeError as error:
+        print(f"run-env-matrix: {error}", file=sys.stderr)
+        return 2
+    selected = next((cell for cell in cells if cell.get("id") == args.cell), None)
+    if selected is None:
+        print(f"run-env-matrix: cell {args.cell!r} is not part of job {args.job!r}", file=sys.stderr)
+        return 2
+
+    project_root = args.inventory.resolve().parent.parent
+    output_path = args.output.resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    tox_results_dir = output_path.parent / "tox-results"
+    tox_results_dir.mkdir(parents=True, exist_ok=True)
+    environment_records: list[dict[str, Any]] = []
+    overall_status = "passed"
+    for env_name in selected["tox_envs"]:
+        result_json = tox_results_dir / f"{env_name}.json"
+        command = [tox, "run", "--result-json", str(result_json), "-e", env_name]
+        command_environment = os.environ.copy()
+        if args.job == "native-go-parser":
+            command_environment["PYTEST_CUKE_BUILD_GO"] = "off"
+        print(f"Running {' '.join(command)}", flush=True)
+        run = subprocess.run(  # noqa: S603 - command is generated from the validated inventory's tox env name
+            command,
+            cwd=project_root,
+            env=command_environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if run.stdout:
+            print(run.stdout, end="" if run.stdout.endswith("\n") else "\n", flush=True)
+        if run.stderr:
+            print(run.stderr, file=sys.stderr, end="" if run.stderr.endswith("\n") else "\n", flush=True)
+        if run.returncode:
+            overall_status = "failed"
+
+        output = run.stdout + "\n" + run.stderr
+        test_counts = _test_counts(output)
+        selected_tests = sum(test_counts.values()) if test_counts else None
+        passed_tests = test_counts.get("passed", 0) if test_counts else None
+        environment_group = evidence_group(args.job, env_name)
+        if environment_group in TEST_EVIDENCE_GROUPS:
+            if selected_tests is None or selected_tests < 1:
+                overall_status = "failed"
+                print(
+                    f"run-env-matrix: {env_name} selected no tests; refusing to record an empty acceptance run",
+                    file=sys.stderr,
+                )
+            elif passed_tests is None or passed_tests < 1:
+                overall_status = "failed"
+                print(
+                    f"run-env-matrix: {env_name} selected no tests that passed; "
+                    "all selected tests may have been skipped or expected to fail",
+                    file=sys.stderr,
+                )
+
+        environment_record: dict[str, Any] = {
+            "git_sha": args.sha,
+            "job": args.job,
+            "cell": args.cell,
+            "group": environment_group,
+            "tox_environment": env_name,
+            "command": command,
+            "selected_tests": selected_tests,
+            "passed_tests": passed_tests,
+            "outcome": "passed" if run.returncode == 0 else "failed",
+            "returncode": run.returncode,
+            "platform": platform.platform(),
+            "platform_name": sys.platform,
+            "result_json": result_json.as_posix(),
+        }
+        try:
+            runtime_evidence = _installed_versions(_python_in_tox_environment(project_root, env_name))
+            packages = runtime_evidence.pop("packages")
+            environment_record.update(runtime_evidence)
+            environment_record["pytest"] = packages.pop("pytest", None)
+            environment_record["optional_versions"] = packages
+            missing_optional = [
+                package
+                for package in required_optional_versions(env_name)
+                if not packages.get(package)
+            ]
+            if missing_optional:
+                environment_record["outcome"] = "failed"
+                environment_record["missing_optional_packages"] = missing_optional
+                overall_status = "failed"
+                print(
+                    f"run-env-matrix: {env_name} is missing required optional package(s): "
+                    f"{', '.join(missing_optional)}",
+                    file=sys.stderr,
+                )
+        except (OSError, RuntimeError, json.JSONDecodeError) as error:
+            environment_record["runtime_evidence_error"] = str(error)
+            environment_record["outcome"] = "failed"
+            overall_status = "failed"
+        if result_json.is_file():
+            try:
+                environment_record["tox_result"] = json.loads(result_json.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as error:
+                environment_record["tox_result_error"] = str(error)
+                environment_record["outcome"] = "failed"
+                overall_status = "failed"
+        else:
+            environment_record["tox_result_error"] = "tox did not write the requested result JSON"
+            environment_record["outcome"] = "failed"
+            overall_status = "failed"
+        environment_records.append(environment_record)
+
+    evidence = {
+        "schema_version": 1,
+        "git_sha": args.sha,
+        "job": args.job,
+        "cell": args.cell,
+        "outcome": overall_status,
+        "environments": environment_records,
+    }
+    output_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"Environment evidence written to {output_path}")
+    return 0 if overall_status == "passed" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

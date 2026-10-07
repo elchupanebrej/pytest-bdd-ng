@@ -55,7 +55,7 @@ dependencies = [
   "decopatch",
   "docopt-ng",
   "filelock",
-  "gherkin-official>=24,<30",
+  "gherkin-official>=24,<34",
   "importlib-metadata;python_version<'3.10.0'",
   "importlib-resources",
   "jsonschema>=4.18",
@@ -70,7 +70,7 @@ dependencies = [
   "pydantic>=2.0.3",
   "referencing>=0.30",
   "tomli;python_version<'3.11.0'",
-  "pytest>=5.2",
+  "pytest>=7.0",
   "cucumber-tag-expressions",
   "typing-extensions;python_version<'3.11.0'"
 ]
@@ -119,6 +119,13 @@ testtypes = [
 test = [
   "pytest>=7.0.0",
   "attrs>=22.2.0"
+]
+env-matrix = [
+  "PyYAML==6.0.3",
+  "tox>=4.2"
+]
+test-playwright = [
+  "playwright>=1.50,<2"
 ]
 mutation = [
   "mutmut>=3.0.0"
@@ -300,7 +307,7 @@ python-factors = ["3.10", "3.11", "3.12", "3.13", "3.14"]
 pytest-factors = ["7.0", "8.0", "9.0", "latest"]
 execution-targets = ["lin", "mac", "win"]
 tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
-compatibility-source = "pytest-metadata"
+compatibility-source = "pytest-official-policy-and-release-notes"
 
 [tool.pytest-cuke.migration-audit]
 feature-patterns = ["features/**/*.feature", "features/**/*.gherkin", "features/**/*.feature.md", "features/**/*.gherkin.md"]
