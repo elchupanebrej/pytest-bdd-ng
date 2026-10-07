@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from pytest_cuke.compatibility.environment_matrix import check_environment_inventory
 from pytest_cuke.compatibility.matrix import (
     CompatibilityConfig,
     CompatibilityConfigurationError,
@@ -33,7 +34,7 @@ _REASON_MESSAGES = {
 
 
 def configure_compatibility_parser(parser: argparse.ArgumentParser) -> None:
-    """Add matrix, pair-check, tox-expansion and migration-audit options."""
+    """Add matrix, pair-check, environment-proof and migration-audit options."""
     parser.add_argument("--config", type=Path, help="use an explicit TOML or legacy tox INI configuration")
     parser.add_argument("--list", action="store_true", help="list the configured Python/pytest matrix")
     parser.add_argument(
@@ -45,6 +46,18 @@ def configure_compatibility_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--pytest", dest="pytest_version", help="pytest version/factor to check, or latest")
     parser.add_argument("--expand-tox", action="store_true", help="list configured tox environments for accepted pairs")
     parser.add_argument("--audit-migration", action="store_true", help="audit feature and Python scenario identities")
+    parser.add_argument(
+        "--check-environments",
+        action="store_true",
+        help="validate the declared environment inventory against tox and CI",
+    )
+    parser.add_argument(
+        "--inventory",
+        type=Path,
+        default=None,
+        help="environment inventory YAML (default: config/env-matrix.yaml)",
+    )
+    parser.add_argument("--lane", help="probe prerequisites and collect tests for one environment lane")
     parser.add_argument("--features-root", type=Path, help="feature inventory root (default: PROJECT/features)")
     parser.add_argument("--tests-root", type=Path, help="Python registration root (default: PROJECT/tests)")
     parser.add_argument("--threshold-percent", type=int, help="override the configured migration threshold (0-100)")
@@ -58,6 +71,17 @@ def run_compatibility_command(namespace: argparse.Namespace) -> int:
         return 2
 
     try:
+        if operation == "environments":
+            report = check_environment_inventory(
+                namespace.inventory or Path("config/env-matrix.yaml"),
+                lane_id=namespace.lane,
+            )
+            if namespace.json:
+                _emit_json(report)
+            else:
+                _emit_environment_report(report)
+            return 0 if report.get("status") == "pass" else 2
+
         config = load_compatibility_config(
             namespace.config,
             require_matrix=operation in {"list", "tox"},
@@ -78,6 +102,13 @@ def run_compatibility_command(namespace: argparse.Namespace) -> int:
 
 def _selected_operation(namespace: argparse.Namespace) -> str | None:
     """Validate command mode flags and return the selected operation name."""
+    environment_requested = bool(getattr(namespace, "check_environments", False))
+    if (
+        getattr(namespace, "inventory", None) is not None or getattr(namespace, "lane", None)
+    ) and not environment_requested:
+        print("cuke compatibility: --inventory and --lane require --check-environments", file=sys.stderr)
+        return None
+
     pair_requested = namespace.python_version is not None or namespace.pytest_version is not None
     if pair_requested and (namespace.python_version is None or namespace.pytest_version is None):
         print("cuke compatibility: pair checks require both --python and --pytest", file=sys.stderr)
@@ -90,12 +121,14 @@ def _selected_operation(namespace: argparse.Namespace) -> str | None:
             (pair_requested, "pair"),
             (bool(namespace.expand_tox), "tox"),
             (bool(namespace.audit_migration), "audit"),
+            (bool(getattr(namespace, "check_environments", False)), "environments"),
         )
         if enabled
     ]
     if len(selected) != 1:
         print(
-            "cuke compatibility: choose exactly one of --list, --python/--pytest, --expand-tox, or --audit-migration",
+            "cuke compatibility: choose exactly one of --list, --python/--pytest, --expand-tox, "
+            "--audit-migration, or --check-environments",
             file=sys.stderr,
         )
         return None
@@ -185,6 +218,21 @@ def _emit_audit_text(payload: dict[str, Any]) -> None:
         f"in_features={payload['userFacingInFeatures']} "
         f"duplicates={payload['duplicatesInTests']} status={status}"
     )
+
+
+def _emit_environment_report(payload: dict[str, Any]) -> None:
+    status = payload.get("status", "fail")
+    inventory = payload.get("inventory", {})
+    print(
+        f"environment inventory: {status}; "
+        f"required_lanes={inventory.get('requiredLaneCount', 0)}; "
+        f"tox_environments={len(inventory.get('toxEnvironments', []))}"
+    )
+    for diagnostic in payload.get("diagnostics", []):
+        print(
+            f"{diagnostic.get('laneId', 'inventory')}: {diagnostic.get('message', 'validation failed')}\n"
+            f"  remedy: {diagnostic.get('remedy', 'review config/env-matrix.yaml')}"
+        )
 
 
 __all__ = ["configure_compatibility_parser", "run_compatibility_command"]

@@ -86,9 +86,7 @@ def pytest_cuke_step_error(
     """
 
 
-def pytest_cuke_step_func_lookup_error(
-    request: FixtureRequest, run: RunContext, exception: Exception
-) -> None:
+def pytest_cuke_step_func_lookup_error(request: FixtureRequest, run: RunContext, exception: Exception) -> None:
     """Called when step lookup failed."""
 
 
@@ -108,9 +106,7 @@ def pytest_cuke_convert_tag_to_marks(feature: Feature, scenario: Scenario, tag: 
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_match_step_definition_to_step(
-    request: FixtureRequest, run: RunContext
-) -> Any:
+def pytest_cuke_match_step_definition_to_step(request: FixtureRequest, run: RunContext) -> Any:
     """Find match between scenario step and user defined step function"""
 
 
@@ -154,6 +150,7 @@ def pytest_cuke_formatter_requests(config: Config) -> Iterable[FormatterRequest]
     runtime sorts and validates the combined request catalog before tests run.
     Each child process reads validated Cucumber Messages NDJSON from stdin.
     """
+    return ()
 
 
 @hookspec(firstresult=True)

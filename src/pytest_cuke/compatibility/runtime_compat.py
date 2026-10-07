@@ -3,18 +3,20 @@ from __future__ import annotations
 from attrs import frozen
 
 PYTEST_COMPATIBILITY_BOUNDS: dict[str, tuple[tuple[int, int], tuple[int, int] | None]] = {
-    "70": ((3, 7), (3, 11)),
-    "71": ((3, 7), (3, 11)),
+    # Upper bounds record the newest Python version with explicit support in
+    # that pytest minor line. The project support floor is applied separately.
+    "70": ((3, 6), (3, 10)),
+    "71": ((3, 7), (3, 10)),
     "72": ((3, 7), (3, 11)),
-    "73": ((3, 7), (3, 11)),
-    "74": ((3, 7), (3, 11)),
-    "80": ((3, 8), (3, 13)),
-    "81": ((3, 8), (3, 13)),
+    "73": ((3, 7), (3, 12)),
+    "74": ((3, 7), (3, 12)),
+    "80": ((3, 8), (3, 12)),
+    "81": ((3, 8), (3, 12)),
     "82": ((3, 8), (3, 13)),
     "83": ((3, 8), (3, 13)),
-    "84": ((3, 8), (3, 13)),
-    "90": ((3, 9), (3, 14)),
-    "latest": ((3, 9), (3, 14)),
+    "84": ((3, 9), (3, 14)),
+    "90": ((3, 10), (3, 14)),
+    "latest": ((3, 10), None),
 }
 
 MIN_SUPPORTED_PYTHON: tuple[int, int] = (3, 10)
