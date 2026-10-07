@@ -32,8 +32,8 @@ class XdistDiscoveryIndex:
 
     def initialize(self) -> None:
         """Replace stale discovery with an empty index for the current pytest run."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.workers_dir.mkdir(parents=True, exist_ok=True)
+        self._ensure_directory(self.path.parent, "worker discovery root directory")
+        self._ensure_directory(self.workers_dir, "worker discovery workers directory")
         with self._locked():
             for path in self.workers_dir.iterdir():
                 if path.is_file() or path.is_symlink():
@@ -42,7 +42,7 @@ class XdistDiscoveryIndex:
 
     def clear_previous(self) -> None:
         """Remove an old xdist index before a standalone Debug MCP session starts."""
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._ensure_directory(self.path.parent, "worker discovery root directory")
         with self._locked():
             self.path.unlink(missing_ok=True)
             if self.workers_dir.exists():
@@ -132,6 +132,15 @@ class XdistDiscoveryIndex:
                             raise XdistDiscoveryError(
                                 f"could not replace invalid worker discovery file {worker_path}: {unlink_error}"
                             ) from unlink_error
+                    elif cached_record is not None and record.get("session_id") != cached_record.get("session_id"):
+                        invalid_record_error = f"worker discovery session ID mismatch at {worker_path}"
+                        record = cached_record
+                        try:
+                            worker_path.unlink(missing_ok=True)
+                        except OSError as unlink_error:
+                            raise XdistDiscoveryError(
+                                f"could not replace invalid worker discovery file {worker_path}: {unlink_error}"
+                            ) from unlink_error
             else:
                 record = cached_record or {
                     "root_session_id": self.session_id,
@@ -166,6 +175,44 @@ class XdistDiscoveryIndex:
             self.worker_path(worker_id).unlink(missing_ok=True)
             workers = self._read_workers_locked()
             self._write_index_locked(workers, _combined_status(workers))
+
+    def worker_is_closed(self, worker_id: str) -> bool:
+        """Check whether a worker left a valid closed record before its process exited."""
+        self._validate_worker_id(worker_id)
+        with self._locked():
+            index = self._read_index_locked()
+            if index.get("session_id") != self.session_id:
+                raise XdistDiscoveryError("the root discovery index belongs to a different pytest session")
+            cached_workers = index.get("workers")
+            cached_record = next(
+                (
+                    worker
+                    for worker in cached_workers
+                    if isinstance(worker, dict) and worker.get("worker_id") == worker_id
+                ),
+                None,
+            ) if isinstance(cached_workers, list) else None
+            worker_path = self.worker_path(worker_id)
+            record = self._read_json(worker_path) if worker_path.exists() else cached_record
+            if record is None:
+                return False
+            if record.get("worker_id") != worker_id or record.get("root_session_id") != self.session_id:
+                raise XdistDiscoveryError(f"worker {worker_id!r} has an invalid discovery identity")
+            if cached_record is None:
+                return False
+            if cached_record.get("root_session_id") != self.session_id:
+                raise XdistDiscoveryError(f"worker {worker_id!r} has a stale root discovery record")
+            session_id = record.get("session_id")
+            if not isinstance(session_id, str) or not session_id or cached_record.get("session_id") != session_id:
+                return False
+            return (
+                record.get("status") == "closed"
+                and record.get("debugger_endpoint") is None
+                and record.get("inspection_endpoint") is None
+                and cached_record.get("status") == "closed"
+                and cached_record.get("debugger_endpoint") is None
+                and cached_record.get("inspection_endpoint") is None
+            )
 
     def close(self) -> None:
         """Mark the index closed after worker shutdown and remove all live endpoints."""
@@ -215,7 +262,7 @@ class XdistDiscoveryIndex:
             self._write_index_locked(workers, _combined_status(workers))
 
     def _write_worker_locked(self, worker_id: str, record: dict[str, Any]) -> None:
-        self.workers_dir.mkdir(parents=True, exist_ok=True)
+        self._ensure_directory(self.workers_dir, "worker discovery workers directory")
         path = self.worker_path(worker_id)
         if path.exists():
             previous = self._read_json(path)
@@ -258,8 +305,15 @@ class XdistDiscoveryIndex:
             raise XdistDiscoveryError(f"worker discovery file must contain a JSON object: {path}")
         return payload
 
+    @staticmethod
+    def _ensure_directory(path: Path, description: str) -> None:
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+        except OSError as error:
+            raise XdistDiscoveryError(f"could not create {description} {path}: {error}") from error
+
     def _write_index_locked(self, workers: list[dict[str, Any]], status: str) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._ensure_directory(self.path.parent, "worker discovery root directory")
         self._write_atomically(
             self.path,
             {
@@ -279,11 +333,20 @@ class XdistDiscoveryIndex:
 
     @contextmanager
     def _locked(self) -> Iterator[None]:
+        lock = FileLock(str(self.lock_path), timeout=self.lock_timeout)
         try:
-            with FileLock(str(self.lock_path), timeout=self.lock_timeout):
-                yield
+            lock.acquire(timeout=self.lock_timeout)
         except (OSError, Timeout) as error:
             raise XdistDiscoveryError(f"could not acquire worker discovery lock {self.lock_path}: {error}") from error
+        try:
+            yield
+        finally:
+            try:
+                lock.release()
+            except OSError as error:
+                raise XdistDiscoveryError(
+                    f"could not release worker discovery lock {self.lock_path}: {error}"
+                ) from error
 
     @staticmethod
     def _record_worker_id(record: dict[str, Any]) -> str:
