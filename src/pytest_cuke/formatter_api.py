@@ -1,4 +1,4 @@
-"""Public extension contracts for live Cucumber formatter plugins.
+"""Public extension contracts for live and standalone Cucumber formatter plugins.
 
 Third-party pytest plugins can return :class:`FormatterRequest` instances from
 ``pytest_cuke_formatter_requests``. The shared runtime owns validation,
@@ -12,6 +12,7 @@ import math
 import os
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from threading import TIMEOUT_MAX
+from typing import Protocol
 
 from attrs import frozen
 
@@ -44,10 +45,28 @@ class FormatterAsset:
 
 
 @frozen
-class FormatterRequest:
-    """Describe one selected live formatter process.
+class FormatterSelection:
+    """Describe one formatter selected by the standalone replay command."""
 
-    The child reads one JSON Cucumber Messages envelope per line from stdin.
+    name: str
+    destination: Path | None
+    working_directory: Path
+
+    def __attrs_post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("Formatter selection name must not be empty")
+        if self.destination is not None and not isinstance(self.destination, Path):
+            raise ValueError("Formatter selection destination must be a pathlib.Path or None")
+        if not isinstance(self.working_directory, Path):
+            raise ValueError("Formatter selection working_directory must be a pathlib.Path")
+
+
+@frozen
+class FormatterRequest:
+    """Describe one selected formatter process.
+
+    The child reads one JSON Cucumber Messages envelope per line from stdin,
+    both during a live pytest run and when replaying a saved stream.
     It writes either terminal output (``output_path=None``) or a report to
     stdout (``output_path`` set). The runtime stages file output and replaces
     the destination only after a clean process exit.
@@ -71,10 +90,7 @@ class FormatterRequest:
         if (
             not isinstance(self.command, tuple)
             or not self.command
-            or any(
-                not isinstance(argument, str) or not argument or "\x00" in argument
-                for argument in self.command
-            )
+            or any(not isinstance(argument, str) or not argument or "\x00" in argument for argument in self.command)
         ):
             raise ValueError(f"Formatter request {self.name!r} must provide a non-empty argv command")
         try:
@@ -120,4 +136,10 @@ class FormatterRequest:
             raise ValueError(f"Formatter request {self.name!r} uses {{asset_dir}} without runtime assets")
 
 
-__all__ = ["FormatterAsset", "FormatterRequest"]
+class FormatterRequestFactory(Protocol):
+    """Factory loaded from the ``pytest_cuke.formatters`` entry-point group."""
+
+    def __call__(self, selection: FormatterSelection, /) -> FormatterRequest: ...
+
+
+__all__ = ["FormatterAsset", "FormatterRequest", "FormatterRequestFactory", "FormatterSelection"]

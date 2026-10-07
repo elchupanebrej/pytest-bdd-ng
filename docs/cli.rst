@@ -14,7 +14,7 @@ For example, feature autoload can be selected with ``--cuke-autoload`` and the
 feature root can be changed with ``--cuke-features-dir=features``.
 
 The built-in commands are ``validate <features-dir>``, ``generate steps``,
-``sync messages schemas``, and ``convert allure``. ``validate`` recursively
+``sync messages schemas``, ``convert allure``, and ``replay``. ``validate`` recursively
 scans ``.feature``, ``.gherkin``,
 ``.feature.md`` and ``.gherkin.md`` files using the same parser registry as
 feature collection. It checks parsed Feature, Scenario and Scenario Outline
@@ -375,6 +375,24 @@ directory:
 
 This import path uses the same message-to-Allure mapping as the standalone
 command; it does not re-run the scenarios.
+
+Replaying saved Messages with formatters
+----------------------------------------
+
+Use ``replay`` to send a saved Messages stream to installed formatter plugins
+without starting pytest or importing the test suite. Provide one or more
+``--formatter NAME=DESTINATION`` selections; use ``-`` as the destination for
+terminal output. Paths are relative to the current working directory. Formatter
+plugins register through the ``pytest_cuke.formatters`` entry-point group and
+use the same request and runtime contracts as live formatters.
+
+.. code-block:: console
+
+   cuke replay messages.ndjson --formatter html=reports/cucumber.html
+   pytest-cuke replay messages.ndjson --formatter summary=reports/summary.txt
+
+See :doc:`formatter-replay` for the entry-point factory contract, publication
+rules, and input validation behavior.
 
 Registering command extensions
 ------------------------------

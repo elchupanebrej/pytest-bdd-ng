@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
+from pytest_cuke.message_ndjson import read_validated_ndjson
 from pytest_cuke.message_schema_sync import resolve_upstream_release
 from pytest_cuke.model.message_capability_inventory import (
     build_capability_inventory,
@@ -25,66 +26,13 @@ from pytest_cuke.model.message_status_governance import (
     decisions_from_json,
 )
 from pytest_cuke.model.message_stream_validation import MessageStreamValidator
-from pytest_cuke.model.message_types import Envelope, message_from_dict, message_to_dict
-from pytest_cuke.model.message_validation import MessageValidationError, validate_envelope_data
+from pytest_cuke.model.message_types import Envelope, message_to_dict
+from pytest_cuke.model.message_validation import MessageValidationError
 
 if TYPE_CHECKING:
     from pytest_cuke.model.message_capability import MessageCapability
 
 InputKind = Literal["runtime", "synthetic"]
-
-
-def read_validated_ndjson(path: Path) -> tuple[Envelope, ...]:
-    """Parse and validate every NDJSON envelope and its stream before returning it."""
-    if not path.is_file():
-        raise ValueError(f"Messages NDJSON file does not exist: {path}")
-    validator = MessageStreamValidator()
-    envelopes: list[Envelope] = []
-    try:
-        with path.open(encoding="utf-8") as stream:
-            for line_number, line in enumerate(stream, start=1):
-                if not line.strip():
-                    continue
-                try:
-                    payload = json.loads(line)
-                except json.JSONDecodeError as error:
-                    raise ValueError(f"invalid Messages JSON at line {line_number}: {error.msg}") from error
-                if not isinstance(payload, dict):
-                    raise ValueError(f"Messages envelope at line {line_number} must be a JSON object")
-                raw_diagnostics = validate_envelope_data(cast("dict[str, object]", payload), position=len(envelopes))
-                if raw_diagnostics:
-                    diagnostic = raw_diagnostics[0]
-                    instance_location = (
-                        " at /" + "/".join(str(part) for part in diagnostic.instance_path)
-                        if diagnostic.instance_path
-                        else ""
-                    )
-                    raise ValueError(
-                        f"invalid Messages envelope at line {line_number} "
-                        f"({diagnostic.code}){instance_location}: {diagnostic.message}"
-                    )
-                try:
-                    envelope = message_from_dict(cast("dict[str, Any]", payload), Envelope)
-                    envelopes.append(validator.accept(envelope))
-                except MessageValidationError as error:
-                    diagnostic = error.diagnostics[0]
-                    raise ValueError(
-                        f"invalid Messages envelope at line {line_number} ({diagnostic.code}): {diagnostic.message}"
-                    ) from error
-                except (TypeError, ValueError) as error:
-                    raise ValueError(f"invalid Messages envelope at line {line_number}: {error}") from error
-    except OSError as error:
-        raise ValueError(f"cannot read Messages NDJSON file {path}: {error}") from error
-
-    diagnostics = validator.finish()
-    if diagnostics:
-        diagnostic = diagnostics[0]
-        raise ValueError(
-            f"invalid Messages stream at record {diagnostic.position + 1} ({diagnostic.code}): {diagnostic.message}"
-        )
-    if not envelopes:
-        raise ValueError(f"Messages NDJSON file contains no envelopes: {path}")
-    return tuple(envelopes)
 
 
 def _snake_to_camel(value: str) -> str:
