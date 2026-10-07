@@ -36,6 +36,12 @@ Feature: Govern Cucumber Messages runtime capabilities
       }
       """
     And the capability report should cover IDs from consumer files "mandatory-v28-0-0.txt" and "runtime-required-v28-0-0.txt"
+    When I run command "cuke" with arguments "messages capabilities report --messages-file runtime-messages.ndjson --input-kind runtime --decisions decisions-v28-0-0.json --mandatory-capabilities-file mandatory-v28-0-0.txt --runtime-required-capabilities-file runtime-required-v28-0-0.txt --format markdown"
+    Then the command should exit with code 0
+    And the command output should contain "# Cucumber Messages capability report (28.0.0)"
+    And the command output should contain "Observation source: `runtime`"
+    And the command output should contain "## Observed fields"
+    And the Markdown capability report should list observations and decisions in stable order
     When I run command "cuke" with arguments "messages capabilities report --messages-file runtime-messages.ndjson --input-kind runtime --decisions decisions-v28-0-0.json --mandatory-capabilities-file mandatory-v28-0-0.txt --runtime-required-capabilities-file runtime-required-v28-0-0.txt --require-non-runtime-classified --format json"
     Then the command should exit with code 1
     And the report should show the v28 non-runtime classification for "attachment.test_run_started_id" and actionable unresolved IDs
@@ -101,3 +107,189 @@ Feature: Govern Cucumber Messages runtime capabilities
         }
       }
       """
+    When I run command "cuke" with arguments "messages capabilities report --messages-file synthetic-messages.ndjson --input-kind synthetic --mandatory-capabilities-file mandatory-capabilities.txt --require-fully-governed --format json"
+    Then the command should exit with code 1
+    And the command output should contain "require-fully-governed: missing Implemented decisions for: test_run_started.id"
+
+  Scenario: The public diff exposes inventory and decision changes without rewriting decisions
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "previous-inventory.json" contains:
+      """json
+      {
+        "baseline_release": "27.0.0",
+        "capabilities": [
+          {
+            "capability_id": "testCaseStarted.id",
+            "baseline_release": "27.0.0",
+            "category": "lifecycle",
+            "description": "Previous scenario identifier field.",
+            "name": "Scenario Identifier",
+            "affects": ["emitted_envelope_payload"],
+            "source_reference": "TestCaseStarted.json#/properties/id"
+          },
+          {
+            "capability_id": "test_case_started.id",
+            "baseline_release": "27.0.0",
+            "category": "lifecycle",
+            "description": "Previous scenario identifier field.",
+            "name": "Scenario Identifier",
+            "affects": ["emitted_envelope_payload"],
+            "source_reference": "TestCaseStarted.json#/properties/id"
+          },
+          {
+            "capability_id": "test_case_started.attempt",
+            "baseline_release": "27.0.0",
+            "category": "lifecycle",
+            "description": "Previous attempt field.",
+            "name": "Attempt",
+            "affects": ["emitted_envelope_payload"],
+            "source_reference": "TestCaseStarted.json#/properties/attempt"
+          }
+        ]
+      }
+      """
+    And consumer file "current-inventory.json" contains:
+      """json
+      {
+        "baseline_release": "28.0.0",
+        "capabilities": [
+          {
+            "capability_id": "test_case_started.id",
+            "baseline_release": "28.0.0",
+            "category": "lifecycle",
+            "description": "Updated scenario identifier field.",
+            "name": "Scenario Identifier",
+            "affects": ["emitted_envelope_payload"],
+            "source_reference": "TestCaseStarted.json#/properties/id"
+          },
+          {
+            "capability_id": "test_case_started.timestamp.seconds",
+            "baseline_release": "28.0.0",
+            "category": "lifecycle",
+            "description": "Scenario start time in seconds.",
+            "name": "Timestamp Seconds",
+            "affects": ["emitted_envelope_payload"],
+            "source_reference": "TestCaseStarted.json#/properties/timestamp/properties/seconds"
+          }
+        ]
+      }
+      """
+    And consumer file "previous-decisions.json" contains:
+      """json
+      {
+        "decisions": [
+          {
+            "capabilityId": "testCaseStarted.id",
+            "releaseTarget": "next-release",
+            "status": "implemented",
+            "rationale": "The existing scenario ID is emitted."
+          }
+        ]
+      }
+      """
+    And consumer file "current-decisions.json" contains:
+      """json
+      {
+        "decisions": [
+          {
+            "capability_id": "test_case_started.id",
+            "release_target": "next-release",
+            "status": "Implemented",
+            "comment": "The scenario ID continues to be emitted."
+          }
+        ]
+      }
+      """
+    When I remember the exact bytes of consumer file "current-decisions.json"
+    And I run command "cuke" with arguments "messages capabilities diff --previous-baseline 27.0.0 --current-baseline 28.0.0 --previous previous-inventory.json --current current-inventory.json --previous-decisions previous-decisions.json --current-decisions current-decisions.json"
+    Then the command should exit with code 0
+    And the command JSON should include:
+      """json
+      {
+        "added_capability_ids": ["test_case_started.timestamp.seconds"],
+        "added_decision_ids": [],
+        "changed_capability_ids": ["test_case_started.id"],
+        "changed_decision_ids": ["test_case_started.id@next-release"],
+        "current_baseline": "28.0.0",
+        "previous_baseline": "27.0.0",
+        "removed_capability_ids": ["test_case_started.attempt"],
+        "removed_decision_ids": []
+      }
+      """
+    And consumer file "current-decisions.json" should match its remembered bytes
+
+  Scenario: Invalid governance inputs fail closed and preserve existing output files
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "invalid-messages.ndjson" contains:
+      """ndjson
+      {"testRunStarted":{}}
+      """
+    And consumer file "report.json" contains:
+      """json
+      {"baseline_release":"28.0.0","observations":{"source_kind":"runtime","record_count":1,"capability_ids":[]},"summary":{},"scope":{"mandatory_capability_ids":[],"runtime_required_capability_ids":[]},"decisions":[],"gates":{"passed":true,"failures":[]},"capabilities":[]}
+      """
+    When I remember the exact bytes of consumer file "report.json"
+    And I run command "cuke" with arguments "messages capabilities report --messages-file invalid-messages.ndjson --input-kind runtime --output report.json --format json"
+    Then the command should exit with code 2
+    And the command output should contain "invalid Messages envelope at line 1"
+    And consumer file "report.json" should match its remembered bytes
+    And consumer file "missing-comment-decisions.json" contains:
+      """json
+      {"decisions":[{"capability_id":"attachment.test_run_started_id","release_target":"28.0.0","status":"Not-Applicable"}]}
+      """
+    And consumer file "normalized-decisions.json" contains:
+      """json
+      {"decisions":[]}
+      """
+    When I remember the exact bytes of consumer file "normalized-decisions.json"
+    And I run command "cuke" with arguments "messages capabilities validate-decision --input missing-comment-decisions.json --output normalized-decisions.json"
+    Then the command should exit with code 2
+    And the command output should contain "status Not-Applicable requires a non-empty comment"
+    And consumer file "normalized-decisions.json" should match its remembered bytes
+    And consumer file "contradictory-decisions.json" contains:
+      """json
+      {"decisions":[{"capabilityId":"testCaseStarted.id","releaseTarget":"28.0.0","status":"Implemented","comment":"First terminal decision."},{"capability_id":"test_case_started.id","release_target":"28.0.0","status":"Pending","comment":"Conflicting terminal decision."}]}
+      """
+    When I remember the exact bytes of consumer file "normalized-decisions.json"
+    And I run command "cuke" with arguments "messages capabilities validate-decision --input contradictory-decisions.json --output normalized-decisions.json"
+    Then the command should exit with code 2
+    And the command output should contain "conflicting terminal statuses for test_case_started.id@28.0.0"
+    And consumer file "normalized-decisions.json" should match its remembered bytes
+    And consumer file "invalid-schemas/Envelope.json" contains:
+      """json
+      {"type":}
+      """
+    And consumer file "inventory.json" contains:
+      """json
+      {"baseline_release":"28.0.0","capabilities":[],"inventory_version":1,"summary":{"total":0,"relevant":0,"out_of_scope":0}}
+      """
+    When I remember the exact bytes of consumer file "inventory.json"
+    And I run command "cuke" with arguments "messages capabilities sync --baseline-release 28.0.0 --schema-dir invalid-schemas --output inventory.json"
+    Then the command should exit with code 2
+    And the command output should contain "cannot read schema"
+    And consumer file "inventory.json" should match its remembered bytes
+    And consumer file "alias-schemas/Envelope.json" contains:
+      """json
+      {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "TestRunStarted": {
+            "type": "object",
+            "properties": {
+              "timestamp": {
+                "type": "object",
+                "properties": {
+                  "seconds": {"type": "integer"}
+                }
+              }
+            }
+          }
+        }
+      }
+      """
+    When I remember the exact bytes of consumer file "alias-schemas/Envelope.json"
+    And I run command "cuke" with arguments "messages capabilities sync --baseline-release 28.0.0 --schema-dir alias-schemas --output alias-schemas/Envelope.json"
+    Then the command should exit with code 2
+    And the command output should contain "resolves to input file"
+    And consumer file "alias-schemas/Envelope.json" should match its remembered bytes

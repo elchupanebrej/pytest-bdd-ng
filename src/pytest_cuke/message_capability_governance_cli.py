@@ -166,6 +166,22 @@ def _write_text(text: str, output: Path | None) -> None:
         raise ValueError(f"cannot write output {output}: {error}") from error
 
 
+def _reject_output_input_alias(output: Path | None, input_paths: tuple[Path | None, ...]) -> None:
+    if output is None:
+        return
+    for input_path in input_paths:
+        if input_path is None:
+            continue
+        try:
+            aliases_input = output.resolve() == input_path.resolve() or (
+                output.exists() and input_path.exists() and os.path.samefile(output, input_path)
+            )
+        except (OSError, RuntimeError) as error:
+            raise ValueError(f"cannot compare output path {output} with input path {input_path}: {error}") from error
+        if aliases_input:
+            raise ValueError(f"output path {output} resolves to input file {input_path} and cannot replace it")
+
+
 def _load_baseline_diff(path: Path | None) -> object | None:
     if path is None:
         return None
@@ -297,15 +313,27 @@ def _run_action(arguments: argparse.Namespace) -> tuple[int, str, bool]:
             schema_dir = Path(__file__).parent / "model" / "message_schemas"
         else:
             schema_dir = arguments.schema_dir
+        schema_inputs = tuple(schema_dir.rglob("*.json")) if schema_dir.is_dir() else (schema_dir,)
+        _reject_output_input_alias(arguments.output, schema_inputs)
         capabilities = build_capability_inventory(schema_dir, baseline_release=baseline)
         payload = capability_inventory_to_dict(capabilities, baseline_release=baseline)
         return (0, _json_text(payload), False)
 
     if action == "validate-decision":
+        _reject_output_input_alias(arguments.output, (arguments.input,))
         decisions = load_decisions_file(arguments.input)
         return (0, _json_text({"decisions": [decision_to_dict(item) for item in decisions]}), False)
 
     if action == "diff":
+        _reject_output_input_alias(
+            arguments.output,
+            (
+                arguments.previous,
+                arguments.current,
+                arguments.previous_decisions,
+                arguments.current_decisions,
+            ),
+        )
         previous_baseline, previous_capabilities = _inventory(arguments.previous)
         current_baseline, current_capabilities = _inventory(arguments.current)
         if previous_baseline != arguments.previous_baseline:
@@ -329,6 +357,15 @@ def _run_action(arguments: argparse.Namespace) -> tuple[int, str, bool]:
         return (0, _json_text(baseline_diff_to_dict(diff)), False)
 
     if action == "checklist":
+        _reject_output_input_alias(
+            arguments.output,
+            (
+                arguments.capabilities,
+                arguments.decisions,
+                arguments.mandatory_capabilities_file,
+                arguments.baseline_diff,
+            ),
+        )
         baseline, capabilities = _inventory(arguments.capabilities)
         decisions = _decision_records(arguments.decisions)
         mandatory = _scope(arguments.mandatory_capabilities_file)
@@ -348,6 +385,16 @@ def _run_action(arguments: argparse.Namespace) -> tuple[int, str, bool]:
         return (0, text, False)
 
     if action == "report":
+        _reject_output_input_alias(
+            arguments.output,
+            (
+                arguments.messages_file,
+                arguments.capabilities,
+                arguments.decisions,
+                arguments.mandatory_capabilities_file,
+                arguments.runtime_required_capabilities_file,
+            ),
+        )
         baseline, capabilities = _load_installed_or_explicit_inventory(
             arguments.capabilities,
             arguments.baseline_release,

@@ -16,14 +16,18 @@ DECISIONS_FILE = POLICY_DIR / "decisions-v28-0-0.json"
 MANDATORY_FILE = POLICY_DIR / "mandatory-v28-0-0.txt"
 
 
-def _run_cuke(*arguments: str) -> subprocess.CompletedProcess[str]:
+def _cuke_executable() -> str:
     script_name = "cuke.exe" if os.name == "nt" else "cuke"
     scripts_directory = Path(sys.executable).absolute().parent
     candidate = scripts_directory / script_name
     executable = shutil.which("cuke") or (str(candidate) if candidate.is_file() else None)
     assert executable is not None, "the pytest-cuke public 'cuke' entry point must be installed for contract tests"
+    return executable
+
+
+def _run_cuke(*arguments: str) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
-        [executable, *arguments],
+        [_cuke_executable(), *arguments],
         cwd=PROJECT_ROOT,
         capture_output=True,
         check=False,
@@ -136,3 +140,75 @@ def test_public_cli_reproduces_committed_messages_capability_policy(tmp_path: Pa
     rendered = checklist_markdown.read_text(encoding="utf-8")
     assert "Cucumber Messages 28.0.0 governance checklist" in rendered
     assert all(f"`{capability_id}`" in rendered for capability_id in mandatory_ids)
+
+
+def test_public_diff_refuses_to_replace_decision_input(tmp_path: Path) -> None:
+    previous_inventory = tmp_path / "previous-capabilities.json"
+    current_inventory = tmp_path / "current-capabilities.json"
+    decisions = tmp_path / "decisions.json"
+    shutil.copyfile(BASELINE_FILE, previous_inventory)
+    shutil.copyfile(BASELINE_FILE, current_inventory)
+    shutil.copyfile(DECISIONS_FILE, decisions)
+    original_decisions = decisions.read_bytes()
+
+    result = subprocess.run(
+        [
+            _cuke_executable(),
+            "messages",
+            "capabilities",
+            "diff",
+            "--previous-baseline",
+            BASELINE_RELEASE,
+            "--current-baseline",
+            BASELINE_RELEASE,
+            "--previous",
+            str(previous_inventory),
+            "--current",
+            str(current_inventory),
+            "--previous-decisions",
+            str(decisions),
+            "--current-decisions",
+            str(decisions),
+            "--output",
+            str(decisions),
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+    assert result.returncode == 2, f"diff unexpectedly succeeded:\n{result.stdout}\n{result.stderr}"
+    assert "cannot replace it" in result.stderr
+    assert decisions.read_bytes() == original_decisions
+
+
+def test_public_sync_refuses_to_replace_schema_input(tmp_path: Path) -> None:
+    source_schema_dir = PROJECT_ROOT / "tests" / "fixtures" / "message-schemas-v24-0-1" / "jsonschema"
+    schema_dir = tmp_path / "schemas"
+    shutil.copytree(source_schema_dir, schema_dir)
+    envelope_schema = schema_dir / "Envelope.json"
+    original_schema = envelope_schema.read_bytes()
+
+    result = subprocess.run(
+        [
+            _cuke_executable(),
+            "messages",
+            "capabilities",
+            "sync",
+            "--baseline-release",
+            "24.0.1",
+            "--schema-dir",
+            str(schema_dir),
+            "--output",
+            str(envelope_schema),
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+
+    assert result.returncode == 2, f"sync unexpectedly succeeded:\n{result.stdout}\n{result.stderr}"
+    assert "cannot replace it" in result.stderr
+    assert envelope_schema.read_bytes() == original_schema
