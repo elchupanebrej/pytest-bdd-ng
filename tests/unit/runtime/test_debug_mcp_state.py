@@ -52,6 +52,37 @@ def test_failure_queue_holds_until_client_releases_and_increments_sequence() -> 
     assert results[1]["sequence"] == 2
 
 
+def test_failure_queue_handles_large_finite_deadlines_until_explicit_release() -> None:
+    queue = FailureQueue(session_id="session-1", timeout_seconds=1e308, lease_seconds=1e308)
+    result: list[dict[str, Any]] = []
+    errors: list[BaseException] = []
+
+    def hold() -> None:
+        try:
+            result.append(
+                queue.hold_failure(
+                    nodeid="test_large_deadline",
+                    phase="call",
+                    error_type="RuntimeError",
+                    error_message="large finite deadline",
+                    bdd_context=None,
+                )
+            )
+        except BaseException as error:
+            errors.append(error)
+
+    worker = threading.Thread(target=hold)
+    worker.start()
+    active = _wait_for_active(queue)
+    release = queue.release_failure(session_id="session-1", sequence=active["sequence"])
+    worker.join(timeout=1.0)
+
+    assert not worker.is_alive()
+    assert not errors, errors
+    assert release["released"] is True
+    assert result[0]["reason"] == "explicit"
+
+
 def test_failure_queue_times_out_when_no_client_connects() -> None:
     queue = FailureQueue(session_id="session-1", timeout_seconds=0.04, lease_seconds=1.0)
 

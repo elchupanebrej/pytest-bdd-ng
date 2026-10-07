@@ -107,11 +107,12 @@ active step keyword/text, combined feature/scenario tags, outline row values
 and a breadcrumb with row identity. Plain pytest failures explicitly use a
 null ``bdd_context``.
 
-Each hold has a fixed maximum timeout measured from the failure report.
-Heartbeats only extend that failure's lease. If no client heartbeats before
-the lease expires, or the overall timeout is reached, pytest resumes with the
-original failure. Session shutdown closes both servers and records a closed
-status with null endpoints in the discovery file.
+Each hold has a fixed maximum timeout measured from the failure report. If no
+client sends a valid heartbeat, the overall timeout releases the hold. After a
+valid heartbeat, the lease is measured from the most recent heartbeat and
+expires if the client does not renew it. Whichever deadline releases the hold,
+pytest resumes with the original failure. Session shutdown closes both servers
+and records a closed status with null endpoints in the discovery file.
 
 pytest-xdist workers
 --------------------

@@ -320,6 +320,8 @@ class InspectionMcpServer:
         if thread.is_alive():
             server.force_exit = True
             thread.join(timeout=timeout)
+        if thread.is_alive():
+            raise DebugMcpDependencyError("inspection MCP server did not stop after graceful and forced shutdown")
         self._server = None
         self._thread = None
 
