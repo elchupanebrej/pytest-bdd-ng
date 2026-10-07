@@ -175,6 +175,62 @@ def test_worker_crash_recovers_cached_record_when_worker_json_is_invalid(
     assert records["gw1"] == peer
 
 
+def test_normal_worker_exit_with_invalid_record_clears_cached_endpoints(tmp_path: Path) -> None:
+    index = _index(tmp_path)
+    index.initialize()
+    index.register_worker("gw0")
+    active = _worker_record("gw0", status="holding_failure")
+    active["active_failure"] = {"sequence": 7, "nodeid": "feature.feature::scenario"}
+    index.publish_worker(active)
+    index.worker_path("gw0").write_text("{broken", encoding="utf-8")
+    config = SimpleNamespace(
+        pluginmanager=SimpleNamespace(get_plugin=lambda name: object()),
+        option=SimpleNamespace(numprocesses=2),
+    )
+    plugin = DebugMcpPlugin(config=config, options=DebugMcpOptions(enabled=True))
+    plugin.xdist_index = index
+
+    plugin.pytest_testnodedown(SimpleNamespace(workerinput={"workerid": "gw0"}), error=None)
+
+    root = _read(index.path)
+    crashed = root["workers"][0]
+    assert root["status"] == "closed"
+    assert crashed["status"] == "worker_crashed"
+    assert crashed["active_failure"] == active["active_failure"]
+    assert crashed["debugger_endpoint"] is None
+    assert crashed["inspection_endpoint"] is None
+    assert "could not read worker discovery file" in crashed["worker_error"]
+
+
+def test_normal_worker_exit_with_closed_record_from_stale_session_clears_cached_endpoints(tmp_path: Path) -> None:
+    index = _index(tmp_path)
+    index.initialize()
+    index.register_worker("gw0")
+    active = _worker_record("gw0", status="holding_failure")
+    active["active_failure"] = {"sequence": 7, "nodeid": "feature.feature::scenario"}
+    index.publish_worker(active)
+    stale_closed = _worker_record("gw0", status="closed")
+    stale_closed["session_id"] = "stale-worker-session"
+    index.worker_path("gw0").write_text(json.dumps(stale_closed), encoding="utf-8")
+    config = SimpleNamespace(
+        pluginmanager=SimpleNamespace(get_plugin=lambda name: object()),
+        option=SimpleNamespace(numprocesses=2),
+    )
+    plugin = DebugMcpPlugin(config=config, options=DebugMcpOptions(enabled=True))
+    plugin.xdist_index = index
+
+    plugin.pytest_testnodedown(SimpleNamespace(workerinput={"workerid": "gw0"}), error=None)
+
+    root = _read(index.path)
+    crashed = root["workers"][0]
+    assert crashed["status"] == "worker_crashed"
+    assert crashed["session_id"] == active["session_id"]
+    assert crashed["active_failure"] == active["active_failure"]
+    assert crashed["debugger_endpoint"] is None
+    assert crashed["inspection_endpoint"] is None
+    assert "session ID mismatch" in crashed["worker_error"]
+
+
 def test_clear_previous_removes_old_xdist_discovery_before_standalone_start(tmp_path: Path) -> None:
     index = _index(tmp_path)
     index.initialize()
@@ -280,15 +336,49 @@ def test_unavailable_index_lock_fails_fast_with_actionable_error(tmp_path: Path,
             self.path = path
             self.timeout = timeout
 
-        def __enter__(self) -> None:
+        def acquire(self, timeout: float) -> None:
             raise PermissionError("lock denied")
 
-        def __exit__(self, *_: object) -> None:
+        def release(self) -> None:
             return None
 
     monkeypatch.setattr(xdist, "FileLock", UnavailableLock)
     with pytest.raises(xdist.XdistDiscoveryError, match="could not acquire worker discovery lock"):
         index.initialize()
+
+
+def test_unavailable_discovery_root_fails_with_actionable_error(tmp_path: Path) -> None:
+    blocked_root = tmp_path / "cache-is-a-file"
+    blocked_root.write_text("not a directory", encoding="utf-8")
+    index = xdist.XdistDiscoveryIndex(
+        path=blocked_root / "cuke" / "debug-mcp" / "workers.json",
+        workers_dir=blocked_root / "cuke" / "debug-mcp" / "workers",
+        session_id="root-session",
+    )
+
+    with pytest.raises(xdist.XdistDiscoveryError, match="could not create worker discovery root directory"):
+        index.initialize()
+
+
+def test_filesystem_error_inside_lock_is_not_reported_as_lock_acquisition_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    index = _index(tmp_path)
+    index.initialize()
+    marker = index.workers_dir / "unremovable.json"
+    marker.write_text("{}", encoding="utf-8")
+    unlink = Path.unlink
+
+    def fail_marker_unlink(path: Path, *, missing_ok: bool = False) -> None:
+        if path == marker:
+            raise PermissionError("worker discovery file is not writable")
+        unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", fail_marker_unlink)
+
+    with pytest.raises(PermissionError, match="worker discovery file is not writable"):
+        index.clear_previous()
 
 
 def test_xdist_detection_and_worker_ids_cover_workers_gateways_and_local_specs() -> None:

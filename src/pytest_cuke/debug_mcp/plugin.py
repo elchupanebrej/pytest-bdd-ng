@@ -22,6 +22,7 @@ from pytest_cuke.debug_mcp.xdist import (
     XdistDiscoveryIndex,
     is_local_xdist_spec,
     is_xdist_controller,
+    safe_worker_id,
     xdist_root_session_id,
     xdist_worker_id,
 )
@@ -145,9 +146,15 @@ class DebugMcpPlugin:
         """Clear endpoints for a worker that exited without a normal closed record."""
         if not self.options.enabled or not is_xdist_controller(self.config) or self.xdist_index is None:
             return
-        if error is None:
-            return
         worker_id = _worker_id_for_node(node)
+        if error is None:
+            try:
+                if self.xdist_index.worker_is_closed(worker_id):
+                    return
+            except XdistDiscoveryError as discovery_error:
+                error = f"worker exited without a valid closed discovery record: {discovery_error}"
+            else:
+                error = "worker exited without publishing a closed discovery record"
         try:
             self.xdist_index.mark_worker_down(worker_id, str(error))
         except XdistDiscoveryError as publish_error:
@@ -164,13 +171,13 @@ class DebugMcpPlugin:
             return
 
         cache_path = _cache_discovery_path(self.config)
-        cache_path.unlink(missing_ok=True)
+        self._clear_stale_cache_discovery(cache_path)
         _xdist_index(self.config).clear_previous()
         self._start_services(discovery_path=cache_path)
 
     def _start_xdist_controller(self) -> None:
         cache_path = _cache_discovery_path(self.config)
-        cache_path.unlink(missing_ok=True)
+        self._clear_stale_cache_discovery(cache_path)
         ensure_optional_dependencies()
         self.xdist_index = XdistDiscoveryIndex(
             path=_xdist_index_path(self.config),
@@ -184,6 +191,15 @@ class DebugMcpPlugin:
         reporter = self.config.pluginmanager.get_plugin("terminalreporter")
         if reporter is not None:
             reporter.write_line(f"Debug MCP worker discovery index: {_xdist_index_path(self.config)}")
+
+    @staticmethod
+    def _clear_stale_cache_discovery(cache_path: Path) -> None:
+        try:
+            cache_path.unlink(missing_ok=True)
+        except OSError as error:
+            raise DebugMcpDependencyError(
+                f"could not clear stale Debug MCP discovery record {cache_path}: {error}"
+            ) from error
 
     def _start_xdist_worker(self) -> None:
         root_session_id = xdist_root_session_id(self.config)
@@ -223,7 +239,9 @@ class DebugMcpPlugin:
         inspection_port = allocate_port(self.options.host, excluding={debugger_port})
 
         session_id = self._session_id()
-        self.artifact_sink = ArtifactSink(_artifact_root(self.config, self.options.artifacts_root, session_id))
+        self.artifact_sink = ArtifactSink(
+            _artifact_root(self.config, self.options.artifacts_root, session_id, worker_id=worker_id)
+        )
         self.queue = FailureQueue(
             session_id=session_id,
             timeout_seconds=self.options.timeout_seconds,
@@ -424,14 +442,23 @@ def _worker_id_for_node(node: Any) -> str:
     raise XdistDiscoveryError("pytest-xdist worker node has no worker or gateway identity")
 
 
-def _artifact_root(config: Any, configured_root: Path | None, session_id: str) -> Path:
+def _artifact_root(
+    config: Any,
+    configured_root: Path | None,
+    session_id: str,
+    *,
+    worker_id: str | None = None,
+) -> Path:
     if configured_root is None:
         return (_cache_discovery_path(config).parent / "artifacts" / session_id).resolve()
     root = configured_root
     if not root.is_absolute():
         pytest_root = getattr(config, "rootpath", getattr(config, "rootdir", Path.cwd()))
         root = Path(pytest_root) / root
-    return root.resolve()
+    resolved_root = root.resolve()
+    if worker_id is None:
+        return resolved_root
+    return resolved_root / "workers" / safe_worker_id(worker_id) / session_id
 
 
 def _active_step(scenario_run: ScenarioRun | None) -> Any | None:
