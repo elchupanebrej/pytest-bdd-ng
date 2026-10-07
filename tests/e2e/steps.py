@@ -13035,7 +13035,7 @@ def consumer_mcp_artifact_observation_confirms_contract(consumer: ConsumerProjec
         "step_keyword": context.get("step_keyword"),
         "step_text": context.get("step_text"),
         "tags": context.get("tags", []),
-        "example_row": context.get("outline_row", {}),
+        "example_row": context.get("outline_row") or {},
     }, (active_bdd_metadata, context)
     assert active_bdd_metadata.get("feature_name") == "MCP failure inspection probe", active_bdd_metadata
     assert active_bdd_metadata.get("scenario_name", "").startswith(
@@ -13106,7 +13106,7 @@ def _expected_debug_mcp_artifact_bdd_metadata(failure: dict[str, Any]) -> dict[s
         "step_keyword": context.get("step_keyword"),
         "step_text": context.get("step_text"),
         "tags": context.get("tags", []),
-        "example_row": context.get("outline_row", {}),
+        "example_row": context.get("outline_row") or {},
     }
 
 
@@ -13457,13 +13457,30 @@ def install_concurrent_xdist_debugger_failures(consumer: ConsumerProject) -> Non
                             f"xdist workers did not rendezvous before the deadline: {workers!r}"
                         )
                 raise RuntimeError(f"{message} on {worker_id}")
+
+            @given(re.compile(r'the worker waits for fresh xdist discovery as "(?P<label>[^"]+)"'))
+            def wait_for_fresh_xdist_discovery(label):
+                worker_id = os.environ.get("PYTEST_XDIST_WORKER")
+                if not worker_id:
+                    raise RuntimeError("the fresh-session probe requires a pytest-xdist worker")
+                rendezvous = Path("fresh-xdist-rendezvous")
+                rendezvous.mkdir(exist_ok=True)
+                (rendezvous / f"{worker_id}-{label}.json").write_text(
+                    json.dumps({"worker_id": worker_id, "label": label}), encoding="utf-8"
+                )
+                release = rendezvous / "release"
+                deadline = time.monotonic() + 60
+                while not release.is_file() and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                if not release.is_file():
+                    raise RuntimeError("the fresh-session discovery check did not release the xdist worker")
             '''
         ),
         encoding="utf-8",
     )
     feature_directory = consumer.path / "features"
     feature_directory.mkdir(exist_ok=True)
-    (feature_directory / "debug-mcp-xdist-probe.feature").write_text(
+    (feature_directory / "debug-mcp-xdist-probe-alpha.feature").write_text(
         dedent(
             '''\
             Feature: Concurrent Debug MCP worker inspection
@@ -13475,8 +13492,88 @@ def install_concurrent_xdist_debugger_failures(consumer: ConsumerProject) -> Non
                 Examples:
                   | probe_id     | message                          |
                   | worker-alpha | debug MCP xdist failure alpha   |
-                  | worker-bravo | debug MCP xdist failure bravo   |
                   | worker-charlie | debug MCP xdist failure charlie |
+            '''
+        ),
+        encoding="utf-8",
+    )
+    (feature_directory / "debug-mcp-xdist-probe-bravo.feature").write_text(
+        dedent(
+            '''\
+            Feature: Concurrent Debug MCP worker inspection
+              @mcp-xdist-probe
+              Scenario Outline: The worker retains BDD context for <probe_id>
+                Given the xdist worker registers its BDD failure context
+                When it reaches the shared xdist rendezvous and raises "<message>"
+
+                Examples:
+                  | probe_id     | message                         |
+                  | worker-bravo | debug MCP xdist failure bravo   |
+            '''
+        ),
+        encoding="utf-8",
+    )
+    fresh_feature_directory = consumer.path / "fresh-session-features"
+    fresh_feature_directory.mkdir(exist_ok=True)
+    (fresh_feature_directory / "fresh-session.feature").write_text(
+        dedent(
+            '''\
+            Feature: Fresh Debug MCP xdist session
+              Scenario Outline: Worker waits for current session discovery as <label>
+                Given the worker waits for fresh xdist discovery as "<label>"
+
+                Examples:
+                  | label       |
+                  | worker-alpha |
+                  | worker-bravo |
+            '''
+        ),
+        encoding="utf-8",
+    )
+
+
+@given("the installed consumer exposes an identical failure on each xdist worker")
+def install_identical_xdist_debugger_failures(consumer: ConsumerProject) -> None:
+    (consumer.path / "conftest.py").write_text(
+        dedent(
+            '''\
+            import os
+            import time
+            from pathlib import Path
+
+            from pytest_cuke import given, when
+
+            @given("each xdist worker joins the shared failure rendezvous")
+            def join_duplicate_failure_rendezvous():
+                worker_id = os.environ.get("PYTEST_XDIST_WORKER")
+                if not worker_id:
+                    raise RuntimeError("the duplicate failure probe requires a pytest-xdist worker")
+                rendezvous = Path("xdist-duplicate-rendezvous")
+                rendezvous.mkdir(exist_ok=True)
+                (rendezvous / f"{worker_id}.ready").write_text(worker_id, encoding="utf-8")
+                deadline = time.monotonic() + 30
+                while len(list(rendezvous.glob("*.ready"))) < 2 and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                workers = sorted(path.stem for path in rendezvous.glob("*.ready"))
+                if len(workers) != 2 or worker_id not in workers:
+                    raise RuntimeError(f"xdist workers did not reach the same failure: {workers!r}")
+
+            @when("each xdist worker raises the same held failure")
+            def raise_duplicate_xdist_failure():
+                raise RuntimeError("identical Debug MCP xdist failure")
+            '''
+        ),
+        encoding="utf-8",
+    )
+    feature_directory = consumer.path / "features"
+    feature_directory.mkdir(exist_ok=True)
+    (feature_directory / "identical-worker-failure.feature").write_text(
+        dedent(
+            '''\
+            Feature: Identical Debug MCP worker failures
+              Scenario: The identical failure is held on each xdist worker
+                Given each xdist worker joins the shared failure rendezvous
+                When each xdist worker raises the same held failure
             '''
         ),
         encoding="utf-8",
@@ -13652,7 +13749,10 @@ def _assert_mcp_xdist_worker_index(index: object) -> list[dict[str, object]]:
             "it reaches the shared xdist rendezvous and raises \"debug MCP xdist failure bravo\"",
         }, context
         feature_path = context.get("feature_path")
-        assert isinstance(feature_path, str) and Path(feature_path).name == "debug-mcp-xdist-probe.feature", context
+        assert isinstance(feature_path, str) and Path(feature_path).name in {
+            "debug-mcp-xdist-probe-alpha.feature",
+            "debug-mcp-xdist-probe-bravo.feature",
+        }, context
         tags = context.get("tags")
         assert isinstance(tags, list) and "mcp-xdist-probe" in {str(tag).lstrip("@") for tag in tags}, context
         row = context.get("outline_row")
@@ -13707,12 +13807,30 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                     await session.initialize()
                     listed = await session.list_tools()
                     names = {tool.name for tool in listed.tools}
-                    assert {"inspect_failure", "heartbeat", "release_failure"} <= names, (record, names)
+                    assert {"inspect_failure", "heartbeat", "release_failure", "submit_artifact"} <= names, (
+                        record,
+                        names,
+                    )
                     result = await session.call_tool(tool_name, arguments)
                     assert not getattr(result, "isError", False), result
                     return tool_payload(result)
 
-        async def main(index_path, output_path):
+        async def inspect_debugger_endpoint(record):
+            endpoint = record["debugger_endpoint"]
+            async with streamable_http_client(endpoint, terminate_on_close=False) as (
+                read_stream,
+                write_stream,
+                _get_session_id,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    listed = await session.list_tools()
+                    names = sorted(tool.name for tool in listed.tools)
+                    required = {"start_debug", "send_pdb_command"}
+                    assert required <= set(names), (record, names)
+                    return {"endpoint": endpoint, "tools": names}
+
+        async def main(index_path, output_path, artifact_root):
             index = read_index(index_path)
             records = sorted(index["workers"], key=lambda worker: worker["worker_id"])
             assert len(records) == 2, index
@@ -13723,17 +13841,68 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                 assert isinstance(failure, dict), inspected
                 assert inspected.get("session_id") == record.get("session_id"), (inspected, record)
                 assert failure == record.get("active_failure"), (failure, record)
+                debugger = await inspect_debugger_endpoint(record)
                 inspections[record["worker_id"]] = {
                     "endpoint": record["inspection_endpoint"],
-                    "tools": ["inspect_failure", "heartbeat", "release_failure"],
+                    "tools": ["inspect_failure", "heartbeat", "release_failure", "submit_artifact"],
                     "inspection": inspected,
+                    "debugger": debugger,
                 }
 
-            target, remaining = records
+            target = next(
+                record
+                for record in records
+                if record["active_failure"]["bdd_context"]["outline_row"]["probe_id"] == "worker-alpha"
+            )
+            remaining = next(record for record in records if record["worker_id"] != target["worker_id"])
             target_failure = target["active_failure"]
             remaining_failure = remaining["active_failure"]
             target_sequence = target_failure["sequence"]
             remaining_sequence = remaining_failure["sequence"]
+            context = target_failure.get("bdd_context")
+            assert isinstance(context, dict), target_failure
+            submitted_artifact = {
+                "artifact_id": f"{target['worker_id']}-failure-{target_sequence}-investigation",
+                "nodeid": target_failure["nodeid"],
+                "pytest_phase": target_failure["phase"],
+                "status": "investigated",
+                "summary": f"The held failure from {target['worker_id']} was investigated.",
+                "inspected_commands": ["inspect_failure", "heartbeat"],
+                "evidence": ["The MCP inspection endpoint returned this worker's held failure."],
+                "suspected_cause": "The worker probe deliberately raises its configured sentinel exception.",
+                "next_action": "Review the failure associated with this worker and sequence.",
+                "bdd_metadata": {
+                    "feature_path": context.get("feature_path"),
+                    "feature_name": context.get("feature_name"),
+                    "scenario_name": context.get("scenario_name"),
+                    "step_keyword": context.get("step_keyword"),
+                    "step_text": context.get("step_text"),
+                    "tags": context.get("tags", []),
+                    "example_row": context.get("outline_row", {}),
+                },
+            }
+            artifact_submission = await call_worker(
+                target,
+                "submit_artifact",
+                {
+                    "session_id": target["session_id"],
+                    "sequence": target_sequence,
+                    "artifact": submitted_artifact,
+                },
+            )
+            assert artifact_submission.get("ok") is True, artifact_submission
+            assert artifact_submission.get("artifact_id") == submitted_artifact["artifact_id"], artifact_submission
+            root = Path(artifact_root).resolve()
+            for path_key in ("json_path", "markdown_path"):
+                path = Path(artifact_submission[path_key]).resolve()
+                assert path.is_relative_to(root), (path, root, artifact_submission)
+                assert path.is_file(), path
+            saved = json.loads(Path(artifact_submission["json_path"]).read_text(encoding="utf-8"))
+            assert saved.get("artifact_id") == submitted_artifact["artifact_id"], saved
+            assert saved.get("nodeid") == target_failure.get("nodeid"), (saved, target_failure)
+            assert saved.get("pytest_phase") == target_failure.get("phase"), (saved, target_failure)
+            assert saved.get("bdd_metadata") == submitted_artifact["bdd_metadata"], (saved, submitted_artifact)
+
             first_heartbeat = await call_worker(
                 target,
                 "heartbeat",
@@ -13754,6 +13923,7 @@ def _debug_mcp_xdist_worker_client_script() -> str:
             assert first_release.get("released") is True, first_release
             assert first_release.get("session_id") == target["session_id"], first_release
             assert first_release.get("sequence") == target_sequence, first_release
+            assert first_release.get("artifact_status") == "written", first_release
 
             deadline = time.monotonic() + 15
             isolated_index = None
@@ -13873,6 +14043,7 @@ def _debug_mcp_xdist_worker_client_script() -> str:
             assert second_release.get("released") is True, second_release
             assert second_release.get("session_id") == remaining["session_id"], second_release
             assert second_release.get("sequence") == remaining_sequence, second_release
+            assert second_release.get("artifact_status") == "missing", second_release
 
             Path(output_path).write_text(
                 json.dumps(
@@ -13882,6 +14053,8 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                         "inspections": inspections,
                         "target_worker_id": target["worker_id"],
                         "remaining_worker_id": remaining["worker_id"],
+                        "submitted_artifact": submitted_artifact,
+                        "artifact_submission": artifact_submission,
                         "first_heartbeat": first_heartbeat,
                         "remaining_after_heartbeat": remaining_after_heartbeat,
                         "first_release": first_release,
@@ -13897,6 +14070,225 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                     ensure_ascii=False,
                     indent=2,
                 ),
+                encoding="utf-8",
+            )
+
+        asyncio.run(main(sys.argv[1], sys.argv[2], sys.argv[3]))
+        '''
+    )
+
+
+def _debug_mcp_xdist_duplicate_artifact_client_script() -> str:
+    return dedent(
+        '''\
+        import asyncio
+        import json
+        import sys
+        from pathlib import Path
+
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
+
+        def tool_payload(result):
+            structured = getattr(result, "structuredContent", None)
+            if isinstance(structured, dict):
+                return structured
+            for block in getattr(result, "content", []):
+                text = getattr(block, "text", None)
+                if isinstance(text, str):
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(payload, dict):
+                        return payload
+            raise AssertionError(f"MCP tool did not return structured JSON: {result!r}")
+
+        async def call_worker(record, tool_name, arguments):
+            async with streamable_http_client(record["inspection_endpoint"], terminate_on_close=False) as (
+                read_stream,
+                write_stream,
+                _get_session_id,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    names = {tool.name for tool in (await session.list_tools()).tools}
+                    required = {"inspect_failure", "submit_artifact", "release_failure"}
+                    assert required <= names, (record, names)
+                    result = await session.call_tool(tool_name, arguments)
+                    return tool_payload(result)
+
+        async def main(index_path, output_path):
+            index = json.loads(Path(index_path).read_text(encoding="utf-8"))
+            records = sorted(index.get("workers", []), key=lambda worker: worker["worker_id"])
+            assert len(records) == 2, index
+            observations = {}
+            submitted_artifacts = {}
+            submissions = {}
+            releases = {}
+
+            try:
+                for record in records:
+                    worker_id = record["worker_id"]
+                    try:
+                        inspection = await call_worker(record, "inspect_failure", {})
+                        observations[worker_id] = inspection
+                        failure = inspection.get("active_failure")
+                        if not isinstance(failure, dict):
+                            submissions[worker_id] = {"client_error": f"no active failure: {inspection!r}"}
+                            continue
+                        context = failure.get("bdd_context")
+                        if not isinstance(context, dict):
+                            submissions[worker_id] = {"client_error": f"no BDD context: {failure!r}"}
+                            continue
+                        artifact = {
+                            "artifact_id": f"{worker_id}-identical-failure-investigation",
+                            "nodeid": failure.get("nodeid"),
+                            "pytest_phase": failure.get("phase"),
+                            "status": "investigated",
+                            "summary": f"The identical held failure on {worker_id} was investigated.",
+                            "inspected_commands": ["inspect_failure"],
+                            "evidence": ["An external MCP client inspected this worker's active failure."],
+                            "suspected_cause": "Both xdist workers execute the same pytest item and nodeid.",
+                            "next_action": "Keep this report attached to the matching worker failure.",
+                            "bdd_metadata": {
+                                "feature_path": context.get("feature_path"),
+                                "feature_name": context.get("feature_name"),
+                                "scenario_name": context.get("scenario_name"),
+                                "step_keyword": context.get("step_keyword"),
+                                "step_text": context.get("step_text"),
+                                "tags": context.get("tags", []),
+                                "example_row": context.get("outline_row") or {},
+                            },
+                        }
+                        submitted_artifacts[worker_id] = artifact
+                        failure_session_id = inspection.get("session_id")
+                        sequence = failure.get("sequence")
+                        try:
+                            submissions[worker_id] = await call_worker(
+                                record,
+                                "submit_artifact",
+                                {
+                                    "session_id": failure_session_id,
+                                    "sequence": sequence,
+                                    "artifact": artifact,
+                                },
+                            )
+                        except Exception as error:
+                            submissions[worker_id] = {"client_error": repr(error)}
+                    except Exception as error:
+                        observations.setdefault(worker_id, {"client_error": repr(error)})
+            finally:
+                for record in records:
+                    worker_id = record["worker_id"]
+                    failure = record.get("active_failure")
+                    try:
+                        if not isinstance(failure, dict):
+                            inspected = observations.get(worker_id, {}).get("active_failure")
+                            failure = inspected if isinstance(inspected, dict) else None
+                        if not isinstance(failure, dict):
+                            releases[worker_id] = {"client_error": "no active failure sequence to release"}
+                            continue
+                        releases[worker_id] = await call_worker(
+                            record,
+                            "release_failure",
+                            {
+                                "session_id": record.get("session_id"),
+                                "sequence": failure.get("sequence"),
+                            },
+                        )
+                    except Exception as error:
+                        releases[worker_id] = {"client_error": repr(error)}
+
+            Path(output_path).write_text(
+                json.dumps(
+                    {
+                        "root_session_id": index.get("session_id"),
+                        "initial_index": index,
+                        "observations": observations,
+                        "submitted_artifacts": submitted_artifacts,
+                        "submissions": submissions,
+                        "releases": releases,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+
+        asyncio.run(main(sys.argv[1], sys.argv[2]))
+        '''
+    )
+
+
+def _debug_mcp_xdist_fresh_worker_client_script() -> str:
+    return dedent(
+        '''\
+        import asyncio
+        import json
+        import sys
+        from pathlib import Path
+
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
+
+        def tool_payload(result):
+            structured = getattr(result, "structuredContent", None)
+            if isinstance(structured, dict):
+                return structured
+            for block in getattr(result, "content", []):
+                text = getattr(block, "text", None)
+                if isinstance(text, str):
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(payload, dict):
+                        return payload
+            raise AssertionError(f"MCP tool did not return structured JSON: {result!r}")
+
+        async def inspect_worker(record):
+            endpoint = record["inspection_endpoint"]
+            async with streamable_http_client(endpoint, terminate_on_close=False) as (
+                read_stream,
+                write_stream,
+                _get_session_id,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    names = {tool.name for tool in (await session.list_tools()).tools}
+                    assert {"inspect_failure", "heartbeat", "release_failure"} <= names, (record, names)
+                    inspection = tool_payload(await session.call_tool("inspect_failure", {}))
+                    assert inspection.get("session_id") == record.get("session_id"), (inspection, record)
+                    assert inspection.get("active_failure") is None, inspection
+
+            debugger_endpoint = record["debugger_endpoint"]
+            async with streamable_http_client(debugger_endpoint, terminate_on_close=False) as (
+                read_stream,
+                write_stream,
+                _get_session_id,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    debugger_tools = sorted(tool.name for tool in (await session.list_tools()).tools)
+                    assert {"start_debug", "send_pdb_command"} <= set(debugger_tools), (record, debugger_tools)
+
+            return {
+                "worker_id": record["worker_id"],
+                "session_id": inspection["session_id"],
+                "inspection_endpoint": endpoint,
+                "active_failure": inspection.get("active_failure"),
+                "debugger_endpoint": debugger_endpoint,
+                "debugger_tools": debugger_tools,
+            }
+
+        async def main(index_path, output_path):
+            index = json.loads(Path(index_path).read_text(encoding="utf-8"))
+            workers = sorted(index.get("workers", []), key=lambda worker: worker["worker_id"])
+            assert len(workers) == 2, index
+            observations = [await inspect_worker(record) for record in workers]
+            Path(output_path).write_text(
+                json.dumps({"session_id": index.get("session_id"), "workers": observations}, indent=2),
                 encoding="utf-8",
             )
 
@@ -13921,8 +14313,9 @@ def run_external_mcp_xdist_worker_clients(consumer: ConsumerProject) -> None:
         consumer._mcp_xdist_initial_index = initial_index
         consumer._mcp_xdist_initial_workers = initial_workers
         client_path.write_text(_debug_mcp_xdist_worker_client_script(), encoding="utf-8")
+        artifact_root = _consumer_artifact_path("xdist-artifacts", consumer)
         client_result = subprocess.run(
-            [str(consumer.python), str(client_path), str(index_path), str(result_path)],
+            [str(consumer.python), str(client_path), str(index_path), str(result_path), str(artifact_root)],
             cwd=consumer.path,
             env=consumer.env,
             check=False,
@@ -13962,6 +14355,240 @@ def run_external_mcp_xdist_worker_clients(consumer: ConsumerProject) -> None:
             consumer._mcp_xdist_client_result = client_result
 
 
+@when("an external MCP client submits a structured artifact to each identical worker failure")
+def submit_artifacts_to_identical_xdist_failures(consumer: ConsumerProject) -> None:
+    process = getattr(consumer, "_mcp_pytest_process", None)
+    assert isinstance(process, subprocess.Popen), "the duplicate xdist MCP pytest process has not been started"
+    command = consumer._mcp_pytest_command
+    output_path = consumer._mcp_pytest_output_path
+    index_path = _mcp_xdist_workers_path(consumer)
+    client_path = consumer.path / "debug-mcp-xdist-duplicate-artifact-client.py"
+    result_path = consumer.path / "debug-mcp-xdist-duplicate-artifact-client-result.json"
+    client_result: subprocess.CompletedProcess[str] | None = None
+    try:
+        deadline = time.monotonic() + 60
+        initial_index: dict[str, object] | None = None
+        latest: object = "xdist root discovery has not been published"
+        while time.monotonic() < deadline:
+            try:
+                payload = json.loads(index_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as error:
+                latest = repr(error)
+                payload = None
+            if isinstance(payload, dict):
+                latest = payload
+                records = payload.get("workers")
+                active = [
+                    record
+                    for record in records
+                    if isinstance(record, dict)
+                    and record.get("status") == "holding_failure"
+                    and isinstance(record.get("active_failure"), dict)
+                ] if isinstance(records, list) else []
+                if (
+                    payload.get("status") == "holding_failure"
+                    and isinstance(records, list)
+                    and len(records) == 2
+                    and len(active) == 2
+                ):
+                    initial_index = payload
+                    break
+            if process.poll() is not None:
+                break
+            time.sleep(0.05)
+        assert isinstance(initial_index, dict), (
+            f"xdist did not hold both identical worker failures ({latest!r}) before the watchdog;\n"
+            f"pytest output:\n{output_path.read_text(encoding='utf-8') if output_path.exists() else ''}"
+        )
+        records = initial_index.get("workers")
+        assert isinstance(records, list) and len(records) == 2, initial_index
+        workers = sorted(
+            (record for record in records if isinstance(record, dict)),
+            key=lambda record: record.get("worker_id", ""),
+        )
+        assert len(workers) == 2, initial_index
+        failures = [record.get("active_failure") for record in workers]
+        assert all(isinstance(failure, dict) for failure in failures), initial_index
+        consumer._mcp_xdist_duplicate_initial_index = initial_index
+        consumer._mcp_xdist_duplicate_initial_workers = workers
+
+        client_path.write_text(_debug_mcp_xdist_duplicate_artifact_client_script(), encoding="utf-8")
+        client_result = subprocess.run(
+            [str(consumer.python), str(client_path), str(index_path), str(result_path)],
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=45,
+        )
+        consumer._mcp_xdist_duplicate_client_result = client_result
+        assert client_result.returncode == 0, (
+            f"external duplicate-worker MCP client failed ({client_result.returncode}):\n"
+            f"{client_result.stdout}\n{client_result.stderr}"
+        )
+        assert result_path.is_file(), f"duplicate-worker client did not write its observation: {client_result.stdout}"
+        observation = json.loads(result_path.read_text(encoding="utf-8"))
+        assert isinstance(observation, dict), observation
+        consumer._mcp_xdist_duplicate_client_observation = observation
+
+        try:
+            return_code = process.wait(timeout=30)
+        except subprocess.TimeoutExpired as error:
+            raise AssertionError("identical xdist failures did not finish after both worker releases") from error
+        output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+        consumer.pytest_result = subprocess.CompletedProcess(command, return_code, output, "")
+        assert return_code != 0, f"releasing the identical xdist failures changed pytest's failed outcome to success:\n{output}"
+        final_index_path = _mcp_xdist_workers_path(consumer)
+        assert final_index_path.is_file(), f"pytest did not retain the final xdist worker index: {final_index_path}"
+        consumer._mcp_xdist_duplicate_final_index = json.loads(final_index_path.read_text(encoding="utf-8"))
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+        if client_result is not None:
+            consumer._mcp_xdist_duplicate_client_result = client_result
+
+
+@then("both workers should retain the same failure identity in distinct sessions")
+def consumer_xdist_duplicate_failures_have_distinct_sessions(consumer: ConsumerProject) -> None:
+    initial_index = getattr(consumer, "_mcp_xdist_duplicate_initial_index", None)
+    observation = getattr(consumer, "_mcp_xdist_duplicate_client_observation", None)
+    assert isinstance(initial_index, dict), initial_index
+    assert isinstance(observation, dict), observation
+    records = initial_index.get("workers")
+    assert isinstance(records, list) and len(records) == 2, initial_index
+    workers = sorted(
+        (record for record in records if isinstance(record, dict)),
+        key=lambda record: record.get("worker_id", ""),
+    )
+    assert len(workers) == 2, initial_index
+    assert workers[0].get("worker_id") != workers[1].get("worker_id"), workers
+    assert workers[0].get("session_id") != workers[1].get("session_id"), workers
+    failures = [worker.get("active_failure") for worker in workers]
+    assert all(isinstance(failure, dict) for failure in failures), workers
+    first, second = failures
+    for field in ("nodeid", "phase", "sequence", "bdd_context"):
+        assert first.get(field) == second.get(field), (field, first, second)
+    assert first.get("phase") == "call", failures
+    assert first.get("error_message") == second.get("error_message") == "identical Debug MCP xdist failure", failures
+    context = first.get("bdd_context")
+    assert isinstance(context, dict), first
+    assert context.get("feature_name") == "Identical Debug MCP worker failures", context
+    assert context.get("scenario_name") == "The identical failure is held on each xdist worker", context
+
+    inspected = observation.get("observations")
+    assert isinstance(inspected, dict), observation
+    for worker in workers:
+        worker_id = worker.get("worker_id")
+        response = inspected.get(worker_id)
+        assert isinstance(response, dict), (worker_id, inspected)
+        assert response.get("session_id") == worker.get("session_id"), (response, worker)
+        assert response.get("active_failure") == worker.get("active_failure"), (response, worker)
+
+
+@then("both duplicate worker services should close while preserving the pytest failure")
+def consumer_xdist_duplicate_workers_close_after_failure(consumer: ConsumerProject) -> None:
+    result = consumer.pytest_result
+    initial_index = getattr(consumer, "_mcp_xdist_duplicate_initial_index", None)
+    final_index = getattr(consumer, "_mcp_xdist_duplicate_final_index", None)
+    observation = getattr(consumer, "_mcp_xdist_duplicate_client_observation", None)
+    assert result is not None and result.returncode != 0, result
+    assert isinstance(initial_index, dict), initial_index
+    assert isinstance(final_index, dict), final_index
+    assert isinstance(observation, dict), observation
+    assert final_index.get("session_id") == initial_index.get("session_id"), (final_index, initial_index)
+    assert final_index.get("status") == "closed", final_index
+    initial_workers = initial_index.get("workers")
+    final_workers = final_index.get("workers")
+    assert isinstance(initial_workers, list) and len(initial_workers) == 2, initial_index
+    assert isinstance(final_workers, list) and len(final_workers) == 2, final_index
+    initial_by_id = {worker.get("worker_id"): worker for worker in initial_workers if isinstance(worker, dict)}
+    final_by_id = {worker.get("worker_id"): worker for worker in final_workers if isinstance(worker, dict)}
+    assert set(initial_by_id) == set(final_by_id), (initial_by_id, final_by_id)
+    releases = observation.get("releases")
+    assert isinstance(releases, dict), observation
+    for worker_id in initial_by_id:
+        final = final_by_id[worker_id]
+        assert final.get("status") == "closed", final
+        assert final.get("active_failure") is None, final
+        assert final.get("debugger_endpoint") is None, final
+        assert final.get("inspection_endpoint") is None, final
+        release = releases.get(worker_id)
+        assert isinstance(release, dict) and release.get("released") is True, (worker_id, release)
+        worker_record_path = (
+            consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "workers" / f"{worker_id}.json"
+        )
+        assert worker_record_path.is_file(), worker_record_path
+        worker_record = json.loads(worker_record_path.read_text(encoding="utf-8"))
+        assert worker_record.get("status") == "closed", worker_record
+        assert worker_record.get("active_failure") is None, worker_record
+
+
+@then("identical worker failures should produce separate artifact paths and written release status")
+def consumer_xdist_duplicate_artifacts_keep_worker_paths(consumer: ConsumerProject) -> None:
+    initial_index = getattr(consumer, "_mcp_xdist_duplicate_initial_index", None)
+    observation = getattr(consumer, "_mcp_xdist_duplicate_client_observation", None)
+    assert isinstance(initial_index, dict), initial_index
+    assert isinstance(observation, dict), observation
+    initial_workers = initial_index.get("workers")
+    assert isinstance(initial_workers, list) and len(initial_workers) == 2, initial_index
+    workers = {worker.get("worker_id"): worker for worker in initial_workers if isinstance(worker, dict)}
+    assert len(workers) == 2, initial_workers
+    submissions = observation.get("submissions")
+    submitted_artifacts = observation.get("submitted_artifacts")
+    releases = observation.get("releases")
+    assert isinstance(submissions, dict) and isinstance(submitted_artifacts, dict), observation
+    assert isinstance(releases, dict), observation
+    assert set(submissions) == set(submitted_artifacts) == set(releases) == set(workers), observation
+
+    root = consumer.path / "collision-artifacts"
+    json_paths: list[Path] = []
+    markdown_paths: list[Path] = []
+    for worker_id, worker in workers.items():
+        failure = worker.get("active_failure")
+        submitted = submitted_artifacts[worker_id]
+        submission = submissions[worker_id]
+        release = releases[worker_id]
+        assert isinstance(failure, dict), worker
+        assert isinstance(submitted, dict), submitted
+        assert isinstance(submission, dict), submission
+        assert submission.get("ok") is True, (worker_id, submission)
+        assert submission.get("artifact_id") == submitted.get("artifact_id"), (submission, submitted)
+        assert submitted.get("nodeid") == failure.get("nodeid"), (submitted, failure)
+        assert submitted.get("pytest_phase") == failure.get("phase") == "call", (submitted, failure)
+        assert submitted.get("bdd_metadata") == _expected_debug_mcp_artifact_bdd_metadata(failure), (
+            submitted,
+            failure,
+        )
+        json_path = _resolve_debug_mcp_artifact_path(submission.get("json_path"), root)
+        markdown_path = _resolve_debug_mcp_artifact_path(submission.get("markdown_path"), root)
+        assert json_path.is_file(), json_path
+        assert markdown_path.is_file(), markdown_path
+        assert json_path.parent.name == worker.get("session_id"), (json_path, worker)
+        assert json_path.parent.parent.name == worker_id, (json_path, worker_id)
+        assert json_path.suffix == ".json" and markdown_path.suffix == ".md", (json_path, markdown_path)
+        assert json_path.stem == markdown_path.stem, (json_path, markdown_path)
+        document = json.loads(json_path.read_text(encoding="utf-8"))
+        assert document.get("artifact_id") == submitted.get("artifact_id"), document
+        assert document.get("nodeid") == failure.get("nodeid"), (document, failure)
+        assert document.get("pytest_phase") == failure.get("phase"), (document, failure)
+        assert document.get("bdd_metadata") == submitted.get("bdd_metadata"), (document, submitted)
+        assert submitted.get("artifact_id") in markdown_path.read_text(encoding="utf-8"), markdown_path
+        assert release.get("released") is True, release
+        assert release.get("artifact_status") == "written", (worker_id, release)
+        json_paths.append(json_path)
+        markdown_paths.append(markdown_path)
+
+    assert len(set(json_paths)) == len(set(markdown_paths)) == 2, (json_paths, markdown_paths)
+    assert sorted(root.rglob("*.json")) == sorted(json_paths), list(root.rglob("*"))
+    assert sorted(root.rglob("*.md")) == sorted(markdown_paths), list(root.rglob("*"))
+
+
 @then("xdist root discovery should show both distinct worker failures")
 def consumer_xdist_discovery_shows_distinct_worker_failures(consumer: ConsumerProject) -> None:
     index = getattr(consumer, "_mcp_xdist_initial_index", None)
@@ -13976,6 +14603,13 @@ def consumer_xdist_discovery_shows_distinct_worker_failures(consumer: ConsumerPr
         result = inspections.get(worker_id)
         assert isinstance(result, dict), (worker_id, inspections)
         assert result.get("endpoint") == record.get("inspection_endpoint"), result
+        assert {"inspect_failure", "heartbeat", "release_failure", "submit_artifact"} <= set(
+            result.get("tools", [])
+        ), result
+        debugger = result.get("debugger")
+        assert isinstance(debugger, dict), result
+        assert debugger.get("endpoint") == record.get("debugger_endpoint"), (debugger, record)
+        assert {"start_debug", "send_pdb_command"} <= set(debugger.get("tools", [])), debugger
         inspection = result.get("inspection")
         assert isinstance(inspection, dict), result
         assert inspection.get("session_id") == record.get("session_id"), (inspection, record)
@@ -14024,10 +14658,11 @@ def consumer_xdist_release_isolated_to_one_worker(consumer: ConsumerProject) -> 
     assert first_release.get("released") is True, first_release
     assert first_release.get("session_id") == target.get("session_id"), first_release
     assert first_release.get("sequence") == target_failure.get("sequence"), first_release
-    assert first_release.get("artifact_status") == "missing", first_release
+    assert first_release.get("artifact_status") == "written", first_release
     assert second_release.get("released") is True, second_release
     assert second_release.get("session_id") == remaining.get("session_id"), second_release
     assert second_release.get("sequence") == remaining_failure.get("sequence"), second_release
+    assert second_release.get("artifact_status") == "missing", second_release
     isolated_workers = isolated_index.get("workers")
     assert isinstance(isolated_workers, list), isolated_index
     isolated_by_id = {worker.get("worker_id"): worker for worker in isolated_workers if isinstance(worker, dict)}
@@ -14072,6 +14707,63 @@ def consumer_xdist_release_isolated_to_one_worker(consumer: ConsumerProject) -> 
     assert remaining_after_timeout_index.get("active_failure") == remaining_failure
     assert remaining_after_timeout.get("session_id") == remaining.get("session_id"), remaining_after_timeout
     assert remaining_after_timeout.get("active_failure") == remaining_failure, remaining_after_timeout
+
+
+@then("the written worker artifact should match its failure while the peer release remains missing")
+def consumer_xdist_artifact_is_bound_to_one_worker(consumer: ConsumerProject) -> None:
+    observation = getattr(consumer, "_mcp_xdist_client_observation", None)
+    initial_index = getattr(consumer, "_mcp_xdist_initial_index", None)
+    assert isinstance(observation, dict), observation
+    workers = _assert_mcp_xdist_worker_index(initial_index)
+    workers_by_id = {worker["worker_id"]: worker for worker in workers}
+    target_worker_id = observation.get("target_worker_id")
+    remaining_worker_id = observation.get("remaining_worker_id")
+    target = workers_by_id.get(target_worker_id)
+    remaining = workers_by_id.get(remaining_worker_id)
+    assert isinstance(target, dict) and isinstance(remaining, dict), observation
+    target_failure = target.get("active_failure")
+    remaining_failure = remaining.get("active_failure")
+    assert isinstance(target_failure, dict) and isinstance(remaining_failure, dict), observation
+
+    submitted = observation.get("submitted_artifact")
+    submission = observation.get("artifact_submission")
+    assert isinstance(submitted, dict) and isinstance(submission, dict), observation
+    assert submission.get("ok") is True, submission
+    assert submission.get("artifact_id") == submitted.get("artifact_id"), submission
+    assert submitted.get("nodeid") == target_failure.get("nodeid"), (submitted, target_failure)
+    assert submitted.get("pytest_phase") == target_failure.get("phase") == "call", (submitted, target_failure)
+    assert submitted.get("bdd_metadata", {}).get("example_row") == target_failure.get("bdd_context", {}).get(
+        "outline_row"
+    ), (submitted, target_failure)
+
+    root = consumer.path / "xdist-artifacts"
+    json_path = _resolve_debug_mcp_artifact_path(submission.get("json_path"), root)
+    markdown_path = _resolve_debug_mcp_artifact_path(submission.get("markdown_path"), root)
+    assert json_path.is_file(), json_path
+    assert markdown_path.is_file(), markdown_path
+    assert json_path.suffix == ".json" and markdown_path.suffix == ".md", (json_path, markdown_path)
+    assert json_path.stem == markdown_path.stem, (json_path, markdown_path)
+    assert json_path.name.startswith(f"failure-{target_failure['sequence']:04d}-"), (json_path, target_failure)
+    assert json_path.parent.name == target.get("session_id"), (json_path, target)
+    assert json_path.parent.parent.name == target.get("worker_id"), (json_path, target)
+    assert sorted(root.rglob("*.json")) == [json_path], list(root.rglob("*"))
+    assert sorted(root.rglob("*.md")) == [markdown_path], list(root.rglob("*"))
+
+    document = json.loads(json_path.read_text(encoding="utf-8"))
+    assert document.get("artifact_id") == submitted.get("artifact_id"), document
+    assert document.get("nodeid") == target_failure.get("nodeid"), (document, target_failure)
+    assert document.get("pytest_phase") == target_failure.get("phase"), (document, target_failure)
+    assert document.get("bdd_metadata") == submitted.get("bdd_metadata"), (document, submitted)
+    context = target_failure.get("bdd_context")
+    assert isinstance(context, dict), target_failure
+    assert document["bdd_metadata"].get("scenario_name") == context.get("scenario_name"), (document, context)
+    assert document["bdd_metadata"].get("example_row") == context.get("outline_row"), (document, context)
+    assert submitted["artifact_id"] in markdown_path.read_text(encoding="utf-8")
+
+    assert observation.get("first_release", {}).get("artifact_status") == "written", observation
+    assert observation.get("second_release", {}).get("artifact_status") == "missing", observation
+    assert target_failure.get("sequence") == remaining_failure.get("sequence") == 1, observation
+    assert target.get("session_id") != remaining.get("session_id"), observation
 
 
 @then("pytest should report both initial failures and the third follow-up failure, then close every worker service")
@@ -14165,6 +14857,239 @@ def consumer_xdist_keeps_failures_and_closes_worker_services(consumer: ConsumerP
             continue
         connection.close()
         raise AssertionError(f"xdist worker MCP endpoint {host}:{port} remained open after pytest finished")
+
+
+@when("I release the fresh-session workers after observing current discovery")
+def release_fresh_xdist_session_workers(consumer: ConsumerProject) -> None:
+    process = getattr(consumer, "_mcp_pytest_process", None)
+    assert isinstance(process, subprocess.Popen), "the second xdist pytest process has not been started"
+    old_index = getattr(consumer, "_mcp_xdist_initial_index", None)
+    old_workers = _assert_mcp_xdist_worker_index(old_index)
+    assert isinstance(old_index, dict), old_index
+    old_session_id = old_index.get("session_id")
+    old_sessions = {worker["session_id"] for worker in old_workers}
+    old_endpoints = {
+        endpoint
+        for worker in old_workers
+        for endpoint in (worker.get("debugger_endpoint"), worker.get("inspection_endpoint"))
+        if isinstance(endpoint, str)
+    }
+    index_path = _mcp_xdist_workers_path(consumer)
+    rendezvous = consumer.path / "fresh-xdist-rendezvous"
+    release_path = rendezvous / "release"
+    deadline = time.monotonic() + 75
+    current_index: dict[str, object] | None = None
+    latest: object = "second-session xdist index has not been published"
+    while time.monotonic() < deadline:
+        try:
+            payload = json.loads(index_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as error:
+            latest = repr(error)
+            payload = None
+        if isinstance(payload, dict):
+            latest = payload
+            root_session_id = payload.get("session_id")
+            workers = payload.get("workers")
+            if root_session_id != old_session_id and isinstance(workers, list) and len(workers) == 2:
+                typed_workers = [worker for worker in workers if isinstance(worker, dict)]
+                worker_ids = [worker.get("worker_id") for worker in typed_workers]
+                ready = (
+                    len(typed_workers) == 2
+                    and worker_ids == sorted(worker_ids)
+                    and len(set(worker_ids)) == 2
+                    and payload.get("status") == "waiting"
+                    and all(
+                        worker.get("status") == "waiting"
+                        and worker.get("active_failure") is None
+                        and isinstance(worker.get("session_id"), str)
+                        and worker.get("session_id") not in old_sessions
+                        and isinstance(worker.get("debugger_endpoint"), str)
+                        and isinstance(worker.get("inspection_endpoint"), str)
+                        for worker in typed_workers
+                    )
+                )
+                current_endpoints = {
+                    endpoint
+                    for worker in typed_workers
+                    for endpoint in (worker.get("debugger_endpoint"), worker.get("inspection_endpoint"))
+                    if isinstance(endpoint, str)
+                }
+                if ready and len(current_endpoints) == 4:
+                    worker_record_matches = True
+                    for worker in typed_workers:
+                        worker_record_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "workers" / (
+                            f"{worker['worker_id']}.json"
+                        )
+                        try:
+                            worker_record = json.loads(worker_record_path.read_text(encoding="utf-8"))
+                        except (OSError, json.JSONDecodeError):
+                            worker_record_matches = False
+                            break
+                        if (
+                            worker_record.get("root_session_id") != root_session_id
+                            or worker_record.get("session_id") != worker.get("session_id")
+                            or worker_record.get("debugger_endpoint") != worker.get("debugger_endpoint")
+                            or worker_record.get("inspection_endpoint") != worker.get("inspection_endpoint")
+                            or worker_record.get("status") != "waiting"
+                        ):
+                            worker_record_matches = False
+                            break
+                    try:
+                        marker_records = [
+                            json.loads(path.read_text(encoding="utf-8"))
+                            for path in rendezvous.glob("*.json")
+                        ] if rendezvous.is_dir() else []
+                    except (OSError, json.JSONDecodeError):
+                        marker_records = []
+                    marker_workers = {record.get("worker_id") for record in marker_records}
+                    if worker_record_matches and marker_workers == set(worker_ids):
+                        client_path = consumer.path / "debug-mcp-xdist-fresh-session-client.py"
+                        client_result_path = consumer.path / "debug-mcp-xdist-fresh-session-client-result.json"
+                        client_path.write_text(_debug_mcp_xdist_fresh_worker_client_script(), encoding="utf-8")
+                        client_result = subprocess.run(
+                            [
+                                str(consumer.python),
+                                str(client_path),
+                                str(index_path),
+                                str(client_result_path),
+                            ],
+                            cwd=consumer.path,
+                            env=consumer.env,
+                            check=False,
+                            capture_output=True,
+                            text=True,
+                            timeout=30,
+                        )
+                        assert client_result.returncode == 0, (
+                            f"fresh-session MCP endpoint clients failed ({client_result.returncode}):\n"
+                            f"{client_result.stdout}\n{client_result.stderr}"
+                        )
+                        assert client_result_path.is_file(), client_result.stdout
+                        client_observation = json.loads(client_result_path.read_text(encoding="utf-8"))
+                        assert client_observation.get("session_id") == root_session_id, client_observation
+                        observations_by_id = {
+                            record.get("worker_id"): record
+                            for record in client_observation.get("workers", [])
+                            if isinstance(record, dict)
+                        }
+                        assert set(observations_by_id) == set(worker_ids), client_observation
+                        for worker in typed_workers:
+                            endpoint_observation = observations_by_id.get(worker.get("worker_id"))
+                            assert isinstance(endpoint_observation, dict), client_observation
+                            assert endpoint_observation.get("session_id") == worker.get("session_id"), (
+                                endpoint_observation,
+                                worker,
+                            )
+                            assert endpoint_observation.get("inspection_endpoint") == worker.get(
+                                "inspection_endpoint"
+                            ), (endpoint_observation, worker)
+                            assert endpoint_observation.get("debugger_endpoint") == worker.get("debugger_endpoint"), (
+                                endpoint_observation,
+                                worker,
+                            )
+                            assert endpoint_observation.get("active_failure") is None, endpoint_observation
+                        current_index = payload
+                        break
+        if process.poll() is not None:
+            break
+        time.sleep(0.05)
+
+    if current_index is None:
+        output_path = consumer._mcp_pytest_output_path
+        output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+        raise AssertionError(
+            "the second xdist session did not publish two fresh waiting workers before the watchdog; "
+            f"latest discovery: {latest!r}\npytest output:\n{output}"
+        )
+
+    fresh_workers = current_index.get("workers")
+    assert isinstance(fresh_workers, list), current_index
+    endpoints = {
+        endpoint
+        for worker in fresh_workers
+        if isinstance(worker, dict)
+        for endpoint in (worker.get("debugger_endpoint"), worker.get("inspection_endpoint"))
+        if isinstance(endpoint, str)
+    }
+    assert len(endpoints) == 4 and not endpoints.intersection(old_endpoints), (endpoints, old_endpoints)
+    release_path.write_text("release fresh xdist session\n", encoding="utf-8")
+    consumer._mcp_xdist_restart_observation = {
+        "old_session_id": old_session_id,
+        "old_worker_sessions": sorted(old_sessions),
+        "old_endpoints": sorted(old_endpoints),
+        "fresh_index": current_index,
+        "fresh_endpoints": sorted(endpoints),
+        "fresh_endpoint_observation": client_observation,
+        "rendezvous_workers": sorted(marker_workers),
+    }
+
+
+@then("the new xdist session should replace previous worker discovery and pass its probes")
+def consumer_fresh_xdist_session_replaces_previous_discovery(consumer: ConsumerProject) -> None:
+    process = getattr(consumer, "_mcp_pytest_process", None)
+    observation = getattr(consumer, "_mcp_xdist_restart_observation", None)
+    assert isinstance(process, subprocess.Popen), process
+    assert isinstance(observation, dict), observation
+    try:
+        return_code = process.wait(timeout=30)
+    except subprocess.TimeoutExpired as error:
+        process.terminate()
+        try:
+            process.wait(timeout=3)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=3)
+        raise AssertionError("the second installed xdist pytest session did not finish after worker release") from error
+    output_path = consumer._mcp_pytest_output_path
+    output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+    consumer.pytest_result = subprocess.CompletedProcess(consumer._mcp_pytest_command, return_code, output, "")
+    assert return_code == 0, f"the fresh xdist session did not pass after worker release:\n{output}"
+    assert re.search(r"\b2 passed\b", output), output
+
+    fresh_index = observation.get("fresh_index")
+    assert isinstance(fresh_index, dict), observation
+    old_session_id = observation.get("old_session_id")
+    old_worker_sessions = set(observation.get("old_worker_sessions", []))
+    fresh_session_id = fresh_index.get("session_id")
+    assert isinstance(fresh_session_id, str) and fresh_session_id != old_session_id, observation
+    workers = fresh_index.get("workers")
+    assert isinstance(workers, list) and len(workers) == 2, fresh_index
+    worker_ids = [worker.get("worker_id") for worker in workers if isinstance(worker, dict)]
+    assert worker_ids == sorted(worker_ids) and len(set(worker_ids)) == 2, workers
+    assert set(observation.get("rendezvous_workers", [])) == set(worker_ids), observation
+    fresh_sessions = set()
+    for worker in workers:
+        assert isinstance(worker, dict), workers
+        assert worker.get("status") == "waiting", worker
+        assert worker.get("active_failure") is None, worker
+        assert worker.get("session_id") not in old_worker_sessions, worker
+        assert isinstance(worker.get("debugger_endpoint"), str), worker
+        assert isinstance(worker.get("inspection_endpoint"), str), worker
+        fresh_sessions.add(worker.get("session_id"))
+    assert len(fresh_sessions) == 2, workers
+
+    final_path = _mcp_xdist_workers_path(consumer)
+    final_index = json.loads(final_path.read_text(encoding="utf-8"))
+    assert final_index.get("session_id") == fresh_session_id, final_index
+    assert final_index.get("status") == "closed", final_index
+    final_workers = final_index.get("workers")
+    assert isinstance(final_workers, list) and len(final_workers) == 2, final_index
+    assert [worker.get("worker_id") for worker in final_workers] == worker_ids, final_workers
+    for worker in final_workers:
+        assert worker.get("status") == "closed", worker
+        assert worker.get("active_failure") is None, worker
+        assert worker.get("debugger_endpoint") is None, worker
+        assert worker.get("inspection_endpoint") is None, worker
+        worker_record_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "workers" / (
+            f"{worker['worker_id']}.json"
+        )
+        worker_record = json.loads(worker_record_path.read_text(encoding="utf-8"))
+        assert worker_record.get("root_session_id") == fresh_session_id, worker_record
+        assert worker_record.get("session_id") == worker.get("session_id"), (worker_record, worker)
+        assert worker_record.get("status") == "closed", worker_record
+        assert worker_record.get("debugger_endpoint") is None, worker_record
+        assert worker_record.get("inspection_endpoint") is None, worker_record
+    observation["final_index"] = final_index
 
 
 # Cucumber Messages reporting-spine acceptance helpers (#293).
