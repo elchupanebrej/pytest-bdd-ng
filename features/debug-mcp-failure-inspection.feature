@@ -163,14 +163,44 @@ Feature: Debug MCP failure inspection
     And the installed consumer has the optional debug MCP extra installed
     And the installed consumer exposes a debugger failure BDD probe
     When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=60s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-mcp-artifacts=artifact-output --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
-    And an external MCP client validates and submits an investigation artifact for the held failure
+    And an external MCP client rejects mismatched artifacts and submits an investigation artifact under "artifact-output"
     Then pytest should exit with a non-zero code
-    And the MCP artifact observation should confirm strict validation, BDD metadata, and written release status
-    And the consumer MCP artifact files should contain the submitted JSON and Markdown pair
-    And the consumer artifact hook should report the same BDD failure and saved paths
+    And the MCP artifact observation should confirm strict validation, failure binding, BDD metadata, and written release status
+    And the consumer MCP artifact files should contain the submitted JSON and Markdown pair under "artifact-output"
+    And the consumer artifact hook should report the active BDD failure and saved paths under "artifact-output"
     And the MCP discovery record should no longer advertise a live endpoint
     And consumer artifact "report.json" should retain the failed debugger BDD scenario
     And consumer artifact "messages.ndjson" should retain the debugger failure evidence
+
+  Scenario: Configured artifact directory is used without a CLI override
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer has the optional debug MCP extra installed
+    And pytest configuration:
+      """toml
+      [tool.pytest.ini_options]
+      cuke_mcp_artifacts = "configured-artifacts"
+      """
+    And the installed consumer exposes a debugger failure BDD probe
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=60s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
+    And an external MCP client rejects mismatched artifacts and submits an investigation artifact under "configured-artifacts"
+    Then pytest should exit with a non-zero code
+    And the MCP artifact observation should confirm strict validation, failure binding, BDD metadata, and written release status
+    And the consumer MCP artifact files should contain the submitted JSON and Markdown pair under "configured-artifacts"
+    And the consumer artifact hook should report the active BDD failure and saved paths under "configured-artifacts"
+    And the MCP discovery record should no longer advertise a live endpoint
+
+  Scenario: An external MCP client can submit an artifact for a plain pytest failure
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer has the optional debug MCP extra installed
+    And the installed consumer exposes a plain pytest call failure
+    And the installed consumer records Debug MCP artifact hook calls
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-mcp-on-fail --cuke-mcp-timeout=60s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-mcp-artifacts=plain-artifacts -q"
+    And an external MCP client submits an artifact for the held plain pytest failure under "plain-artifacts"
+    Then pytest should exit with a non-zero code
+    And the plain failure artifact observation should confirm null BDD context, default metadata, and written release status
+    And the consumer MCP artifact files should contain the submitted JSON and Markdown pair under "plain-artifacts"
+    And the consumer artifact hook should report the active BDD failure and saved paths under "plain-artifacts"
+    And the MCP discovery record should no longer advertise a live endpoint
 
   Scenario: A released failure sequence cannot attach an artifact to the next held failure
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
