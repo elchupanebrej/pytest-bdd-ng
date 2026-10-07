@@ -1,4 +1,4 @@
-"""Own live formatter subprocesses and stream validated Cucumber Messages to them."""
+"""Own formatter subprocesses and stream validated Cucumber Messages to them."""
 
 from __future__ import annotations
 
@@ -28,11 +28,11 @@ _STOP_WRITER = object()
 
 
 class FormatterRuntimeError(RuntimeError):
-    """A selected live formatter failed to consume or finish its Messages stream."""
+    """A selected formatter failed to consume or finish its Messages stream."""
 
 
 class _TerminalOutputRelay:
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config | None) -> None:
         self.config = config
         self._lock = Lock()
         self._layout_prepared = False
@@ -41,7 +41,9 @@ class _TerminalOutputRelay:
         if not text:
             return
         with self._lock:
-            terminalreporter = self.config.pluginmanager.get_plugin("terminalreporter")
+            terminalreporter = (
+                self.config.pluginmanager.get_plugin("terminalreporter") if self.config is not None else None
+            )
             if terminalreporter is not None:
                 if not self._layout_prepared:
                     terminalreporter.ensure_newline()
@@ -56,9 +58,9 @@ class _TerminalOutputRelay:
 
 
 class _FormatterProcess:
-    def __init__(self, request: FormatterRequest, *, config: Config) -> None:
+    def __init__(self, request: FormatterRequest, *, config: Config | None, label: str) -> None:
         self.request = request
-        self.config = config
+        self.label = label
         self.terminal_relay = _TerminalOutputRelay(config)
         self._input: queue.Queue[bytes | object] = queue.Queue(maxsize=32)
         self._lock = Lock()
@@ -114,7 +116,7 @@ class _FormatterProcess:
         except (OSError, ValueError) as error:
             self._cleanup_staged_files()
             raise FormatterRuntimeError(
-                f"Unable to start live formatter {self.request.name!r}: {type(error).__name__}: {error}"
+                f"Unable to start {self.label} {self.request.name!r}: {type(error).__name__}: {error}"
             ) from error
 
         self._writer_thread = Thread(
@@ -139,12 +141,12 @@ class _FormatterProcess:
     def write_envelope(self, envelope: dict[str, Any]) -> None:
         process = self._process
         if process is None:
-            raise FormatterRuntimeError(f"Live formatter {self.request.name!r} has not started.")
+            raise FormatterRuntimeError(f"{self.label.capitalize()} {self.request.name!r} has not started.")
         self._raise_failure()
         return_code = process.poll()
         if return_code is not None:
             error = FormatterRuntimeError(
-                f"Live formatter {self.request.name!r} exited before the Messages stream finished "
+                f"{self.label.capitalize()} {self.request.name!r} exited before the Messages stream finished "
                 f"(status {return_code})."
             )
             self._record_failure(error)
@@ -155,7 +157,7 @@ class _FormatterProcess:
             self._input.put(line, timeout=self.request.timeout_seconds)
         except queue.Full as error:
             failure = FormatterRuntimeError(
-                f"Live formatter {self.request.name!r} stopped accepting Messages for "
+                f"{self.label.capitalize()} {self.request.name!r} stopped accepting Messages for "
                 f"{self.request.timeout_seconds:g} seconds."
             )
             self._record_failure(failure)
@@ -169,7 +171,7 @@ class _FormatterProcess:
         return_code = process.poll()
         if return_code is not None:
             failure = FormatterRuntimeError(
-                f"Live formatter {self.request.name!r} exited before the Messages stream finished "
+                f"{self.label.capitalize()} {self.request.name!r} exited before the Messages stream finished "
                 f"(status {return_code})."
             )
             self._record_failure(failure)
@@ -198,9 +200,7 @@ class _FormatterProcess:
                     self._input.put(_STOP_WRITER, timeout=self.request.timeout_seconds)
                 except queue.Full:
                     self._record_failure(
-                        FormatterRuntimeError(
-                            f"Timed out closing input for live formatter {self.request.name!r}."
-                        )
+                        FormatterRuntimeError(f"Timed out closing input for {self.label} {self.request.name!r}.")
                     )
                     self._terminate_child()
 
@@ -209,9 +209,7 @@ class _FormatterProcess:
                 writer_thread.join(timeout=self.request.timeout_seconds)
                 if writer_thread.is_alive():
                     self._record_failure(
-                        FormatterRuntimeError(
-                            f"Timed out flushing Messages to live formatter {self.request.name!r}."
-                        )
+                        FormatterRuntimeError(f"Timed out flushing Messages to {self.label} {self.request.name!r}.")
                     )
                     self._terminate_child()
                     writer_thread.join(timeout=self.request.timeout_seconds)
@@ -221,7 +219,7 @@ class _FormatterProcess:
             except subprocess.TimeoutExpired:
                 self._record_failure(
                     FormatterRuntimeError(
-                        f"Live formatter {self.request.name!r} did not exit within "
+                        f"{self.label.capitalize()} {self.request.name!r} did not exit within "
                         f"{self.request.timeout_seconds:g} seconds after the final flush."
                     )
                 )
@@ -230,11 +228,11 @@ class _FormatterProcess:
                     process.wait(timeout=self.request.timeout_seconds)
                 except subprocess.TimeoutExpired as error:
                     self._record_failure(
-                        FormatterRuntimeError(f"Unable to stop live formatter {self.request.name!r} after timeout.")
+                        FormatterRuntimeError(f"Unable to stop {self.label} {self.request.name!r} after timeout.")
                     )
                     self._close_pipes()
                     raise FormatterRuntimeError(
-                        f"Unable to stop live formatter {self.request.name!r} after timeout."
+                        f"Unable to stop {self.label} {self.request.name!r} after timeout."
                     ) from error
 
             for thread in (self._stdout_thread, self._stderr_thread):
@@ -242,9 +240,7 @@ class _FormatterProcess:
                     thread.join(timeout=self.request.timeout_seconds)
                     if thread.is_alive():
                         self._record_failure(
-                            FormatterRuntimeError(
-                                f"Output relay for live formatter {self.request.name!r} did not stop."
-                            )
+                            FormatterRuntimeError(f"Output relay for {self.label} {self.request.name!r} did not stop.")
                         )
                         self._close_pipes()
                         thread.join(timeout=self.request.timeout_seconds)
@@ -252,7 +248,7 @@ class _FormatterProcess:
             if process.returncode not in (None, 0):
                 self._record_failure(
                     FormatterRuntimeError(
-                        f"Live formatter {self.request.name!r} exited with status {process.returncode}."
+                        f"{self.label.capitalize()} {self.request.name!r} exited with status {process.returncode}."
                     )
                 )
         finally:
@@ -273,7 +269,9 @@ class _FormatterProcess:
     def _write_input(self) -> None:
         process = self._process
         if process is None or process.stdin is None:
-            self._record_failure(FormatterRuntimeError(f"Live formatter {self.request.name!r} has no stdin pipe."))
+            self._record_failure(
+                FormatterRuntimeError(f"{self.label.capitalize()} {self.request.name!r} has no stdin pipe.")
+            )
             return
         try:
             while True:
@@ -291,7 +289,7 @@ class _FormatterProcess:
         except (BrokenPipeError, OSError, ValueError) as error:
             self._record_failure(
                 FormatterRuntimeError(
-                    f"Live formatter {self.request.name!r} stopped reading Messages: "
+                    f"{self.label.capitalize()} {self.request.name!r} stopped reading Messages: "
                     f"{type(error).__name__}: {error}"
                 )
             )
@@ -315,8 +313,7 @@ class _FormatterProcess:
         except (OSError, ValueError) as error:
             self._record_failure(
                 FormatterRuntimeError(
-                    f"Could not relay stdout from live formatter {self.request.name!r}: "
-                    f"{type(error).__name__}: {error}"
+                    f"Could not relay stdout from {self.label} {self.request.name!r}: {type(error).__name__}: {error}"
                 )
             )
 
@@ -332,8 +329,7 @@ class _FormatterProcess:
         except (OSError, ValueError) as error:
             self._record_failure(
                 FormatterRuntimeError(
-                    f"Could not relay stderr from live formatter {self.request.name!r}: "
-                    f"{type(error).__name__}: {error}"
+                    f"Could not relay stderr from {self.label} {self.request.name!r}: {type(error).__name__}: {error}"
                 )
             )
 
@@ -379,17 +375,13 @@ class _FormatterProcess:
             os.fsync(output_file.fileno())
         except OSError as error:
             self._record_failure(
-                FormatterRuntimeError(
-                    f"Could not flush staged output for live formatter {self.request.name!r}: {error}"
-                )
+                FormatterRuntimeError(f"Could not flush staged output for {self.label} {self.request.name!r}: {error}")
             )
         try:
             output_file.close()
         except OSError as error:
             self._record_failure(
-                FormatterRuntimeError(
-                    f"Could not close staged output for live formatter {self.request.name!r}: {error}"
-                )
+                FormatterRuntimeError(f"Could not close staged output for {self.label} {self.request.name!r}: {error}")
             )
 
     def _discard_staged_output(self) -> None:
@@ -402,7 +394,7 @@ class _FormatterProcess:
         except OSError as error:
             self._record_failure(
                 FormatterRuntimeError(
-                    "Could not remove staged output for live formatter "
+                    f"Could not remove staged output for {self.label} "
                     f"{self.request.name!r} at {str(temporary_path)!r}: {error}"
                 )
             )
@@ -427,9 +419,18 @@ class _FormatterProcess:
 class FormatterSession:
     """Run all selected formatter requests as one validated Messages sink set."""
 
-    def __init__(self, config: Config, requests: tuple[FormatterRequest, ...]) -> None:
+    def __init__(
+        self,
+        config: Config | None,
+        requests: tuple[FormatterRequest, ...],
+        *,
+        mode: str = "live",
+    ) -> None:
+        if mode not in {"live", "replay"}:
+            raise ValueError(f"unsupported formatter session mode: {mode!r}")
         self.config = config
         self.requests = requests
+        self._label = f"{mode} formatter"
         self._processes: list[_FormatterProcess] = []
         self._started = False
         self._finished = False
@@ -447,11 +448,11 @@ class FormatterSession:
         if self._started:
             return
         if self._finished:
-            raise FormatterRuntimeError("A closed live formatter session cannot be restarted.")
+            raise FormatterRuntimeError(f"A closed {self._label} session cannot be restarted.")
         self._started = True
         try:
             for request in self.requests:
-                process = _FormatterProcess(request, config=self.config)
+                process = _FormatterProcess(request, config=self.config, label=self._label)
                 self._processes.append(process)
                 process.start()
         except Exception as error:
@@ -470,6 +471,10 @@ class FormatterSession:
         if envelope is not None:
             self._write_envelope(envelope)
 
+    def write_message(self, message: Message) -> None:
+        """Send one already parsed Messages envelope through the common validator/runtime."""
+        self._write_envelope(message_to_dict(message))
+
     def pytest_cuke_message_batch(self, config: Config, batch: dict[str, Any]) -> None:
         del config
         worker_id = batch.get("worker_id")
@@ -477,19 +482,19 @@ class FormatterSession:
         envelopes = batch.get("envelopes")
         if not isinstance(worker_id, str) or not worker_id or type(sequence) is not int or sequence < 0:
             raise FormatterRuntimeError(
-                "A live formatter received a worker Messages batch without a valid ID/sequence."
+                f"A {self._label} received a worker Messages batch without a valid ID/sequence."
             )
         if not isinstance(envelopes, list):
-            raise FormatterRuntimeError("A live formatter received a malformed worker Messages batch.")
+            raise FormatterRuntimeError(f"A {self._label} received a malformed worker Messages batch.")
         expected_sequence = self._next_worker_sequence.get(worker_id, 0)
         if sequence != expected_sequence:
             raise FormatterRuntimeError(
-                f"Live formatter worker '{worker_id}' batch sequence is incomplete: "
+                f"{self._label.capitalize()} worker '{worker_id}' batch sequence is incomplete: "
                 f"expected {expected_sequence}, received {sequence}."
             )
         for envelope in envelopes:
             if not isinstance(envelope, dict):
-                raise FormatterRuntimeError("A live formatter received a non-object worker Messages envelope.")
+                raise FormatterRuntimeError(f"A {self._label} received a non-object worker Messages envelope.")
             try:
                 normalized = self._message_adapter.worker_envelope(envelope, worker_id=worker_id)
             except (TypeError, ValueError) as error:
@@ -521,7 +526,7 @@ class FormatterSession:
                 first = diagnostics[0]
                 self._record_failure(
                     FormatterRuntimeError(
-                        "Live formatter received an incomplete Cucumber Messages stream: "
+                        f"{self._label.capitalize()} received an incomplete Cucumber Messages stream: "
                         f"{first.code}: {first.message}"
                     )
                 )
@@ -566,13 +571,15 @@ class FormatterSession:
             return
         self._raise_failure()
         if not self._started or self._finished:
-            error = FormatterRuntimeError("A live formatter received a Messages event outside its active session.")
+            error = FormatterRuntimeError(f"A {self._label} received a Messages event outside its active session.")
             self._record_failure(error)
             self._raise_failure()
         try:
             self._stream_validator.accept(message_from_dict(envelope))
         except MessageValidationError as error:
-            failure = FormatterRuntimeError(f"Live formatter received an invalid Cucumber Messages stream: {error}")
+            failure = FormatterRuntimeError(
+                f"{self._label.capitalize()} received an invalid Cucumber Messages stream: {error}"
+            )
             self._record_failure(failure)
             self._failure_reported = True
             self._raise_failure()
@@ -662,7 +669,7 @@ class FormatterSession:
                 detail += f"; could not remove temporary output backup(s): {cleanup_details}"
             if staged_cleanup_errors:
                 detail += "; staged output cleanup also failed: " + "; ".join(staged_cleanup_errors)
-            raise FormatterRuntimeError(f"Could not publish live formatter outputs: {detail}") from error
+            raise FormatterRuntimeError(f"Could not publish {self._label} outputs: {detail}") from error
 
         cleanup_errors: list[tuple[Path, OSError]] = []
         for backup_path in backup_paths:
@@ -673,7 +680,7 @@ class FormatterSession:
         if cleanup_errors:
             cleanup_path, cleanup_exception = cleanup_errors[0]
             raise FormatterRuntimeError(
-                "Could not remove live formatter output backup "
+                f"Could not remove {self._label} output backup "
                 f"{str(cleanup_path)!r}: {type(cleanup_exception).__name__}: {cleanup_exception}"
             ) from cleanup_exception
 

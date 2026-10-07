@@ -20,6 +20,7 @@ from pytest_cuke.allure_conversion_command import (
     run_allure_conversion_command,
 )
 from pytest_cuke.compatibility_cli import configure_compatibility_parser, run_compatibility_command
+from pytest_cuke.formatter_replay_cli import configure_formatter_replay_parser, run_formatter_replay_command
 from pytest_cuke.generation_command import configure_generate_steps_parser, run_generate_steps
 from pytest_cuke.heading_validation_cli import configure_validation_parser, run_validation_command
 from pytest_cuke.message_capability_governance_cli import (
@@ -149,6 +150,13 @@ def _build_registry() -> CommandRegistry:
         None,
         parser_configurer=configure_allure_conversion_parser,
         namespace_handler=run_allure_conversion_command,
+    )
+    registry.add(
+        ("replay",),
+        "render saved Cucumber Messages with installed formatters",
+        None,
+        parser_configurer=configure_formatter_replay_parser,
+        namespace_handler=run_formatter_replay_command,
     )
     registry.add(
         ("sync", "messages", "schemas"),
