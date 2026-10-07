@@ -52,6 +52,19 @@ def test_debug_mcp_artifact_root_resolves_configured_relative_path_from_pytest_r
     assert root == (tmp_path / "reports" / "debug-artifacts").resolve()
 
 
+def test_configured_artifact_root_scopes_xdist_workers_and_sessions(tmp_path) -> None:
+    config = SimpleNamespace(rootpath=tmp_path)
+    configured_root = Path("reports/debug-artifacts")
+    base = (tmp_path / configured_root).resolve()
+
+    first_worker_run = _artifact_root(config, configured_root, "session-42", worker_id="gw0")
+    repeated_worker_run = _artifact_root(config, configured_root, "session-43", worker_id="gw0")
+    peer_worker_run = _artifact_root(config, configured_root, "session-42", worker_id="gw1")
+
+    assert first_worker_run == base / "workers" / "gw0" / "session-42"
+    assert len({first_worker_run, repeated_worker_run, peer_worker_run}) == 3
+
+
 def test_startup_failure_removes_stale_discovery_record(tmp_path, monkeypatch) -> None:
     config = SimpleNamespace(
         rootpath=tmp_path,
@@ -72,6 +85,27 @@ def test_startup_failure_removes_stale_discovery_record(tmp_path, monkeypatch) -
         plugin.pytest_sessionstart(SimpleNamespace(config=config))
 
     assert not discovery_path.exists()
+
+
+def test_xdist_controller_reports_inaccessible_discovery_root_without_starting_services(tmp_path, monkeypatch) -> None:
+    cache_root = tmp_path / "cache-is-a-file"
+    cache_root.write_text("cache path is not a directory", encoding="utf-8")
+    config = SimpleNamespace(
+        rootpath=tmp_path,
+        option=SimpleNamespace(cache_dir=cache_root, numprocesses=2),
+        getini=lambda name: ".pytest_cache",
+        pluginmanager=SimpleNamespace(get_plugin=lambda name: object() if name == "dsession" else None),
+    )
+    monkeypatch.setattr(debug_mcp_plugin, "ensure_optional_dependencies", lambda: None)
+    plugin = DebugMcpPlugin(config=config, options=DebugMcpOptions(enabled=True))
+
+    with pytest.raises(pytest.UsageError, match="could not clear stale Debug MCP discovery record"):
+        plugin.pytest_sessionstart(SimpleNamespace(config=config))
+
+    assert cache_root.read_text(encoding="utf-8") == "cache path is not a directory"
+    assert plugin.debugger is None
+    assert plugin.inspection is None
+    assert plugin.discovery is None
 
 
 class _FailureQueue:

@@ -128,6 +128,15 @@ sequence from the same worker record when calling ``heartbeat`` or
 worker is holding a failure; inspect the worker records to select a failure.
 If a worker exits unexpectedly, the controller retains its last failure context,
 marks it ``worker_crashed`` and clears its debugger and inspection endpoints.
+If a worker exits without a valid ``closed`` record, the controller uses the
+last indexed state, marks the worker ``worker_crashed`` and clears both
+endpoints. Discovery updates use an atomic JSON replacement under a shared lock;
+cache or lock failures return a bounded Debug MCP error rather than publishing a
+partial record.
+
+With a configured artifact root, each xdist worker writes below a directory
+scoped to its worker and session. This keeps identical node IDs and sequence
+numbers from different workers from sharing artifact paths.
 
 Workers allocate their debugger and inspection ports independently, so leave
 the debugger port at its default ``auto`` value when using xdist. A fixed
