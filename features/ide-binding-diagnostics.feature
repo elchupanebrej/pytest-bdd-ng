@@ -78,8 +78,10 @@ Feature: IDE step binding diagnostics
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And consumer file "conftest.py" contains:
       """python
+      import json
       from pathlib import Path
 
+      import pytest
       from pytest_cuke import given, then
 
 
@@ -109,6 +111,19 @@ Feature: IDE step binding diagnostics
       def pytest_collection_finish(session):
           with Path("collected-nodeids.txt").open("a", encoding="utf-8") as artifact:
               artifact.write("\n".join(item.nodeid for item in session.items) + "\n")
+
+
+      @pytest.hookimpl(hookwrapper=True)
+      def pytest_runtest_makereport(item, call):
+          outcome = yield
+          report = outcome.get_result()
+          if report.when != "call" or call.excinfo is None:
+              return
+          with Path("failure-reports.ndjson").open("a", encoding="utf-8") as artifact:
+              artifact.write(json.dumps({
+                  "exceptionType": type(call.excinfo.value).__name__,
+                  "message": str(call.excinfo.value),
+              }) + "\n")
       """
     And consumer file "features/ambiguous-and-missing.feature" contains:
       """gherkin
@@ -123,6 +138,7 @@ Feature: IDE step binding diagnostics
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=diagnostics.ndjson --cuke-summary -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "1 passed BDD scenarios, 1 failed, 0 skipped"
+    And pytest output should include "Step definition is not found"
     And consumer artifact "diagnostics.ndjson" should report the missing step and both ambiguous candidates
 
   Scenario: Collection completion reports unbound and duplicate scenario bindings
@@ -130,19 +146,6 @@ Feature: IDE step binding diagnostics
     And consumer file "conftest.py" contains:
       """python
       from pathlib import Path
-
-      from pytest_cuke import given
-
-
-      @given("the explicitly bound scenario runs")
-      def explicitly_bound_scenario_runs():
-          pass
-
-
-      @given("the unbound scenario remains discoverable")
-      def unbound_scenario_remains_discoverable():
-          pass
-
 
       def pytest_collection_finish(session):
           with Path("collected-nodeids.txt").open("a", encoding="utf-8") as artifact:
@@ -159,7 +162,17 @@ Feature: IDE step binding diagnostics
       """
     And consumer file "test_duplicate_bindings.py" contains:
       """python
-      from pytest_cuke import scenario
+      from pytest_cuke import given, scenario
+
+
+      @given("the explicitly bound scenario runs")
+      def explicitly_bound_scenario_runs():
+          pass
+
+
+      @given("the unbound scenario remains discoverable")
+      def unbound_scenario_remains_discoverable():
+          pass
 
 
       @scenario("collection-bindings.feature", "The source has multiple item bindings")
@@ -183,14 +196,6 @@ Feature: IDE step binding diagnostics
       import os
       from pathlib import Path
 
-      from pytest_cuke import given
-
-
-      @given("the shared worker scenario passes")
-      def shared_worker_scenario_passes():
-          pass
-
-
       def pytest_runtest_call(item):
           with Path("worker-nodeids.txt").open("a", encoding="utf-8") as artifact:
               artifact.write(f"{item.nodeid}\t{os.environ['PYTEST_XDIST_WORKER']}\n")
@@ -203,7 +208,12 @@ Feature: IDE step binding diagnostics
       """
     And consumer file "tests/test_north_duplicate_binding.py" contains:
       """python
-      from pytest_cuke import scenario
+      from pytest_cuke import given, scenario
+
+
+      @given("the shared worker scenario passes")
+      def shared_worker_scenario_passes():
+          pass
 
 
       @scenario("split-worker-bindings.feature", "The shared source scenario has two bindings")
@@ -212,7 +222,12 @@ Feature: IDE step binding diagnostics
       """
     And consumer file "tests/test_south_duplicate_binding.py" contains:
       """python
-      from pytest_cuke import scenario
+      from pytest_cuke import given, scenario
+
+
+      @given("the shared worker scenario passes")
+      def shared_worker_scenario_passes():
+          pass
 
 
       @scenario("split-worker-bindings.feature", "The shared source scenario has two bindings")
@@ -251,9 +266,14 @@ Feature: IDE step binding diagnostics
         Scenario Outline: The source row is <value>
           Given the source row is <value>
 
-          Examples: Source lines
+          @north-row
+          Examples: North source line
             | value |
             | 11    |
+
+          @south-row
+          Examples: South source line
+            | value |
             | 22    |
       """
     And consumer file "features/narrative/narrative-cafe.feature.md" contains:

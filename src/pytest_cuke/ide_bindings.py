@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pytest_cuke.model.feature_binding import FeatureRuntimeBinding, normalize_feature_uri
+from pytest_cuke.model.message_extension import (
+    IDE_DIAGNOSTIC_MEDIA_TYPE,
+    IDE_LAUNCH_MEDIA_TYPE,
+    IDE_STEP_BINDING_MEDIA_TYPE,
+)
 
 if TYPE_CHECKING:
     from pytest_cuke.compatibility.pytest import Config, FixtureRequest
@@ -15,9 +20,6 @@ if TYPE_CHECKING:
     from pytest_cuke.steps.definition import Definition
 
 
-IDE_LAUNCH_MEDIA_TYPE = "application/vnd.pytest-bdd.launch+json"
-IDE_STEP_BINDING_MEDIA_TYPE = "application/vnd.pytest-bdd.step-binding+json"
-IDE_DIAGNOSTIC_MEDIA_TYPE = "application/vnd.pytest-bdd.diagnostic+json"
 IDE_BINDING_WORKER_OUTPUT_KEY = "pytest_cuke_ide_bindings"
 
 
@@ -27,7 +29,7 @@ class IdeBindingCollection:
 
     source_identities_by_key: dict[str, dict[str, Any]] = field(default_factory=dict)
     nodeids_by_source_key: dict[str, set[str]] = field(default_factory=dict)
-    test_case_ids_by_nodeid: dict[str, set[str]] = field(default_factory=dict)
+    test_case_ids_by_nodeid: dict[str, set[tuple[str | None, str]]] = field(default_factory=dict)
 
     def register_source(self, identity: dict[str, Any], nodeid: str | None = None) -> str:
         key = source_identity_key(identity)
@@ -36,8 +38,8 @@ class IdeBindingCollection:
             self.nodeids_by_source_key.setdefault(key, set()).add(nodeid)
         return key
 
-    def record_test_case(self, nodeid: str, test_case_id: str) -> None:
-        self.test_case_ids_by_nodeid.setdefault(nodeid, set()).add(test_case_id)
+    def record_test_case(self, nodeid: str, test_case_id: str, *, worker_id: str | None = None) -> None:
+        self.test_case_ids_by_nodeid.setdefault(nodeid, set()).add((worker_id, test_case_id))
 
     def to_worker_output(self) -> dict[str, Any]:
         """Serialize only builtin values for pytest-xdist's workeroutput channel."""
@@ -47,12 +49,12 @@ class IdeBindingCollection:
                 key: sorted(nodeids) for key, nodeids in self.nodeids_by_source_key.items()
             },
             "testCaseIdsByNodeid": {
-                nodeid: sorted(test_case_ids)
+                nodeid: sorted(test_case_id for _, test_case_id in test_case_ids)
                 for nodeid, test_case_ids in self.test_case_ids_by_nodeid.items()
             },
         }
 
-    def merge_worker_output(self, payload: object) -> None:
+    def merge_worker_output(self, payload: object, *, worker_id: str | None = None) -> None:
         """Merge a worker payload while ignoring malformed or unknown values."""
         if not isinstance(payload, dict):
             return
@@ -77,9 +79,9 @@ class IdeBindingCollection:
             for nodeid, test_case_ids in test_case_ids_by_nodeid.items():
                 if not isinstance(nodeid, str) or not isinstance(test_case_ids, list):
                     continue
-                self.test_case_ids_by_nodeid.setdefault(nodeid, set()).update(
-                    test_case_id for test_case_id in test_case_ids if isinstance(test_case_id, str)
-                )
+                for test_case_id in test_case_ids:
+                    if isinstance(test_case_id, str):
+                        self.record_test_case(nodeid, test_case_id, worker_id=worker_id)
 
     def diagnostics(self) -> list[dict[str, Any]]:
         """Return source-level diagnostics with node and case identities."""
@@ -99,11 +101,17 @@ class IdeBindingCollection:
             if len(nodeids) < 2:
                 continue
 
-            bindings = [
-                {"nodeid": nodeid, "testCaseId": test_case_id}
-                for nodeid in nodeids
-                for test_case_id in sorted(self.test_case_ids_by_nodeid.get(nodeid, ()))
-            ]
+            bindings = []
+            for nodeid in nodeids:
+                case_ids = sorted(
+                    self.test_case_ids_by_nodeid.get(nodeid, ()),
+                    key=lambda case: (case[0] or "", case[1]),
+                )
+                for worker_id, test_case_id in case_ids:
+                    binding = {"nodeid": nodeid, "testCaseId": test_case_id}
+                    if worker_id is not None:
+                        binding["workerId"] = worker_id
+                    bindings.append(binding)
             if len(bindings) > 1:
                 diagnostics.append(
                     {

@@ -8,13 +8,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
-from pytest_cuke.ide_bindings import (
+from pytest_cuke.model.message_extension import (
+    CONTROLLER_SINGULAR_PAYLOAD_KINDS,
     IDE_DIAGNOSTIC_MEDIA_TYPE,
     IDE_LAUNCH_MEDIA_TYPE,
     IDE_STEP_BINDING_MEDIA_TYPE,
-)
-from pytest_cuke.model.message_extension import (
-    CONTROLLER_SINGULAR_PAYLOAD_KINDS,
     STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS,
 )
 from pytest_cuke.model.message_types import Envelope, message_from_dict
@@ -36,8 +34,10 @@ def _namespace_identifier(value: Any, worker_id: str) -> Any:
     return value
 
 
-def _namespace_nested(value: Any, worker_id: str) -> Any:
+def _namespace_nested(value: Any, worker_id: str, *, use_payload_worker_ids: bool = False) -> Any:
     if isinstance(value, Mapping):
+        if use_payload_worker_ids and isinstance(value.get("workerId"), str) and value["workerId"]:
+            worker_id = value["workerId"]
         namespaced: dict[str, Any] = {}
         media_type = value.get("mediaType")
         for key, item in value.items():
@@ -50,17 +50,24 @@ def _namespace_nested(value: Any, worker_id: str) -> Any:
                     namespaced[key] = item
                 else:
                     namespaced[key] = json.dumps(
-                        _namespace_nested(attachment_payload, worker_id),
+                        _namespace_nested(attachment_payload, worker_id, use_payload_worker_ids=True),
                         ensure_ascii=False,
                         separators=(",", ":"),
                     )
             elif _is_identifier_key(key):
                 namespaced[key] = _namespace_identifier(item, worker_id)
             else:
-                namespaced[key] = _namespace_nested(item, worker_id)
+                namespaced[key] = _namespace_nested(
+                    item,
+                    worker_id,
+                    use_payload_worker_ids=use_payload_worker_ids,
+                )
         return namespaced
     if isinstance(value, list):
-        return [_namespace_nested(item, worker_id) for item in value]
+        return [
+            _namespace_nested(item, worker_id, use_payload_worker_ids=use_payload_worker_ids)
+            for item in value
+        ]
     return value
 
 

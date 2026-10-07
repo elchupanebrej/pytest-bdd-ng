@@ -937,12 +937,15 @@ class MessagePlugin:
     @hookimpl(optionalhook=True)
     def pytest_testnodedown(self, node: Any, error: object | None) -> None:
         """Merge worker collection and execution identities on the xdist controller."""
+        worker_id = self._worker_id_for_node(node) or "unknown"
         worker_output = getattr(node, "workeroutput", None)
         if isinstance(worker_output, dict):
-            self.ide_bindings.merge_worker_output(worker_output.get(IDE_BINDING_WORKER_OUTPUT_KEY))
+            self.ide_bindings.merge_worker_output(
+                worker_output.get(IDE_BINDING_WORKER_OUTPUT_KEY),
+                worker_id=worker_id,
+            )
         if not self.is_xdist_controller or self.worker_message_receiver is None:
             return
-        worker_id = self._worker_id_for_node(node) or "unknown"
         if isinstance(worker_output, dict):
             transport_output = worker_output.get(_WORKER_MESSAGE_OUTPUT_KEY)
             if isinstance(transport_output, dict):
@@ -1401,7 +1404,11 @@ class MessagePlugin:
             binding.register_scenario(scenario)
         identity = source_identity(feature, scenario, binding)
         self.ide_bindings.register_source(identity, request.node.nodeid)
-        self.ide_bindings.record_test_case(request.node.nodeid, current_test_case.id)
+        self.ide_bindings.record_test_case(
+            request.node.nodeid,
+            current_test_case.id,
+            worker_id=run_context.worker_id if run_context is not None else None,
+        )
 
         self._emit_ide_attachment(
             config,

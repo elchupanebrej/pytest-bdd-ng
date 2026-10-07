@@ -154,6 +154,37 @@ def test_worker_output_merges_split_duplicate_bindings_with_case_ids() -> None:
     ]
 
 
+def test_worker_output_keeps_worker_identity_for_duplicate_case_ids() -> None:
+    identity = {"uri": "file:///features/account.feature", "line": 7}
+    first_worker = IdeBindingCollection()
+    first_worker.register_source(identity, "tests/test_account.py::test_scenario")
+    first_worker.record_test_case("tests/test_account.py::test_scenario", "case-1")
+
+    second_worker = IdeBindingCollection()
+    second_worker.register_source(identity, "tests/test_account_alias.py::test_scenario")
+    second_worker.record_test_case("tests/test_account_alias.py::test_scenario", "case-2")
+
+    controller = IdeBindingCollection()
+    controller.merge_worker_output(first_worker.to_worker_output(), worker_id="gw0")
+    controller.merge_worker_output(second_worker.to_worker_output(), worker_id="gw1")
+
+    assert controller.diagnostics() == [
+        {
+            "kind": "duplicate-bindings",
+            "severity": "warning",
+            "sourceIdentity": identity,
+            "bindings": [
+                {"nodeid": "tests/test_account.py::test_scenario", "testCaseId": "case-1", "workerId": "gw0"},
+                {
+                    "nodeid": "tests/test_account_alias.py::test_scenario",
+                    "testCaseId": "case-2",
+                    "workerId": "gw1",
+                },
+            ],
+        }
+    ]
+
+
 def test_worker_output_keeps_repeated_case_ids_for_same_nodeid() -> None:
     identity = {"uri": "file:///features/account.feature", "line": 7}
     first_worker = IdeBindingCollection()

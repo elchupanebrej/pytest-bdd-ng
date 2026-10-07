@@ -23,6 +23,9 @@ ExpressionType = StepDefinitionPatternType
 EventEnvelope: TypeAlias = Envelope
 PayloadKind: TypeAlias = str
 PAYLOAD_KINDS: Final[tuple[str, ...]] = message_field_names(Envelope)
+IDE_LAUNCH_MEDIA_TYPE: Final = "application/vnd.pytest-bdd.launch+json"
+IDE_STEP_BINDING_MEDIA_TYPE: Final = "application/vnd.pytest-bdd.step-binding+json"
+IDE_DIAGNOSTIC_MEDIA_TYPE: Final = "application/vnd.pytest-bdd.diagnostic+json"
 
 CONTROLLER_SINGULAR_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = ("meta", "test_run_started", "test_run_finished")
 STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (
@@ -80,6 +83,9 @@ def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
 __all__ = [
     "CONTROLLER_SINGULAR_PAYLOAD_KINDS",
     "EXECUTION_PRESERVED_PAYLOAD_KINDS",
+    "IDE_DIAGNOSTIC_MEDIA_TYPE",
+    "IDE_LAUNCH_MEDIA_TYPE",
+    "IDE_STEP_BINDING_MEDIA_TYPE",
     "PAYLOAD_KINDS",
     "STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS",
     "EnvelopeStatus",
