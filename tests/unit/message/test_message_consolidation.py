@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 
-from pytest_cuke.ide_bindings import IDE_LAUNCH_MEDIA_TYPE, IDE_STEP_BINDING_MEDIA_TYPE
 from pytest_cuke.model.message_consolidation import (
     ConsolidatedMessageStream,
     MessageFragment,
@@ -32,6 +31,11 @@ from pytest_cuke.model.message_types import (
 )
 from pytest_cuke.model.scenario import Scenario
 from pytest_cuke.model.step import Step
+from pytest_cuke.model.message_extension import (
+    IDE_DIAGNOSTIC_MEDIA_TYPE,
+    IDE_LAUNCH_MEDIA_TYPE,
+    IDE_STEP_BINDING_MEDIA_TYPE,
+)
 from pytest_cuke.model.message_worker_transport import MessageBatcher, WorkerMessageReceiver
 
 TestCaseStarted.__test__ = False
@@ -112,6 +116,26 @@ def test_worker_namespaces_ids_inside_pytest_cuke_json_attachments() -> None:
         "testCaseId": "gw0:case-1",
         "nested": {"stepDefinitionIds": ["gw0:definition-1"]},
     }
+
+
+def test_controller_diagnostic_keeps_case_ids_namespaced_by_their_workers() -> None:
+    body = json.dumps(
+        {
+            "kind": "duplicate-bindings",
+            "bindings": [
+                {"nodeid": "tests/test_north.py::test_case", "testCaseId": "case-1", "workerId": "gw0"},
+                {"nodeid": "tests/test_south.py::test_case", "testCaseId": "case-2", "workerId": "gw1"},
+            ],
+        }
+    )
+    envelope = {"attachment": {"mediaType": IDE_DIAGNOSTIC_MEDIA_TYPE, "body": body}}
+
+    namespaced = namespace_envelope_ids(envelope, worker_id="master")
+
+    assert json.loads(namespaced["attachment"]["body"])["bindings"] == [
+        {"nodeid": "tests/test_north.py::test_case", "testCaseId": "gw0:case-1", "workerId": "gw0"},
+        {"nodeid": "tests/test_south.py::test_case", "testCaseId": "gw1:case-2", "workerId": "gw1"},
+    ]
 
 
 def test_consolidation_deduplicates_sources_and_preserves_worker_attempts_deterministically() -> None:

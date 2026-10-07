@@ -9134,6 +9134,13 @@ def consumer_wip_outline_messages_match_json(
 _IDE_LAUNCH_MEDIA_TYPE = "application/vnd.pytest-bdd.launch+json"
 _IDE_STEP_BINDING_MEDIA_TYPE = "application/vnd.pytest-bdd.step-binding+json"
 _IDE_DIAGNOSTIC_MEDIA_TYPE = "application/vnd.pytest-bdd.diagnostic+json"
+_IDE_VENDOR_MEDIA_TYPES = frozenset(
+    {
+        _IDE_LAUNCH_MEDIA_TYPE,
+        _IDE_STEP_BINDING_MEDIA_TYPE,
+        _IDE_DIAGNOSTIC_MEDIA_TYPE,
+    }
+)
 
 
 def _ide_binding_envelopes(relative_path: str, consumer: ConsumerProject) -> list[dict[str, object]]:
@@ -9158,6 +9165,28 @@ def _ide_binding_payloads(
         assert isinstance(payload, dict), payload
         payloads.append(payload)
     return payloads
+
+
+def _ide_assert_media_type_policy(envelopes: list[dict[str, object]]) -> None:
+    """Keep one stable, unversioned vendor media-type policy in every run mode."""
+    found_media_types: set[str] = set()
+    for envelope in envelopes:
+        attachment = envelope.get("attachment")
+        if not isinstance(attachment, dict):
+            continue
+        media_type = attachment.get("mediaType")
+        if not isinstance(media_type, str) or not media_type.startswith("application/vnd.pytest-bdd."):
+            continue
+
+        assert media_type in _IDE_VENDOR_MEDIA_TYPES, attachment
+        assert media_type.endswith("+json"), attachment
+        body = attachment.get("body")
+        assert isinstance(body, str), attachment
+        payload = json.loads(body)
+        assert isinstance(payload, dict), (media_type, payload)
+        found_media_types.add(media_type)
+
+    assert found_media_types == _IDE_VENDOR_MEDIA_TYPES, found_media_types
 
 
 def _ide_source_path(uri: object, consumer: ConsumerProject) -> Path:
@@ -9377,6 +9406,7 @@ def consumer_ide_parser_bindings_have_real_sources(relative_path: str, consumer:
 @then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should report the missing step and both ambiguous candidates'))
 def consumer_ide_missing_and_ambiguous_diagnostics(relative_path: str, consumer: ConsumerProject) -> None:
     envelopes = _ide_binding_envelopes(relative_path, consumer)
+    _ide_assert_media_type_policy(envelopes)
     launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
     assert len(launches) == 2, launches
     nodeids = _ide_collected_nodeids(consumer)
@@ -9436,6 +9466,22 @@ def consumer_ide_missing_and_ambiguous_diagnostics(relative_path: str, consumer:
     )
     missing_statuses = _ide_case_step_results(envelopes, missing_case)
     assert missing_statuses.get(missing_test_step["id"]) == "UNDEFINED", missing_statuses
+    failure_reports_path = _consumer_artifact_path("failure-reports.ndjson", consumer)
+    failure_reports = [
+        json.loads(line)
+        for line in failure_reports_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(failure_reports) == 1, failure_reports
+    assert failure_reports[0].get("exceptionType") == "StepDefinitionNotFoundError", failure_reports
+    failure_message = failure_reports[0].get("message")
+    assert isinstance(failure_message, str), failure_reports
+    for expected_fragment in (
+        'Step definition is not found: "the unique missing phrase is needle-73".',
+        'Step keyword: "Given".',
+        'scenario "An unmatched step still fails naturally"',
+    ):
+        assert expected_fragment in failure_message, failure_reports
 
     ambiguous_case = test_cases[ambiguous_case_id]
     ambiguous_pickle = pickles[ambiguous_case["pickleId"]]
@@ -9465,6 +9511,7 @@ def consumer_ide_missing_and_ambiguous_diagnostics(relative_path: str, consumer:
 )
 def consumer_ide_mock_run_source_identities(relative_path: str, consumer: ConsumerProject) -> None:
     envelopes = _ide_binding_envelopes(relative_path, consumer)
+    _ide_assert_media_type_policy(envelopes)
     launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
     assert len(launches) == 2, launches
 
@@ -9628,6 +9675,19 @@ def consumer_ide_outline_row_identities(relative_path: str, consumer: ConsumerPr
         source_path, source_line = _ide_assert_source_identity(launch.get("sourceIdentity"), consumer)
         assert source_path.name.endswith(("outline-rows.feature", "narrative-cafe.feature.md")), source_path
         assert nodeid in _ide_collected_nodeids(consumer), launch
+        tags = pickle.get("tags", [])
+        assert isinstance(tags, list), pickle
+        tag_names = {
+            tag["name"].removeprefix("@")
+            for tag in tags
+            if isinstance(tag, dict) and isinstance(tag.get("name"), str)
+        }
+        if matching_row == "11":
+            assert "north-row" in tag_names and "south-row" not in tag_names, (matching_row, tag_names)
+        elif matching_row == "22":
+            assert "south-row" in tag_names and "north-row" not in tag_names, (matching_row, tag_names)
+        else:
+            assert not {"north-row", "south-row"}.intersection(tag_names), (matching_row, tag_names)
         rows[matching_row] = (test_case, pickle, source_path, source_line)
 
     assert set(rows) == {"11", "22", "33"}, rows
