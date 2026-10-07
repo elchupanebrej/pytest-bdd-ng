@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from queue import Queue
 from types import SimpleNamespace
@@ -8,6 +9,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from pytest_cuke.model.message_validation import MessageValidationDiagnostic
+from pytest_cuke.formatter_api import FormatterRequest
 from pytest_cuke.model.message_types import (
     Attachment,
     ContentEncoding,
@@ -94,6 +96,28 @@ def test_message_plugin_disabled_when_no_options() -> None:
     plugin = MessagePlugin(config=config)
     assert plugin.is_disabled is True
     assert plugin.message_transport is None
+
+
+def test_xdist_worker_does_not_allocate_a_local_messages_file(monkeypatch) -> None:
+    config = SimpleNamespace(
+        option=SimpleNamespace(cuke_messages_ndjson=None, cuke_html=None, cuke_allure=None),
+        workerinput={"workerid": "gw0"},
+        rootpath=Path.cwd(),
+        getini=lambda name: "",
+    )
+    request = FormatterRequest(name="worker-probe", command=("python",))
+    monkeypatch.setattr("pytest_cuke.message_plugin.resolve_formatter_requests", lambda config: (request,))
+
+    def fail_temporary_file_creation(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("xdist workers must not allocate local Messages files")
+
+    monkeypatch.setattr("pytest_cuke.message_plugin.tempfile.mkstemp", fail_temporary_file_creation)
+
+    plugin = MessagePlugin(config=config)
+
+    assert plugin.is_xdist_worker is True
+    assert plugin.is_messages_file_temp is False
+    assert plugin.messages_file_path == Path(os.devnull)
 
 
 def test_message_plugin_get_timestamp() -> None:

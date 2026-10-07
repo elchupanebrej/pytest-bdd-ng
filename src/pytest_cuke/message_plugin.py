@@ -336,14 +336,20 @@ class MessagePlugin:
         elif self.is_xdist_controller:
             self.worker_message_receiver = WorkerMessageReceiver()
 
-        self.is_messages_file_temp = messages_path is None
-        if self.is_messages_file_temp:
+        if self.is_xdist_worker:
+            # Workers send accepted envelopes through xdist reports and their
+            # completion manifest. They never write or convert a local stream,
+            # so allocating a per-worker tempfile only creates an artifact that
+            # can be stranded if the worker exits abruptly.
+            self.is_messages_file_temp = False
+            self.messages_file_path = Path(os.devnull)
+        elif messages_path is None:
+            self.is_messages_file_temp = True
             handle, messages_file_path_raw = tempfile.mkstemp()
             os.close(handle)
             self.messages_file_path = Path(messages_file_path_raw)
         else:
-            if messages_path is None:
-                raise RuntimeError("A configured Messages output path is missing.")
+            self.is_messages_file_temp = False
             self.messages_file_path = Path(messages_path)
 
         self.message_transport = ValidatedMessageTransport()
