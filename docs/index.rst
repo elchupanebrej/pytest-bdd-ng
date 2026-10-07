@@ -6,6 +6,7 @@ Welcome to pytest-cuke's documentation!
    include.rst
    cli.rst
    debug-mcp.rst
+   live-formatters.rst
    run-aware-hooks.rst
    test-groups.rst
    type-checking.rst

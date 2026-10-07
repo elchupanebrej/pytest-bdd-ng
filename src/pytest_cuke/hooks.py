@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from pytest_cuke.compatibility.pytest import Config, FixtureRequest, Mark
+    from pytest_cuke.formatter_api import FormatterRequest
     from pytest_cuke.model import Feature
     from pytest_cuke.model.message_extension import EventEnvelope as Message
     from pytest_cuke.model.scenario import Scenario
@@ -142,6 +143,16 @@ def pytest_cuke_message_batch(config: Config, batch: dict[str, Any]) -> None:
 
     Batches carry a worker ID, a sequence number, and JSON Cucumber Messages
     envelopes. They are transport evidence, not a complete or final stream.
+    """
+
+
+def pytest_cuke_formatter_requests(config: Config) -> Iterable[FormatterRequest]:
+    """Return the live formatter requests selected by this plugin.
+
+    Formatter plugins implement this hook to contribute requests only when
+    their canonical option or configuration setting is enabled. The shared
+    runtime sorts and validates the combined request catalog before tests run.
+    Each child process reads validated Cucumber Messages NDJSON from stdin.
     """
 
 

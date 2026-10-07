@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from pytest_cuke.model.message_consolidation import (
     ConsolidatedMessageStream,
+    LiveMessageAdapter,
     MessageFragment,
     consolidate_message_fragments,
     namespace_envelope_ids,
@@ -41,6 +44,8 @@ from pytest_cuke.model.message_worker_transport import MessageBatcher, WorkerMes
 TestCaseStarted.__test__ = False
 TestRunFinished.__test__ = False
 TestRunStarted.__test__ = False
+TestStepResult.__test__ = False
+TestStepResultStatus.__test__ = False
 
 
 def test_worker_namespaces_nested_message_ids_and_references_without_rewriting_worker_id() -> None:
@@ -52,7 +57,6 @@ def test_worker_namespaces_nested_message_ids_and_references_without_rewriting_w
             "testRunStartedId": "run-1",
         }
     }
-
     assert namespace_envelope_ids(envelope, worker_id="gw0") == {
         "testCaseStarted": {
             "id": "gw0:attempt-1",
@@ -61,6 +65,157 @@ def test_worker_namespaces_nested_message_ids_and_references_without_rewriting_w
             "testRunStartedId": "gw0:run-1",
         }
     }
+
+
+def test_live_adapter_collapses_worker_lifecycle_and_deduplicates_shared_definitions() -> None:
+    adapter = LiveMessageAdapter()
+    controller_run = {"testRunStarted": {"id": "controller-run"}}
+    adapted: list[dict[str, object]] = [adapter.controller_envelope(controller_run)]
+
+    source = {"source": {"uri": "features/live.feature", "data": "Feature: Live", "mediaType": "text/plain"}}
+    document = {
+        "gherkinDocument": {
+            "uri": "features/live.feature",
+            "feature": {
+                "id": "feature-id",
+                "keyword": "Feature",
+                "name": "Live",
+                "children": [
+                    {
+                        "scenario": {
+                            "id": "scenario-id",
+                            "keyword": "Scenario",
+                            "name": "shared scenario",
+                            "steps": [{"id": "step-id", "keyword": "Given", "text": "it runs"}],
+                        }
+                    }
+                ],
+            },
+        }
+    }
+    pickle = {
+        "pickle": {
+            "id": "pickle-id",
+            "uri": "features/live.feature",
+            "name": "shared scenario",
+            "language": "en",
+            "astNodeIds": ["scenario-id"],
+            "steps": [{"id": "pickle-step-id", "astNodeIds": ["step-id"], "text": "it runs"}],
+            "tags": [],
+        }
+    }
+    test_case = {
+        "testCase": {
+            "id": "test-case-id",
+            "pickleId": "pickle-id",
+            "testSteps": [
+                {
+                    "id": "test-step-id",
+                    "pickleStepId": "pickle-step-id",
+                    "stepDefinitionIds": [],
+                }
+            ],
+        }
+    }
+
+    for worker_id in ("gw0", "gw1"):
+        run_start = namespace_envelope_ids({"testRunStarted": {"id": f"{worker_id}-run"}}, worker_id=worker_id)
+        assert adapter.worker_envelope(run_start, worker_id=worker_id) is None
+        for structural in (source, document, pickle, test_case):
+            normalized = adapter.worker_envelope(
+                namespace_envelope_ids(structural, worker_id=worker_id),
+                worker_id=worker_id,
+            )
+            if normalized is not None:
+                adapted.append(normalized)
+        started = namespace_envelope_ids(
+            {
+                "testCaseStarted": {
+                    "id": f"{worker_id}-attempt",
+                    "testCaseId": "test-case-id",
+                    "testRunStartedId": f"{worker_id}-run",
+                    "workerId": worker_id,
+                    "attempt": 0,
+                }
+            },
+            worker_id=worker_id,
+        )
+        normalized_started = adapter.worker_envelope(started, worker_id=worker_id)
+        assert normalized_started is not None
+        adapted.append(normalized_started)
+        assert adapter.worker_envelope(
+            namespace_envelope_ids({"testRunFinished": {"success": True}}, worker_id=worker_id),
+            worker_id=worker_id,
+        ) is None
+
+    adapted.append(adapter.controller_envelope({"testRunFinished": {"success": True}}))
+
+    kinds = [next(iter(envelope)) for envelope in adapted]
+    assert kinds.count("testRunStarted") == kinds.count("testRunFinished") == 1
+    assert kinds.count("source") == kinds.count("gherkinDocument") == kinds.count("pickle") == 1
+    assert kinds.count("testCase") == 1
+    starts = [envelope["testCaseStarted"] for envelope in adapted if "testCaseStarted" in envelope]
+    assert len(starts) == 2
+    assert {start["testRunStartedId"] for start in starts} == {"controller-run"}
+    assert {start["testCaseId"] for start in starts} == {"gw0:test-case-id"}
+    assert {start["workerId"] for start in starts} == {"gw0", "gw1"}
+
+
+def test_live_adapter_rejects_worker_messages_before_controller_run_start() -> None:
+    adapter = LiveMessageAdapter()
+    worker_start = namespace_envelope_ids({"testRunStarted": {"id": "worker-run"}}, worker_id="gw0")
+
+    with pytest.raises(ValueError, match="before the controller TestRunStarted"):
+        adapter.worker_envelope(worker_start, worker_id="gw0")
+
+
+def test_live_adapter_keeps_controller_run_hooks_and_suppresses_worker_duplicates() -> None:
+    adapter = LiveMessageAdapter()
+    controller_start = adapter.controller_envelope({"testRunStarted": {"id": "controller-run"}})
+    controller_hook = {
+        "hook": {
+            "id": "controller-before-hook",
+            "name": "pytest session start",
+            "type": "BEFORE_TEST_RUN",
+            "sourceReference": {"uri": "pytest-cuke:runtime", "location": {"line": 1}},
+        }
+    }
+    assert controller_start is not None
+    assert adapter.controller_envelope(controller_hook) is not None
+
+    worker_start = namespace_envelope_ids({"testRunStarted": {"id": "worker-run"}}, worker_id="gw0")
+    assert adapter.worker_envelope(worker_start, worker_id="gw0") is None
+
+    worker_hook = namespace_envelope_ids(
+        {
+            "hook": {
+                "id": "worker-before-hook",
+                "name": "pytest session start",
+                "type": "BEFORE_TEST_RUN",
+                "sourceReference": {"uri": "pytest-cuke:runtime", "location": {"line": 1}},
+            }
+        },
+        worker_id="gw0",
+    )
+    assert adapter.worker_envelope(worker_hook, worker_id="gw0") is None
+
+    worker_hook_started = namespace_envelope_ids(
+        {
+            "testRunHookStarted": {
+                "id": "worker-hook-started",
+                "testRunStartedId": "worker-run",
+                "hookId": "worker-before-hook",
+            }
+        },
+        worker_id="gw0",
+    )
+    assert adapter.worker_envelope(worker_hook_started, worker_id="gw0") is None
+
+    worker_hook_finished = namespace_envelope_ids(
+        {"testRunHookFinished": {"testRunHookStartedId": "worker-hook-started"}},
+        worker_id="gw0",
+    )
+    assert adapter.worker_envelope(worker_hook_finished, worker_id="gw0") is None
 
 
 def test_worker_namespaces_nested_ast_ids_lists_and_test_case_references() -> None:
