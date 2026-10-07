@@ -1,5 +1,8 @@
 Feature: Binding-only mock run validation
   Consumers can validate scenario bindings without running BDD hooks or step bodies.
+  Mock run still imports consumer modules, collects and selects pytest items, runs
+  collection/plugin work, and calls the selected pytest item function. It is not
+  globally side-effect-free; only BDD lifecycle hooks and step bodies are skipped.
 
   Scenario: Mock run skips BDD execution but retains ordinary pytest function execution
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -330,6 +333,13 @@ Feature: Binding-only mock run validation
           for item in items:
               if "pytest_cuke_scenario" in item.keywords:
                   item.obj = _track_test_function(item.obj)
+
+
+      def pytest_collection_finish(session):
+          Path("collected-nodeids.txt").write_text(
+              "\n".join(item.nodeid for item in session.items) + "\n",
+              encoding="utf-8",
+          )
       """
     And consumer file "features/explicit-mock-run.feature" contains:
       """gherkin
@@ -379,12 +389,13 @@ Feature: Binding-only mock run validation
       def test_selected_outline_validation_but_marker_filtered():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload -k test_selected_outline_validation -m mock_validation --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload -k test_selected_outline_validation -m mock_validation --cuke-messages-ndjson=selected-outline.ndjson --cuke-summary -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And pytest output should not include "the missing keyword-filtered binding is absent"
     And pytest output should not include "the missing marker-filtered binding is absent"
     And consumer marker artifact "mock-run-markers.txt" should contain only 2 instances of the pytest test-function body marker
+    And consumer artifact "selected-outline.ndjson" should preserve mock-run background and row binding arguments
 
   Scenario: Mock run Messages retain bound and missing source identities
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -435,3 +446,55 @@ Feature: Binding-only mock run validation
     And pytest output should include "the second missing IDE message step is absent"
     And consumer artifact "mock-run.ndjson" should link mock-run launches to bound and missing source identities
     And the consumer file "mock-run-failure-hooks.txt" should not exist
+
+  Scenario: Repeated mock run sessions keep xdist source and binding identities isolated
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And consumer file "conftest.py" contains:
+      """python
+      import json
+      import os
+      from pathlib import Path
+
+      from pytest_cuke import given, parsers
+
+
+      @given(parsers.parse("the worker source is {value}"))
+      def worker_source_is(value):
+          Path("mock-run-execution.txt").write_text("step-body", encoding="utf-8")
+          raise AssertionError(f"mock-run executed the step body for {value}")
+
+
+      def pytest_cuke_before_scenario(request, run):
+          Path("mock-run-execution.txt").write_text("before-scenario", encoding="utf-8")
+
+
+      def pytest_runtest_call(item):
+          observation = {
+              "nodeid": item.nodeid,
+              "worker": os.environ.get("PYTEST_XDIST_WORKER", "main"),
+          }
+          with Path("worker-nodeids.ndjson").open("a", encoding="utf-8") as stream:
+              stream.write(json.dumps(observation) + "\n")
+      """
+    And consumer file "features/first-session/north-source.feature" contains:
+      """gherkin
+      Feature: First mock run session
+        Scenario: The north source is collected
+          Given the worker source is north
+      """
+    And consumer file "features/second-session/north-source.feature" contains:
+      """gherkin
+      Feature: North mock run worker
+        Scenario: The north source is collected
+          Given the worker source is north
+      """
+    And consumer file "features/second-session/south-source.feature" contains:
+      """gherkin
+      Feature: South mock run worker
+        Scenario: The south source is collected
+          Given the worker source is south
+      """
+    When I run installed pytest twice in one process with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features/first-session --cuke-mock-run --cuke-messages-ndjson=first-mock-run.ndjson -q features/first-session" and then "--rootdir=. features/second-session --cuke-autoload --cuke-parser=python --cuke-features-dir=features/second-session --cuke-mock-run --cuke-messages-ndjson=second-mock-run.ndjson -n2 --dist=loadfile -q"
+    Then consumer repeated pytest sessions should exit with codes "0,0"
+    And consumer artifacts "first-mock-run.ndjson" and "second-mock-run.ndjson" should preserve mock-run session and worker identities
+    And the consumer file "mock-run-execution.txt" should not exist
