@@ -71,6 +71,10 @@ class FormatterRequest:
     stdout (``output_path`` set). The runtime stages file output and replaces
     the destination only after a clean process exit.
 
+    A terminal request may set ``bypass_capture`` to write directly to the
+    original terminal stream while pytest captures test output. File requests
+    cannot bypass capture.
+
     Command arguments may use ``{asset_dir}`` to refer to the temporary
     directory containing ``runtime_assets``.
     """
@@ -83,6 +87,7 @@ class FormatterRequest:
     required_npm_packages: tuple[str, ...] = ()
     timeout_seconds: float = 10.0
     runtime_assets: tuple[FormatterAsset, ...] = ()
+    bypass_capture: bool = False
 
     def __attrs_post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name.strip():
@@ -120,6 +125,10 @@ class FormatterRequest:
             raise ValueError(f"Formatter request {self.name!r} contains an invalid npm package name")
         if self.output_path is not None and not isinstance(self.output_path, Path):
             raise ValueError(f"Formatter request {self.name!r} output_path must be a pathlib.Path or None")
+        if not isinstance(self.bypass_capture, bool):
+            raise ValueError(f"Formatter request {self.name!r} bypass_capture must be a bool")
+        if self.bypass_capture and self.output_path is not None:
+            raise ValueError(f"Formatter request {self.name!r} can bypass capture only for terminal output")
         if self.working_directory is not None and not isinstance(self.working_directory, Path):
             raise ValueError(f"Formatter request {self.name!r} working_directory must be a pathlib.Path or None")
         if not isinstance(self.runtime_assets, tuple) or any(
