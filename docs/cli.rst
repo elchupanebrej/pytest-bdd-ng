@@ -59,12 +59,12 @@ each step's predecessor to the same matcher used during normal execution.
 
 Every missing step binding is reported before the scenario fails validation.
 Ambiguous matches retain the normal matcher behavior. Step bodies and the BDD
-scenario/step execution lifecycle hooks do not run. Pytest still imports test
-modules and plugins, builds the registry, sets up fixtures and refreshes
-test-function fixture arguments; after successful validation, the ordinary
-pytest test function also runs. This mode limits BDD execution while retaining
-pytest's normal collection and fixture behavior; it does not make collection
-side-effect free.
+scenario/step execution lifecycle hooks do not run. Pytest collection and item
+selection still run, including user collection and plugin hooks. Test modules
+and plugins are imported, the step registry and pytest fixtures are built, and
+fixture setup or test-function fixture refresh may run. After successful
+validation, the ordinary pytest test function also runs. These pytest-side
+effects are not suppressed by binding-only validation.
 
 .. code-block:: console
 

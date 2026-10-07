@@ -9802,6 +9802,283 @@ def consumer_ide_xdist_source_identities(relative_path: str, consumer: ConsumerP
 
 @then(
     re.compile(
+        r'consumer artifact "(?P<relative_path>[^"]+)" should preserve mock-run background and row binding arguments'
+    )
+)
+def consumer_ide_mock_run_outline_arguments(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = _ide_binding_envelopes(relative_path, consumer)
+    launches = _ide_binding_payloads(envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    matches = _ide_binding_payloads(envelopes, _IDE_STEP_BINDING_MEDIA_TYPE)
+    diagnostics = _ide_binding_payloads(envelopes, _IDE_DIAGNOSTIC_MEDIA_TYPE)
+    assert len(launches) == 2 and len(matches) == 10, (launches, matches)
+    assert all(diagnostic.get("kind") == "unbound-scenario" for diagnostic in diagnostics), diagnostics
+    assert not any(diagnostic.get("kind") == "missing-step" for diagnostic in diagnostics), diagnostics
+
+    test_cases, pickles = _ide_case_records(envelopes)
+    assert len(test_cases) == 2 and len(pickles) >= 2, (test_cases, pickles)
+    nodeids = _ide_collected_nodeids(consumer)
+    expected_rows = {
+        "amber": {
+            "action": "expand",
+            "outcome": "expanded",
+            "steps": [
+                "the feature background opens the account",
+                "the rule background prepares the ledger",
+                "the selected account is amber",
+                "I request expand for account amber",
+                "the validation outcome is expanded for account amber",
+            ],
+            "arguments": [
+                [],
+                [],
+                [{"name": "account", "value": "amber"}],
+                [{"name": "action", "value": "expand"}, {"name": "account", "value": "amber"}],
+                [{"name": "outcome", "value": "expanded"}, {"name": "account", "value": "amber"}],
+            ],
+        },
+        "birch": {
+            "action": "focus",
+            "outcome": "focused",
+            "steps": [
+                "the feature background opens the account",
+                "the rule background prepares the ledger",
+                "the selected account is birch",
+                "I request focus for account birch",
+                "the validation outcome is focused for account birch",
+            ],
+            "arguments": [
+                [],
+                [],
+                [{"name": "account", "value": "birch"}],
+                [{"name": "action", "value": "focus"}, {"name": "account", "value": "birch"}],
+                [{"name": "outcome", "value": "focused"}, {"name": "account", "value": "birch"}],
+            ],
+        },
+    }
+    rows_by_account: dict[str, tuple[dict[str, object], dict[str, object], dict[str, object], int]] = {}
+    bindings_by_case: dict[str, list[dict[str, object]]] = {}
+    for match in matches:
+        case_id = match.get("testCaseId")
+        assert isinstance(case_id, str), match
+        bindings_by_case.setdefault(case_id, []).append(match)
+
+    feature_path = (consumer.path / "features/explicit-mock-run.feature").resolve()
+    excluded_scenarios = {
+        "The keyword filter excludes this missing binding",
+        "The marker filter excludes this missing binding",
+    }
+    reported_excluded_scenarios: set[str] = set()
+    for diagnostic in diagnostics:
+        source_path, source_line = _ide_assert_source_identity(
+            diagnostic.get("sourceIdentity"), consumer, suffix="explicit-mock-run.feature"
+        )
+        assert source_path == feature_path, diagnostic
+        source_text = source_path.read_text(encoding="utf-8").splitlines()[source_line - 1]
+        scenario_name = source_text.strip().removeprefix("Scenario:").strip()
+        assert scenario_name in excluded_scenarios, (diagnostic, source_text)
+        reported_excluded_scenarios.add(scenario_name)
+    assert reported_excluded_scenarios == excluded_scenarios, (reported_excluded_scenarios, diagnostics)
+    for launch in launches:
+        case_id = launch.get("testCaseId")
+        pickle_id = launch.get("pickleId")
+        nodeid = launch.get("nodeid")
+        assert isinstance(case_id, str) and isinstance(pickle_id, str) and isinstance(nodeid, str), launch
+        assert nodeid in nodeids and "test_selected_outline_validation" in nodeid, launch
+        assert case_id in test_cases and pickle_id in pickles, launch
+        test_case = test_cases[case_id]
+        pickle = pickles[pickle_id]
+        assert test_case.get("pickleId") == pickle_id, (launch, test_case)
+
+        source_identity = launch.get("sourceIdentity")
+        source_path, source_line = _ide_assert_source_identity(source_identity, consumer)
+        assert source_path == feature_path, (source_path, feature_path)
+        assert isinstance(source_identity, dict), source_identity
+        assert _ide_source_path(source_identity.get("scenarioUri"), consumer) == feature_path, source_identity
+        row_id = source_identity.get("rowId")
+        assert isinstance(row_id, str) and row_id, source_identity
+        assert source_identity.get("rowLine") == source_line, source_identity
+        source_fields = [field.strip() for field in feature_path.read_text(encoding="utf-8").splitlines()[source_line - 1].strip().strip("|").split("|")]
+        assert len(source_fields) == 3, (source_line, source_fields)
+        account, action, outcome = source_fields
+        assert account in expected_rows and expected_rows[account]["action"] == action, (source_line, source_fields)
+        assert expected_rows[account]["outcome"] == outcome, (source_line, source_fields)
+        assert account not in rows_by_account, rows_by_account
+
+        pickle_steps = pickle.get("steps")
+        case_steps = test_case.get("testSteps")
+        expected = expected_rows[account]
+        assert isinstance(pickle_steps, list) and isinstance(case_steps, list), (pickle, test_case)
+        assert [step.get("text") for step in pickle_steps if isinstance(step, dict)] == expected["steps"], pickle_steps
+        assert len(case_steps) == len(pickle_steps) == 5, (case_steps, pickle_steps)
+        ast_node_ids = pickle.get("astNodeIds")
+        assert isinstance(ast_node_ids, list) and row_id in ast_node_ids, (row_id, ast_node_ids)
+
+        case_bindings = bindings_by_case.get(case_id, [])
+        assert len(case_bindings) == 5, (case_id, case_bindings)
+        matches_by_step = {match.get("pickleStepId"): match for match in case_bindings}
+        assert len(matches_by_step) == 5, case_bindings
+        for pickle_step, test_step, expected_arguments in zip(pickle_steps, case_steps, expected["arguments"], strict=True):
+            assert isinstance(pickle_step, dict) and isinstance(test_step, dict), (pickle_step, test_step)
+            step_id = pickle_step.get("id")
+            assert isinstance(step_id, str) and test_step.get("pickleStepId") == step_id, (pickle_step, test_step)
+            match = matches_by_step.get(step_id)
+            assert isinstance(match, dict), (step_id, case_bindings)
+            assert isinstance(match.get("stepDefinitionId"), str) and match["stepDefinitionId"], match
+            assert match.get("matchArguments") == expected_arguments, (pickle_step, match, expected_arguments)
+            definition_path, _ = _ide_assert_file_source_reference(
+                match.get("sourceReference"), consumer, suffix="conftest.py"
+            )
+            assert definition_path == (consumer.path / "conftest.py").resolve(), definition_path
+
+        rows_by_account[account] = (launch, test_case, pickle, source_line)
+
+    assert set(rows_by_account) == set(expected_rows), rows_by_account
+    amber = rows_by_account["amber"]
+    birch = rows_by_account["birch"]
+    assert amber[0].get("testCaseId") != birch[0].get("testCaseId"), (amber, birch)
+    assert amber[0].get("pickleId") != birch[0].get("pickleId"), (amber, birch)
+    assert amber[1].get("id") != birch[1].get("id"), (amber, birch)
+    assert amber[2].get("id") != birch[2].get("id"), (amber, birch)
+    assert amber[3] != birch[3], (amber, birch)
+    assert amber[2].get("astNodeIds") != birch[2].get("astNodeIds"), (amber, birch)
+
+
+@then(
+    re.compile(
+        r'consumer artifacts "(?P<first_path>[^"]+)" and "(?P<second_path>[^"]+)" '
+        r'should preserve mock-run session and worker identities'
+    )
+)
+def consumer_ide_mock_run_sessions_and_workers_are_isolated(
+    first_path: str,
+    second_path: str,
+    consumer: ConsumerProject,
+) -> None:
+    first_envelopes = _ide_binding_envelopes(first_path, consumer)
+    second_envelopes = _ide_binding_envelopes(second_path, consumer)
+    first_launches = _ide_binding_payloads(first_envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    second_launches = _ide_binding_payloads(second_envelopes, _IDE_LAUNCH_MEDIA_TYPE)
+    assert len(first_launches) == 1 and len(second_launches) == 2, (first_launches, second_launches)
+    first_run_ids = [
+        run["id"]
+        for envelope in first_envelopes
+        if isinstance((run := envelope.get("testRunStarted")), dict) and isinstance(run.get("id"), str)
+    ]
+    second_run_ids = [
+        run["id"]
+        for envelope in second_envelopes
+        if isinstance((run := envelope.get("testRunStarted")), dict) and isinstance(run.get("id"), str)
+    ]
+    assert len(first_run_ids) == len(second_run_ids) == 1, (first_run_ids, second_run_ids)
+    assert first_run_ids[0] != second_run_ids[0], (first_run_ids, second_run_ids)
+
+    first_launch = first_launches[0]
+    first_case_id = first_launch.get("testCaseId")
+    first_pickle_id = first_launch.get("pickleId")
+    assert isinstance(first_case_id, str) and isinstance(first_pickle_id, str), first_launch
+    first_source, _ = _ide_assert_source_identity(
+        first_launch.get("sourceIdentity"), consumer, suffix="north-source.feature"
+    )
+    assert first_source == (consumer.path / "features/first-session/north-source.feature").resolve(), first_source
+    first_test_cases, first_pickles = _ide_case_records(first_envelopes)
+    assert first_case_id in first_test_cases and first_pickle_id in first_pickles, first_launch
+    assert first_test_cases[first_case_id].get("pickleId") == first_pickle_id, first_launch
+    first_steps = first_pickles[first_pickle_id].get("steps")
+    assert isinstance(first_steps, list) and [step.get("text") for step in first_steps] == [
+        "the worker source is north"
+    ], first_steps
+
+    first_observation_path = _consumer_artifact_path("worker-nodeids.ndjson", consumer)
+    observations = [
+        json.loads(line)
+        for line in first_observation_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert len(observations) == 3, observations
+    observations_by_nodeid = {entry.get("nodeid"): entry.get("worker") for entry in observations}
+    assert len(observations_by_nodeid) == 3, observations
+    first_nodes = [nodeid for nodeid in observations_by_nodeid if "first-session/north-source.feature" in nodeid]
+    second_nodes = [nodeid for nodeid in observations_by_nodeid if "second-session/" in nodeid]
+    assert len(first_nodes) == 1 and len(second_nodes) == 2, observations
+    assert observations_by_nodeid[first_nodes[0]] == "main", observations
+    assert {observations_by_nodeid[nodeid] for nodeid in second_nodes} == {"gw0", "gw1"}, observations
+
+    second_test_cases, second_pickles = _ide_case_records(second_envelopes)
+    second_case_ids: set[str] = set()
+    second_pickle_ids: set[str] = set()
+    second_source_values: dict[Path, str] = {}
+    second_case_values: dict[str, str] = {}
+    expected_source_values = {
+        (consumer.path / "features/second-session/north-source.feature").resolve(): "north",
+        (consumer.path / "features/second-session/south-source.feature").resolve(): "south",
+    }
+    for launch in second_launches:
+        case_id = launch.get("testCaseId")
+        pickle_id = launch.get("pickleId")
+        nodeid = launch.get("nodeid")
+        assert isinstance(case_id, str) and isinstance(pickle_id, str) and isinstance(nodeid, str), launch
+        assert nodeid in second_nodes and nodeid in observations_by_nodeid, launch
+        worker_id = observations_by_nodeid[nodeid]
+        assert isinstance(worker_id, str) and worker_id in {"gw0", "gw1"}, (launch, worker_id)
+        assert case_id.startswith(f"{worker_id}:"), (worker_id, launch)
+        assert case_id in second_test_cases and pickle_id in second_pickles, launch
+        assert second_test_cases[case_id].get("pickleId") == pickle_id, launch
+        second_source, _ = _ide_assert_source_identity(launch.get("sourceIdentity"), consumer)
+        assert second_source in expected_source_values, (launch, second_source)
+        expected_value = expected_source_values[second_source]
+        expected_nodeid_prefix = f"features/second-session/{expected_value}-source.feature::"
+        assert nodeid.startswith(expected_nodeid_prefix), (launch, expected_nodeid_prefix)
+        second_source_values[second_source] = expected_value
+        second_case_values[case_id] = expected_value
+
+        pickle = second_pickles[pickle_id]
+        pickle_steps = pickle.get("steps")
+        assert pickle.get("uri") == f"file:{expected_value}-source.feature", (launch, pickle)
+        assert pickle.get("name") == f"The {expected_value} source is collected", (launch, pickle)
+        assert isinstance(pickle_steps, list) and [step.get("text") for step in pickle_steps] == [
+            f"the worker source is {expected_value}"
+        ], (launch, pickle_steps)
+        second_case_ids.add(case_id)
+        second_pickle_ids.add(pickle_id)
+
+    assert len(second_case_ids) == len(second_pickle_ids) == 2, second_launches
+    assert second_source_values == expected_source_values, (second_source_values, expected_source_values)
+    assert first_case_id not in second_case_ids and first_pickle_id not in second_pickle_ids, (
+        first_launch,
+        second_launches,
+    )
+    second_matches = _ide_binding_payloads(second_envelopes, _IDE_STEP_BINDING_MEDIA_TYPE)
+    assert len(second_matches) == 2, second_matches
+    for match in second_matches:
+        case_id = match.get("testCaseId")
+        step_id = match.get("pickleStepId")
+        assert isinstance(case_id, str) and case_id in second_case_ids, match
+        expected_value = second_case_values[case_id]
+        worker_id = next(
+            observations_by_nodeid[launch["nodeid"]]
+            for launch in second_launches
+            if launch.get("testCaseId") == case_id
+        )
+        assert isinstance(worker_id, str) and worker_id in {"gw0", "gw1"}, (match, worker_id)
+        assert isinstance(step_id, str), match
+        launch = next(item for item in second_launches if item.get("testCaseId") == case_id)
+        pickle_id = launch.get("pickleId")
+        pickle_steps = second_pickles[pickle_id].get("steps") if isinstance(pickle_id, str) else None
+        matching_steps = [
+            step
+            for step in pickle_steps or []
+            if isinstance(step, dict) and step.get("id") == step_id
+        ]
+        assert len(matching_steps) == 1, (match, pickle_steps)
+        assert match.get("matchArguments") == [{"name": "value", "value": expected_value}], match
+        definition_path, _ = _ide_assert_file_source_reference(
+            match.get("sourceReference"), consumer, suffix="conftest.py"
+        )
+        assert definition_path == (consumer.path / "conftest.py").resolve(), definition_path
+
+
+@then(
+    re.compile(
         r'consumer artifact "(?P<relative_path>[^"]+)" should contain one complete duplicate binding diagnostic '
         r'for both worker modules'
     )
