@@ -305,6 +305,54 @@ Feature: Local and subprocess Cucumber Messages consolidation
     And consumer artifact "crash.ndjson.worker-manifests.jsonl" should record the crashed worker
     And pytest should exit with a non-zero code
 
+  Scenario: A crashed worker in terminal formatter mode leaves no temporary Messages file
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And consumer temporary directory "worker-messages-tmp" is configured as TMPDIR
+    And consumer file "conftest.py" contains:
+      """python
+      import os
+      import sys
+      from pathlib import Path
+
+      from pytest_cuke import FormatterRequest, given, parsers
+
+
+      @given(parsers.parse("crash probe case {case} runs"))
+      def crash_probe_case_runs(case):
+          if case == "crash":
+              os._exit(23)
+          assert os.environ.get("PYTEST_XDIST_WORKER"), "the survivor must run in an xdist worker"
+
+
+      def pytest_cuke_formatter_requests(config):
+          return (
+              FormatterRequest(
+                  name="worker-crash-temp-file-probe",
+                  command=(
+                  sys.executable,
+                  "-c",
+                  "import pathlib, sys; pathlib.Path('formatter-started.txt').write_text('started', encoding='utf-8'); "
+                  "sys.stdin.read()",
+                  ),
+                  working_directory=Path.cwd(),
+              ),
+          )
+      """
+    And consumer file "features/crash-formatter-worker-cases.feature" contains:
+      """gherkin
+      Feature: Crashed worker during terminal formatter output
+        Scenario: Crashed worker exits abruptly
+          Given crash probe case crash runs
+
+        Scenario: Remaining worker sends messages
+          Given crash probe case survive runs
+      """
+    When I run installed pytest with a 45-second watchdog and arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features -n2 --dist=load --max-worker-restart=0 --color=no -q"
+    Then pytest output should report the crashed xdist worker and partial Messages diagnostics
+    And pytest should exit with a non-zero code
+    And the consumer file "formatter-started.txt" should exist
+    And consumer temporary directory "worker-messages-tmp" should have no worker-owned Messages stream files
+
   Scenario: A failing live batch publisher preserves accepted Messages in the final artifact
     Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
     And consumer file "conftest.py" contains:
