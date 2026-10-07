@@ -17,9 +17,11 @@ TestRunStarted.__test__ = False
 
 
 class _PluginManager:
-    @staticmethod
-    def get_plugin(name: str) -> None:
-        del name
+    def __init__(self, plugins: dict[str, object] | None = None) -> None:
+        self.plugins = plugins or {}
+
+    def get_plugin(self, name: str) -> object | None:
+        return self.plugins.get(name)
 
 
 def _config() -> SimpleNamespace:
@@ -88,7 +90,9 @@ def test_formatter_streams_messages_and_publishes_file_only_after_clean_exit(tmp
     )
 
 
-def test_formatter_replays_stdout_and_stderr_to_pytest_streams(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_formatter_replays_stdout_and_stderr_to_pytest_streams(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     code = (
         "import sys; print('formatter stderr sentinel', file=sys.stderr, flush=True); "
         "print('formatter stdout sentinel', flush=True); sys.stdin.read()"
@@ -103,8 +107,75 @@ def test_formatter_replays_stdout_and_stderr_to_pytest_streams(tmp_path: Path, c
     assert "formatter stderr sentinel" in captured.err
 
 
+def test_formatter_can_bypass_pytest_capture_for_live_terminal_output() -> None:
+    class OriginalCapture:
+        def __init__(self) -> None:
+            self.writes: list[str] = []
+
+        def writeorg(self, text: str) -> None:
+            self.writes.append(text)
+
+    class TerminalReporter:
+        currentfspath = "test_feature.py"
+
+        def __init__(self) -> None:
+            self.newline_calls = 0
+
+        def ensure_newline(self) -> None:
+            self.newline_calls += 1
+            self.currentfspath = None
+
+    stdout = OriginalCapture()
+    stderr = OriginalCapture()
+    reporter = TerminalReporter()
+    capture_manager = SimpleNamespace(
+        _global_capturing=SimpleNamespace(out=stdout, err=stderr),
+        is_capturing=lambda: "global",
+    )
+    config = SimpleNamespace(
+        pluginmanager=_PluginManager({"capturemanager": capture_manager, "terminalreporter": reporter}),
+    )
+    relay = formatter_runtime._TerminalOutputRelay(config, bypass_capture=True)
+
+    relay.write("pretty output\n", stderr=False)
+    relay.write("backend warning\n", stderr=True)
+
+    assert stdout.writes == ["\n", "pretty output\n"]
+    assert stderr.writes == ["backend warning\n"]
+    assert reporter.newline_calls == 1
+
+
+def test_formatter_does_not_silently_restore_capture_when_original_writer_is_missing() -> None:
+    capture_manager = SimpleNamespace(
+        _global_capturing=SimpleNamespace(out=object(), err=object()),
+        is_capturing=lambda: "global",
+    )
+    config = SimpleNamespace(
+        pluginmanager=_PluginManager({"capturemanager": capture_manager}),
+    )
+    relay = formatter_runtime._TerminalOutputRelay(config, bypass_capture=True)
+
+    with pytest.raises(OSError, match="original terminal writer is unavailable"):
+        relay.write("pretty output\n", stderr=False)
+
+
+def test_formatter_fails_loudly_when_capture_state_api_is_unavailable() -> None:
+    capture_manager = SimpleNamespace(
+        _global_capturing=SimpleNamespace(out=object(), err=object()),
+    )
+    config = SimpleNamespace(
+        pluginmanager=_PluginManager({"capturemanager": capture_manager}),
+    )
+    relay = formatter_runtime._TerminalOutputRelay(config, bypass_capture=True)
+
+    with pytest.raises(OSError, match="original terminal writer is unavailable"):
+        relay.write("pretty output\n", stderr=False)
+
+
 def test_formatter_materializes_and_removes_runtime_assets(tmp_path: Path) -> None:
-    code = "from pathlib import Path; import sys; asset = Path(sys.argv[1]); print(asset.read_text()); print(asset.parent)"
+    code = (
+        "from pathlib import Path; import sys; asset = Path(sys.argv[1]); print(asset.read_text()); print(asset.parent)"
+    )
     session = FormatterSession(
         _config(),
         (
@@ -272,9 +343,7 @@ def test_formatter_output_publication_reports_backup_cleanup_failure(
 
     monkeypatch.setattr(Path, "unlink", fail_backup_cleanup)
 
-    with pytest.raises(
-        FormatterRuntimeError, match="Could not remove live formatter output backup"
-    ) as failure:
+    with pytest.raises(FormatterRuntimeError, match="Could not remove live formatter output backup") as failure:
         session.finish()
 
     backups = list(tmp_path.glob(".*.pytest-cuke-backup"))
@@ -384,7 +453,9 @@ def test_formatter_broken_pipe_is_reported_and_child_is_cleaned_up(tmp_path: Pat
     assert not list(tmp_path.glob(".formatter-output.txt.*.pytest-cuke-tmp"))
 
 
-def test_formatter_detects_early_exit_and_removes_staged_output(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+def test_formatter_detects_early_exit_and_removes_staged_output(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     output = tmp_path / "formatter-output.txt"
     ready = tmp_path / "formatter-ready.marker"
     code = (

@@ -32,8 +32,9 @@ class FormatterRuntimeError(RuntimeError):
 
 
 class _TerminalOutputRelay:
-    def __init__(self, config: Config | None) -> None:
+    def __init__(self, config: Config | None, *, bypass_capture: bool = False) -> None:
         self.config = config
+        self.bypass_capture = bypass_capture
         self._lock = Lock()
         self._layout_prepared = False
 
@@ -44,6 +45,20 @@ class _TerminalOutputRelay:
             terminalreporter = (
                 self.config.pluginmanager.get_plugin("terminalreporter") if self.config is not None else None
             )
+            original_writer = self._original_capture_writer(stderr=stderr) if self.bypass_capture else None
+            if original_writer is not None:
+                if not self._layout_prepared:
+                    has_open_terminal_line = bool(getattr(terminalreporter, "currentfspath", None))
+                    ensure_newline = getattr(terminalreporter, "ensure_newline", None)
+                    if callable(ensure_newline):
+                        ensure_newline()
+                    if has_open_terminal_line and not text.startswith("\n"):
+                        original_writer("\n")
+                    self._layout_prepared = True
+                original_writer(text)
+                return
+            if self.bypass_capture and self._capture_is_active():
+                raise OSError("pytest capture is active, but the original terminal writer is unavailable")
             if terminalreporter is not None:
                 if not self._layout_prepared:
                     terminalreporter.ensure_newline()
@@ -56,12 +71,32 @@ class _TerminalOutputRelay:
             target.write(text)
             target.flush()
 
+    def _original_capture_writer(self, *, stderr: bool) -> Any:
+        if self.config is None:
+            return None
+        capture_manager = self.config.pluginmanager.get_plugin("capturemanager")
+        global_capture = getattr(capture_manager, "_global_capturing", None)
+        captured_stream = getattr(global_capture, "err" if stderr else "out", None)
+        writer = getattr(captured_stream, "writeorg", None)
+        return writer if callable(writer) else None
+
+    def _capture_is_active(self) -> bool:
+        if self.config is None:
+            return False
+        capture_manager = self.config.pluginmanager.get_plugin("capturemanager")
+        if capture_manager is None:
+            return False
+        is_capturing = getattr(capture_manager, "is_capturing", None)
+        if not callable(is_capturing):
+            return True
+        return callable(is_capturing) and is_capturing() not in (None, False, "no")
+
 
 class _FormatterProcess:
     def __init__(self, request: FormatterRequest, *, config: Config | None, label: str) -> None:
         self.request = request
         self.label = label
-        self.terminal_relay = _TerminalOutputRelay(config)
+        self.terminal_relay = _TerminalOutputRelay(config, bypass_capture=request.bypass_capture)
         self._input: queue.Queue[bytes | object] = queue.Queue(maxsize=32)
         self._lock = Lock()
         self._failure: Exception | None = None

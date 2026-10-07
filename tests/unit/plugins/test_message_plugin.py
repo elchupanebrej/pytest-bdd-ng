@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from queue import Queue
 from types import SimpleNamespace
 from typing import Any
@@ -68,12 +69,15 @@ def test_message_plugin_add_options() -> None:
     parser.getgroup.return_value = group
 
     MessagePlugin.add_options(parser)
-    assert parser.getgroup.call_count == 3
-    assert group.addoption.call_count == 4
+    assert parser.getgroup.call_count == 4
+    assert group.addoption.call_count == 5
+    assert any(call.args[0] == "--cuke-pretty" for call in group.addoption.call_args_list)
+    assert any(call.args[0] == "cuke_pretty" for call in parser.addini.call_args_list)
 
 
 def test_message_plugin_disabled_when_no_options() -> None:
     config = MagicMock()
+    config.rootpath = Path.cwd()
     config.option.cuke_messages_ndjson = None
     config.option.cuke_html = None
     config.getini.return_value = ""
@@ -91,6 +95,7 @@ def test_message_plugin_get_timestamp() -> None:
 
 def test_message_plugin_pytest_cuke_message_queue() -> None:
     config = MagicMock()
+    config.rootpath = Path.cwd()
     config.option.cuke_messages_ndjson = "messages.ndjson"
     config.option.cuke_html = None
 
@@ -116,6 +121,7 @@ def test_validated_message_hook_and_ndjson_receive_the_same_accepted_order() -> 
     observed: list[Message] = []
     config = SimpleNamespace(
         stash={},
+        rootpath=Path.cwd(),
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
         getini=lambda name: "",
         hook=SimpleNamespace(pytest_cuke_message_validated=lambda *, config, message: observed.append(message)),
@@ -158,6 +164,7 @@ def test_validated_hook_and_ndjson_receive_the_same_exception_stack_trace() -> N
     observed: list[Message] = []
     config = SimpleNamespace(
         stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
         getini=lambda name: "",
         hook=SimpleNamespace(pytest_cuke_message_validated=lambda *, config, message: observed.append(message)),
@@ -217,14 +224,8 @@ def test_validated_hook_and_ndjson_receive_the_same_exception_stack_trace() -> N
     for event in events:
         plugin.pytest_cuke_message(config, event)
 
-    observed_payloads = [
-        message_to_dict(event)
-        for event in observed
-    ]
-    queued_payloads = [
-        json.loads(plugin.process_messages_io_queue.get_nowait())
-        for _ in events
-    ]
+    observed_payloads = [message_to_dict(event) for event in observed]
+    queued_payloads = [json.loads(plugin.process_messages_io_queue.get_nowait()) for _ in events]
     assert observed_payloads == queued_payloads
     assert queued_payloads[-1]["testStepFinished"]["testStepResult"]["exception"]["stackTrace"] == (
         "failure stack trace"
@@ -235,6 +236,7 @@ def test_message_plugin_rejects_invalid_envelope_before_both_sinks() -> None:
     observed: list[Message] = []
     config = SimpleNamespace(
         stash={},
+        rootpath=Path.cwd(),
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
         getini=lambda name: "",
         hook=SimpleNamespace(pytest_cuke_message_validated=lambda *, config, message: observed.append(message)),
@@ -276,6 +278,7 @@ def test_message_plugin_rejects_invalid_envelope_before_both_sinks() -> None:
 def test_message_plugin_meta_uses_the_installed_protocol_release() -> None:
     config = SimpleNamespace(
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        rootpath=Path.cwd(),
         getini=lambda name: "",
         hook=None,
     )
@@ -307,7 +310,9 @@ def test_late_message_diagnostics_are_written_after_terminal_summary() -> None:
     terminalreporter = MagicMock()
     config = SimpleNamespace(
         option=SimpleNamespace(cuke_messages_ndjson=None, cuke_html=None, cuke_allure=None),
+        rootpath=Path.cwd(),
         getini=lambda name: "",
+        hook=None,
         pluginmanager=SimpleNamespace(get_plugin=lambda name: terminalreporter),
     )
     plugin = MessagePlugin(config=config)
@@ -342,6 +347,7 @@ def test_late_message_diagnostics_are_written_after_terminal_summary() -> None:
 def test_invalid_stream_marks_terminal_message_and_pytest_run_failed() -> None:
     config = SimpleNamespace(
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        rootpath=Path.cwd(),
         getini=lambda name: "",
         workeroutput={},
         hook=None,
@@ -392,6 +398,7 @@ def test_message_plugin_pytest_cuke_attach() -> None:
     )
     config = SimpleNamespace(
         stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
         getini=lambda name: "",
         hook=MagicMock(),
@@ -428,6 +435,7 @@ def test_tolerated_step_error_keeps_later_message_steps_executable() -> None:
     }
     config = SimpleNamespace(
         stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
         getini=lambda name: "",
         hook=MagicMock(),
@@ -468,6 +476,7 @@ def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None
     context.start_step(step)
     config = SimpleNamespace(
         stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
         option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
         getini=lambda name: "",
         hook=MagicMock(),
@@ -482,7 +491,9 @@ def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None
     )
 
     messages = [call.kwargs["message"] for call in config.hook.pytest_cuke_message.call_args_list]
-    assert [message.test_step_started.test_step_id for message in messages if message.test_step_started] == ["ts-pending"]
+    assert [message.test_step_started.test_step_id for message in messages if message.test_step_started] == [
+        "ts-pending"
+    ]
     finished = [message.test_step_finished for message in messages if message.test_step_finished]
     assert len(finished) == 1
     assert finished[0].test_case_started_id == "attempt-pending"
@@ -493,6 +504,7 @@ def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None
 
 def test_message_plugin_ignores_ordinary_pytest_tests() -> None:
     config = MagicMock()
+    config.rootpath = Path.cwd()
     config.option.cuke_messages_ndjson = "messages.ndjson"
     config.option.cuke_html = None
 
