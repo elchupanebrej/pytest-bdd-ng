@@ -3954,6 +3954,33 @@ def consumer_command_output_contains(expected: str, consumer: ConsumerProject) -
     assert expected.lower() in f"{result.stdout}\n{result.stderr}".lower()
 
 
+@then("the Markdown capability report should list observations and decisions in stable order")
+def consumer_markdown_capability_report_is_stably_ordered(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a standalone capability report command has not been run"
+    lines = result.stdout.splitlines()
+
+    def section_lines(title: str, next_title: str) -> list[str]:
+        try:
+            start = lines.index(title) + 1
+            end = lines.index(next_title, start)
+        except ValueError as error:
+            raise AssertionError(f"Markdown capability report is missing {title!r} or {next_title!r}: {result.stdout}") from error
+        return lines[start:end]
+
+    observed_lines = section_lines("## Observed fields", "## Decisions")
+    observed_ids = [match.group(1) for line in observed_lines if (match := re.fullmatch(r"- `([^`]+)`", line))]
+    assert observed_ids == sorted(set(observed_ids)), observed_ids
+
+    decision_lines = section_lines("## Decisions", "## Gate result")
+    decision_ids = [
+        match.group(1)
+        for line in decision_lines
+        if (match := re.match(r"\| `([^`]+)` \|", line))
+    ]
+    assert decision_ids == sorted(set(decision_ids)), decision_ids
+
+
 @then(re.compile(r'pytest output should contain "(?P<expected>[^\"]+)"'))
 def consumer_pytest_output_contains(expected: str, consumer: ConsumerProject) -> None:
     result = consumer.pytest_result
