@@ -70,6 +70,27 @@ Feature: Debug MCP failure inspection
     And the MCP timeout observation should prove release from the current hold with reason "timeout"
     And the MCP discovery record should no longer advertise a live endpoint
 
+  Scenario: A single external heartbeat holds the failure only until its lease expires
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer has the optional debug MCP extra installed
+    And the installed consumer exposes a plain pytest call failure
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-mcp-on-fail --cuke-mcp-timeout=30s --cuke-mcp-lease=2s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto -q"
+    And an external MCP client heartbeats once and stops renewing the lease
+    Then pytest should exit with a non-zero code
+    And the MCP lease observation should prove bounded release from the current hold with reason "lease_expired"
+    And the MCP discovery record should no longer advertise a live endpoint
+
+  Scenario: An external release after explicit release returns a controlled error
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer has the optional debug MCP extra installed
+    And the installed consumer exposes a plain pytest call failure
+    And the installed consumer has a trailing pytest test that waits after release
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-mcp-on-fail --cuke-mcp-timeout=30s --cuke-mcp-lease=10s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto -q"
+    And an external MCP client releases the held failure and retries release
+    Then pytest should exit with a non-zero code
+    And the MCP repeated-release observation should report the controlled unavailable-failure error
+    And the MCP discovery record should no longer advertise a live endpoint
+
   Scenario: Cancelling pytest closes the held failure and debugger child
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer has the optional debug MCP extra installed
