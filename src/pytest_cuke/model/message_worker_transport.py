@@ -253,7 +253,14 @@ class WorkerMessageReceiver:
                         worker_id=worker_id,
                     )
                 )
-            if not envelopes:
+            empty_complete_manifest = (
+                manifest is not None
+                and manifest.complete
+                and manifest.batch_count == 0
+                and manifest.envelope_count == 0
+                and manifest.last_sequence is None
+            )
+            if not state.batches and not empty_complete_manifest:
                 worker_diagnostics.append(
                     WorkerTransportDiagnostic(
                         code="missing_worker_fragment",

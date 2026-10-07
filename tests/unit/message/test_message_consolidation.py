@@ -903,6 +903,19 @@ def test_worker_receiver_reports_a_missing_fragment_for_a_worker_with_no_envelop
     }
 
 
+def test_worker_receiver_accepts_a_complete_empty_manifest_for_an_idle_worker() -> None:
+    batcher = MessageBatcher("gw0")
+    receiver = WorkerMessageReceiver(expected_workers=("gw0",))
+
+    receiver.record_manifest(batcher.make_manifest(complete=True).to_payload())
+    result = receiver.finalize()
+
+    assert result.fragments[0].envelopes == ()
+    assert result.fragments[0].complete
+    assert result.fragments[0].manifest_received
+    assert result.diagnostics == ()
+
+
 def test_worker_receiver_preserves_partial_batches_when_worker_reports_interruption() -> None:
     event = {"attachment": {"body": "available before interruption"}}
     batcher = MessageBatcher("gw0")
