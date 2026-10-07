@@ -612,6 +612,29 @@ def create_consumer_directory(relative_path, consumer: ConsumerProject):
     (consumer.path / destination).mkdir(parents=True, exist_ok=True)
 
 
+@given(re.compile(r'consumer temporary directory "(?P<relative_path>[^\"]+)" is configured as TMPDIR'))
+def configure_consumer_tmpdir(relative_path: str, consumer: ConsumerProject) -> None:
+    temporary_directory = _consumer_artifact_path(relative_path, consumer)
+    temporary_directory.mkdir(parents=True, exist_ok=True)
+    assert not any(temporary_directory.iterdir()), f"consumer TMPDIR must start empty: {temporary_directory}"
+    temporary_path = str(temporary_directory)
+    consumer.env.update({"TMPDIR": temporary_path, "TMP": temporary_path, "TEMP": temporary_path})
+
+
+@then(
+    re.compile(
+        r'consumer temporary directory "(?P<relative_path>[^\"]+)" should have no worker-owned Messages stream files'
+    )
+)
+def consumer_tmpdir_has_no_worker_messages_files(relative_path: str, consumer: ConsumerProject) -> None:
+    temporary_directory = _consumer_artifact_path(relative_path, consumer)
+    assert temporary_directory.is_dir(), f"consumer TMPDIR is missing: {temporary_directory}"
+    worker_streams = sorted(
+        path for path in temporary_directory.glob("tmp*") if path.is_file() and path.suffix != ".lock"
+    )
+    assert not worker_streams, f"worker-owned temporary Messages streams remain: {worker_streams!r}"
+
+
 @when(re.compile(r'I remove write permission from consumer directory "(?P<relative_path>[^\"]+)"'))
 def remove_consumer_directory_write_permission(relative_path: str, consumer: ConsumerProject) -> None:
     from pytest import skip
@@ -1076,7 +1099,12 @@ def consumer_messages_artifact(relative_path, scenario_count, step_count, consum
     assert run_finished[0].success is True
 
 
-def _local_xdist_messages_artifact(relative_path: str, consumer: ConsumerProject) -> list[dict[str, Any]]:
+def _local_xdist_messages_artifact(
+    relative_path: str,
+    consumer: ConsumerProject,
+    *,
+    expect_partial: bool = False,
+) -> list[dict[str, Any]]:
     artifact_path = _consumer_artifact_path(relative_path, consumer)
     assert artifact_path.is_file(), f"local xdist Messages artifact was not written: {artifact_path}"
     envelopes: list[dict[str, Any]] = []
@@ -1089,6 +1117,14 @@ def _local_xdist_messages_artifact(relative_path: str, consumer: ConsumerProject
         _validate_messages_envelope_compatibly(envelope)
         envelopes.append(envelope)
     assert envelopes, f"local xdist Messages artifact is empty: {artifact_path}"
+    if not expect_partial:
+        from pytest_cuke.model.message_stream_validation import MessageStreamValidator
+
+        validator = MessageStreamValidator()
+        for envelope in envelopes:
+            validator.accept(message_from_dict(envelope))
+        diagnostics = validator.finish()
+        assert not diagnostics, f"local xdist Messages artifact has stream diagnostics: {diagnostics!r}"
     return envelopes
 
 
@@ -1303,6 +1339,8 @@ def consumer_local_xdist_manifests_match_batches(
     consumer: ConsumerProject,
     expected_test_failure: str | None = None,
 ) -> None:
+    from pytest_cuke.model.message_consolidation import namespace_envelope_ids
+
     manifest_artifact = _consumer_artifact_path(manifest_path, consumer)
     batch_artifact = _consumer_artifact_path(batches_path, consumer)
     assert manifest_artifact.is_file(), f"worker manifest artifact was not written: {manifest_artifact}"
@@ -1333,7 +1371,23 @@ def consumer_local_xdist_manifests_match_batches(
         assert manifest.get("worker_id") == worker_id, record
         worker_batches = observed_batches.pop(worker_id, [])
         if isinstance(tail_batch, dict):
-            worker_batches.append(tail_batch)
+            tail_batch_worker_id = tail_batch.get("worker_id")
+            tail_sequence = tail_batch.get("sequence")
+            assert tail_batch_worker_id == worker_id, (record, tail_batch)
+            assert isinstance(tail_sequence, int) and not isinstance(tail_sequence, bool), tail_batch
+            matching_batches = [batch for batch in worker_batches if batch.get("sequence") == tail_sequence]
+            if matching_batches:
+                assert len(matching_batches) == 1, (record, matching_batches)
+                live_batch = matching_batches[0]
+                assert live_batch.get("worker_id") == tail_batch_worker_id, (live_batch, tail_batch)
+                tail_envelopes = tail_batch.get("envelopes")
+                assert isinstance(tail_envelopes, list), tail_batch
+                namespaced_tail_envelopes = [
+                    namespace_envelope_ids(envelope, worker_id=worker_id) for envelope in tail_envelopes
+                ]
+                assert live_batch.get("envelopes") == namespaced_tail_envelopes, (live_batch, tail_batch)
+            else:
+                worker_batches.append(tail_batch)
         sequences = sorted(batch.get("sequence") for batch in worker_batches)
         envelope_count = sum(len(batch.get("envelopes", [])) for batch in worker_batches)
         assert sequences == list(range(manifest["batch_count"])), (record, sequences)
@@ -1728,7 +1782,7 @@ def consumer_crashed_xdist_worker_diagnostics(consumer: ConsumerProject) -> None
     )
 )
 def consumer_crashed_xdist_partial_stream(relative_path: str, consumer: ConsumerProject) -> None:
-    envelopes = _local_xdist_messages_artifact(relative_path, consumer)
+    envelopes = _local_xdist_messages_artifact(relative_path, consumer, expect_partial=True)
     run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
     run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
     case_finished = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
