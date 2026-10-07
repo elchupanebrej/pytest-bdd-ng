@@ -35,6 +35,7 @@ from pytest_cuke.compatibility.pytest import (
     PytestPluginManager,
 )
 from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from pytest_cuke.cucumber_pretty import selected_pretty_formatter_requests
 from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp.options import add_options as add_debug_mcp_options
 from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin
@@ -65,6 +66,7 @@ if TYPE_CHECKING:
     from _pytest.nodes import Collector
     from cucumber_messages import PickleStep as Step
 
+    from pytest_cuke.formatter_api import FormatterRequest
     from pytest_cuke.model.step import Step
     from pytest_cuke.steps.definition import Definition
 
@@ -82,6 +84,11 @@ def _is_npm_gherkin_installed() -> bool:
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
     """Register plugin hooks."""
     pluginmanager.add_hookspecs(hooks)
+
+
+def pytest_cuke_formatter_requests(config: Config) -> tuple[FormatterRequest, ...]:
+    """Return built-in live formatter requests selected through pytest-cuke options."""
+    return selected_pretty_formatter_requests(config)
 
 
 @given("trace")
@@ -437,10 +444,7 @@ def _zero_match_scenario_detail(feature: Feature, scenario: Scenario) -> str:
     source = feature.filename or feature.uri or feature.rel_filename or "<unknown feature>"
     location = f"{source}:{scenario.line}" if scenario.line else source
     heading = f"{scenario.keyword} {scenario.name}"
-    details = [
-        f"  {source}:{step.line}: {step.keyword}{step.name}"
-        for step in execution_steps(feature, scenario)
-    ]
+    details = [f"  {source}:{step.line}: {step.keyword}{step.name}" for step in execution_steps(feature, scenario)]
     return "\n".join((f"{location}: {heading} has no matching step definitions.", "  Scenario steps:", *details))
 
 
@@ -575,9 +579,7 @@ def pytest_configure(config: Config) -> None:
     if summary_enabled:
         config.pluginmanager.register(ScenarioSummaryPlugin(), name="pytest_cuke_summary")
     vars(config)["__allure_plugin__"] = (
-        None
-        if _allure_output_path(config) is not None
-        else AllurePytestBDD.register_if_allure_accessible(config)
+        None if _allure_output_path(config) is not None else AllurePytestBDD.register_if_allure_accessible(config)
     )
     id_generator = IdGenerator.from_stash(config.stash) if hasattr(config, "stash") else IdGenerator()
     id_generator.set_namespace(run_context.run_id)
@@ -622,10 +624,7 @@ class _SessionFinishOrderingHookAdapter:
         session_finish_hook = manager.get_plugin("pytest_cuke_messages_session_finish")
         if plugin is session_finish_hook:
             return
-        if not any(
-            hookimpl.plugin is plugin
-            for hookimpl in manager.hook.pytest_sessionfinish.get_hookimpls()
-        ):
+        if not any(hookimpl.plugin is plugin for hookimpl in manager.hook.pytest_sessionfinish.get_hookimpls()):
             return
         config = manager.get_plugin("pytestconfig")
         if isinstance(config, Config):
@@ -682,8 +681,7 @@ def _place_session_finish_adapter(config: Config) -> None:
         or worker_impl not in orderable_impls
     ):
         error_message = (
-            "pytest-cuke cannot find pytest-xdist's worker-finish wrapper "
-            "while ordering Cucumber Messages reporting."
+            "pytest-cuke cannot find pytest-xdist's worker-finish wrapper while ordering Cucumber Messages reporting."
         )
         raise pytest.UsageError(error_message)
 
@@ -990,9 +988,7 @@ def pytest_cuke_convert_tag_to_marks(
 
 
 @pytest.hookimpl(trylast=True)
-def pytest_cuke_match_step_definition_to_step(
-    request: FixtureRequest, run: RunContext
-) -> Definition:
+def pytest_cuke_match_step_definition_to_step(request: FixtureRequest, run: RunContext) -> Definition:
     feature = run.require_feature("pytest_cuke_match_step_definition_to_step")
     scenario = run.require_scenario("pytest_cuke_match_step_definition_to_step")
     step = run.require_step("pytest_cuke_match_step_definition_to_step")

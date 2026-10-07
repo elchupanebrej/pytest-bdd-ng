@@ -26,6 +26,8 @@ def resolve_formatter_requests(config: Config) -> tuple[FormatterRequest, ...]:
     """Resolve live pytest hook requests through the shared formatter catalog."""
     import pytest  # noqa: PLC0415 -- standalone replay should not import pytest.
 
+    from pytest_cuke.compatibility.pytest import get_config_root_path  # noqa: PLC0415
+
     request_hook = getattr(config.hook, "pytest_cuke_formatter_requests", None)
     hook_results: list[Any] = request_hook(config=config) if request_hook is not None else []
     requests: list[FormatterRequest] = []
@@ -46,7 +48,7 @@ def resolve_formatter_requests(config: Config) -> tuple[FormatterRequest, ...]:
         raise pytest.UsageError("pytest_cuke_formatter_requests implementations must return an iterable of requests.")
 
     try:
-        return resolve_formatter_catalog(requests, root=Path(config.rootpath), mode="Live")
+        return resolve_formatter_catalog(requests, root=get_config_root_path(config), mode="Live")
     except FormatterCatalogError as error:
         raise pytest.UsageError(str(error)) from error
 

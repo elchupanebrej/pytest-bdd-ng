@@ -71,6 +71,28 @@ Implementations should return no request unless their canonical ``--cuke-*``
 option or configuration value is selected. The shared catalog is the single
 activation and validation point for the formatter family.
 
+Built-in Cucumber pretty output
+-------------------------------
+
+Select the official live Cucumber pretty formatter with ``--cuke-pretty`` or
+``cuke_pretty = true`` in pytest configuration. It writes to pytest's terminal
+stream as validated Messages arrive, so scenario output is visible during the
+run. It can be combined with Messages, JSON, JUnit, usage JSON from another
+formatter plugin, and other formatters that each write to a distinct file.
+Only one selected formatter can write to the terminal.
+
+Pretty output is written to the original terminal stream even while pytest
+captures test output. Test output continues to follow the selected pytest
+capture mode.
+
+The pretty formatter requires Node.js and the ``@cucumber/pretty-formatter``
+npm package to be installed in the pytest root directory. When the option is
+not selected, pytest-cuke does not check for Node.js or the npm package. A
+missing npm package is reported during pytest configuration with an install
+location and command; a missing Node executable is named in the diagnostic.
+The child formatter does not inherit a TTY; pytest relays its output for both
+interactive and piped runs.
+
 Lifecycle and distributed runs
 -------------------------------
 

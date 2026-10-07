@@ -515,6 +515,20 @@ class MessagePlugin:
             default="",
             type="string",
         )
+        group = parser.getgroup("cuke", "Cucumber pretty output")
+        group.addoption(
+            "--cuke-pretty",
+            action="store_true",
+            dest="cuke_pretty",
+            default=None,
+            help="render live Cucumber feature and step output with the official pretty formatter.",
+        )
+        parser.addini(
+            "cuke_pretty",
+            "Render live Cucumber feature and step output with the official pretty formatter.",
+            default=False,
+            type="bool",
+        )
 
     def generate_html_report(self) -> None:
         if self.is_disabled:
@@ -732,9 +746,7 @@ class MessagePlugin:
         live_batch = {
             "worker_id": batch.worker_id,
             "sequence": batch.sequence,
-            "envelopes": [
-                namespace_envelope_ids(envelope, worker_id=batch.worker_id) for envelope in batch.envelopes
-            ],
+            "envelopes": [namespace_envelope_ids(envelope, worker_id=batch.worker_id) for envelope in batch.envelopes],
             "complete": False,
         }
         try:
@@ -825,9 +837,7 @@ class MessagePlugin:
             self.message_diagnostics_reported_after_summary = len(self.message_diagnostics)
 
     @staticmethod
-    def _write_message_diagnostics(
-        terminalreporter: Any, diagnostics: Iterable[MessageValidationDiagnostic]
-    ) -> None:
+    def _write_message_diagnostics(terminalreporter: Any, diagnostics: Iterable[MessageValidationDiagnostic]) -> None:
         for diagnostic in diagnostics:
             payload = message_diagnostic_to_dict(diagnostic)
             terminalreporter.write_line(
@@ -1089,8 +1099,10 @@ class MessagePlugin:
             self._report_process_messages_error(session)
 
         is_testrun_success = (
-            (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is ExitCode.OK
-        ) and not self.test_run_hook_failed and not (self.formatter_session and self.formatter_session.failed)
+            ((isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is ExitCode.OK)
+            and not self.test_run_hook_failed
+            and not (self.formatter_session and self.formatter_session.failed)
+        )
         terminal_timestamp = self.get_timestamp()
         terminal_message = Message(
             test_run_finished=TestRunFinished(

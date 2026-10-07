@@ -8,6 +8,7 @@ pytest_plugins = [
     "tests.e2e.runtime_steps",
     "tests.e2e.formatter_steps",
     "tests.e2e.offline_formatter_steps",
+    "tests.e2e.live_pretty_formatter_steps",
 ]
 if find_spec("pytest_httpserver") is not None:
     pytest_plugins.append("pytest_httpserver.pytest_plugin")

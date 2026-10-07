@@ -39,3 +39,13 @@ def test_formatter_request_accepts_file_output_and_safe_assets(tmp_path: Path) -
 
     assert request.output_path == tmp_path / "report.txt"
     assert request.runtime_assets[0].path == "formatter.mjs"
+
+
+def test_formatter_request_requires_terminal_output_when_bypassing_capture(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="only for terminal output"):
+        FormatterRequest(
+            name="file-output",
+            command=("python",),
+            output_path=tmp_path / "report.txt",
+            bypass_capture=True,
+        )
