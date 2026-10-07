@@ -138,13 +138,7 @@ class StepRunner:
         run.require_feature("pytest_cuke_run_step")
         scenario = run.require_scenario("pytest_cuke_run_step")
         step = run.require_step("pytest_cuke_run_step")
-        hook_kwargs: dict[str, Any] = {
-            "request": request,
-            "run": run,
-            "step_func": None,
-            "step_func_args": {},
-            "tolerated": False,
-        }
+        step_function_kwargs: dict[str, Any] = {}
 
         try:
             step_definition = self.match_to_step(request, run)
@@ -160,10 +154,6 @@ class StepRunner:
                 exception=exception,
             )
             raise
-        else:
-            hook_kwargs["step_func"] = step_definition.func
-            hook_kwargs["step_definition"] = step_definition
-
         if step_definition.not_implemented:
             wip_status = resolve_wip_status(request.config, request.node, scenario)
             if wip_status == "passed":
@@ -218,7 +208,6 @@ class StepRunner:
             )
 
             step_function_kwargs = dict(self.get_step_function_kwargs(request, step, step_definition, step_params))
-            hook_kwargs["step_func_args"] = step_function_kwargs
 
             run.transition(
                 stage="step-running",
@@ -307,7 +296,7 @@ class StepRunner:
                     request=request,
                     run=run,
                     step_func=step_definition.func,
-                    step_func_args=hook_kwargs["step_func_args"],
+                    step_func_args=step_function_kwargs,
                     exception=exception,
                     step_definition=step_definition,
                     tolerated=False,
