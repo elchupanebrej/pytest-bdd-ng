@@ -574,10 +574,10 @@ def pytest_configure(config: Config) -> None:
         summary_enabled = config.getini("cuke_summary")
     if summary_enabled:
         config.pluginmanager.register(ScenarioSummaryPlugin(), name="pytest_cuke_summary")
-    setattr(
-        config,
-        "__allure_plugin__",
-        None if _allure_output_path(config) is not None else AllurePytestBDD.register_if_allure_accessible(config),
+    vars(config)["__allure_plugin__"] = (
+        None
+        if _allure_output_path(config) is not None
+        else AllurePytestBDD.register_if_allure_accessible(config)
     )
     id_generator = IdGenerator.from_stash(config.stash) if hasattr(config, "stash") else IdGenerator()
     id_generator.set_namespace(run_context.run_id)
@@ -723,6 +723,10 @@ def pytest_unconfigure(config: Config) -> None:
     if run_context is not None:
         run_context.clear_active()
     clear_parser_registrations(config)
+    formatter_session = config.pluginmanager.get_plugin("pytest_cuke_formatter_session")
+    if formatter_session is not None:
+        formatter_session.abort()
+        config.pluginmanager.unregister(name="pytest_cuke_formatter_session")
     config.pluginmanager.unregister(name="pytest_cuke_messages_session_finish")
     config.pluginmanager.unregister(name="pytest_cuke_messages")
     config.pluginmanager.unregister(name="pytest_cuke_summary")

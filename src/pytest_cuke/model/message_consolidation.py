@@ -437,6 +437,115 @@ def _apply_id_remap(records: Sequence[_EnvelopeRecord], id_remap: dict[str, str]
     id_remap.clear()
 
 
+class LiveMessageAdapter:
+    """Normalize controller and worker envelopes for one live formatter stream.
+
+    Worker batches already have worker-scoped IDs when they reach the controller.
+    This adapter removes worker run-level envelopes, aliases worker run IDs to the
+    controller run, keeps controller run hooks canonical, and deduplicates
+    repeated structural records incrementally.
+    """
+
+    def __init__(self) -> None:
+        self._controller_run_id: str | None = None
+        self._id_remap: dict[str, str] = {}
+        self._structural_by_identity: dict[str, _EnvelopeRecord] = {}
+        self._hook_types: dict[str, str] = {}
+        self._run_hook_types: dict[str, str] = {}
+
+    def controller_envelope(self, envelope: Mapping[str, Any]) -> dict[str, Any] | None:
+        """Accept one controller envelope and return its formatter-facing copy."""
+        normalized = dict(envelope)
+        payload_kind = _payload_kind(normalized)
+        if payload_kind == "test_run_started":
+            run_id = _payload(normalized, payload_kind).get("id")
+            if not isinstance(run_id, str):
+                raise ValueError("Controller TestRunStarted has no string ID.")
+            self._controller_run_id = run_id
+        elif payload_kind == "hook":
+            self._remember_hook_type(normalized)
+        return self._remember_structural(normalized, payload_kind, worker_id="master")
+
+    def worker_envelope(self, envelope: Mapping[str, Any], *, worker_id: str) -> dict[str, Any] | None:
+        """Normalize one already-namespaced worker envelope for a single live run."""
+        normalized = dict(envelope)
+        payload_kind = _payload_kind(normalized)
+        if payload_kind in CONTROLLER_SINGULAR_PAYLOAD_KINDS:
+            if payload_kind == "test_run_started":
+                worker_run_id = _payload(normalized, payload_kind).get("id")
+                if not isinstance(worker_run_id, str):
+                    raise ValueError(f"Worker '{worker_id}' TestRunStarted has no string ID.")
+                if self._controller_run_id is None:
+                    raise ValueError("Worker Messages arrived before the controller TestRunStarted envelope.")
+                self._id_remap[worker_run_id] = self._controller_run_id
+            return None
+
+        if payload_kind == "hook":
+            hook_payload = _payload(normalized, payload_kind)
+            hook_id = hook_payload.get("id")
+            hook_type = hook_payload.get("type")
+            if isinstance(hook_id, str) and isinstance(hook_type, str):
+                self._hook_types[hook_id] = hook_type
+            if hook_type in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}:
+                return None
+            normalized = _rewrite_references(normalized, self._id_remap)
+            result = self._remember_structural(normalized, payload_kind, worker_id=worker_id)
+            if isinstance(hook_id, str) and isinstance(hook_type, str):
+                self._hook_types[self._id_remap.get(hook_id, hook_id)] = hook_type
+            return result
+
+        if payload_kind == "test_run_hook_started":
+            started_payload = _payload(normalized, payload_kind)
+            hook_id = started_payload.get("hookId")
+            started_id = started_payload.get("id")
+            hook_type = self._hook_types.get(self._id_remap.get(str(hook_id), str(hook_id)))
+            if isinstance(started_id, str) and hook_type is not None:
+                self._run_hook_types[started_id] = hook_type
+            if hook_type in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}:
+                return None
+
+        if payload_kind in {"test_run_hook_finished", "attachment"}:
+            started_id = _payload(normalized, payload_kind).get("testRunHookStartedId")
+            if self._run_hook_types.get(str(started_id)) in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}:
+                return None
+
+        normalized = _rewrite_references(normalized, self._id_remap)
+        return self._remember_structural(normalized, payload_kind, worker_id=worker_id)
+
+    def _remember_hook_type(self, envelope: dict[str, Any]) -> None:
+        payload = _payload(envelope, "hook")
+        hook_id = payload.get("id")
+        hook_type = payload.get("type")
+        if isinstance(hook_id, str) and isinstance(hook_type, str):
+            self._hook_types[hook_id] = hook_type
+
+    def _remember_structural(
+        self,
+        envelope: dict[str, Any],
+        payload_kind: str,
+        *,
+        worker_id: str,
+    ) -> dict[str, Any] | None:
+        if payload_kind not in STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS:
+            return envelope
+
+        record = _EnvelopeRecord(
+            envelope=envelope,
+            payload_kind=payload_kind,
+            worker_id=worker_id,
+            fragment_index=0,
+            sequence_in_fragment=0,
+        )
+        identity = _structural_identity(record, strip_reference_ids=False)
+        canonical = self._structural_by_identity.get(identity)
+        if canonical is None:
+            self._structural_by_identity[identity] = record
+            return envelope
+
+        self._id_remap.update(_duplicate_object_id_map(canonical, record))
+        return None
+
+
 def _run_hook_phase(
     record: _EnvelopeRecord,
     hook_types: Mapping[str, str],
