@@ -20,9 +20,9 @@ from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import Any
 
-import panflute as pf  # type: ignore[import-not-found]  # The optional doc-gen extra provides this executable-only dependency.
-import pycmarkgfm  # type: ignore[import-not-found]  # The optional doc-gen extra provides this executable-only dependency.
-import pypandoc  # type: ignore[import-not-found]  # The optional doc-gen extra provides this executable-only dependency.
+import panflute as pf  # type: ignore[import-not-found]  # Optional doc-gen dependency.
+import pycmarkgfm  # type: ignore[import-not-found]  # Optional doc-gen dependency.
+import pypandoc  # type: ignore[import-not-found]  # Optional doc-gen dependency.
 from docopt import docopt
 
 SECTION_SYMBOLS = "-#!\"$%&'()*+,./:;<=>?@[\\]^_`{|}~="
