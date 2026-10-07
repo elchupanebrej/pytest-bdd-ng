@@ -37,6 +37,8 @@ from pytest_cuke.compatibility.pytest import (
     get_metafunc_call_arg,
     is_set,
 )
+from pytest_cuke.formatter_catalog import resolve_formatter_requests
+from pytest_cuke.formatter_runtime import FormatterSession
 from pytest_cuke.ide_bindings import (
     IDE_BINDING_WORKER_OUTPUT_KEY,
     IDE_DIAGNOSTIC_MEDIA_TYPE,
@@ -116,6 +118,7 @@ if TYPE_CHECKING:
     from pytest import Session
 
     from pytest_cuke.compatibility.pytest import Item, Metafunc, TestReport
+    from pytest_cuke.formatter_api import FormatterRequest
     from pytest_cuke.model import Step
     from pytest_cuke.model.message_validation import MessageValidationDiagnostic
 
@@ -187,6 +190,8 @@ class PendingTestStepFinish:
 class MessagePlugin:
     config: Config = attrib()
     allure_output_path: Path | None = attrib(default=None)
+    formatter_requests: tuple[FormatterRequest, ...] = attrib(factory=tuple)
+    formatter_session: FormatterSession | None = attrib(default=None)
     message_transport: ValidatedMessageTransport | None = attrib(default=None)
     process_messages_error: Exception | None = attrib(default=None)
     process_messages_error_reported: bool = attrib(default=False)
@@ -303,6 +308,7 @@ class MessagePlugin:
         self._set_scenario_state("test_case_started", value)
 
     def __attrs_post_init__(self) -> None:
+        self.formatter_requests = resolve_formatter_requests(self.config)
         messages_path = self._configured_output("cuke_messages_ndjson")
         html_path = self._configured_output("cuke_html")
         allure_path = self._configured_output("cuke_allure")
@@ -312,6 +318,7 @@ class MessagePlugin:
                 messages_path is None,
                 html_path is None,
                 allure_path is None,
+                not self.formatter_requests,
             ]
         )
 
@@ -341,6 +348,10 @@ class MessagePlugin:
             self.message_transport.add_sink(self._deliver_validated_message, name="pytest_cuke_message_validated")
         self.message_transport.add_sink(self._capture_accepted_message, name="Cucumber Messages memory fragment")
         self.message_transport.add_sink(self._queue_validated_message, name="Cucumber Messages NDJSON writer")
+
+        if self.formatter_requests and not self.is_xdist_worker:
+            self.formatter_session = FormatterSession(self.config, self.formatter_requests)
+            self.config.pluginmanager.register(self.formatter_session, name="pytest_cuke_formatter_session")
 
         if html_path is not None:
             self.check_npm_and_cucumber_packages()
@@ -693,6 +704,9 @@ class MessagePlugin:
             self.worker_message_receiver.receive_batch(payload)
             return
         self.worker_message_receiver.receive_batch(batch.to_payload())
+        self._publish_worker_message_batch(batch)
+
+    def _publish_worker_message_batch(self, batch: MessageBatch) -> None:
         live_batch = {
             "worker_id": batch.worker_id,
             "sequence": batch.sequence,
@@ -952,6 +966,12 @@ class MessagePlugin:
                 tail_batch = transport_output.get("tail_batch")
                 if isinstance(tail_batch, dict):
                     self.worker_message_receiver.receive_batch(tail_batch)
+                    try:
+                        parsed_tail_batch = MessageBatch.from_payload(tail_batch)
+                    except ValueError:
+                        pass
+                    else:
+                        self._publish_worker_message_batch(parsed_tail_batch)
                 manifest = transport_output.get("manifest")
                 if isinstance(manifest, dict):
                     self.worker_message_receiver.record_manifest(manifest, expected_worker_id=worker_id)
@@ -974,6 +994,8 @@ class MessagePlugin:
             return
 
         protocol_version = resolve_upstream_release()[1].protocol_version
+        if self.formatter_session is not None:
+            self.formatter_session.start()
         self.start_process_messages_thread()
 
         config = session.config
@@ -1008,6 +1030,12 @@ class MessagePlugin:
         error = outcome.excinfo[1] if outcome.excinfo is not None else None
         self._finish_test_run_hook(config, hook_started_id, started_at, error)
 
+        if self.formatter_session is not None:
+            try:
+                self.formatter_session.check_running()
+            except Exception as formatter_error:
+                self._record_final_sink_failure(session, "live Cucumber formatter", formatter_error)
+
     def _pytest_sessionfinish(self, session: Session, exitstatus: int | ExitCode) -> Generator[None, Any, Any]:
         if self.is_disabled:
             yield
@@ -1040,7 +1068,7 @@ class MessagePlugin:
 
         is_testrun_success = (
             (isinstance(exitstatus, int) and exitstatus == 0) or exitstatus is ExitCode.OK
-        ) and not self.test_run_hook_failed
+        ) and not self.test_run_hook_failed and not (self.formatter_session and self.formatter_session.failed)
         terminal_timestamp = self.get_timestamp()
         terminal_message = Message(
             test_run_finished=TestRunFinished(
@@ -1081,8 +1109,20 @@ class MessagePlugin:
                 except OSError as error:
                     self._record_final_sink_failure(session, "temporary Cucumber Messages cleanup", error)
             return
+        xdist_stream_complete = True
         if self.is_xdist_controller:
-            self._finalize_xdist_message_stream(session)
+            xdist_stream_complete = self._finalize_xdist_message_stream(session)
+        if self.formatter_session is not None:
+            if xdist_stream_complete:
+                try:
+                    self.formatter_session.finish()
+                except Exception as error:
+                    self._record_final_sink_failure(session, "live Cucumber formatter", error)
+            else:
+                self.formatter_session.abort()
+                self._mark_session_failed(session)
+            if self.formatter_session.failed:
+                self._mark_session_failed(session)
         try:
             if self._configured_output("cuke_html") is not None:
                 try:
@@ -1132,10 +1172,15 @@ class MessagePlugin:
         with self.process_messages_lock:
             self.process_messages_closed = True
 
-    def _finalize_xdist_message_stream(self, session: Session) -> None:
+    def _finalize_xdist_message_stream(self, session: Session) -> bool:
         receiver = self.worker_message_receiver
         if receiver is None:
-            return
+            self._record_final_sink_failure(
+                session,
+                "xdist worker Messages receiver",
+                RuntimeError("The xdist controller has no worker Messages receiver to finalize."),
+            )
+            return False
         received = receiver.finalize()
         fragments = [
             MessageFragment(worker_id="master", role="controller", envelopes=tuple(self.accepted_message_payloads))
@@ -1183,10 +1228,13 @@ class MessagePlugin:
                 self._report_message_diagnostics((diagnostic,))
             self._mark_session_failed(session)
 
+        write_succeeded = True
         try:
             _write_message_stream(self.messages_file_path, wire_stream)
         except Exception as error:
             self._record_final_sink_failure(session, "consolidated Cucumber Messages writer", error)
+            write_succeeded = False
+        return not diagnostics and write_succeeded
 
     @staticmethod
     def _mark_session_failed(session: Session) -> None:
