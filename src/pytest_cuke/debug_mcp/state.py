@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import time
-from threading import Condition
+from threading import TIMEOUT_MAX, Condition
 from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 if TYPE_CHECKING:
@@ -91,7 +91,7 @@ class FailureQueue:
                 if self._connected and self._last_heartbeat_at is not None:
                     remaining_lease = self.lease_seconds - (now - self._last_heartbeat_at)
                     wait_seconds = min(wait_seconds, remaining_lease)
-                self._condition.wait(timeout=max(0.001, wait_seconds))
+                self._condition.wait(timeout=min(TIMEOUT_MAX, max(0.001, wait_seconds)))
 
             if self._last_release is None or self._last_release["sequence"] != sequence:
                 raise FailureHoldError("the active Debug MCP failure was released without a record")
