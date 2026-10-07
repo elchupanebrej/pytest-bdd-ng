@@ -10470,6 +10470,35 @@ def install_plain_pytest_call_failure(consumer: ConsumerProject) -> None:
     _write_plain_pytest_failure(consumer, phase="call")
 
 
+@given("the installed consumer records Debug MCP artifact hook calls")
+def install_plain_debug_mcp_artifact_hook(consumer: ConsumerProject) -> None:
+    (consumer.path / "conftest.py").write_text(
+        dedent(
+            '''\
+            import json
+            from pathlib import Path
+
+            def pytest_cuke_debug_mcp_artifact_created(
+                nodeid, pytest_phase, bdd_metadata, json_path, markdown_path, status, summary
+            ):
+                observation = {
+                    "nodeid": nodeid,
+                    "pytest_phase": pytest_phase,
+                    "bdd_metadata": bdd_metadata,
+                    "json_path": str(json_path),
+                    "markdown_path": str(markdown_path),
+                    "status": status,
+                    "summary": summary,
+                }
+                Path("debug-mcp-artifact-hook.json").write_text(
+                    json.dumps(observation, ensure_ascii=False, sort_keys=True), encoding="utf-8"
+                )
+            '''
+        ),
+        encoding="utf-8",
+    )
+
+
 @given(re.compile(r'the installed consumer exposes a plain pytest failure during "(?P<phase>setup|teardown)"'))
 def install_plain_pytest_phase_failure(phase: str, consumer: ConsumerProject) -> None:
     _write_plain_pytest_failure(consumer, phase=phase)
@@ -10989,7 +11018,7 @@ def _debug_mcp_artifact_sdk_client_script() -> str:
                         return payload
             raise AssertionError(f"MCP tool did not return structured JSON: {result!r}")
 
-        async def main(endpoint, output_path):
+        async def main(endpoint, output_path, artifact_root):
             async with streamable_http_client(endpoint, terminate_on_close=False) as (
                 read_stream,
                 write_stream,
@@ -11013,7 +11042,7 @@ def _debug_mcp_artifact_sdk_client_script() -> str:
                     context = failure.get("bdd_context")
                     assert isinstance(context, dict), failure
 
-                    bdd_metadata = {
+                    active_bdd_metadata = {
                         "feature_path": context.get("feature_path"),
                         "feature_name": context.get("feature_name"),
                         "scenario_name": context.get("scenario_name"),
@@ -11021,6 +11050,15 @@ def _debug_mcp_artifact_sdk_client_script() -> str:
                         "step_text": context.get("step_text"),
                         "tags": context.get("tags", []),
                         "example_row": context.get("outline_row", {}),
+                    }
+                    tampered_bdd_metadata = {
+                        "feature_path": "file:forged-feature.feature",
+                        "feature_name": "Forged feature",
+                        "scenario_name": "Forged scenario",
+                        "step_keyword": "Then",
+                        "step_text": "the submitted metadata is untrusted",
+                        "tags": ["forged-tag"],
+                        "example_row": {"probe_id": "forged-row", "message": "forged-message"},
                     }
                     artifact = {
                         "artifact_id": "outline-row-17-investigation",
@@ -11032,7 +11070,7 @@ def _debug_mcp_artifact_sdk_client_script() -> str:
                         "evidence": ["The failure message matches the expected debugger probe sentinel."],
                         "suspected_cause": "The probe deliberately raises its configured sentinel exception.",
                         "next_action": "Review the outline row and its failure context.",
-                        "bdd_metadata": bdd_metadata,
+                        "bdd_metadata": tampered_bdd_metadata,
                     }
 
                     missing_required_artifact = {**artifact}
@@ -11062,6 +11100,48 @@ def _debug_mcp_artifact_sdk_client_script() -> str:
                         assert "markdown_path" not in invalid_payload, (case_name, invalid_payload)
                         invalid_submissions[case_name] = invalid_payload
 
+                    mismatched_artifacts = {
+                        "wrong_nodeid": {**artifact, "nodeid": f"{failure['nodeid']}::other-test"},
+                        "wrong_allowed_phase": {
+                            **artifact,
+                            "pytest_phase": "setup" if failure["phase"] != "setup" else "teardown",
+                        },
+                    }
+                    mismatch_submissions = {}
+                    root = Path(artifact_root)
+                    for case_name, mismatched_artifact in mismatched_artifacts.items():
+                        mismatch_payload = tool_payload(
+                            await session.call_tool(
+                                "submit_artifact",
+                                {
+                                    "session_id": session_id,
+                                    "sequence": sequence,
+                                    "artifact": mismatched_artifact,
+                                },
+                            )
+                        )
+                        assert mismatch_payload.get("ok") is False, (case_name, mismatch_payload)
+                        assert mismatch_payload.get("error") == "failure_mismatch", (case_name, mismatch_payload)
+                        assert mismatch_payload.get("details"), (case_name, mismatch_payload)
+                        assert "json_path" not in mismatch_payload, (case_name, mismatch_payload)
+                        assert "markdown_path" not in mismatch_payload, (case_name, mismatch_payload)
+                        assert "artifact_status" not in mismatch_payload, (case_name, mismatch_payload)
+
+                        after_mismatch = tool_payload(await session.call_tool("inspect_failure", {}))
+                        assert after_mismatch.get("session_id") == session_id, after_mismatch
+                        assert after_mismatch.get("active_failure") == failure, (after_mismatch, failure)
+                        assert not root.exists() or not list(root.iterdir()), (
+                            case_name,
+                            root,
+                            list(root.iterdir()) if root.exists() else [],
+                        )
+                        root_entries = sorted(path.name for path in root.iterdir()) if root.exists() else []
+                        mismatch_submissions[case_name] = {
+                            "response": mismatch_payload,
+                            "active_after": after_mismatch.get("active_failure"),
+                            "artifact_root_entries_after": root_entries,
+                        }
+
                     valid_result = await session.call_tool(
                         "submit_artifact",
                         {"session_id": session_id, "sequence": sequence, "artifact": artifact},
@@ -11085,6 +11165,8 @@ def _debug_mcp_artifact_sdk_client_script() -> str:
                                 "tools": sorted(names),
                                 "inspection": inspection,
                                 "invalid_submissions": invalid_submissions,
+                                "mismatch_submissions": mismatch_submissions,
+                                "active_bdd_metadata": active_bdd_metadata,
                                 "valid_submission": valid_payload,
                                 "submitted_artifact": artifact,
                                 "release": release,
@@ -11095,7 +11177,120 @@ def _debug_mcp_artifact_sdk_client_script() -> str:
                         encoding="utf-8",
                     )
 
-        asyncio.run(main(sys.argv[1], sys.argv[2]))
+        asyncio.run(main(sys.argv[1], sys.argv[2], sys.argv[3]))
+        '''
+    )
+
+
+def _debug_mcp_plain_artifact_sdk_client_script() -> str:
+    return dedent(
+        '''\
+        import asyncio
+        import json
+        import sys
+        from pathlib import Path
+
+        from mcp import ClientSession
+        from mcp.client.streamable_http import streamable_http_client
+
+        def jsonable(value):
+            if value is None or isinstance(value, (str, int, float, bool)):
+                return value
+            if isinstance(value, dict):
+                return {str(key): jsonable(item) for key, item in value.items()}
+            if isinstance(value, (list, tuple)):
+                return [jsonable(item) for item in value]
+            if hasattr(value, "model_dump"):
+                return jsonable(value.model_dump(mode="json"))
+            return str(value)
+
+        def tool_payload(result):
+            structured = getattr(result, "structuredContent", None)
+            if isinstance(structured, dict):
+                return jsonable(structured)
+            for block in getattr(result, "content", []):
+                text = getattr(block, "text", None)
+                if isinstance(text, str):
+                    try:
+                        payload = json.loads(text)
+                    except json.JSONDecodeError:
+                        continue
+                    if isinstance(payload, dict):
+                        return payload
+            raise AssertionError(f"MCP tool did not return structured JSON: {result!r}")
+
+        async def main(endpoint, output_path, artifact_root):
+            async with streamable_http_client(endpoint, terminate_on_close=False) as (
+                read_stream,
+                write_stream,
+                _get_session_id,
+            ):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    tools = await session.list_tools()
+                    names = {tool.name for tool in tools.tools}
+                    required = {"inspect_failure", "submit_artifact", "release_failure"}
+                    assert required <= names, f"missing MCP artifact tools: {required - names}"
+
+                    inspection = tool_payload(await session.call_tool("inspect_failure", {}))
+                    failure = inspection.get("active_failure")
+                    session_id = inspection.get("session_id")
+                    assert isinstance(failure, dict), inspection
+                    assert failure.get("bdd_context") is None, failure
+                    assert isinstance(session_id, str) and session_id, inspection
+                    sequence = failure.get("sequence")
+                    assert isinstance(sequence, int) and sequence > 0, failure
+                    artifact = {
+                        "artifact_id": "plain-pytest-investigation",
+                        "nodeid": failure["nodeid"],
+                        "pytest_phase": failure["phase"],
+                        "status": "investigated",
+                        "summary": "The plain pytest failure was inspected without BDD context.",
+                        "inspected_commands": ["inspect_failure"],
+                        "evidence": ["The active failure is an ordinary pytest call failure."],
+                        "suspected_cause": "The test deliberately raises its configured sentinel exception.",
+                        "next_action": "Review the plain pytest failure and its traceback.",
+                    }
+
+                    submission = tool_payload(
+                        await session.call_tool(
+                            "submit_artifact",
+                            {"session_id": session_id, "sequence": sequence, "artifact": artifact},
+                        )
+                    )
+                    assert submission.get("ok") is True, submission
+                    assert submission.get("artifact_id") == artifact["artifact_id"], submission
+                    assert isinstance(submission.get("json_path"), str), submission
+                    assert isinstance(submission.get("markdown_path"), str), submission
+                    configured_root = Path(artifact_root).resolve()
+                    assert Path(submission["json_path"]).resolve().is_relative_to(configured_root), submission
+                    assert Path(submission["markdown_path"]).resolve().is_relative_to(configured_root), submission
+
+                    release = tool_payload(
+                        await session.call_tool(
+                            "release_failure", {"session_id": session_id, "sequence": sequence}
+                        )
+                    )
+                    assert release.get("released") is True, release
+                    assert release.get("artifact_status") == "written", release
+
+                    Path(output_path).write_text(
+                        json.dumps(
+                            {
+                                "endpoint": endpoint,
+                                "tools": sorted(names),
+                                "inspection": inspection,
+                                "submitted_artifact": artifact,
+                                "valid_submission": submission,
+                                "release": release,
+                            },
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                        encoding="utf-8",
+                    )
+
+        asyncio.run(main(sys.argv[1], sys.argv[2], sys.argv[3]))
         '''
     )
 
@@ -12334,8 +12529,12 @@ def run_external_debug_mcp_client(consumer: ConsumerProject) -> None:
             setattr(consumer, "_mcp_client_result", client_result)
 
 
-@when("an external MCP client validates and submits an investigation artifact for the held failure")
-def run_external_debug_mcp_artifact_client(consumer: ConsumerProject) -> None:
+@when(
+    re.compile(
+        r'an external MCP client rejects mismatched artifacts and submits an investigation artifact under "(?P<artifact_root>[^"]+)"'
+    )
+)
+def run_external_debug_mcp_artifact_client(artifact_root: str, consumer: ConsumerProject) -> None:
     process = getattr(consumer, "_mcp_pytest_process", None)
     assert isinstance(process, subprocess.Popen), "the MCP pytest process has not been started"
     command = consumer._mcp_pytest_command
@@ -12344,6 +12543,7 @@ def run_external_debug_mcp_artifact_client(consumer: ConsumerProject) -> None:
     result_path = consumer.path / "debug-mcp-artifact-client-result.json"
     client_result: subprocess.CompletedProcess[str] | None = None
     try:
+        _consumer_artifact_path(artifact_root, consumer)
         client_path.write_text(_debug_mcp_artifact_sdk_client_script(), encoding="utf-8")
         discovery = _mcp_read_discovery_record(consumer)
         inspection_endpoint = discovery.get("inspection_endpoint")
@@ -12352,7 +12552,13 @@ def run_external_debug_mcp_artifact_client(consumer: ConsumerProject) -> None:
         consumer._mcp_artifact_initial_discovery = discovery
 
         client_result = subprocess.run(
-            [str(consumer.python), str(client_path), str(inspection_endpoint), str(result_path)],
+            [
+                str(consumer.python),
+                str(client_path),
+                str(inspection_endpoint),
+                str(result_path),
+                artifact_root,
+            ],
             cwd=consumer.path,
             env=consumer.env,
             check=False,
@@ -12372,7 +12578,9 @@ def run_external_debug_mcp_artifact_client(consumer: ConsumerProject) -> None:
         inspection = observation.get("inspection")
         assert isinstance(inspection, dict), observation
         assert inspection.get("session_id") == discovery.get("session_id"), observation
-        assert inspection.get("active_failure", {}).get("sequence") == discovery["active_failure"]["sequence"], observation
+        client_failure = inspection.get("active_failure")
+        assert client_failure == discovery.get("active_failure"), (client_failure, discovery)
+        _assert_debug_mcp_failure_context(client_failure, consumer)
         consumer._mcp_artifact_observation = observation
 
         try:
@@ -12394,6 +12602,85 @@ def run_external_debug_mcp_artifact_client(consumer: ConsumerProject) -> None:
             assert final_record.get("active_failure") is None, final_record
             endpoints = [final_record.get("debugger_endpoint"), final_record.get("inspection_endpoint")]
             assert endpoints == [None, None], final_record
+        consumer._mcp_advertised_endpoints_after_finish = endpoints
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=3)
+        if client_result is not None:
+            consumer._mcp_artifact_client_result = client_result
+
+
+@when(
+    re.compile(
+        r'an external MCP client submits an artifact for the held plain pytest failure under "(?P<artifact_root>[^"]+)"'
+    )
+)
+def run_external_debug_mcp_plain_artifact_client(artifact_root: str, consumer: ConsumerProject) -> None:
+    process = getattr(consumer, "_mcp_pytest_process", None)
+    assert isinstance(process, subprocess.Popen), "the MCP pytest process has not been started"
+    command = consumer._mcp_pytest_command
+    output_path = consumer._mcp_pytest_output_path
+    client_path = consumer.path / "debug-mcp-plain-artifact-client.py"
+    result_path = consumer.path / "debug-mcp-plain-artifact-client-result.json"
+    client_result: subprocess.CompletedProcess[str] | None = None
+    try:
+        _consumer_artifact_path(artifact_root, consumer)
+        client_path.write_text(_debug_mcp_plain_artifact_sdk_client_script(), encoding="utf-8")
+        discovery = _mcp_read_discovery_record(consumer)
+        endpoint = discovery.get("inspection_endpoint")
+        _mcp_endpoint_port(endpoint)
+        failure = discovery.get("active_failure")
+        assert isinstance(failure, dict), discovery
+        assert failure.get("bdd_context") is None, failure
+        consumer._mcp_artifact_initial_discovery = discovery
+
+        client_result = subprocess.run(
+            [str(consumer.python), str(client_path), str(endpoint), str(result_path), artifact_root],
+            cwd=consumer.path,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=25,
+        )
+        consumer._mcp_artifact_client_result = client_result
+        assert client_result.returncode == 0, (
+            f"external plain-failure MCP artifact client failed ({client_result.returncode}):\n"
+            f"{client_result.stdout}\n{client_result.stderr}"
+        )
+        assert result_path.is_file(), f"plain-failure MCP artifact client did not write its observation: {client_result.stdout}"
+        observation = json.loads(result_path.read_text(encoding="utf-8"))
+        assert observation.get("endpoint") == endpoint, observation
+        assert {"inspect_failure", "submit_artifact", "release_failure"} <= set(observation.get("tools", [])), observation
+        inspection = observation.get("inspection")
+        assert isinstance(inspection, dict), observation
+        assert inspection.get("session_id") == discovery.get("session_id"), observation
+        assert inspection.get("active_failure") == failure, (inspection, failure)
+        assert inspection["active_failure"].get("bdd_context") is None, inspection
+        consumer._mcp_artifact_observation = observation
+
+        try:
+            return_code = process.wait(timeout=15)
+        except subprocess.TimeoutExpired as error:
+            raise AssertionError("installed pytest did not resume after plain-failure artifact release") from error
+        output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+        consumer.pytest_result = subprocess.CompletedProcess(command, return_code, output, "")
+        assert return_code != 0, f"plain-failure artifact submission changed pytest to success:\n{output}"
+
+        final_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "session.json"
+        final_record = json.loads(final_path.read_text(encoding="utf-8"))
+        consumer._mcp_final_record = final_record
+        assert final_record.get("status") == "closed", final_record
+        assert final_record.get("active_failure") is None, final_record
+        assert final_record.get("last_release", {}).get("sequence") == failure.get("sequence"), final_record
+        assert final_record.get("last_release", {}).get("artifact_status") == "written", final_record
+        endpoints = [final_record.get("debugger_endpoint"), final_record.get("inspection_endpoint")]
+        assert endpoints == [None, None], final_record
         consumer._mcp_advertised_endpoints_after_finish = endpoints
     finally:
         if process.poll() is None:
@@ -12688,7 +12975,7 @@ def consumer_mcp_client_observation_confirms_context(consumer: ConsumerProject) 
     assert observation["release"].get("released") is True
 
 
-@then("the MCP artifact observation should confirm strict validation, BDD metadata, and written release status")
+@then("the MCP artifact observation should confirm strict validation, failure binding, BDD metadata, and written release status")
 def consumer_mcp_artifact_observation_confirms_contract(consumer: ConsumerProject) -> None:
     observation = getattr(consumer, "_mcp_artifact_observation", None)
     assert isinstance(observation, dict), observation
@@ -12708,6 +12995,24 @@ def consumer_mcp_artifact_observation_confirms_contract(consumer: ConsumerProjec
         assert invalid.get("details"), (case_name, invalid)
         assert "json_path" not in invalid and "markdown_path" not in invalid, (case_name, invalid)
 
+    mismatch_submissions = observation.get("mismatch_submissions")
+    assert isinstance(mismatch_submissions, dict), observation
+    assert set(mismatch_submissions) == {"wrong_nodeid", "wrong_allowed_phase"}, mismatch_submissions
+    inspection = observation.get("inspection")
+    assert isinstance(inspection, dict), observation
+    failure = inspection.get("active_failure")
+    assert isinstance(failure, dict), inspection
+    for case_name, mismatch in mismatch_submissions.items():
+        assert isinstance(mismatch, dict), (case_name, mismatch)
+        response = mismatch.get("response")
+        assert isinstance(response, dict), (case_name, mismatch)
+        assert response.get("ok") is False, (case_name, response)
+        assert response.get("error") == "failure_mismatch", (case_name, response)
+        assert response.get("details"), (case_name, response)
+        assert not {"json_path", "markdown_path", "artifact_status"}.intersection(response), (case_name, response)
+        assert mismatch.get("active_after") == failure, (case_name, mismatch, failure)
+        assert mismatch.get("artifact_root_entries_after") == [], (case_name, mismatch)
+
     submitted = observation.get("submitted_artifact")
     valid = observation.get("valid_submission")
     assert isinstance(submitted, dict), observation
@@ -12716,26 +13021,59 @@ def consumer_mcp_artifact_observation_confirms_contract(consumer: ConsumerProjec
     assert valid.get("json_path") and valid.get("markdown_path"), valid
 
     metadata = submitted.get("bdd_metadata")
-    inspection = observation.get("inspection")
     assert isinstance(metadata, dict), submitted
-    assert isinstance(inspection, dict), observation
-    failure = inspection.get("active_failure")
-    assert isinstance(failure, dict), inspection
+    assert metadata.get("feature_name") == "Forged feature", metadata
+    assert metadata.get("example_row", {}).get("probe_id") == "forged-row", metadata
+    active_bdd_metadata = observation.get("active_bdd_metadata")
+    assert isinstance(active_bdd_metadata, dict), observation
     context = failure.get("bdd_context")
     assert isinstance(context, dict), failure
-    assert metadata.get("feature_path") == context.get("feature_path"), (metadata, context)
-    assert metadata.get("feature_name") == context.get("feature_name"), (metadata, context)
-    assert metadata.get("scenario_name") == context.get("scenario_name"), (metadata, context)
-    assert metadata.get("step_keyword") == context.get("step_keyword") == "When", (metadata, context)
-    assert metadata.get("step_text") == context.get("step_text"), (metadata, context)
-    assert metadata.get("tags") == context.get("tags"), (metadata, context)
-    assert metadata.get("example_row") == context.get("outline_row"), (metadata, context)
-    assert metadata["example_row"].get("probe_id") == "outline-row-17", metadata
+    assert active_bdd_metadata == {
+        "feature_path": context.get("feature_path"),
+        "feature_name": context.get("feature_name"),
+        "scenario_name": context.get("scenario_name"),
+        "step_keyword": context.get("step_keyword"),
+        "step_text": context.get("step_text"),
+        "tags": context.get("tags", []),
+        "example_row": context.get("outline_row", {}),
+    }, (active_bdd_metadata, context)
+    assert active_bdd_metadata.get("feature_name") == "MCP failure inspection probe", active_bdd_metadata
+    assert active_bdd_metadata.get("scenario_name", "").startswith(
+        "The client can inspect the failing BDD step for <probe_id>"
+    ), active_bdd_metadata
+    assert active_bdd_metadata.get("step_keyword") == "When", active_bdd_metadata
+    assert active_bdd_metadata.get("step_text") == 'the debugger probe raises "debug MCP failure sentinel"', (
+        active_bdd_metadata
+    )
+    assert active_bdd_metadata.get("example_row", {}).get("probe_id") == "outline-row-17", active_bdd_metadata
 
     release = observation.get("release")
     assert isinstance(release, dict), observation
     assert release.get("released") is True, release
     assert release.get("artifact_status") == "written", release
+
+
+@then("the plain failure artifact observation should confirm null BDD context, default metadata, and written release status")
+def consumer_mcp_plain_artifact_observation_confirms_contract(consumer: ConsumerProject) -> None:
+    observation = getattr(consumer, "_mcp_artifact_observation", None)
+    assert isinstance(observation, dict), observation
+    inspection = observation.get("inspection")
+    submitted = observation.get("submitted_artifact")
+    result = observation.get("valid_submission")
+    release = observation.get("release")
+    assert isinstance(inspection, dict), observation
+    failure = inspection.get("active_failure")
+    assert isinstance(failure, dict), inspection
+    assert failure.get("bdd_context") is None, failure
+    assert isinstance(submitted, dict), observation
+    assert "bdd_metadata" not in submitted, submitted
+    assert isinstance(result, dict) and result.get("ok") is True, observation
+    assert result.get("artifact_id") == submitted.get("artifact_id"), result
+    assert result.get("json_path") and result.get("markdown_path"), result
+    assert isinstance(release, dict) and release.get("released") is True, observation
+    assert release.get("artifact_status") == "written", release
+    pytest_result = consumer.pytest_result
+    assert pytest_result is not None and pytest_result.returncode != 0, pytest_result
 
 
 def _resolve_debug_mcp_artifact_path(value: object, artifact_root: Path) -> Path:
@@ -12748,17 +13086,48 @@ def _resolve_debug_mcp_artifact_path(value: object, artifact_root: Path) -> Path
     return resolved
 
 
-@then("the consumer MCP artifact files should contain the submitted JSON and Markdown pair")
-def consumer_mcp_artifact_files_contain_pair(consumer: ConsumerProject) -> None:
+def _expected_debug_mcp_artifact_bdd_metadata(failure: dict[str, Any]) -> dict[str, Any]:
+    context = failure.get("bdd_context")
+    if context is None:
+        return {
+            "feature_path": None,
+            "feature_name": None,
+            "scenario_name": None,
+            "step_keyword": None,
+            "step_text": None,
+            "tags": [],
+            "example_row": {},
+        }
+    assert isinstance(context, dict), failure
+    return {
+        "feature_path": context.get("feature_path"),
+        "feature_name": context.get("feature_name"),
+        "scenario_name": context.get("scenario_name"),
+        "step_keyword": context.get("step_keyword"),
+        "step_text": context.get("step_text"),
+        "tags": context.get("tags", []),
+        "example_row": context.get("outline_row", {}),
+    }
+
+
+@then(
+    re.compile(
+        r'the consumer MCP artifact files should contain the submitted JSON and Markdown pair under "(?P<artifact_root>[^"]+)"'
+    )
+)
+def consumer_mcp_artifact_files_contain_pair(artifact_root: str, consumer: ConsumerProject) -> None:
     observation = getattr(consumer, "_mcp_artifact_observation", None)
     assert isinstance(observation, dict), observation
     submitted = observation.get("submitted_artifact")
     result = observation.get("valid_submission")
-    assert isinstance(submitted, dict) and isinstance(result, dict), observation
+    inspection = observation.get("inspection")
+    assert isinstance(submitted, dict) and isinstance(result, dict) and isinstance(inspection, dict), observation
+    failure = inspection.get("active_failure")
+    assert isinstance(failure, dict), inspection
 
-    artifact_root = consumer.path / "artifact-output"
-    json_path = _resolve_debug_mcp_artifact_path(result.get("json_path"), artifact_root)
-    markdown_path = _resolve_debug_mcp_artifact_path(result.get("markdown_path"), artifact_root)
+    artifact_root_path = _consumer_artifact_path(artifact_root, consumer)
+    json_path = _resolve_debug_mcp_artifact_path(result.get("json_path"), artifact_root_path)
+    markdown_path = _resolve_debug_mcp_artifact_path(result.get("markdown_path"), artifact_root_path)
     assert json_path.is_file(), f"Debug MCP JSON artifact was not written: {json_path}"
     assert markdown_path.is_file(), f"Debug MCP Markdown artifact was not written: {markdown_path}"
     assert json_path.suffix == ".json", json_path
@@ -12778,22 +13147,33 @@ def consumer_mcp_artifact_files_contain_pair(consumer: ConsumerProject) -> None:
         "evidence",
         "suspected_cause",
         "next_action",
-        "bdd_metadata",
     ):
         assert saved_artifact.get(field) == submitted.get(field), (field, saved_artifact, submitted)
+    observation = getattr(consumer, "_mcp_artifact_observation", None)
+    assert isinstance(observation, dict), observation
+    expected_bdd_metadata = _expected_debug_mcp_artifact_bdd_metadata(failure)
+    assert saved_artifact.get("bdd_metadata") == expected_bdd_metadata, (saved_artifact, expected_bdd_metadata)
     saved_metadata = saved_artifact.get("bdd_metadata")
     assert isinstance(saved_metadata, dict), saved_artifact
-    assert saved_metadata.get("example_row", {}).get("probe_id") == "outline-row-17", saved_metadata
 
     markdown = markdown_path.read_text(encoding="utf-8")
     assert submitted["artifact_id"] in markdown, markdown
     assert submitted["summary"] in markdown, markdown
-    assert "outline-row-17" in markdown, markdown
-    assert 'the debugger probe raises "debug MCP failure sentinel"' in markdown, markdown
+    if failure.get("bdd_context") is None:
+        assert "## BDD context" not in markdown, markdown
+    else:
+        assert saved_metadata.get("example_row", {}).get("probe_id") == "outline-row-17", saved_metadata
+        assert "outline-row-17" in markdown, markdown
+        assert 'the debugger probe raises "debug MCP failure sentinel"' in markdown, markdown
+        assert "Forged feature" not in markdown, markdown
 
 
-@then("the consumer artifact hook should report the same BDD failure and saved paths")
-def consumer_mcp_artifact_hook_matches_files(consumer: ConsumerProject) -> None:
+@then(
+    re.compile(
+        r'the consumer artifact hook should report the active BDD failure and saved paths under "(?P<artifact_root>[^"]+)"'
+    )
+)
+def consumer_mcp_artifact_hook_matches_files(artifact_root: str, consumer: ConsumerProject) -> None:
     observation = getattr(consumer, "_mcp_artifact_observation", None)
     discovery = getattr(consumer, "_mcp_artifact_initial_discovery", None)
     assert isinstance(observation, dict), observation
@@ -12809,13 +13189,14 @@ def consumer_mcp_artifact_hook_matches_files(consumer: ConsumerProject) -> None:
     assert isinstance(failure, dict), discovery
     assert hook.get("nodeid") == failure.get("nodeid"), hook
     assert hook.get("pytest_phase") == failure.get("phase") == "call", hook
-    assert hook.get("bdd_metadata") == submitted.get("bdd_metadata"), hook
-    artifact_root = consumer.path / "artifact-output"
-    assert _resolve_debug_mcp_artifact_path(hook.get("json_path"), artifact_root) == _resolve_debug_mcp_artifact_path(
-        result.get("json_path"), artifact_root
+    assert hook.get("bdd_metadata") == _expected_debug_mcp_artifact_bdd_metadata(failure), hook
+    assert hook.get("bdd_metadata") != submitted.get("bdd_metadata"), hook
+    artifact_root_path = _consumer_artifact_path(artifact_root, consumer)
+    assert _resolve_debug_mcp_artifact_path(hook.get("json_path"), artifact_root_path) == _resolve_debug_mcp_artifact_path(
+        result.get("json_path"), artifact_root_path
     ), hook
-    assert _resolve_debug_mcp_artifact_path(hook.get("markdown_path"), artifact_root) == _resolve_debug_mcp_artifact_path(
-        result.get("markdown_path"), artifact_root
+    assert _resolve_debug_mcp_artifact_path(hook.get("markdown_path"), artifact_root_path) == _resolve_debug_mcp_artifact_path(
+        result.get("markdown_path"), artifact_root_path
     ), hook
     assert hook.get("status") == submitted.get("status"), hook
     assert hook.get("summary") == submitted.get("summary"), hook
