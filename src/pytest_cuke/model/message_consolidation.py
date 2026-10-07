@@ -464,6 +464,7 @@ class LiveMessageAdapter:
             self._controller_run_id = run_id
         elif payload_kind == "hook":
             self._remember_hook_type(normalized)
+        normalized = _rewrite_references(normalized, self._id_remap)
         return self._remember_structural(normalized, payload_kind, worker_id="master")
 
     def worker_envelope(self, envelope: Mapping[str, Any], *, worker_id: str) -> dict[str, Any] | None:

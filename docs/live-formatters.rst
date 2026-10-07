@@ -93,6 +93,28 @@ location and command; a missing Node executable is named in the diagnostic.
 The child formatter does not inherit a TTY; pytest relays its output for both
 interactive and piped runs.
 
+Built-in Cucumber progress output
+---------------------------------
+
+Select live Cucumber progress with ``--cuke-progress`` or
+``cuke_progress = true`` in pytest configuration. It emits one marker when each
+scenario attempt finishes, using the worst step status for that attempt. A
+retry receives its own marker. The status markers are ``.`` for passed, ``F``
+for failed, ``-`` for skipped, ``P`` for pending, ``U`` for undefined, ``A``
+for ambiguous, and ``?`` for unknown. The official Cucumber summary follows
+the marker output when the test run finishes.
+
+Progress markers are written live at both quiet and verbose pytest levels and
+remain visible while pytest captures test output. Quiet runs use one compact
+marker line. Verbose runs and ``--capture=tee-sys``/``--capture=no`` start each
+marker on a fresh line so it stays separate from test output. Progress can be
+combined with Messages and file formatters. It cannot share stdout with
+``--cuke-pretty``.
+
+Progress uses Node.js and the ``@cucumber/pretty-formatter`` package installed
+in the pytest root directory. When the option is not selected, pytest-cuke
+does not check for either dependency.
+
 Lifecycle and distributed runs
 -------------------------------
 

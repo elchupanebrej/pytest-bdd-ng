@@ -169,6 +169,47 @@ def test_live_adapter_rejects_worker_messages_before_controller_run_start() -> N
         adapter.worker_envelope(worker_start, worker_id="gw0")
 
 
+def test_live_adapter_rewrites_controller_retry_references_after_deduplicating_test_case() -> None:
+    adapter = LiveMessageAdapter()
+    first_test_case = {
+        "testCase": {
+            "id": "test-case-attempt-0",
+            "pickleId": "pickle-id",
+            "testSteps": [{"id": "test-step-id", "pickleStepId": "pickle-step-id"}],
+        }
+    }
+    retry_test_case = {
+        "testCase": {
+            "id": "test-case-attempt-1",
+            "pickleId": "pickle-id",
+            "testSteps": [{"id": "test-step-id", "pickleStepId": "pickle-step-id"}],
+        }
+    }
+
+    assert adapter.controller_envelope(first_test_case) == first_test_case
+    assert adapter.controller_envelope(retry_test_case) is None
+
+    retry_started = adapter.controller_envelope(
+        {
+            "testCaseStarted": {
+                "id": "attempt-1",
+                "testCaseId": "test-case-attempt-1",
+                "testRunStartedId": "run-id",
+                "attempt": 1,
+            }
+        }
+    )
+
+    assert retry_started == {
+        "testCaseStarted": {
+            "id": "attempt-1",
+            "testCaseId": "test-case-attempt-0",
+            "testRunStartedId": "run-id",
+            "attempt": 1,
+        }
+    }
+
+
 def test_live_adapter_keeps_controller_run_hooks_and_suppresses_worker_duplicates() -> None:
     adapter = LiveMessageAdapter()
     controller_start = adapter.controller_envelope({"testRunStarted": {"id": "controller-run"}})
