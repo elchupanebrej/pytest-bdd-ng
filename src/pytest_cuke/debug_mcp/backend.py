@@ -34,8 +34,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     install_debugger_continuation(mcp, debugger.send_pdb_command, args.inspection_url)
     mcp.settings.host = args.host
     mcp.settings.port = args.port
+    _configure_transport_security(mcp.settings, host=args.host, port=args.port)
     mcp.run(transport="streamable-http")
     return 0
+
+
+def _configure_transport_security(settings: Any, *, host: str, port: int) -> None:
+    """Keep the MCP SDK's rebinding allowlist aligned with the advertised bind address."""
+    transport_security = getattr(settings, "transport_security", None)
+    if transport_security is None:
+        return
+
+    bracketed_host = host if host.startswith("[") and host.endswith("]") else f"[{host}]" if ":" in host else host
+    authority = f"{bracketed_host}:{port}"
+    transport_security.allowed_hosts = [authority]
+    transport_security.allowed_origins = [f"http://{authority}"]
 
 
 def install_debugger_continuation(
