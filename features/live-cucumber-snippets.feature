@@ -26,6 +26,9 @@ Feature: Cucumber undefined-step snippets
     And Node.js and npm are available but the official Cucumber snippets package is absent
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets -q --color=no"
     Then missing Cucumber snippets package preflight should be actionable and happen before execution
+    Given the consumer exposes an isolated Node executable without npm
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets -q --color=no"
+    Then missing npm snippets preflight should be actionable and happen before execution
     Given Node.js and npm are unavailable to the consumer
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets -q --color=no"
     Then missing Node.js snippets preflight should be actionable and happen before execution
