@@ -14,6 +14,7 @@ pytest_plugins = [
     "tests.e2e.live_progress_bar_steps",
     "tests.e2e.live_snippets_steps",
     "tests.e2e.live_summary_formatter_steps",
+    "tests.e2e.live_usage_steps",
     "tests.e2e.environment_inventory_steps",
     "tests.e2e.environment_proof_aggregation_steps",
     "tests.e2e.browser_report_steps",
