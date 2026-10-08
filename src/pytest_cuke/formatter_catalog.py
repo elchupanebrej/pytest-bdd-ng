@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from attrs import evolve
 
+from pytest_cuke.cucumber_json import configured_cucumber_json_output_path
 from pytest_cuke.formatter_api import FormatterRequest, FormatterSelection
 
 if TYPE_CHECKING:
@@ -48,7 +49,12 @@ def resolve_formatter_requests(config: Config) -> tuple[FormatterRequest, ...]:
         raise pytest.UsageError("pytest_cuke_formatter_requests implementations must return an iterable of requests.")
 
     try:
-        return resolve_formatter_catalog(requests, root=get_config_root_path(config), mode="Live")
+        return resolve_formatter_catalog(
+            requests,
+            root=get_config_root_path(config),
+            mode="Live",
+            reserved_output_paths=_configured_live_output_paths(config),
+        )
     except FormatterCatalogError as error:
         raise pytest.UsageError(str(error)) from error
 
@@ -113,6 +119,7 @@ def resolve_formatter_catalog(
     *,
     root: Path,
     mode: str,
+    reserved_output_paths: Iterable[tuple[str, Path]] = (),
 ) -> tuple[FormatterRequest, ...]:
     """Normalize requests and validate names, destinations, and selected runtimes."""
     if mode not in {"Live", "Replay"}:
@@ -121,7 +128,21 @@ def resolve_formatter_catalog(
     normalized: list[FormatterRequest] = []
     names: set[str] = set()
     destinations: dict[str, FormatterRequest] = {}
+    reserved_destinations: dict[str, tuple[str, Path]] = {}
     terminal_requests: list[FormatterRequest] = []
+
+    for name, path in reserved_output_paths:
+        normalized_output_path = path if path.is_absolute() else resolved_root / path
+        resolved_output_path = normalized_output_path.resolve(strict=False)
+        destination_key = os.path.normcase(str(resolved_output_path))
+        previous_reserved = reserved_destinations.get(destination_key)
+        if previous_reserved is not None:
+            previous_name, _ = previous_reserved
+            raise FormatterCatalogError(
+                f"{mode} output destinations {previous_name} and {name} resolve to the same output path: "
+                f"{resolved_output_path}. Choose a distinct path for each report."
+            )
+        reserved_destinations[destination_key] = (name, resolved_output_path)
 
     for request in sorted(requests, key=lambda item: item.name):
         if request.name in names:
@@ -144,6 +165,14 @@ def resolve_formatter_catalog(
             if not output_path.is_absolute():
                 output_path = resolved_root / output_path
             output_path = output_path.resolve(strict=False)
+            destination_key = os.path.normcase(str(output_path))
+            reserved_destination = reserved_destinations.get(destination_key)
+            if reserved_destination is not None:
+                reserved_name, _ = reserved_destination
+                raise FormatterCatalogError(
+                    f"{mode} formatter {request.name!r} and {reserved_name} resolve to the same output path: "
+                    f"{output_path}. Choose a different destination for each report."
+                )
             if output_path.exists() and output_path.is_dir():
                 raise FormatterCatalogError(
                     f"{mode} formatter {request.name!r} output path is a directory: {output_path}"
@@ -152,12 +181,11 @@ def resolve_formatter_catalog(
                 raise FormatterCatalogError(
                     f"{mode} formatter {request.name!r} output parent directory does not exist: {output_path.parent}"
                 )
-            destination_key = os.path.normcase(str(output_path))
-            previous = destinations.get(destination_key)
-            if previous is not None:
+            previous_request = destinations.get(destination_key)
+            if previous_request is not None:
+                formatter_names = f"{previous_request.name!r} and {request.name!r}"
                 raise FormatterCatalogError(
-                    f"{mode} formatters {previous.name!r} and {request.name!r} resolve to the same output path: "
-                    f"{output_path}"
+                    f"{mode} formatters {formatter_names} resolve to the same output path: {output_path}"
                 )
             destinations[destination_key] = request
         else:
@@ -175,6 +203,45 @@ def resolve_formatter_catalog(
         _check_request_runtime(request, mode=mode)
 
     return tuple(normalized)
+
+
+def _configured_live_output_paths(config: Config) -> tuple[tuple[str, Path], ...]:
+    """Resolve selected built-in report paths using each writer's path rules."""
+    output_paths: list[tuple[str, Path]] = []
+    cucumber_json_path = configured_cucumber_json_output_path(config)
+    if cucumber_json_path is not None:
+        output_paths.append(("--cuke-json", cucumber_json_path))
+
+    for option, label, expand in (
+        ("cuke_messages_ndjson", "--cuke-messages-ndjson", False),
+        ("cuke_html", "--cuke-html", False),
+        ("cuke_allure", "--cuke-allure", True),
+    ):
+        output = _configured_output_option(config, option)
+        if output is not None:
+            output_paths.append((label, _canonical_output_path(output, expand=expand)))
+
+    junitxml_path = getattr(getattr(config, "option", None), "xmlpath", None)
+    if isinstance(junitxml_path, str) and junitxml_path:
+        output_paths.append(("--junitxml", _canonical_output_path(junitxml_path, expand=True)))
+
+    return tuple(output_paths)
+
+
+def _configured_output_option(config: Config, name: str) -> str | None:
+    """Read a plugin output option using its CLI-over-ini precedence."""
+    option = getattr(getattr(config, "option", None), name, None)
+    if isinstance(option, str):
+        return option
+    getini = getattr(config, "getini", None)
+    ini_value = getini(name) if callable(getini) else None
+    return ini_value if isinstance(ini_value, str) and ini_value else None
+
+
+def _canonical_output_path(output: str, *, expand: bool) -> Path:
+    if expand:
+        output = os.path.expanduser(os.path.expandvars(output))
+    return Path(output).resolve(strict=False)
 
 
 def _check_request_runtime(request: FormatterRequest, *, mode: str) -> None:

@@ -13,6 +13,7 @@ import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree as ET
 
 import pytest
 from pytest_cuke import given, then, when
@@ -107,6 +108,46 @@ Feature: TTY progress-bar retries
     Then the final progress-bar scenario is released
 '''
 
+_BACKEND_FAILURE_FEATURE = '''\
+Feature: Progress-bar backend failure
+  Scenario: A failing scenario remains failed after backend failure
+    Given a progress-bar scenario records execution
+    And a progress-bar scenario fails before its following step
+'''
+
+_PUBLIC_USAGE_FORMATTER = '''\
+from pathlib import Path
+import sys
+
+from pytest_cuke import FormatterRequest
+
+
+def pytest_cuke_formatter_requests(config):
+    del config
+    usage_json = (
+        "import json, sys; "
+        "rows = [json.loads(line) for line in sys.stdin if line.strip()]; "
+        "usage = {'messageCount': len(rows), "
+        "'testCases': sum('testCase' in row for row in rows), "
+        "'finishedSteps': sum('testStepFinished' in row for row in rows)}; "
+        "print(json.dumps(usage, sort_keys=True))"
+    )
+    return (FormatterRequest(
+        name="progress-bar-public-usage-json",
+        command=(sys.executable, "-c", usage_json),
+        output_path=Path("artifacts/usage.json"),
+        working_directory=Path(__file__).parent,
+    ),)
+'''
+
+_PUBLIC_COLLIDING_FORMATTER = _PUBLIC_USAGE_FORMATTER.replace(
+    'output_path=Path("artifacts/usage.json")',
+    'output_path=Path("artifacts/../artifacts/report.json")',
+).replace(
+    'name="progress-bar-public-usage-json"',
+    'name="progress-bar-cucumber-json-collision"',
+)
+
 _OFFICIAL_PACKAGES = {
     "@cucumber/messages": "34.2.1",
     "@cucumber/pretty-formatter": "4.0.2",
@@ -161,6 +202,19 @@ def _prepare_consumer(
     _write_file(root, f"features/{feature_name}", feature)
     consumer._progress_bar_workspace = root
     return root
+
+
+def _register_public_formatter(consumer: Any, *, collision: bool = False) -> None:
+    root = getattr(consumer, "_progress_bar_workspace", _consumer_root(consumer))
+    (root / "artifacts").mkdir(exist_ok=True)
+    plugin_name = "progress_bar_public_file_formatter"
+    source = _PUBLIC_COLLIDING_FORMATTER if collision else _PUBLIC_USAGE_FORMATTER
+    _write_file(root, f"{plugin_name}.py", source)
+    _write_file(
+        root,
+        "conftest.py",
+        f'pytest_plugins = ["progress_bar_consumer_steps", "{plugin_name}"]\n',
+    )
 
 
 def _node_runtime(consumer: Any) -> tuple[str, str, dict[str, str]] | None:
@@ -282,9 +336,45 @@ def prepare_progress_bar_outcomes_in_unicode_workspace(consumer: Any) -> None:
     (root / "artifacts").mkdir()
 
 
+@given("the consumer registers a public usage formatter with a distinct output path")
+def register_progress_bar_public_usage_formatter(consumer: Any) -> None:
+    _register_public_formatter(consumer)
+
+
+@given("the consumer registers a public formatter targeting a Cucumber JSON path alias")
+def register_progress_bar_formatter_with_canonical_path_collision(consumer: Any) -> None:
+    _register_public_formatter(consumer, collision=True)
+
+
+@given("the consumer prepares a failing scenario for progress-bar backend errors")
+def prepare_progress_bar_backend_failure_scenario(consumer: Any) -> None:
+    _prepare_consumer(
+        consumer,
+        _BACKEND_FAILURE_FEATURE,
+        feature_name="progress-bar-backend-failure.feature",
+    )
+
+
+@given("the consumer creates the shared report output directory")
+def create_shared_report_output_directory(consumer: Any) -> None:
+    (_consumer_root(consumer) / "artifacts").mkdir(exist_ok=True)
+
+
 @given("the consumer installs pinned official Cucumber progress formatter packages in that workspace")
 def install_progress_formatter_in_unicode_workspace(consumer: Any) -> None:
     _install_formatter(consumer)
+
+
+@given("the official progress formatter shim throws after receiving a test case")
+def install_progress_formatter_with_deterministic_failure(consumer: Any) -> None:
+    _install_formatter(consumer)
+    root = getattr(consumer, "_progress_bar_workspace", _consumer_root(consumer))
+    printer = root / "node_modules" / "@cucumber" / "pretty-formatter" / "dist" / "SummaryPrinter.js"
+    source = printer.read_text(encoding="utf-8")
+    method = "    update(envelope) {\n"
+    assert source.count(method) == 1, f"pinned SummaryPrinter.update changed unexpectedly: {printer}"
+    injected = method + '        if (envelope.testCaseStarted) throw new Error("progress-bar backend update sentinel");\n'
+    printer.write_text(source.replace(method, injected, 1), encoding="utf-8")
 
 
 @given("the consumer PATH has no Node.js or npm executables")
@@ -401,16 +491,31 @@ def piped_progress_markers_match_messages(relative_path: str, consumer: Any) -> 
     )
 
 
-@then("progress-bar output should have no cursor controls and both file reports should be valid")
-def piped_progress_bar_has_readable_output_and_file_reports(consumer: Any) -> None:
+@then("progress-bar output should have no cursor controls and all distinct file reports should be valid")
+def piped_progress_bar_has_readable_output_and_distinct_file_reports(consumer: Any) -> None:
     output = _output(consumer)
     assert not _CURSOR_CONTROL.search(output), f"piped progress output used terminal cursor controls:\n{output!r}"
     root = getattr(consumer, "_progress_bar_workspace", _consumer_root(consumer))
     messages_path = root / "artifacts" / "messages.ndjson"
-    report_path = root / "artifacts" / "report.json"
+    cucumber_json_path = root / "artifacts" / "cucumber.json"
+    junit_path = root / "artifacts" / "pytest.xml"
+    usage_path = root / "artifacts" / "usage.json"
     assert messages_path.is_file(), f"Messages file is missing: {messages_path}"
-    assert report_path.is_file(), f"JSON file is missing: {report_path}"
-    assert isinstance(json.loads(report_path.read_text(encoding="utf-8")), (dict, list))
+    assert cucumber_json_path.is_file(), f"Cucumber JSON file is missing: {cucumber_json_path}"
+    cucumber_report = json.loads(cucumber_json_path.read_text(encoding="utf-8"))
+    assert isinstance(cucumber_report, (dict, list)) and cucumber_report, cucumber_report
+
+    assert junit_path.is_file(), f"pytest JUnit XML file is missing: {junit_path}"
+    junit_root = ET.parse(junit_path).getroot()
+    assert junit_root.tag in {"testsuite", "testsuites"}, junit_root.tag
+    assert len(junit_root.findall(".//testcase")) == 3, ET.tostring(junit_root, encoding="unicode")
+
+    assert usage_path.is_file(), f"public FormatterRequest output is missing: {usage_path}"
+    usage = json.loads(usage_path.read_text(encoding="utf-8"))
+    assert usage["messageCount"] > 0, usage
+    assert usage["testCases"] == 3, usage
+    assert usage["finishedSteps"] > 0, usage
+    _message_rows(consumer, "artifacts/messages.ndjson")
 
 
 @then("missing progress-bar backend should fail before the scenario starts")
@@ -444,6 +549,55 @@ def progress_bar_conflicts_with_pretty_before_execution(consumer: Any) -> None:
     assert "Only one live formatter may write to the terminal" in output, output
     assert not (_consumer_root(consumer) / "scenario-started.marker").exists(), (
         "the progress-bar scenario started before terminal formatter conflict validation"
+    )
+
+
+@then("progress bar and Cucumber JSON destination collision should fail before the scenario starts")
+def progress_bar_and_cucumber_json_destination_collision_is_preflighted(consumer: Any) -> None:
+    result = consumer.pytest_result
+    assert result is not None and result.returncode != 0, _output(consumer)
+    output = _output(consumer)
+    assert "resolve to the same output path" in output.lower(), output
+    assert "progress-bar-cucumber-json-collision" in output, output
+    assert "artifacts/report.json" in output.replace("\\", "/"), output
+    assert "requires npm package" not in output.lower(), output
+    assert "requires executable 'node'" not in output.lower(), output
+    assert not (_consumer_root(consumer) / "scenario-started.marker").exists(), (
+        "the progress-bar scenario started before the shared Cucumber JSON destination was rejected"
+    )
+
+
+@then("duplicate core report destinations should fail before the scenario starts")
+def duplicate_core_report_destinations_are_preflighted(consumer: Any) -> None:
+    result = consumer.pytest_result
+    assert result is not None and result.returncode != 0, _output(consumer)
+    output = _output(consumer)
+    normalized = output.lower()
+    assert "error:" in normalized, output
+    assert "--cuke-json" in normalized, output
+    assert "--junitxml" in normalized, output
+    assert "artifacts/shared.json" in output.replace("\\", "/"), output
+    assert "requires executable 'node'" not in normalized, output
+    assert "requires node.js" not in normalized, output
+    assert "requires npm package" not in normalized, output
+    assert not (_consumer_root(consumer) / "scenario-started.marker").exists(), (
+        "the progress-bar scenario started before duplicate core report destinations were rejected"
+    )
+
+
+@then("progress-bar backend failure should retain its error and the pytest scenario failure")
+def progress_bar_backend_failure_preserves_pytest_failure(consumer: Any) -> None:
+    result = consumer.pytest_result
+    assert result is not None and result.returncode != 0, _output(consumer)
+    output = _output(consumer)
+    assert "progress-bar backend update sentinel" in output, output
+    assert "AssertionError" in output and "progress-bar failure sentinel" in output, output
+    assert "FAILURES" in output, output
+    assert "short test summary info" in output.lower(), output
+    assert "1 failed" in output, output
+    assert "progress-bar-backend-failure.feature::test_scenarios" in output, output
+    assert (_consumer_root(consumer) / "scenario-started.marker").is_file(), (
+        "the ordinary failing scenario did not execute before the backend failure was reported"
     )
 
 
