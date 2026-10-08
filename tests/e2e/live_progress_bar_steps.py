@@ -362,7 +362,9 @@ def install_rerunfailures(consumer: Any) -> None:
 @then("progress bar should remain disabled while the scenario runs")
 def progress_bar_is_disabled_by_default(consumer: Any) -> None:
     assert (_consumer_root(consumer) / "scenario-started.marker").is_file(), _output(consumer)
-    output = _output(consumer).lower()
+    output = _output(consumer)
+    assert "1 passed" in output, f"the ordinary pytest summary was not preserved:\n{output}"
+    output = output.lower()
     assert "@cucumber/pretty-formatter" not in output, output
     assert "npm install" not in output, output
 
