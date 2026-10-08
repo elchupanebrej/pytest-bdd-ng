@@ -1,3 +1,4 @@
+@e2e
 Feature: Live native Allure reporting
   A pytest-cuke run can produce Allure results directly from its in-memory
   Cucumber Messages lifecycle, including when workers report through xdist.
@@ -44,13 +45,20 @@ Feature: Live native Allure reporting
 
   Scenario: Native reporting coexists with the optional allure-pytest adapter
     Given a fresh isolated pytest-cuke consumer is ready
-    And the consumer contains one live native Allure scenario with attachments
+    And the consumer contains one native Allure scenario and one ordinary pytest test
     And the consumer installs pytest-cuke with its Allure extra
     And the consumer has allure-pytest available for its separate report
     When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=native-results --alluredir=adapter-results -q"
     Then the native Allure consumer should exit with code 0
-    And native Allure results in "native-results" should contain the passed scenario "Native live report scenario" and its steps
-    And the optional adapter results should contain one passed pytest item
+    And native and adapter Allure results should contain the exact BDD and ordinary pytest cases
+
+  Scenario: Native and adapter reporting reject the same output directory before tests run
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains one native Allure scenario and an ordinary pytest run marker
+    And the consumer installs pytest-cuke with its Allure extra
+    And the consumer has allure-pytest available for its separate report
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results --alluredir=allure-results -q"
+    Then pytest should reject the overlapping Allure output paths before tests run
 
   Scenario: Reporting stays disabled without Allure dependencies
     Given a fresh isolated pytest-cuke consumer is ready
@@ -82,3 +90,27 @@ Feature: Live native Allure reporting
     When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results -q"
     Then the native Allure consumer should exit nonzero
     And native Allure results should preserve failed skipped and undefined cases with truthful details
+
+  Scenario: Live reporting preserves failed Background status and traceback
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains a native Allure scenario with a failing Gherkin Background
+    And the consumer installs pytest-cuke with its Allure extra
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-parser=python --cuke-allure=allure-results -q"
+    Then the native Allure consumer should exit nonzero
+    And native Allure results should preserve the failed Background diagnostic
+
+  Scenario: Live reporting preserves a failing BEFORE_TEST_RUN hook fixture
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains a scenario and a failing native run hook "BEFORE_TEST_RUN" with sentinel "native before-run hook failure sentinel"
+    And the consumer installs pytest-cuke with its Allure extra
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-parser=python --cuke-allure=allure-results -q"
+    Then the native Allure consumer should exit nonzero
+    And the native Allure container should preserve the failed "BEFORE_TEST_RUN" fixture with sentinel "native before-run hook failure sentinel"
+
+  Scenario: Live reporting preserves a failing AFTER_TEST_RUN hook fixture
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains a scenario and a failing native run hook "AFTER_TEST_RUN" with sentinel "native after-run hook failure sentinel"
+    And the consumer installs pytest-cuke with its Allure extra
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-parser=python --cuke-allure=allure-results -q"
+    Then the native Allure consumer should exit nonzero
+    And the native Allure container should preserve the failed "AFTER_TEST_RUN" fixture with sentinel "native after-run hook failure sentinel"

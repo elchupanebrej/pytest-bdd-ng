@@ -85,10 +85,13 @@ jobs:
           node-version: "22"
       - name: Install pytest-cuke and consumer tools
         run: python -m pip install -e ".[test,struct-bdd]" "uv>=0.8"
-      - name: Run the live formatter BDD acceptance
+      - name: Verify the Allure 3 renderer used by native reporting acceptance
+        run: npx --yes allure@3.20.0 --version
+      - name: Run the live formatter and native Allure BDD acceptance
         run: >-
           python -m pytest features/live-cucumber-progress-bar.feature
           features/live-cucumber-snippets.feature features/live-cucumber-summary.feature
+          features/native-allure-reporting.feature
           -m e2e -q
 
   full-matrix:
