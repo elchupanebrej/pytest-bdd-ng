@@ -1351,7 +1351,7 @@ class MessagePlugin:
                     )(step_definition.parser)[0]
 
                     if parameter_type_registry_getter is None:
-                        break
+                        continue
 
                     parameter_type_registry = parameter_type_registry_getter(request)
 

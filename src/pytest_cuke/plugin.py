@@ -40,6 +40,8 @@ from pytest_cuke.cucumber_progress import add_options as add_cucumber_progress_o
 from pytest_cuke.cucumber_progress import progress_formatter_selected, selected_progress_formatter_requests
 from pytest_cuke.cucumber_progress_bar import add_options as add_cucumber_progress_bar_options
 from pytest_cuke.cucumber_progress_bar import progress_bar_formatter_selected, selected_progress_bar_formatter_requests
+from pytest_cuke.cucumber_snippets import add_options as add_cucumber_snippets_options
+from pytest_cuke.cucumber_snippets import selected_snippets_formatter_requests
 from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp.options import add_options as add_debug_mcp_options
 from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin
@@ -97,6 +99,7 @@ def pytest_cuke_formatter_requests(config: Config) -> tuple[FormatterRequest, ..
         *selected_pretty_formatter_requests(config),
         *selected_progress_formatter_requests(config),
         *selected_progress_bar_formatter_requests(config),
+        *selected_snippets_formatter_requests(config),
     )
 
 
@@ -279,6 +282,7 @@ def pytest_addoption(parser: Parser) -> None:
     generation.add_options(parser)
     add_cucumber_progress_options(parser)
     add_cucumber_progress_bar_options(parser)
+    add_cucumber_snippets_options(parser)
     MessagePlugin.add_options(parser)
     add_summary_options(parser)
     add_debug_mcp_options(parser)
