@@ -108,7 +108,6 @@ def test_pytest_unconfigure_lifecycle() -> None:
     pytest_unconfigure(config)
     config.pluginmanager.unregister.assert_any_call(name="pytest_cuke_messages")
     config.pluginmanager.unregister.assert_any_call(name="pytest_cuke_messages_session_finish")
-    config.pluginmanager.unregister.assert_any_call(name="pytest_cuke_summary")
     config.__allure_plugin__.unregister.assert_called_once_with(config)
 
 

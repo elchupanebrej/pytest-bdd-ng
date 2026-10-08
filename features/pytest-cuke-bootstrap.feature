@@ -95,10 +95,10 @@ Feature: Installed pytest-cuke product bootstrap
             | 2      | 42       |
             | 5      | 45       |
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-features-dir=features --cuke-autoload --cuke-json=report.json --cuke-summary --cuke-progress"
+    When I run installed pytest with arguments "--rootdir=. --cuke-features-dir=features --cuke-autoload --cuke-json=report.json --cuke-progress"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
-    And pytest terminal output should report 2 passed BDD scenarios
+    And pytest terminal output should report 2 passed tests
     And consumer artifact "report.json" should describe one feature with 2 passed scenarios
 
   Scenario: NDJSON reports a no-Background scenario after plugin autoload
@@ -124,7 +124,7 @@ Feature: Installed pytest-cuke product bootstrap
           Given the value is 42
           Then the result is 42
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-features-dir=features --cuke-autoload --cuke-messages-ndjson=messages.ndjson --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-features-dir=features --cuke-autoload --cuke-messages-ndjson=messages.ndjson"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer artifact "messages.ndjson" should be a valid Cucumber Messages stream for 1 passed scenario and 2 passed steps
@@ -142,7 +142,6 @@ Feature: Installed pytest-cuke product bootstrap
       [tool.pytest.ini_options]
       cuke_features_dir = "configured-features"
       cuke_autoload = true
-      cuke_summary = true
       """
     And consumer file "conftest.py" contains:
       """python
@@ -279,7 +278,7 @@ Feature: Installed pytest-cuke product bootstrap
 
           Examples: <table:report-users.csv>
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-json=report.json --cuke-messages-ndjson=messages.ndjson --cuke-summary --cuke-progress"
+    When I run installed pytest with arguments "--rootdir=. --cuke-json=report.json --cuke-messages-ndjson=messages.ndjson --cuke-progress"
     Then pytest should exit with a non-zero code
     And consumer reports should preserve external row identities, source URIs, Background steps, and outcomes
 
@@ -292,7 +291,7 @@ Feature: Installed pytest-cuke product bootstrap
       def test_explicit_users_binding():
           pass
       """
-    And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-summary"
+    And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
 
@@ -301,7 +300,7 @@ Feature: Installed pytest-cuke product bootstrap
       name,tier
       Lin,platinum
       """
-    And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-summary"
+    And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
 
@@ -340,7 +339,7 @@ Feature: Installed pytest-cuke product bootstrap
 
           Examples: table: special-values.csv
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload"
     Then pytest should exit with code 0
     And the test outcome should have 4 passed scenarios
 
@@ -407,7 +406,7 @@ Feature: Installed pytest-cuke product bootstrap
 
           Examples: table: unreadable.csv
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload"
     Then pytest should exit with a non-zero code
     And pytest output should identify the invalid external Examples source
 

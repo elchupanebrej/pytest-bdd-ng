@@ -88,13 +88,13 @@ Feature: Local and subprocess Cucumber Messages consolidation
           | beta  |
           | alpha |
       """
-    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=first.ndjson --cuke-summary -n2 --dist=load --color=no -q"
+    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=first.ndjson -n2 --dist=load --color=no -q"
     Then the test outcome should have 4 passed scenarios
     And consumer artifact "first.ndjson.worker-manifests.jsonl" should report complete manifests matching "first.ndjson.live-batches.jsonl"
     And consumer artifact "first.ndjson" should be one complete local xdist Messages stream for the four selected rows
     And consumer artifact "first.ndjson.live-batches.jsonl" should contain incomplete live worker batches
     And pytest should exit with code 0
-    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=second.ndjson --cuke-summary -n2 --dist=load --color=no -q"
+    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=second.ndjson -n2 --dist=load --color=no -q"
     Then the test outcome should have 4 passed scenarios
     And consumer artifact "second.ndjson.worker-manifests.jsonl" should report complete manifests matching "second.ndjson.live-batches.jsonl"
     And consumer artifact "second.ndjson" should be one complete local xdist Messages stream for the four selected rows
@@ -165,7 +165,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
             | beta  |
             | alpha |
       """
-    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=subprocess.ndjson --cuke-summary --dist=load --tx=2*popen --color=no -q"
+    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=subprocess.ndjson --dist=load --tx=2*popen --color=no -q"
     Then the test outcome should have 4 passed scenarios
     And consumer artifact "subprocess.ndjson.worker-manifests.jsonl" should report complete manifests matching "subprocess.ndjson.live-batches.jsonl"
     And consumer artifact "subprocess.ndjson" should be one complete subprocess gateway Messages stream for the four selected rows
@@ -234,8 +234,8 @@ Feature: Local and subprocess Cucumber Messages consolidation
           | failed  |
           | skipped |
       """
-    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=mixed.ndjson --cuke-summary -n2 --dist=load --max-worker-restart=0 --color=no -q"
-    Then pytest output should report one passed one failed and one skipped BDD scenario
+    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=mixed.ndjson -n2 --dist=load --max-worker-restart=0 --color=no -q"
+    Then pytest output should report one passed, one failed, and one skipped test
     And consumer artifact "mixed.ndjson" should contain the complete mixed local xdist Messages stream
     And consumer artifact "mixed.ndjson.worker-manifests.jsonl" should report complete manifests matching "mixed.ndjson.live-batches.jsonl" despite the expected test failure
     And pytest should exit with code 1
@@ -299,7 +299,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
         Scenario: Remaining worker sends messages
           Given crash probe case survive runs
       """
-    When I run installed pytest with a 45-second watchdog and arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=crash.ndjson --cuke-summary -n2 --dist=load --max-worker-restart=0 --color=no -q"
+    When I run installed pytest with a 45-second watchdog and arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=crash.ndjson -n2 --dist=load --max-worker-restart=0 --color=no -q"
     Then pytest output should report the crashed xdist worker and partial Messages diagnostics
     And consumer artifact "crash.ndjson" should contain the flushed partial local xdist Messages stream
     And consumer artifact "crash.ndjson.worker-manifests.jsonl" should record the crashed worker
@@ -379,7 +379,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
         Scenario: Second worker case
           Given batch publisher probe case beta completes
       """
-    When I run installed pytest with a 45-second watchdog and arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=publisher-failure.ndjson --cuke-summary -n2 --dist=load --color=no -q"
+    When I run installed pytest with a 45-second watchdog and arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=publisher-failure.ndjson -n2 --dist=load --color=no -q"
     Then pytest output should contain "SINK_FAILURE"
     And pytest output should contain "controlled live batch publisher failure"
     And consumer artifact "publisher-failure.ndjson" should contain the accepted stream after a publisher failure
@@ -414,7 +414,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
         Scenario: Second worker case
           Given isolated gateway case beta completes
       """
-    When I run installed pytest through two localhost execnet socket gateways with arguments "--rootdir=. features/filesystem-isolated-gateway.feature --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=isolated.ndjson --cuke-summary --dist=load --rsyncdir=. --color=no -q"
+    When I run installed pytest through two localhost execnet socket gateways with arguments "--rootdir=. features/filesystem-isolated-gateway.feature --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=isolated.ndjson --dist=load --rsyncdir=. --color=no -q"
     Then pytest should exit with code 0
     And consumer artifact "isolated.ndjson" should be a complete filesystem-isolated gateway Messages stream
 
@@ -482,7 +482,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
           | beta  |
           | alpha |
       """
-    When I run installed pytest through two localhost execnet socket gateways with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=socket.ndjson --cuke-summary --dist=load --rsyncdir=. --color=no -q"
+    When I run installed pytest through two localhost execnet socket gateways with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=socket.ndjson --dist=load --rsyncdir=. --color=no -q"
     Then the test outcome should have 4 passed scenarios
     And consumer artifact "socket.ndjson.worker-manifests.jsonl" should report complete manifests matching "socket.ndjson.live-batches.jsonl"
     And consumer artifact "socket.ndjson" should be one complete localhost socket gateway Messages stream for the four selected rows

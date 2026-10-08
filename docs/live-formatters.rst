@@ -154,6 +154,23 @@ The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
 installed in the pytest root directory. When snippets are not selected,
 pytest-cuke does not check for these dependencies.
 
+Built-in Cucumber summary
+------------------------
+
+Select Cucumber's official scenario and step summary with ``--cuke-summary``
+or ``cuke_summary = true`` in pytest configuration. The summary reports
+scenario and step outcomes, run duration, and useful details for failures,
+pending steps, and undefined steps. It counts executed outline rows and keeps
+retry attempts distinct according to their Cucumber Messages results.
+
+The summary writes to the terminal and can be combined with Messages and
+distinct file formatters. It cannot share stdout with ``--cuke-pretty``,
+``--cuke-progress``, ``--cuke-progress-bar``, or ``--cuke-snippets``.
+
+The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
+installed in the pytest root directory. When the summary is not selected,
+pytest-cuke does not check for these dependencies.
+
 Lifecycle and distributed runs
 -------------------------------
 

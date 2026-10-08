@@ -34,6 +34,7 @@ Run the example from its directory after installing the project dependencies:
 .. code-block:: console
 
    python -m pip install -r requirements.txt
+   npm install --no-save --no-package-lock "@cucumber/cucumber@13.3.0"
    python -m pytest --cuke-autoload --cuke-features-dir=features --cuke-summary
 
 The plugin records hook order, transition state, step function inputs, and the

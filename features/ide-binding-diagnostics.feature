@@ -66,7 +66,7 @@ Feature: IDE step binding diagnostics
           And I match the expression name Olena
           Then all five parser bindings ran
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=relative.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=relative.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer artifact "relative.ndjson" should report the five parser bindings with real source identities
@@ -135,9 +135,9 @@ Feature: IDE step binding diagnostics
         Scenario: An unmatched step still fails naturally
           Given the unique missing phrase is needle-73
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=diagnostics.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=diagnostics.ndjson -q"
     Then pytest should exit with a non-zero code
-    And pytest output should include "1 passed BDD scenarios, 1 failed, 0 skipped"
+    And pytest output should include "1 passed"
     And pytest output should include "Step definition is not found"
     And consumer artifact "diagnostics.ndjson" should report the missing step and both ambiguous candidates
 
@@ -184,7 +184,7 @@ Feature: IDE step binding diagnostics
       def test_second_collection_binding():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-messages-ndjson=collection.ndjson --cuke-summary -q test_duplicate_bindings.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-messages-ndjson=collection.ndjson -q test_duplicate_bindings.py"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "collection.ndjson" should report unbound and duplicate scenario bindings with real node and case IDs
@@ -234,7 +234,7 @@ Feature: IDE step binding diagnostics
       def test_south_shared_scenario_binding():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-messages-ndjson=split-worker.ndjson --cuke-summary -q -n2 --dist=loadfile tests"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-messages-ndjson=split-worker.ndjson -q -n2 --dist=loadfile tests"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "split-worker.ndjson" should contain one complete duplicate binding diagnostic for both worker modules
@@ -284,10 +284,10 @@ Feature: IDE step binding diagnostics
 
       * Given the source row is 33
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=outline-first.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=outline-first.ndjson -q"
     Then pytest should exit with code 0
     And consumer artifact "outline-first.ndjson" should report distinct source lines for both outline rows
-    When I run installed pytest twice in one process with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=outline-second.ndjson --cuke-summary -q" and then "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features/narrative --cuke-messages-ndjson=narrative-second.ndjson --cuke-summary -q"
+    When I run installed pytest twice in one process with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=outline-second.ndjson -q" and then "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features/narrative --cuke-messages-ndjson=narrative-second.ndjson -q"
     Then consumer repeated pytest sessions should exit with codes "0,0"
     And consumer artifact "narrative-second.ndjson" should contain only the current narrative source identity
 
@@ -314,7 +314,7 @@ Feature: IDE step binding diagnostics
         Scenario: The south source is collected
           Given the worker source is south
       """
-    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=xdist.ndjson -n2 --dist=loadfile --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=xdist.ndjson -n2 --dist=loadfile -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "xdist.ndjson" should keep both worker source identities separate

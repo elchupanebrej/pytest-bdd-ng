@@ -7,7 +7,6 @@ that enriches the pytest test reporting.
 from __future__ import annotations
 
 import time
-from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -19,7 +18,7 @@ from pytest_cuke.model.run_access import get_scenario_run
 if TYPE_CHECKING:
     from collections.abc import Generator, Sequence
 
-    from pytest_cuke.compatibility.pytest import CallInfo, Item, Parser, TerminalReporter
+    from pytest_cuke.compatibility.pytest import CallInfo, Item
     from pytest_cuke.model import Feature, Scenario, Step
     from pytest_cuke.model.scenario_run import ScenarioRun
 
@@ -310,37 +309,3 @@ class ScenarioReporterPlugin:
                     scenario_report.fail()
                 rep.scenario = scenario_report.serialize()
                 rep.item = {"name": item.name}
-
-
-def add_summary_options(parser: Parser) -> None:
-    """Register the optional final scenario summary setting."""
-    group = parser.getgroup("cuke reporting", "Scenario summary")
-    group.addoption(
-        "--cuke-summary",
-        action="store_true",
-        dest="cuke_summary",
-        default=None,
-        help="print the final passed, failed, and skipped scenario counts",
-    )
-    parser.addini("cuke_summary", "Show a scenario summary after the run.", default=False, type="bool")
-
-
-class ScenarioSummaryPlugin:
-    """Print counts for completed BDD scenarios at the end of a pytest run."""
-
-    @pytest.hookimpl(trylast=True)
-    def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
-        scenario_reports = [
-            report
-            for outcome in ("passed", "failed", "skipped")
-            for report in terminalreporter.stats.get(outcome, ())
-            if hasattr(report, "scenario") and getattr(report, "when", None) == "call"
-        ]
-        if not scenario_reports:
-            return
-
-        counts = Counter(report.outcome for report in scenario_reports)
-        terminalreporter.write_sep("=", "pytest-cuke scenarios")
-        terminalreporter.write_line(
-            f"{counts['passed']} passed BDD scenarios, {counts['failed']} failed, {counts['skipped']} skipped"
-        )

@@ -99,6 +99,8 @@ class StepRun:
 class ScenarioMessageState:
     test_case: Any = None
     test_case_started: Any = None
+    attempt: int = 0
+    will_be_retried: bool = False
     test_steps: list[Any] = field(factory=list)
     test_steps_by_identity: dict[int, Any] = field(factory=dict)
     finished_test_step_ids: set[str] = field(factory=set)

@@ -98,7 +98,7 @@
 
         Examples: <table:report-users.csv>
     ```
-* When I run installed pytest with arguments "--rootdir=. --cuke-json=report.json --cuke-messages-ndjson=messages.ndjson --cuke-summary --cuke-progress"
+* When I run installed pytest with arguments "--rootdir=. --cuke-json=report.json --cuke-messages-ndjson=messages.ndjson --cuke-progress"
 * Then pytest should exit with a non-zero code
 * And consumer reports should preserve external row identities, source URIs, Background steps, and outcomes
 
@@ -117,7 +117,7 @@
 
         Examples: table: broken.csv
     ```
-* When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-summary"
+* When I run installed pytest with arguments "--rootdir=. --cuke-autoload"
 * Then pytest should exit with a non-zero code
 * And pytest output should identify the invalid external Examples source
 
@@ -166,7 +166,7 @@
     def test_explicit_users_binding():
         pass
     ```
-* And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-summary"
+* And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload"
 * Then pytest should exit with code 0
 * And the test outcome should have 2 passed scenarios
 * When consumer file "features/users.csv" contains:
@@ -174,6 +174,6 @@
     name,tier
     Lin,platinum
     ```
-* And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-summary"
+* And I run installed pytest with arguments "--rootdir=. --cuke-no-autoload"
 * Then pytest should exit with code 0
 * And the test outcome should have 1 passed scenarios

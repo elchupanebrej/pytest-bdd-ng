@@ -15,7 +15,7 @@ Feature: Transactional generation of step definitions
     When I run command "cuke" with arguments "generate steps --feature features/explicit-bindings.feature --target test_explicit_scenario.py --bind-scenarios"
     Then the command should exit with code 0
     And the chosen module should retain its user code and bind the selected scenario
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload test_explicit_scenario.py --cuke-summary --color=no"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload test_explicit_scenario.py --color=no"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
 
@@ -27,7 +27,7 @@ Feature: Transactional generation of step definitions
     Then the command should exit with code 0
     And the existing aliased scenario binding should not be duplicated
     And consumer file "test_aliased_scenario.py" should match its remembered bytes
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload test_aliased_scenario.py --cuke-summary --color=no"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload test_aliased_scenario.py --color=no"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
 
@@ -143,7 +143,7 @@ Feature: Transactional generation of step definitions
     Then the command should exit with code 0
     And the generated module should compile and preserve the exact escaped step text
     When I fill the generated step stubs to record their executions
-    And I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary --color=no"
+    And I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --color=no"
     Then pytest should exit with code 0
     And the test outcome should have 3 passed scenarios
     And the generated literal step should have executed once with its original multiline payload

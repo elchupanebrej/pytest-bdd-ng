@@ -31,7 +31,7 @@ Feature: Invocation-level feature source selection
         Scenario: The selected invocation feature root is executing
           Given the selected invocation feature root is executing
       """
-    When I run installed pytest from consumer directory "tools" with arguments "--rootdir='{consumer_path}' '{consumer_path}' --cuke-autoload --cuke-parser=python --cuke-features-dir=selected-features --cuke-json=../invocation-source.json --cuke-summary -q"
+    When I run installed pytest from consumer directory "tools" with arguments "--rootdir='{consumer_path}' '{consumer_path}' --cuke-autoload --cuke-parser=python --cuke-features-dir=selected-features --cuke-json=../invocation-source.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer artifact "invocation-source.json" should report feature URI "invocation.feature"
@@ -88,7 +88,7 @@ Feature: Invocation-level feature source selection
 
       test_explicit_source = scenarios("binding.feature", features_base_dir="binding-features")
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-features-dir=cli-features --cuke-parser=python --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-features-dir=cli-features --cuke-parser=python -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
 
@@ -135,7 +135,7 @@ Feature: Invocation-level feature source selection
           features_path_type=FeaturePathType.URL,
       )
       """
-    When I run installed pytest with the local HTTP fixture URL base and arguments "--rootdir=. --cuke-no-autoload --cuke-features-base-url={local_http_base_url}<base_path> --cuke-parser=python --cuke-summary -q test_http_sources.py"
+    When I run installed pytest with the local HTTP fixture URL base and arguments "--rootdir=. --cuke-no-autoload --cuke-features-base-url={local_http_base_url}<base_path> --cuke-parser=python -q test_http_sources.py"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
 
@@ -253,7 +253,7 @@ Feature: Invocation-level feature source selection
 
       test_explicit_url_source = scenarios("shared.feature", features_path_type=FeaturePathType.URL)
       """
-    When I run installed pytest with the local HTTP fixture URL base and arguments "--rootdir=. --cuke-no-autoload --cuke-features-dir=features --cuke-features-base-url={local_http_base_url}/catalog --cuke-parser=python --cuke-summary -q test_explicit_url_source.py"
+    When I run installed pytest with the local HTTP fixture URL base and arguments "--rootdir=. --cuke-no-autoload --cuke-features-dir=features --cuke-features-base-url={local_http_base_url}/catalog --cuke-parser=python -q test_explicit_url_source.py"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
 
@@ -311,7 +311,7 @@ Feature: Invocation-level feature source selection
         Scenario: The second local root is selected
           Given the second local feature root is selected
       """
-    When I run installed pytest in two independent sessions with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-dir=first-features --cuke-summary -vv test_same_relative_feature.py" and then "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-dir=second-features --cuke-summary -vv test_same_relative_feature.py"
+    When I run installed pytest in two independent sessions with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-dir=first-features -vv test_same_relative_feature.py" and then "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-dir=second-features -vv test_same_relative_feature.py"
     Then both independent pytest sessions should execute exactly one selected root scenario
 
   Scenario: Independent pytest sessions keep distinct URL base settings
@@ -352,5 +352,5 @@ Feature: Invocation-level feature source selection
 
       test_shared_url_source = scenarios("shared.feature", features_path_type=FeaturePathType.URL)
       """
-    When I run installed pytest in two independent URL-base sessions with the local HTTP fixture and arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-base-url={local_http_base_url}/first --cuke-summary -q test_shared_url_source.py" and then "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-base-url={local_http_base_url}/second --cuke-summary -q test_shared_url_source.py"
+    When I run installed pytest in two independent URL-base sessions with the local HTTP fixture and arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-base-url={local_http_base_url}/first -q test_shared_url_source.py" and then "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-base-url={local_http_base_url}/second -q test_shared_url_source.py"
     Then both independent URL-base sessions should execute only their selected URL source

@@ -72,6 +72,7 @@ L7 = { order = 9, name = "bootstrap", allowed_imports = ["L0", "L1", "L2a", "L2b
 "pytest_cuke.cucumber_progress" = "L6"
 "pytest_cuke.cucumber_progress_bar" = "L6"
 "pytest_cuke.cucumber_snippets" = "L6"
+"pytest_cuke.cucumber_summary" = "L6"
 "pytest_cuke.allure_logging" = "L6"
 "pytest_cuke.struct_bdd" = "L6"
 "pytest_cuke.ide_bindings" = "L6"

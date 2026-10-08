@@ -375,7 +375,7 @@ Feature: Convert saved Cucumber Messages to Allure results
             | customer |
             | Ada      |
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-allure=allure-native --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-allure=allure-native -q"
     Then pytest should exit with code 0
     And consumer artifact "messages.ndjson" should be a valid Cucumber Messages stream for 1 passed scenario and 1 passed steps
     And consumer Allure result directory "allure-native" should preserve scenario "Save an order for Ada", tag "@smoke", and outline parameter "customer" value "Ada"
@@ -419,7 +419,7 @@ Feature: Convert saved Cucumber Messages to Allure results
         Scenario: Fail after attaching evidence
           Given the operation attaches evidence and fails
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
     And consumer Messages artifact "messages.ndjson" should preserve the failed step diagnostics and attachment correlations
     When I remove consumer file "features/failure-evidence.feature"
@@ -478,7 +478,7 @@ Feature: Convert saved Cucumber Messages to Allure results
           Given the customer is Ada
           When the order is saved
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 0
     And consumer artifact "messages.ndjson" should be a valid Cucumber Messages stream for 1 passed scenario and 3 passed steps
     When I remove consumer file "features/store-order.feature"
@@ -526,7 +526,7 @@ Feature: Convert saved Cucumber Messages to Allure results
           Given the customer is Ada
           When the order is saved
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
     And consumer Messages artifact "messages.ndjson" should preserve the failed Background step diagnostic and step order
     When I remove consumer file "features/store-order-failure.feature"
@@ -577,7 +577,7 @@ Feature: Convert saved Cucumber Messages to Allure results
             | customer | Ada   |
             | active   | true  |
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 0
     When I remove consumer file "features/profile-input.feature"
     And I remove consumer file "conftest.py"
@@ -661,7 +661,7 @@ Feature: Convert saved Cucumber Messages to Allure results
           When the report is generated
           Then the report is ready
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     When I remove consumer file "features/workflows.feature"
