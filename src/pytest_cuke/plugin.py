@@ -47,6 +47,8 @@ from pytest_cuke.cucumber_summary import add_options as add_cucumber_summary_opt
 from pytest_cuke.cucumber_summary import selected_summary_formatter_requests
 from pytest_cuke.cucumber_usage import add_options as add_cucumber_usage_options
 from pytest_cuke.cucumber_usage import selected_usage_formatter_requests
+from pytest_cuke.cucumber_usage_json import add_options as add_cucumber_usage_json_options
+from pytest_cuke.cucumber_usage_json import selected_usage_json_formatter_requests
 from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp.options import add_options as add_debug_mcp_options
 from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin
@@ -107,6 +109,7 @@ def pytest_cuke_formatter_requests(config: Config) -> tuple[FormatterRequest, ..
         *selected_snippets_formatter_requests(config),
         *selected_summary_formatter_requests(config),
         *selected_usage_formatter_requests(config),
+        *selected_usage_json_formatter_requests(config),
     )
 
 
@@ -293,6 +296,7 @@ def pytest_addoption(parser: Parser) -> None:
     MessagePlugin.add_options(parser)
     add_cucumber_summary_options(parser)
     add_cucumber_usage_options(parser)
+    add_cucumber_usage_json_options(parser)
     add_debug_mcp_options(parser)
 
 
