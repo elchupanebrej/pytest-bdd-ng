@@ -8,6 +8,7 @@ import json
 import mimetypes
 import os
 import re
+import traceback
 from contextlib import suppress
 from dataclasses import dataclass, field
 from importlib import import_module
@@ -788,7 +789,7 @@ class NativeAllureReporter:
                 uuid: str,
                 exc_type: type[BaseException] | None,
                 exc_val: BaseException | None,
-                exc_tb: object | None,
+                exc_tb: Any,
             ) -> None:
                 reporter._finish_api_step(uuid, exc_type, exc_val, exc_tb)
 
@@ -834,9 +835,8 @@ class NativeAllureReporter:
         api_uuid: str,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: object | None,
+        exc_tb: Any,
     ) -> None:
-        del exc_tb
         step_uuid = self._api_step_uuids.pop(api_uuid, None)
         if step_uuid is None:
             return
@@ -845,7 +845,7 @@ class NativeAllureReporter:
         details: dict[str, str] = {}
         if exc_val is not None:
             details["message"] = str(exc_val)
-            details["trace"] = "" if exc_type is None else f"{exc_type.__name__}: {exc_val}"
+            details["trace"] = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
         with self._lifecycle.update_step(step_uuid) as step:
             step.status = self._allure_status_value(status)
             if details:

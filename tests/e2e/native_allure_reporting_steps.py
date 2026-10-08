@@ -220,6 +220,44 @@ def _write_field_contract_feature(context: NativeAllureConsumer) -> None:
     )
 
 
+def _write_terminal_outcomes_feature(context: NativeAllureConsumer) -> None:
+    feature_dir = context.project / "features"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "native-terminal-outcomes.feature").write_text(
+        "Feature: Native Allure terminal outcomes\n\n"
+        "  Scenario: Native failed scenario preserves nested traceback\n"
+        "    When a nested native Allure operation fails\n\n"
+        "  Scenario: Native skipped scenario preserves its reason\n"
+        "    When a native scenario requests a skip\n\n"
+        "  Scenario: Native undefined scenario preserves its missing step\n"
+        "    When an undefined native scenario step is requested\n",
+        encoding="utf-8",
+    )
+    (context.project / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\n"
+        "cuke_autoload = true\n"
+        "cuke_features_dir = 'features'\n",
+        encoding="utf-8",
+    )
+    (context.project / "conftest.py").write_text(
+        'pytest_plugins = ["native_terminal_outcome_steps"]\n',
+        encoding="utf-8",
+    )
+    (context.project / "native_terminal_outcome_steps.py").write_text(
+        "from pytest_cuke import when\n\n\n"
+        "@when('a nested native Allure operation fails')\n"
+        "def nested_native_allure_operation_fails():\n"
+        "    import allure\n"
+        "    with allure.step('Nested native failure action'):\n"
+        "        raise AssertionError('native nested failure traceback sentinel')\n\n\n"
+        "@when('a native scenario requests a skip')\n"
+        "def native_scenario_requests_skip():\n"
+        "    import pytest\n"
+        "    pytest.skip('native skipped scenario reason sentinel')\n",
+        encoding="utf-8",
+    )
+
+
 def _context(request: Any, tmp_path: Path) -> NativeAllureConsumer:
     artifacts = request.getfixturevalue("_pytest_cuke_artifacts")
     wheel = artifacts["paths"]["wheel"]
@@ -422,6 +460,11 @@ def consumer_has_two_reportable_scenarios(native_allure_consumer: NativeAllureCo
     )
 
 
+@given("the consumer contains failed skipped and undefined native Allure scenarios")
+def consumer_has_terminal_outcome_scenarios(native_allure_consumer: NativeAllureConsumer) -> None:
+    _write_terminal_outcomes_feature(native_allure_consumer)
+
+
 @given("the consumer installs pinned pytest-xdist")
 def install_pinned_pytest_xdist(native_allure_consumer: NativeAllureConsumer) -> None:
     uv = shutil.which("uv")
@@ -568,6 +611,12 @@ def native_allure_consumer_exits_successfully(native_allure_consumer: NativeAllu
     assert result.returncode == 0, f"native Allure pytest run failed:\n{result.stdout}\n{result.stderr}"
 
 
+@then("the native Allure consumer should exit nonzero")
+def native_allure_consumer_exits_nonzero(native_allure_consumer: NativeAllureConsumer) -> None:
+    result = _run_result(native_allure_consumer)
+    assert result.returncode != 0, f"expected a failed pytest run, got exit code 0:\n{result.stdout}\n{result.stderr}"
+
+
 @then("pytest should report an actionable native Allure dependency error")
 def native_allure_dependency_error_is_actionable(native_allure_consumer: NativeAllureConsumer) -> None:
     result = _run_result(native_allure_consumer)
@@ -587,6 +636,50 @@ def native_allure_output_error_is_actionable(
     assert "cannot initialize native Allure reporting" in output, output
     assert relative_path in output, output
     assert any(message in output.lower() for message in ("file exists", "already exists")), output
+
+
+@then("native Allure results should preserve failed skipped and undefined cases with truthful details")
+def native_allure_preserves_terminal_outcomes(native_allure_consumer: NativeAllureConsumer) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "allure-results")]
+    expected_statuses = {
+        "Native failed scenario preserves nested traceback": "failed",
+        "Native skipped scenario preserves its reason": "skipped",
+        "Native undefined scenario preserves its missing step": "broken",
+    }
+    assert len(results) == len(expected_statuses), results
+    results_by_name = {result.get("name"): result for result in results}
+    assert set(results_by_name) == set(expected_statuses), results
+    for scenario_name, status in expected_statuses.items():
+        result = results_by_name[scenario_name]
+        assert result.get("status") == status and result.get("stage") == "finished", result
+        assert isinstance(result.get("start"), int) and isinstance(result.get("stop"), int), result
+        assert result["start"] <= result["stop"], result
+        details = result.get("statusDetails")
+        assert isinstance(details, dict), result
+        details_text = f"{details.get('message', '')}\n{details.get('trace', '')}".lower()
+        if status == "failed":
+            assert "native nested failure traceback sentinel" in details_text, result
+        elif status == "skipped":
+            assert "native skipped scenario reason sentinel" in details_text, result
+        else:
+            assert "undefined native scenario step is requested" in details_text, result
+
+    failed_result = results_by_name["Native failed scenario preserves nested traceback"]
+    nested_failures = [
+        item
+        for item in _all_objects(failed_result)
+        if item.get("name") == "Nested native failure action"
+    ]
+    assert len(nested_failures) == 1, failed_result
+    nested_failure = nested_failures[0]
+    assert nested_failure.get("status") == "failed", nested_failure
+    nested_details = nested_failure.get("statusDetails")
+    assert isinstance(nested_details, dict), nested_failure
+    assert "native nested failure traceback sentinel" in nested_details.get("message", ""), nested_failure
+    traceback_text = nested_details.get("trace")
+    assert isinstance(traceback_text, str), nested_failure
+    assert "AssertionError: native nested failure traceback sentinel" in traceback_text, nested_failure
+    assert "native_terminal_outcome_steps.py" in traceback_text, nested_failure
 
 
 @then("the native Allure 3 renderer should generate an HTML report")

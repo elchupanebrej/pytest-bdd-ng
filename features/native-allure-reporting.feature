@@ -74,3 +74,11 @@ Feature: Live native Allure reporting
     And the consumer installs pytest-cuke with its Allure extra
     When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=native-allure-output-file -q"
     Then pytest should report an actionable native Allure output error for "native-allure-output-file"
+
+  Scenario: Live reporting preserves failed skipped and undefined outcomes with nested traceback
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains failed skipped and undefined native Allure scenarios
+    And the consumer installs pytest-cuke with its Allure extra
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results -q"
+    Then the native Allure consumer should exit nonzero
+    And native Allure results should preserve failed skipped and undefined cases with truthful details
