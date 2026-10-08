@@ -1,0 +1,809 @@
+"""BDD acceptance steps for live native Allure reporting."""
+
+from __future__ import annotations
+
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
+from typing import Any
+
+from pytest_cuke import given, parsers, then, when
+
+
+_PYTEST_XDIST_VERSION = "3.8.0"
+_TEXT_ATTACHMENT = ("native-evidence.txt", "text/plain", b"native Allure text attachment")
+_BINARY_ATTACHMENT = ("native-evidence.bin", "application/octet-stream", b"\x00\x7f\xffnative")
+_FILE_ATTACHMENT = (
+    "native-evidence-file.json",
+    "application/json",
+    b'{"source":"allure.attach.file"}',
+)
+_REPORT_SCENARIOS = (
+    "Native live report scenario",
+    "Native xdist report scenario one",
+    "Native xdist report scenario two",
+)
+_LIVE_OBSERVER_SCENARIO = "Live observer sees the earlier native result"
+
+
+@dataclass
+class NativeAllureConsumer:
+    project: Path
+    environment: Path
+    python: Path
+    pytest: Path
+    env: dict[str, str]
+    artifact: Path
+    run_result: subprocess.CompletedProcess[str] | None = None
+    optional_adapter_installed: bool = False
+
+
+def _binary_dir(environment: Path) -> Path:
+    return environment / ("Scripts" if os.name == "nt" else "bin")
+
+
+def _executable(environment: Path, name: str) -> Path:
+    return _binary_dir(environment) / (f"{name}.exe" if os.name == "nt" else name)
+
+
+def _run(command: list[str], *, cwd: Path, env: dict[str, str], purpose: str) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(command, cwd=cwd, env=env, check=False, capture_output=True, text=True, timeout=240)
+    assert result.returncode == 0, f"{purpose} failed with exit code {result.returncode}:\n{result.stdout}\n{result.stderr}"
+    return result
+
+
+def _write_feature(
+    context: NativeAllureConsumer,
+    scenario_names: tuple[str, ...],
+    *,
+    with_attachments: bool,
+    with_live_observer: bool = False,
+    with_xdist_evidence: bool = False,
+) -> None:
+    feature_dir = context.project / "features"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    step_text = "Then it attaches the native report evidence" if with_attachments else "Then it completes the native report scenario"
+    scenario_blocks = []
+    for index, name in enumerate(scenario_names, start=1):
+        if with_xdist_evidence:
+            case_name = "one" if index == 1 else "two"
+            scenario_blocks.append(
+                f"  Scenario: {name}\n"
+                "    Given the native report scenario starts\n"
+                f"    When the native xdist case {case_name} performs nested reporting\n"
+            )
+        else:
+            scenario_blocks.append(
+                f"  Scenario: {name}\n"
+                "    Given the native report scenario starts\n"
+                "    When its reportable check succeeds\n"
+                f"    {step_text}\n"
+            )
+    if with_live_observer:
+        scenario_blocks.append(
+            f"  Scenario: {_LIVE_OBSERVER_SCENARIO}\n"
+            "    Given the first native report result is visible before session finish\n"
+            "    When its reportable check succeeds\n"
+            "    Then it completes the native report scenario\n"
+        )
+    file_attachment_code = (
+        "    if pytestconfig.getoption('cuke_allure'):\n"
+        "        import allure\n"
+        f"        evidence = Path({_FILE_ATTACHMENT[0]!r})\n"
+        f"        evidence.write_bytes({_FILE_ATTACHMENT[2]!r})\n"
+        "        allure.attach.file(\n"
+        f"            str(evidence), name={_FILE_ATTACHMENT[0]!r}, attachment_type=allure.attachment_type.JSON\n"
+        "        )\n"
+        if with_attachments
+        else ""
+    )
+    (feature_dir / "native-allure-samples.feature").write_text(
+        "Feature: Native Allure hierarchy\n\n" + "\n".join(scenario_blocks), encoding="utf-8"
+    )
+    (context.project / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\n"
+        "cuke_autoload = true\n"
+        "cuke_features_dir = 'features'\n",
+        encoding="utf-8",
+    )
+    (context.project / "conftest.py").write_text('pytest_plugins = ["native_report_steps"]\n', encoding="utf-8")
+    xdist_step_code = (
+        "@when(parsers.re(r'the native xdist case (?P<case_name>one|two) performs nested reporting'))\n"
+        "def native_xdist_case_performs_nested_reporting(case_name):\n"
+        "    import allure\n"
+        "    with allure.step(f'Native xdist action {case_name}'):\n"
+        "        allure.attach(\n"
+        "            f'native xdist attachment {case_name}',\n"
+        "            name=f'native-xdist-{case_name}.txt',\n"
+        "            attachment_type=allure.attachment_type.TEXT,\n"
+        "        )\n"
+        "        with allure.step(f'Native xdist detail {case_name}'):\n"
+        "            assert case_name in {'one', 'two'}\n\n\n"
+        if with_xdist_evidence
+        else ""
+    )
+    (context.project / "native_report_steps.py").write_text(
+        "import json\n"
+        "from pathlib import Path\n\n"
+        "from pytest_cuke import given, parsers, then, when\n\n\n"
+        "@given('the native report scenario starts')\n"
+        "def native_report_scenario_starts():\n"
+        "    pass\n\n\n"
+        "@given('the first native report result is visible before session finish')\n"
+        "def first_native_report_result_is_live(pytestconfig):\n"
+        "    output_dir = pytestconfig.getoption('cuke_allure')\n"
+        "    assert output_dir, 'the live observer needs --cuke-allure'\n"
+        "    result_files = list(Path(output_dir).glob('*-result.json'))\n"
+        "    results = [json.loads(path.read_text(encoding='utf-8')) for path in result_files]\n"
+        "    first_results = [result for result in results if result.get('name') == 'Native live report scenario']\n"
+        "    assert len(first_results) == 1, f'expected one completed first live result before session finish, found {results}'\n"
+        "    assert first_results[0].get('status') == 'passed', first_results[0]\n\n\n"
+        "@when('its reportable check succeeds')\n"
+        "def native_reportable_check_succeeds(pytestconfig):\n"
+        "    if pytestconfig.getoption('cuke_allure'):\n"
+        "        import allure\n"
+        "        with allure.step('A nested native Allure action'):\n"
+        "            assert 6 * 7 == 42\n"
+        "    else:\n"
+        "        assert 6 * 7 == 42\n\n\n"
+        "@then('it completes the native report scenario')\n"
+        "def native_report_scenario_completes():\n"
+        "    assert True\n\n\n"
+        "@then('it attaches the native report evidence')\n"
+        "def native_report_scenario_attaches_evidence(attach, pytestconfig):\n"
+        "    attach('native Allure text attachment', media_type='text/plain', file_name='native-evidence.txt')\n"
+        "    attach(b'\\x00\\x7f\\xffnative', media_type='application/octet-stream', file_name='native-evidence.bin')\n"
+        + file_attachment_code
+        + xdist_step_code,
+        encoding="utf-8",
+    )
+
+
+def _write_field_contract_feature(context: NativeAllureConsumer) -> None:
+    feature_dir = context.project / "features"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "native-field-contract.feature").write_text(
+        "@feature-native-tag\n"
+        "Feature: Native profile contract\n"
+        "  The feature description is preserved.\n\n"
+        "  @rule-native-tag\n"
+        "  Rule: Profile submission\n"
+        "    The rule description is preserved.\n\n"
+        "    @scenario-native-tag\n"
+        "    Scenario Outline: Submit <customer> profile on <plan>\n"
+        "      The outline description is preserved.\n"
+        "      Given the native profile is ready\n"
+        "      When the JSON profile is accepted\n"
+        '        """application/json\n'
+        '        {"customer": "<customer>", "active": true}\n'
+        '        """\n'
+        "      Then the profile fields are recorded\n"
+        "        | field | value |\n"
+        "        | customer | <customer> |\n"
+        "        | active | true |\n\n"
+        "      Examples: customer plans\n"
+        "        | customer | plan |\n"
+        "        | Ada | premium |\n",
+        encoding="utf-8",
+    )
+    (context.project / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\n"
+        "cuke_autoload = true\n"
+        "cuke_features_dir = 'features'\n",
+        encoding="utf-8",
+    )
+    (context.project / "conftest.py").write_text(
+        'pytest_plugins = ["native_field_contract_steps"]\n',
+        encoding="utf-8",
+    )
+    (context.project / "native_field_contract_steps.py").write_text(
+        "from pytest_cuke import given, then, when\n\n\n"
+        "@given('the native profile is ready')\n"
+        "def native_profile_is_ready():\n"
+        "    pass\n\n\n"
+        "@when('the JSON profile is accepted')\n"
+        "def json_profile_is_accepted(step):\n"
+        "    assert step.doc_string is not None\n"
+        "    assert step.doc_string.media_type == 'application/json'\n"
+        "    assert step.doc_string.content == '{\"customer\": \"Ada\", \"active\": true}'\n\n\n"
+        "@then('the profile fields are recorded')\n"
+        "def profile_fields_are_recorded(step):\n"
+        "    assert step.data_table is not None\n"
+        "    rows = [[cell.value for cell in row.cells] for row in step.data_table.rows]\n"
+        "    assert rows == [['field', 'value'], ['customer', 'Ada'], ['active', 'true']]\n",
+        encoding="utf-8",
+    )
+
+
+def _context(request: Any, tmp_path: Path) -> NativeAllureConsumer:
+    artifacts = request.getfixturevalue("_pytest_cuke_artifacts")
+    wheel = artifacts["paths"]["wheel"]
+    uv = shutil.which("uv")
+    assert uv is not None, "native Allure acceptance requires uv to create an isolated installed consumer"
+    project = tmp_path / "consumer"
+    project.mkdir()
+    environment = tmp_path / "venv"
+    create_env = subprocess.run(
+        [uv, "venv", "--python", sys.executable, str(environment)],
+        cwd=project,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert create_env.returncode == 0, (
+        f"could not create an isolated native Allure consumer:\n{create_env.stdout}\n{create_env.stderr}"
+    )
+    python = _executable(environment, "python")
+    _run([uv, "pip", "install", "--python", str(python), str(wheel)], cwd=project, env=os.environ.copy(), purpose="installing pytest-cuke")
+
+    home = project / ".home"
+    home.mkdir()
+    env = os.environ.copy()
+    for name in (
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "MYPYPATH",
+        "MYPY_CONFIG_FILE_DIR",
+        "PYTEST_ADDOPTS",
+        "PYTEST_PLUGINS",
+        "PYTEST_CURRENT_TEST",
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD",
+    ):
+        env.pop(name, None)
+    env.update(
+        {
+            "HOME": str(home),
+            "PATH": f"{_binary_dir(environment)}{os.pathsep}{os.defpath}",
+            "PYTHONNOUSERSITE": "1",
+        }
+    )
+    if os.name == "nt":
+        env["USERPROFILE"] = str(home)
+    return NativeAllureConsumer(project, environment, python, _executable(environment, "pytest"), env, Path(wheel))
+
+
+def _consumer_path(context: NativeAllureConsumer, relative: str) -> Path:
+    path = PurePosixPath(relative)
+    if path.is_absolute() or ".." in path.parts or "\\" in relative:
+        raise ValueError("native Allure artifact paths must stay inside the consumer project")
+    target = context.project.joinpath(*path.parts).resolve()
+    target.relative_to(context.project.resolve())
+    return target
+
+
+def _run_result(context: NativeAllureConsumer) -> subprocess.CompletedProcess[str]:
+    result = context.run_result
+    assert result is not None, "the isolated native Allure pytest command has not run"
+    return result
+
+
+def _result_files(context: NativeAllureConsumer, relative_path: str) -> list[Path]:
+    directory = _consumer_path(context, relative_path)
+    files = sorted(directory.glob("*-result.json"))
+    assert files, f"native Allure result directory has no result JSON files: {directory}"
+    return files
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(value, dict), f"expected an object in {path}, got {type(value).__name__}"
+    return value
+
+
+def _all_objects(value: Any):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _all_objects(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _all_objects(child)
+
+
+def _assert_result_has_passed_steps(
+    result: dict[str, Any],
+    *,
+    scenario_name: str,
+    require_nested_allure_step: bool = True,
+    expected_when_step: str = "When its reportable check succeeds",
+) -> None:
+    assert result.get("name") == scenario_name, result
+    assert result.get("status") == "passed", result
+    assert result.get("stage") == "finished", result
+    assert isinstance(result.get("uuid"), str) and result["uuid"], result
+    full_name = result.get("fullName")
+    assert isinstance(full_name, str) and "native-allure-samples.feature" in full_name, result
+    assert scenario_name in full_name, result
+    steps = result.get("steps")
+    assert isinstance(steps, list) and steps, result
+    assert all(isinstance(step, dict) and step.get("status") == "passed" for step in steps), steps
+    step_names = {step.get("name") for step in steps if isinstance(step, dict)}
+    given_step = (
+        "Given the first native report result is visible before session finish"
+        if scenario_name == _LIVE_OBSERVER_SCENARIO
+        else "Given the native report scenario starts"
+    )
+    assert {given_step, expected_when_step}.issubset(step_names), steps
+    if require_nested_allure_step:
+        nested_steps = [
+            item
+            for item in _all_objects(result)
+            if item.get("name") == "A nested native Allure action" and item.get("status") == "passed"
+        ]
+        assert len(nested_steps) == 1, result
+
+
+def _attachment_refs(value: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        item
+        for item in _all_objects(value)
+        if isinstance(item.get("name"), str) and isinstance(item.get("source"), str) and "type" in item
+    ]
+
+
+def _assert_attachment_contents(
+    context: NativeAllureConsumer, result_directory: str, result: dict[str, Any]
+) -> None:
+    refs = _attachment_refs(result)
+    expected = {
+        _TEXT_ATTACHMENT[0]: _TEXT_ATTACHMENT,
+        _BINARY_ATTACHMENT[0]: _BINARY_ATTACHMENT,
+        _FILE_ATTACHMENT[0]: _FILE_ATTACHMENT,
+    }
+    by_name = {ref["name"]: ref for ref in refs}
+    assert set(expected).issubset(by_name), refs
+    output_root = _consumer_path(context, result_directory).resolve()
+    for name, (_expected_name, media_type, contents) in expected.items():
+        ref = by_name[name]
+        assert ref["type"].split(";", 1)[0] == media_type, ref
+        source = PurePosixPath(ref["source"])
+        assert not source.is_absolute() and ".." not in source.parts, ref
+        attachment_path = output_root.joinpath(*source.parts).resolve()
+        attachment_path.relative_to(output_root)
+        assert attachment_path.is_file(), ref
+        assert attachment_path.read_bytes() == contents, ref
+
+
+def _assert_session_container(context: NativeAllureConsumer, result_directory: str, result_ids: set[str]) -> None:
+    directory = _consumer_path(context, result_directory)
+    container_files = sorted(directory.glob("*-container.json"))
+    assert container_files, f"native Allure output has no linked fixture containers in {directory}"
+    containers = [_load_json(path) for path in container_files]
+    shared = [container for container in containers if container.get("befores") or container.get("afters")]
+    assert len(shared) == 1, containers
+    per_case = [container for container in containers if container not in shared]
+    assert len(per_case) == len(result_ids), containers
+    per_case_children = [container.get("children") for container in per_case]
+    assert all(isinstance(children, list) and len(children) == 1 for children in per_case_children), per_case
+    assert {children[0] for children in per_case_children} == result_ids, per_case
+    container = shared[0]
+    assert set(container.get("children", [])) == result_ids, container
+    for name, key in (("pytest session start", "befores"), ("pytest session finish", "afters")):
+        fixtures = container.get(key)
+        assert isinstance(fixtures, list) and len(fixtures) == 1, container
+        fixture = fixtures[0]
+        assert isinstance(fixture, dict) and fixture.get("name") == name, fixture
+        assert fixture.get("status") == "passed" and fixture.get("stage") == "finished", fixture
+
+
+@given("a fresh isolated pytest-cuke consumer is ready", target_fixture="native_allure_consumer")
+def fresh_isolated_consumer(request: Any, tmp_path: Path) -> NativeAllureConsumer:
+    return _context(request, tmp_path)
+
+
+@given("the consumer contains one native Allure scenario with attachments")
+def consumer_has_one_reportable_scenario(native_allure_consumer: NativeAllureConsumer) -> None:
+    _write_feature(native_allure_consumer, (_REPORT_SCENARIOS[0],), with_attachments=True)
+
+
+@given("the consumer contains one live native Allure scenario with attachments")
+def consumer_has_one_live_reportable_scenario(native_allure_consumer: NativeAllureConsumer) -> None:
+    _write_feature(native_allure_consumer, (_REPORT_SCENARIOS[0],), with_attachments=True, with_live_observer=True)
+
+
+@given("the consumer contains a described native Allure outline with structured arguments")
+def consumer_has_described_outline_with_arguments(native_allure_consumer: NativeAllureConsumer) -> None:
+    _write_field_contract_feature(native_allure_consumer)
+
+
+@given("the consumer contains two native Allure scenarios with distinct nested steps and attachments")
+def consumer_has_two_reportable_scenarios(native_allure_consumer: NativeAllureConsumer) -> None:
+    _write_feature(
+        native_allure_consumer,
+        _REPORT_SCENARIOS[1:],
+        with_attachments=False,
+        with_xdist_evidence=True,
+    )
+
+
+@given("the consumer installs pinned pytest-xdist")
+def install_pinned_pytest_xdist(native_allure_consumer: NativeAllureConsumer) -> None:
+    uv = shutil.which("uv")
+    assert uv is not None, "the xdist ownership acceptance requires uv to install its isolated test dependency"
+    _run(
+        [uv, "pip", "install", "--python", str(native_allure_consumer.python), f"pytest-xdist=={_PYTEST_XDIST_VERSION}"],
+        cwd=native_allure_consumer.project,
+        env=native_allure_consumer.env,
+        purpose="installing pytest-xdist",
+    )
+
+
+@given("the consumer installs pytest-cuke with its Allure extra")
+def install_pytest_cuke_allure_extra(native_allure_consumer: NativeAllureConsumer) -> None:
+    uv = shutil.which("uv")
+    assert uv is not None, "native Allure acceptance requires uv to install pytest-cuke[allure]"
+    _run(
+        [
+            uv,
+            "pip",
+            "install",
+            "--python",
+            str(native_allure_consumer.python),
+            f"pytest-cuke[allure] @ {native_allure_consumer.artifact.resolve().as_uri()}",
+        ],
+        cwd=native_allure_consumer.project,
+        env=native_allure_consumer.env,
+        purpose="installing pytest-cuke with its Allure extra",
+    )
+
+
+@given("the consumer has allure-pytest available for its separate report")
+def verify_optional_allure_pytest_available(native_allure_consumer: NativeAllureConsumer) -> None:
+    probe = subprocess.run(
+        [
+            str(native_allure_consumer.python),
+            "-c",
+            "from importlib.metadata import version\n"
+            "print(version('allure-pytest'))\n",
+        ],
+        cwd=native_allure_consumer.project,
+        env=native_allure_consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert probe.returncode == 0, f"allure-pytest was not installed by pytest-cuke[allure]:\n{probe.stdout}\n{probe.stderr}"
+    native_allure_consumer.optional_adapter_installed = True
+
+
+@given("the consumer has no Allure Python adapter dependencies")
+def verify_allure_adapter_absent(native_allure_consumer: NativeAllureConsumer) -> None:
+    probe = subprocess.run(
+        [
+            str(native_allure_consumer.python),
+            "-c",
+            "from importlib.metadata import PackageNotFoundError, distribution\n"
+            "for name in ('allure-pytest', 'allure-python-commons'):\n"
+            "    try:\n"
+            "        distribution(name)\n"
+            "    except PackageNotFoundError:\n"
+            "        continue\n"
+            "    raise SystemExit(f'unexpected Allure dependency: {name}')\n",
+        ],
+        cwd=native_allure_consumer.project,
+        env=native_allure_consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert probe.returncode == 0, f"native reporting unexpectedly depends on Allure Python packages:\n{probe.stdout}\n{probe.stderr}"
+
+
+@given(parsers.re(r'the consumer output path "(?P<relative_path>[^"]+)" is blocked by a regular file'))
+def block_native_allure_output_path(relative_path: str, native_allure_consumer: NativeAllureConsumer) -> None:
+    blocked_path = _consumer_path(native_allure_consumer, relative_path)
+    blocked_path.write_text("This file blocks the native Allure result directory.\n", encoding="utf-8")
+    assert blocked_path.is_file(), blocked_path
+
+
+@when(parsers.re(r'I run the native Allure consumer with arguments "(?P<arguments>[^"]*)"'), target_fixture="native_allure_run")
+def run_native_allure_consumer(
+    arguments: str, native_allure_consumer: NativeAllureConsumer
+) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(
+        [str(native_allure_consumer.pytest), *shlex.split(arguments)],
+        cwd=native_allure_consumer.project,
+        env=native_allure_consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=240,
+    )
+    native_allure_consumer.run_result = result
+    return result
+
+
+@when(
+    parsers.re(
+        r'I generate an Allure 3 report from native results in "(?P<results_path>[^"]+)" '
+        r'into "(?P<report_path>[^"]+)"'
+    ),
+    target_fixture="native_allure_render_result",
+)
+def generate_native_allure_report(
+    results_path: str,
+    report_path: str,
+    native_allure_consumer: NativeAllureConsumer,
+) -> tuple[subprocess.CompletedProcess[str], Path]:
+    results_directory = _consumer_path(native_allure_consumer, results_path)
+    report_directory = _consumer_path(native_allure_consumer, report_path)
+    npx = shutil.which("npx")
+    allure = shutil.which("allure")
+    if npx:
+        command = [npx, "--yes", "allure@3.20.0", "generate", str(results_directory), "-o", str(report_directory)]
+    elif allure:
+        version = subprocess.run([allure, "--version"], check=False, capture_output=True, text=True, timeout=30)
+        version_output = f"{version.stdout}\n{version.stderr}"
+        assert version.returncode == 0 and any(
+            token.startswith("3.") for token in version_output.split()
+        ), f"Allure 3 is required to render native results; installed CLI output was: {version_output}"
+        command = [allure, "generate", str(results_directory), "-o", str(report_directory)]
+    else:
+        from pytest import skip
+
+        skip(
+            "Allure 3 CLI is not installed; add npx/Node.js or Allure 3 to PATH to generate the native HTML report"
+        )
+    result = subprocess.run(
+        command,
+        cwd=native_allure_consumer.project,
+        env=os.environ.copy(),
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    return result, report_directory
+
+
+@then("the native Allure consumer should exit with code 0")
+def native_allure_consumer_exits_successfully(native_allure_consumer: NativeAllureConsumer) -> None:
+    result = _run_result(native_allure_consumer)
+    assert result.returncode == 0, f"native Allure pytest run failed:\n{result.stdout}\n{result.stderr}"
+
+
+@then("pytest should report an actionable native Allure dependency error")
+def native_allure_dependency_error_is_actionable(native_allure_consumer: NativeAllureConsumer) -> None:
+    result = _run_result(native_allure_consumer)
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 4, f"expected pytest UsageError exit code 4, got {result.returncode}:\n{output}"
+    assert "native Allure reporting requires the optional dependency" in output, output
+    assert "install pytest-cuke[allure]" in output, output
+
+
+@then(parsers.re(r'pytest should report an actionable native Allure output error for "(?P<relative_path>[^"]+)"'))
+def native_allure_output_error_is_actionable(
+    relative_path: str, native_allure_consumer: NativeAllureConsumer
+) -> None:
+    result = _run_result(native_allure_consumer)
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 4, f"expected pytest UsageError exit code 4, got {result.returncode}:\n{output}"
+    assert "cannot initialize native Allure reporting" in output, output
+    assert relative_path in output, output
+    assert any(message in output.lower() for message in ("file exists", "already exists")), output
+
+
+@then("the native Allure 3 renderer should generate an HTML report")
+def native_allure_renderer_generates_html(
+    native_allure_render_result: tuple[subprocess.CompletedProcess[str], Path],
+) -> None:
+    result, report_directory = native_allure_render_result
+    assert result.returncode == 0, f"Allure 3 renderer failed:\n{result.stdout}\n{result.stderr}"
+    rendered_html = sorted(path for path in report_directory.rglob("*.html") if path.is_file())
+    assert rendered_html, f"Allure 3 did not render an HTML report under {report_directory}"
+    assert any(path.stat().st_size > 0 for path in rendered_html), rendered_html
+
+
+@then(
+    parsers.re(
+        r'native Allure results in "(?P<relative_path>[^"]+)" should contain the passed scenario '
+        r'"(?P<scenario_name>[^"]+)" and its steps'
+    )
+)
+def native_allure_has_passed_scenario_and_steps(
+    relative_path: str, scenario_name: str, native_allure_consumer: NativeAllureConsumer
+) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, relative_path)]
+    selected = [result for result in results if result.get("name") == scenario_name]
+    assert len(selected) == 1, results
+    _assert_result_has_passed_steps(selected[0], scenario_name=scenario_name)
+
+
+@then("native Allure results should preserve the full Gherkin field contract")
+def native_allure_preserves_gherkin_field_contract(native_allure_consumer: NativeAllureConsumer) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "allure-results")]
+    assert len(results) == 1, results
+    result = results[0]
+    expected_name = "Submit Ada profile on premium"
+    assert result.get("name") == expected_name, result
+    assert result.get("status") == "passed" and result.get("stage") == "finished", result
+    assert isinstance(result.get("uuid"), str) and result["uuid"], result
+    assert isinstance(result.get("historyId"), str) and result["historyId"], result
+    assert result.get("fullName") == (
+        "file:native-field-contract.feature:Submit <customer> profile on <plan>"
+    ), result
+    assert result.get("testCaseId", "").startswith("file:native-field-contract.feature:"), result
+    assert result.get("description") == (
+        "The feature description is preserved.\n\n"
+        "The rule description is preserved.\n\n"
+        "The outline description is preserved."
+    ), result
+    assert result.get("titlePath") == ["Native profile contract", "Profile submission", expected_name], result
+
+    labels = result.get("labels")
+    assert isinstance(labels, list), result
+    label_pairs = {
+        (label.get("name"), label.get("value"))
+        for label in labels
+        if isinstance(label, dict)
+    }
+    assert {
+        ("feature", "Native profile contract"),
+        ("parentSuite", "Native profile contract"),
+        ("rule", "Profile submission"),
+        ("suite", "Profile submission"),
+        ("scenario", "Submit <customer> profile on <plan>"),
+        ("tag", "@rule-native-tag"),
+        ("tag", "@scenario-native-tag"),
+    }.issubset(label_pairs), labels
+
+    parameters = result.get("parameters")
+    assert isinstance(parameters, list), result
+    parameter_values = {
+        parameter.get("name"): parameter.get("value")
+        for parameter in parameters
+        if isinstance(parameter, dict)
+    }
+    assert parameter_values.get("customer") == "Ada", parameters
+    assert parameter_values.get("plan") == "premium", parameters
+    pickle_id = parameter_values.get("pickleId")
+    assert isinstance(pickle_id, str) and pickle_id.startswith("file:native-field-contract.feature#"), parameters
+
+    steps = result.get("steps")
+    assert isinstance(steps, list) and len(steps) == 3, result
+    assert [step.get("name") for step in steps] == [
+        "Given the native profile is ready",
+        "When the JSON profile is accepted",
+        "Then the profile fields are recorded",
+    ], steps
+    assert all(step.get("status") == "passed" and step.get("stage") == "finished" for step in steps), steps
+
+    doc_string_step = steps[1]
+    doc_string_content = '{"customer": "Ada", "active": true}'
+    doc_string_description = f"application/json\n\n{doc_string_content}"
+    assert doc_string_step.get("description") == doc_string_description, doc_string_step
+    assert doc_string_step.get("descriptionHtml") == doc_string_description, doc_string_step
+    assert doc_string_step.get("parameters") == [{"name": "docString", "value": doc_string_content}], doc_string_step
+
+    data_table_step = steps[2]
+    data_table_markdown = "| field | value |\n| customer | Ada |\n| active | true |"
+    assert data_table_step.get("description") == data_table_markdown, data_table_step
+    assert data_table_step.get("descriptionHtml") == data_table_markdown, data_table_step
+    assert data_table_step.get("parameters") == [{"name": "dataTable", "value": data_table_markdown}], data_table_step
+
+    # Feature tags are valid Gherkin metadata even though Cucumber Pickle.tags
+    # only carries the rule and scenario tags for this outline.
+    assert ("tag", "@feature-native-tag") in label_pairs, labels
+
+
+@then("native Allure results should preserve their feature hierarchy and session container")
+def native_allure_preserves_hierarchy_and_session_container(native_allure_consumer: NativeAllureConsumer) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "allure-results")]
+    assert len(results) == 2, results
+    for result in results:
+        _assert_result_has_passed_steps(result, scenario_name=str(result.get("name")))
+    _assert_session_container(native_allure_consumer, "allure-results", {result["uuid"] for result in results})
+
+
+@then("native Allure results should contain the text, binary, and file attachments")
+def native_allure_contains_attachments(native_allure_consumer: NativeAllureConsumer) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "allure-results")]
+    assert len(results) == 2, results
+    selected = next((result for result in results if result.get("name") == _REPORT_SCENARIOS[0]), None)
+    assert selected is not None, results
+    _assert_attachment_contents(native_allure_consumer, "allure-results", selected)
+
+
+@then("the native report consumer should not write a Messages NDJSON file")
+def native_allure_does_not_write_ndjson(native_allure_consumer: NativeAllureConsumer) -> None:
+    assert not (native_allure_consumer.project / "messages.ndjson").exists()
+
+
+@then("native Allure results should contain both controller scenarios exactly once")
+def native_allure_contains_two_xdist_results(native_allure_consumer: NativeAllureConsumer) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "allure-results")]
+    expected_names = set(_REPORT_SCENARIOS[1:])
+    actual_names = [result.get("name") for result in results]
+    assert len(actual_names) == len(expected_names), results
+    assert set(actual_names) == expected_names, results
+    for result in results:
+        case_name = "one" if result.get("name") == _REPORT_SCENARIOS[1] else "two"
+        _assert_result_has_passed_steps(
+            result,
+            scenario_name=str(result.get("name")),
+            require_nested_allure_step=False,
+            expected_when_step=f"When the native xdist case {case_name} performs nested reporting",
+        )
+
+
+@then("native Allure results should preserve each xdist case nested steps and attachments exactly once")
+def native_allure_preserves_xdist_nested_reporting(native_allure_consumer: NativeAllureConsumer) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "allure-results")]
+    expected = {
+        _REPORT_SCENARIOS[1]: {
+            "action": "Native xdist action one",
+            "detail": "Native xdist detail one",
+            "attachment": "native-xdist-one.txt",
+            "content": b"native xdist attachment one",
+        },
+        _REPORT_SCENARIOS[2]: {
+            "action": "Native xdist action two",
+            "detail": "Native xdist detail two",
+            "attachment": "native-xdist-two.txt",
+            "content": b"native xdist attachment two",
+        },
+    }
+    assert len(results) == len(expected), results
+    results_by_name = {result.get("name"): result for result in results}
+    assert set(results_by_name) == set(expected), results
+    output_root = _consumer_path(native_allure_consumer, "allure-results").resolve()
+
+    for scenario_name, contract in expected.items():
+        result = results_by_name[scenario_name]
+        objects = list(_all_objects(result))
+        action_steps = [item for item in objects if item.get("name") == contract["action"]]
+        detail_steps = [item for item in objects if item.get("name") == contract["detail"]]
+        other = expected[_REPORT_SCENARIOS[2] if scenario_name == _REPORT_SCENARIOS[1] else _REPORT_SCENARIOS[1]]
+        assert len(action_steps) == 1, result
+        assert len(detail_steps) == 1, result
+        assert not any(item.get("name") in {other["action"], other["detail"]} for item in objects), result
+        action = action_steps[0]
+        action_descendants = list(_all_objects(action.get("steps", [])))
+        assert sum(item.get("name") == contract["detail"] for item in action_descendants) == 1, action
+
+        attachments = [
+            item for item in _attachment_refs(result) if item.get("name") == contract["attachment"]
+        ]
+        assert len(attachments) == 1, result
+        assert not any(
+            item.get("name") == other["attachment"] for item in _attachment_refs(result)
+        ), result
+        attachment = attachments[0]
+        assert attachment.get("type", "").split(";", 1)[0] == "text/plain", attachment
+        source = PurePosixPath(attachment["source"])
+        assert not source.is_absolute() and ".." not in source.parts, attachment
+        attachment_path = output_root.joinpath(*source.parts).resolve()
+        attachment_path.relative_to(output_root)
+        assert attachment_path.is_file(), attachment
+        assert attachment_path.read_bytes() == contract["content"], attachment
+
+
+@then("the native Allure results should contain one shared session container for both scenarios")
+def native_allure_xdist_has_one_shared_container(native_allure_consumer: NativeAllureConsumer) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "allure-results")]
+    result_ids = {result.get("uuid") for result in results}
+    assert all(isinstance(result_id, str) and result_id for result_id in result_ids), results
+    _assert_session_container(native_allure_consumer, "allure-results", result_ids)
+
+
+@then("the optional adapter results should contain one passed pytest item")
+def optional_adapter_results_contain_one_item(native_allure_consumer: NativeAllureConsumer) -> None:
+    assert native_allure_consumer.optional_adapter_installed, "allure-pytest should be installed for this scenario"
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "adapter-results")]
+    assert len(results) == 2, results
+    assert all(result.get("status") == "passed" for result in results), results
+
+
+@then("the consumer should have no Allure results and no Allure Python adapter dependencies")
+def reporting_off_has_no_output_or_dependency(native_allure_consumer: NativeAllureConsumer) -> None:
+    result = _run_result(native_allure_consumer)
+    assert result.returncode == 0, f"reporting-off pytest run failed:\n{result.stdout}\n{result.stderr}"
+    assert not (native_allure_consumer.project / "allure-results").exists()
+    assert not (native_allure_consumer.project / "native-results").exists()
+    verify_allure_adapter_absent(native_allure_consumer)

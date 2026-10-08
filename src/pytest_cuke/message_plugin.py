@@ -26,7 +26,6 @@ from ci_environment import detect_ci_environment
 from filelock import FileLock
 from pytest import ExitCode, hookimpl
 
-from pytest_cuke.allure_conversion import AllureConversionError, convert_allure_messages
 from pytest_cuke.compatibility.path import relpath
 from pytest_cuke.compatibility.pytest import (
     Config,
@@ -192,7 +191,6 @@ class MessagePlugin:
     # id-keyed registry leaks across sessions. A freed hook function's address can be reused by
     # the next session's function, so the "already emitted" check silently skips a message (#232).
     config: Config = attrib()
-    allure_output_path: Path | None = attrib(default=None)
     formatter_requests: tuple[FormatterRequest, ...] = attrib(factory=tuple)
     formatter_session: FormatterSession | None = attrib(default=None)
     message_transport: ValidatedMessageTransport | None = attrib(default=None)
@@ -315,7 +313,6 @@ class MessagePlugin:
         messages_path = self._configured_output("cuke_messages_ndjson")
         html_path = self._configured_output("cuke_html")
         allure_path = self._configured_output("cuke_allure")
-        self.allure_output_path = Path(allure_path) if allure_path is not None else None
         self.is_disabled = all(
             [
                 messages_path is None,
@@ -501,10 +498,12 @@ class MessagePlugin:
         group.addoption(
             "--cuke-allure",
             action="store",
+            nargs="?",
+            const="allure-results",
             dest="cuke_allure",
             metavar="dir",
             default=None,
-            help="Allure result directory; write native results while pytest executes scenarios.",
+            help="Allure result directory (default: allure-results); write native results during pytest.",
         )
         parser.addini("cuke_allure", "Allure result directory for native pytest reporting.", default="", type="string")
         group.addoption(
@@ -1169,16 +1168,6 @@ class MessagePlugin:
                     self.generate_html_report()
                 except Exception as error:
                     self._record_final_sink_failure(session, "Cucumber HTML report", error)
-            if self.allure_output_path is not None:
-                try:
-                    convert_allure_messages(self.messages_file_path, self.allure_output_path)
-                except AllureConversionError as error:
-                    print(f"pytest-cuke Allure conversion failed: {error}", file=sys.stderr)
-                    if getattr(session, "exitstatus", ExitCode.OK) == ExitCode.OK:
-                        session.exitstatus = ExitCode.USAGE_ERROR
-                    self._record_final_sink_failure(session, "Allure report conversion", error)
-                except Exception as error:
-                    self._record_final_sink_failure(session, "Allure report conversion", error)
         finally:
             if self.is_messages_file_temp and self.messages_file_path.exists():
                 try:

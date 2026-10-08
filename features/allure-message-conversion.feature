@@ -354,6 +354,7 @@ Feature: Convert saved Cucumber Messages to Allure results
 
   Scenario: Convert a pytest-produced outline after its feature source is removed
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer installs pytest-cuke with its Allure extra in an isolated environment
     And consumer file "conftest.py" contains:
       """python
       from pytest_cuke import given, parsers
@@ -707,6 +708,7 @@ Feature: Convert saved Cucumber Messages to Allure results
 
   Scenario: Preserve pytest-produced v28 run hooks across Allure reporting modes
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer installs pytest-cuke with its Allure extra in an isolated environment
     And consumer file "conftest.py" contains:
       """python
       from pytest_cuke import given
