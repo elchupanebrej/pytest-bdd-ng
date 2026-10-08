@@ -8,6 +8,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,30 @@ from pytest_cuke import given, step, then
 
 
 _OFFICIAL_CUCUMBER_PACKAGES = {"@cucumber/cucumber": "13.3.0"}
+_USAGE_JSON_PLUGIN = """\
+import json
+import sys
+from pathlib import Path
+
+from pytest_cuke import FormatterRequest
+
+
+def pytest_cuke_formatter_requests(config):
+    del config
+    command = (
+        sys.executable,
+        "-c",
+        "import collections,json,sys; counts=collections.Counter(); "
+        "[counts.update(json.loads(line).keys()) for line in sys.stdin if line.strip()]; "
+        "print(json.dumps({'event_counts': dict(counts)}))",
+    )
+    return (FormatterRequest(
+        name="snippets-usage-json-probe",
+        command=command,
+        output_path=Path("artifacts/usage.json"),
+        working_directory=Path(__file__).parent,
+    ),)
+"""
 _MIXED_UNDEFINED_FEATURE = """\
 Feature: Official Cucumber snippets use Messages metadata
   Scenario: A defined control step runs normally
@@ -154,6 +179,7 @@ def _prepare_consumer(
     workspace: str | None = None,
     snippets_enabled: bool = False,
     terminal_conflict: bool = False,
+    usage_json: bool = False,
 ) -> Path:
     root = _safe_workspace(consumer, workspace)
     config = "[tool.pytest.ini_options]\ncuke_autoload = true\ncuke_features_dir = 'features'\n"
@@ -161,6 +187,9 @@ def _prepare_consumer(
         config += "cuke_snippets = true\n"
     _write_file(root, "pyproject.toml", config)
     plugins = ["snippets_consumer_steps"]
+    if usage_json:
+        plugins.append("snippets_usage_json_formatter")
+        _write_file(root, "snippets_usage_json_formatter.py", _USAGE_JSON_PLUGIN)
     if terminal_conflict:
         plugins.append("snippets_stdout_conflict")
         _write_file(root, "snippets_stdout_conflict.py", _STDOUT_CONFLICT_PLUGIN)
@@ -326,6 +355,30 @@ def _assert_selected_snippets_and_messages(consumer: Any) -> None:
     )
 
 
+def _assert_distinct_file_reports(consumer: Any) -> None:
+    root = getattr(consumer, "_snippets_workspace", _consumer_root(consumer))
+
+    cucumber_json_path = root / "artifacts" / "report.json"
+    assert cucumber_json_path.is_file() and cucumber_json_path.stat().st_size > 0, cucumber_json_path
+    cucumber_report = json.loads(cucumber_json_path.read_text(encoding="utf-8"))
+    assert isinstance(cucumber_report, (dict, list)) and cucumber_report, cucumber_report
+
+    junit_path = root / "artifacts" / "junit.xml"
+    assert junit_path.is_file() and junit_path.stat().st_size > 0, junit_path
+    junit_root = ET.parse(junit_path).getroot()
+    assert junit_root.tag in {"testsuite", "testsuites"}, junit_root.tag
+    test_count = int(junit_root.get("tests", "0"))
+    if junit_root.tag == "testsuites":
+        test_count += sum(int(suite.get("tests", "0")) for suite in junit_root.findall("testsuite"))
+    assert test_count >= 5, f"JUnit should report all five consumer scenarios: {test_count}"
+
+    usage_path = root / "artifacts" / "usage.json"
+    assert usage_path.is_file() and usage_path.stat().st_size > 0, usage_path
+    usage_report = json.loads(usage_path.read_text(encoding="utf-8"))
+    event_counts = usage_report.get("event_counts")
+    assert isinstance(event_counts, dict) and event_counts.get("testRunFinished") == 1, usage_report
+
+
 @given("the consumer prepares an undefined-step snippets scenario with the default configuration")
 def prepare_default_undefined_snippets_scenario(consumer: Any) -> None:
     _prepare_consumer(
@@ -359,6 +412,7 @@ def prepare_mixed_snippets_in_unicode_workspace(consumer: Any) -> None:
         _MIXED_UNDEFINED_FEATURE,
         feature_name="official-cucumber-snippets.feature",
         workspace="snippet workspace 東京 café",
+        usage_json=True,
     )
 
 
@@ -370,6 +424,7 @@ def install_pinned_official_cucumber_snippets_runtime(consumer: Any) -> None:
 @then("the CLI selection should emit usable JavaScript snippets and preserve the undefined failure")
 def cli_snippets_are_javascript_and_preserve_undefined(consumer: Any) -> None:
     _assert_selected_snippets_and_messages(consumer)
+    _assert_distinct_file_reports(consumer)
 
 
 @step("the consumer enables cuke_snippets in its configuration")
