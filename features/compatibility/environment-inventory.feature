@@ -1,3 +1,4 @@
+@e2e
 Feature: Supported environment inventory and acceptance proof
   The repository owns one machine-readable inventory of supported test lanes.
   The compatibility command checks that tox and GitHub Actions select those lanes
