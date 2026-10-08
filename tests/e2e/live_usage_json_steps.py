@@ -170,13 +170,10 @@ def _prepare(
     *,
     feature: str,
     feature_name: str,
-    usage_json_path: str | None = None,
 ) -> Path:
     root = _safe_workspace(consumer, "usage-json café workspace with spaces")
     root.mkdir(parents=True, exist_ok=True)
     config = "[tool.pytest.ini_options]\ncuke_autoload = true\ncuke_features_dir = 'features'\n"
-    if usage_json_path is not None:
-        config += f"cuke_usage_json = {json.dumps(usage_json_path, ensure_ascii=False)}\n"
     _write(root, "pyproject.toml", config)
     _write(root, "usage_json_consumer_steps.py", _SUPPORT_PLUGIN)
     _write(root, "conftest.py", 'pytest_plugins = ["usage_json_consumer_steps"]\n')
