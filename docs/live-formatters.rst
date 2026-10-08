@@ -194,6 +194,27 @@ The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
 installed in the pytest root directory. When usage is not selected, pytest-cuke
 does not check for these dependencies.
 
+Built-in machine-readable step-definition usage
+------------------------------------------------
+
+Write Cucumber's machine-readable step-definition usage report with
+``--cuke-usage-json=PATH`` or the ``cuke_usage_json`` pytest setting. A file
+path is required; relative paths resolve from the pytest root directory. The
+report uses the JSON schema emitted by the selected Cucumber backend and keeps
+definition rows, match records, source locations, and available durations
+machine-readable, including discovered definitions without matches. Match
+records identify feature URI, source line, and interpolated step text; the
+backend does not serialize per-execution IDs.
+
+This formatter writes only to its requested file. It can run beside one
+terminal formatter such as ``--cuke-summary`` and other report files, provided
+each destination is distinct. Missing directories, duplicate destinations,
+and formatter failures are reported by the shared formatter runtime.
+
+The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
+installed in the pytest root directory. When usage JSON is not selected,
+pytest-cuke does not check for these optional dependencies.
+
 Lifecycle and distributed runs
 -------------------------------
 
