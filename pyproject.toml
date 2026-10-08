@@ -342,4 +342,5 @@ cuke_json = ""
 cuke_messages_ndjson = ""
 cuke_html = ""
 cuke_progress = false
+cuke_progress_bar = false
 cuke_summary = false

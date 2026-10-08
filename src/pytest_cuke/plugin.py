@@ -38,6 +38,8 @@ from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_cuke.cucumber_pretty import selected_pretty_formatter_requests
 from pytest_cuke.cucumber_progress import add_options as add_cucumber_progress_options
 from pytest_cuke.cucumber_progress import progress_formatter_selected, selected_progress_formatter_requests
+from pytest_cuke.cucumber_progress_bar import add_options as add_cucumber_progress_bar_options
+from pytest_cuke.cucumber_progress_bar import progress_bar_formatter_selected, selected_progress_bar_formatter_requests
 from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp.options import add_options as add_debug_mcp_options
 from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin
@@ -92,13 +94,21 @@ def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
 
 def pytest_cuke_formatter_requests(config: Config) -> tuple[FormatterRequest, ...]:
     """Return built-in live formatter requests selected through pytest-cuke options."""
-    return (*selected_pretty_formatter_requests(config), *selected_progress_formatter_requests(config))
+    return (
+        *selected_pretty_formatter_requests(config),
+        *selected_progress_formatter_requests(config),
+        *selected_progress_bar_formatter_requests(config),
+    )
 
 
 @pytest.hookimpl(tryfirst=True)
 def pytest_report_teststatus(report: Any, config: Config) -> tuple[str, str, str] | None:
     """Keep pytest's per-test glyphs from overwriting selected Cucumber progress output."""
-    if not progress_formatter_selected(config) or report.when != "call" or not hasattr(report, "scenario"):
+    if (
+        not (progress_formatter_selected(config) or progress_bar_formatter_selected(config))
+        or report.when != "call"
+        or not hasattr(report, "scenario")
+    ):
         return None
     return report.outcome, "", ""
 
@@ -269,6 +279,7 @@ def pytest_addoption(parser: Parser) -> None:
     cucumber_json.add_options(parser)
     generation.add_options(parser)
     add_cucumber_progress_options(parser)
+    add_cucumber_progress_bar_options(parser)
     MessagePlugin.add_options(parser)
     add_summary_options(parser)
     add_debug_mcp_options(parser)
