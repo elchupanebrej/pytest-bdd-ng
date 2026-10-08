@@ -115,6 +115,27 @@ Progress uses Node.js and the ``@cucumber/pretty-formatter`` package installed
 in the pytest root directory. When the option is not selected, pytest-cuke
 does not check for either dependency.
 
+Built-in Cucumber progress bar
+------------------------------
+
+Select the progress bar with ``--cuke-progress-bar`` or
+``cuke_progress_bar = true`` in pytest configuration. In a TTY it updates the
+completed/total scenario count, width-aware bar, and status marker as each
+scenario attempt finishes. The width falls back to 80 columns when pytest has
+no terminal width metadata. Retry attempts update their Pickle's completed
+count without increasing the total past 100 percent.
+
+When stdout is piped, the formatter emits only the readable status markers and
+the final Cucumber summary; it does not write cursor-control sequences. Failed
+and skipped attempts use their worse step outcome. The bar can share a run
+with Messages and file formatters, but it cannot share stdout with
+``--cuke-pretty`` or ``--cuke-progress``.
+
+The progress bar uses Node.js and ``@cucumber/pretty-formatter`` in the pytest
+root directory. The shared formatter catalog checks these dependencies only
+when the option is selected. Unselected tests remain independent of Node and
+npm.
+
 Lifecycle and distributed runs
 -------------------------------
 
