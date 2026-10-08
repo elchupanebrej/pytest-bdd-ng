@@ -361,22 +361,80 @@ def _assert_distinct_file_reports(consumer: Any) -> None:
     cucumber_json_path = root / "artifacts" / "report.json"
     assert cucumber_json_path.is_file() and cucumber_json_path.stat().st_size > 0, cucumber_json_path
     cucumber_report = json.loads(cucumber_json_path.read_text(encoding="utf-8"))
-    assert isinstance(cucumber_report, (dict, list)) and cucumber_report, cucumber_report
+    assert isinstance(cucumber_report, list) and len(cucumber_report) == 1, cucumber_report
+    feature = cucumber_report[0]
+    assert feature.get("name") == "Official Cucumber snippets use Messages metadata", feature
+    scenarios = feature.get("elements")
+    assert isinstance(scenarios, list) and len(scenarios) == 5, scenarios
+    expected_scenarios = {
+        "A defined control step runs normally": (
+            "Given",
+            "a snippet control step that records normal execution",
+            "passed",
+        ),
+        "An undefined Given with a quoted parameter produces a snippet": (
+            "Given",
+            'a customer named "Zoë" is registered',
+            "undefined",
+        ),
+        "An undefined When with a numeric parameter produces a snippet": (
+            "When",
+            "the customer waits 42 seconds",
+            "undefined",
+        ),
+        "An undefined Then with a numeric parameter produces a snippet": (
+            "Then",
+            "the customer receives 3 results",
+            "undefined",
+        ),
+        "A custom parameter type is available for a snippet": (
+            "Given",
+            "the selected shade is cobalt",
+            "undefined",
+        ),
+    }
+    assert {scenario.get("name") for scenario in scenarios} == set(expected_scenarios), scenarios
+    for scenario in scenarios:
+        steps = scenario.get("steps")
+        assert isinstance(steps, list) and len(steps) == 1, scenario
+        step = steps[0]
+        assert (step.get("keyword"), step.get("name"), step.get("result", {}).get("status")) == (
+            *expected_scenarios[scenario["name"]],
+        ), scenario
 
     junit_path = root / "artifacts" / "junit.xml"
     assert junit_path.is_file() and junit_path.stat().st_size > 0, junit_path
     junit_root = ET.parse(junit_path).getroot()
     assert junit_root.tag in {"testsuite", "testsuites"}, junit_root.tag
-    test_count = int(junit_root.get("tests", "0"))
-    if junit_root.tag == "testsuites":
-        test_count += sum(int(suite.get("tests", "0")) for suite in junit_root.findall("testsuite"))
-    assert test_count >= 5, f"JUnit should report all five consumer scenarios: {test_count}"
+    junit_suites = [suite for suite in junit_root.iter() if suite.tag == "testsuite"]
+    assert len(junit_suites) == 1, [suite.attrib for suite in junit_suites]
+    junit_counts = {
+        attribute: sum(int(suite.get(attribute, "0")) for suite in junit_suites)
+        for attribute in ("tests", "failures", "errors")
+    }
+    assert junit_counts == {"tests": 5, "failures": 4, "errors": 0}, junit_counts
+    failure_entries = list(junit_root.iter("failure"))
+    assert len(failure_entries) == 4, failure_entries
+    assert all("StepDefinitionNotFoundError" in failure.get("message", "") for failure in failure_entries), (
+        failure_entries
+    )
+    assert not list(junit_root.iter("error")), "undefined steps should be test failures, not JUnit errors"
 
     usage_path = root / "artifacts" / "usage.json"
     assert usage_path.is_file() and usage_path.stat().st_size > 0, usage_path
     usage_report = json.loads(usage_path.read_text(encoding="utf-8"))
     event_counts = usage_report.get("event_counts")
-    assert isinstance(event_counts, dict) and event_counts.get("testRunFinished") == 1, usage_report
+    assert isinstance(event_counts, dict), usage_report
+    assert {
+        event_name: event_counts.get(event_name)
+        for event_name in ("pickle", "testCase", "testStepFinished", "testCaseFinished", "testRunFinished")
+    } == {
+        "pickle": 5,
+        "testCase": 5,
+        "testStepFinished": 5,
+        "testCaseFinished": 5,
+        "testRunFinished": 1,
+    }, usage_report
 
 
 @given("the consumer prepares an undefined-step snippets scenario with the default configuration")
