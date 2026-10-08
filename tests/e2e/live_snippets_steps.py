@@ -524,6 +524,45 @@ def node_and_npm_are_available_without_cucumber_snippets(consumer: Any) -> None:
     consumer.env.update(environment)
 
 
+@given("the consumer exposes an isolated Node executable without npm")
+def consumer_exposes_node_without_npm(consumer: Any) -> None:
+    root = getattr(consumer, "_snippets_workspace", _consumer_root(consumer))
+    node_bin = root / "node-only-bin"
+    node_bin.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        node_stub = node_bin / "node.cmd"
+        node_stub.write_text("@echo off\r\nexit /b 0\r\n", encoding="utf-8")
+        pathext = consumer.env.get("PATHEXT", os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD"))
+        extensions = [extension for extension in pathext.split(";") if extension]
+        if not any(extension.casefold() == ".cmd" for extension in extensions):
+            extensions.append(".CMD")
+        consumer.env["PATHEXT"] = ";".join(extensions)
+    else:
+        node_stub = node_bin / "node"
+        node_stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        node_stub.chmod(node_stub.stat().st_mode | 0o111)
+
+    isolated_path = os.pathsep.join((str(node_bin), str(Path(consumer.python).parent)))
+    consumer.env["PATH"] = isolated_path
+    consumer.env.pop("NODE_PATH", None)
+    assert len(consumer.env["PATH"].split(os.pathsep)) == 2, consumer.env["PATH"]
+    assert shutil.which("npm", path=isolated_path) is None, "the isolated consumer PATH must not expose npm"
+    if os.name == "nt":
+        detected = subprocess.run(
+            [str(consumer.python), "-c", "import shutil; print(shutil.which('node') or '')"],
+            env=consumer.env,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+        assert detected.returncode == 0, detected.stderr
+        assert Path(detected.stdout.strip()).name.casefold() == "node.cmd", detected.stdout
+    else:
+        detected = shutil.which("node", path=isolated_path)
+        assert detected is not None and Path(detected).resolve() == node_stub.resolve(), detected
+
+
 @then("missing Cucumber snippets package preflight should be actionable and happen before execution")
 def missing_cucumber_package_fails_before_scenario(consumer: Any) -> None:
     result = consumer.pytest_result
@@ -533,6 +572,18 @@ def missing_cucumber_package_fails_before_scenario(consumer: Any) -> None:
     assert "npm install @cucumber/cucumber" in output.lower(), output
     assert not (_consumer_root(consumer) / "scenario-started.marker").exists(), (
         "the test scenario ran before missing @cucumber/cucumber was rejected"
+    )
+
+
+@then("missing npm snippets preflight should be actionable and happen before execution")
+def missing_npm_cucumber_preflight_fails_before_scenario(consumer: Any) -> None:
+    result = consumer.pytest_result
+    output = _output(consumer)
+    assert result is not None and result.returncode != 0, output
+    assert "formatter 'cucumber-snippets' requires executable 'npm'" in output, output
+    assert "but it was not found on PATH" in output, output
+    assert not (_consumer_root(consumer) / "scenario-started.marker").exists(), (
+        "the test scenario ran before missing npm was rejected"
     )
 
 
