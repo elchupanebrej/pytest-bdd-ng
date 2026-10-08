@@ -171,6 +171,29 @@ The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
 installed in the pytest root directory. When the summary is not selected,
 pytest-cuke does not check for these dependencies.
 
+Built-in Cucumber step-definition usage
+---------------------------------------
+
+Select Cucumber's step-definition usage report with ``--cuke-usage`` or
+``--cuke-usage=-`` to write it to the terminal. Provide a path with
+``--cuke-usage=PATH`` to write the report to a file; relative paths are
+resolved from the pytest root directory. The equivalent ``cuke_usage`` ini
+setting accepts ``-`` for terminal output or a file path. With no option or
+setting, the formatter is disabled.
+
+The report includes every discovered step definition, marks unused definitions,
+and reports match examples, durations, patterns and source locations from
+Cucumber Messages. Terminal output adapts its columns to the available width.
+File output does not occupy the terminal formatter slot, so it can coexist
+with a terminal renderer and distinct JSON, JUnit XML, and other formatter
+files. Terminal usage output cannot share stdout with ``--cuke-pretty``,
+``--cuke-progress``, ``--cuke-progress-bar``, ``--cuke-snippets`` or
+``--cuke-summary``.
+
+The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
+installed in the pytest root directory. When usage is not selected, pytest-cuke
+does not check for these dependencies.
+
 Lifecycle and distributed runs
 -------------------------------
 
