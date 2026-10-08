@@ -19,6 +19,9 @@ Feature: Cucumber undefined-step snippets
     And the consumer enables cuke_snippets in its configuration
     When I run installed pytest from consumer directory "snippet workspace 東京 café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=artifacts/messages.ndjson -v --capture=tee-sys --color=no"
     Then the configuration selection should emit each JavaScript expression alternative once and preserve the undefined failure
+    And the consumer patches the pinned snippets formatter to fail after receiving the run messages
+    When I run installed pytest from consumer directory "snippet workspace 東京 café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets -q --color=no"
+    Then the snippets backend failure should preserve pytest's undefined-step failures
 
   Scenario: Missing selected backend dependencies fail before a scenario starts
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
