@@ -1585,26 +1585,34 @@ class MessagePlugin:
         if report.when == "teardown":
             self._finish_scenario_test_case(scenario_run)
 
+    def _start_test_case(self, *, config: Config, test_case: TestCase, attempt: int) -> TestCaseStarted:
+        test_case_started = TestCaseStarted(
+            attempt=attempt,
+            id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
+            test_case_id=test_case.id,
+            worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
+            timestamp=self.get_timestamp(),
+        )
+        self.current_test_case_start = test_case_started
+        config.hook.pytest_cuke_message(
+            config=config,
+            message=Message(test_case_started=test_case_started),
+        )
+        return test_case_started
+
     def _finish_setup_skipped_test_case(self, scenario_run: Any, report: TestReport) -> None:
         message_state = scenario_run.message_state
         test_case = message_state.test_case
         if test_case is None or message_state.test_case_started is not None:
             return
 
-        test_case_started = TestCaseStarted(
+        test_case_started = self._start_test_case(
+            config=self.config,
+            test_case=test_case,
             attempt=message_state.attempt,
-            id=cast("PytestBDDIdGeneratorHandler", self.config).pytest_cuke_id_generator.get_next_id(),
-            test_case_id=test_case.id,
-            worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
-            timestamp=self.get_timestamp(),
         )
-        message_state.test_case_started = test_case_started
         scenario_run.test_case_started_id = test_case_started.id
         scenario_run.attempt_id = test_case_started.id
-        self.config.hook.pytest_cuke_message(
-            config=self.config,
-            message=Message(test_case_started=test_case_started),
-        )
 
         longrepr = getattr(report, "longrepr", None)
         skip_reason = str(longrepr[-1] if isinstance(longrepr, tuple) and longrepr else longrepr or "")
@@ -1712,26 +1720,18 @@ class MessagePlugin:
         if self.is_disabled:
             return
         config = request.config
-        hook_handler = config.hook
         run.require_feature("pytest_cuke_before_scenario")
         run.require_scenario("pytest_cuke_before_scenario")
         current_test_case = self._get_current_test_case()
 
-        self.current_test_case_start = TestCaseStarted(
+        current_test_case_start = self._start_test_case(
+            config=config,
+            test_case=current_test_case,
             attempt=self._get_scenario_state("attempt", self._cucumber_attempt(request.node)),
-            id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
-            test_case_id=current_test_case.id,
-            worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
-            timestamp=self.get_timestamp(),
         )
         active_run = run.active_scenario_run
         if active_run is not None and active_run.nodeid == request.node.nodeid:
-            run.set_attempt_id(self.current_test_case_start.id)
-
-        hook_handler.pytest_cuke_message(
-            config=config,
-            message=Message(test_case_started=self.current_test_case_start),
-        )
+            run.set_attempt_id(current_test_case_start.id)
 
     def pytest_cuke_after_scenario(self, request: FixtureRequest, run: RunContext) -> None:
         if self.is_disabled:
