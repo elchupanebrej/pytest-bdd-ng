@@ -42,6 +42,8 @@ from pytest_cuke.cucumber_progress_bar import add_options as add_cucumber_progre
 from pytest_cuke.cucumber_progress_bar import progress_bar_formatter_selected, selected_progress_bar_formatter_requests
 from pytest_cuke.cucumber_snippets import add_options as add_cucumber_snippets_options
 from pytest_cuke.cucumber_snippets import selected_snippets_formatter_requests
+from pytest_cuke.cucumber_summary import add_options as add_cucumber_summary_options
+from pytest_cuke.cucumber_summary import selected_summary_formatter_requests
 from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp.options import add_options as add_debug_mcp_options
 from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin
@@ -56,7 +58,7 @@ from pytest_cuke.native_allure_worker import NativeAllureWorkerBridge, NativeAll
 from pytest_cuke.npm_resource import check_npm, check_npm_package
 from pytest_cuke.parser import GherkinParser, MarkdownGherkinParser, clear_parser_registrations
 from pytest_cuke.parsers import cucumber_expression
-from pytest_cuke.reporting import ScenarioReporterPlugin, ScenarioSummaryPlugin, add_summary_options
+from pytest_cuke.reporting import ScenarioReporterPlugin
 from pytest_cuke.runner import ScenarioRunner
 from pytest_cuke.scenario import FeaturePathType, scenarios
 from pytest_cuke.scenario import add_options as scenario_add_options
@@ -100,6 +102,7 @@ def pytest_cuke_formatter_requests(config: Config) -> tuple[FormatterRequest, ..
         *selected_progress_formatter_requests(config),
         *selected_progress_bar_formatter_requests(config),
         *selected_snippets_formatter_requests(config),
+        *selected_summary_formatter_requests(config),
     )
 
 
@@ -284,7 +287,7 @@ def pytest_addoption(parser: Parser) -> None:
     add_cucumber_progress_bar_options(parser)
     add_cucumber_snippets_options(parser)
     MessagePlugin.add_options(parser)
-    add_summary_options(parser)
+    add_cucumber_summary_options(parser)
     add_debug_mcp_options(parser)
 
 
@@ -616,11 +619,6 @@ def pytest_configure(config: Config) -> None:
             message_session_finish_hook(message_plugin),
             name="pytest_cuke_messages_session_finish",
         )
-    summary_enabled = config.option.cuke_summary
-    if summary_enabled is None:
-        summary_enabled = config.getini("cuke_summary")
-    if summary_enabled:
-        config.pluginmanager.register(ScenarioSummaryPlugin(), name="pytest_cuke_summary")
     vars(config)["__allure_plugin__"] = (
         None if _allure_output_path(config) is not None else AllurePytestBDD.register_if_allure_accessible(config)
     )
@@ -770,7 +768,6 @@ def pytest_unconfigure(config: Config) -> None:
         config.pluginmanager.unregister(name="pytest_cuke_formatter_session")
     config.pluginmanager.unregister(name="pytest_cuke_messages_session_finish")
     config.pluginmanager.unregister(name="pytest_cuke_messages")
-    config.pluginmanager.unregister(name="pytest_cuke_summary")
     native_allure_reporter = config.pluginmanager.get_plugin("pytest_cuke_native_allure")
     if native_allure_reporter is not None:
         stop = getattr(native_allure_reporter, "stop", None)

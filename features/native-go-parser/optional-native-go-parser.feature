@@ -25,7 +25,7 @@ Feature: Optional native Go parser and Python fallback
           Given the parser selection scenario starts
           Then the selected parser scenario completes
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-parser=python --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=python"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
 
@@ -36,7 +36,7 @@ Feature: Optional native Go parser and Python fallback
       Feature: Parser selection
         Scenario: Automatic parser fallback
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-parser=auto --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=auto"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And pytest output should contain "falling back to Python"
@@ -48,7 +48,7 @@ Feature: Optional native Go parser and Python fallback
       Feature: Parser selection
         Scenario: Explicit Go parser selection
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-parser=go --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=go"
     Then pytest should exit with a non-zero code
     And pytest output should contain "Go parser"
     And pytest output should contain "install"
@@ -61,7 +61,6 @@ Feature: Optional native Go parser and Python fallback
       [tool.pytest.ini_options]
       cuke_features_dir = "features"
       cuke_autoload = true
-      cuke_summary = true
       cuke_parser = "go"
       """
     And consumer file "features/parser-selection.feature" contains:
@@ -80,7 +79,6 @@ Feature: Optional native Go parser and Python fallback
       [tool.pytest.ini_options]
       cuke_features_dir = "features"
       cuke_autoload = true
-      cuke_summary = true
       cuke_parser = "python"
       """
     And consumer file "features/parser-selection.feature" contains:
@@ -99,7 +97,7 @@ Feature: Optional native Go parser and Python fallback
       Feature: Parser selection
         Scenario: Unknown parser fallback
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-parser=not-a-parser --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=not-a-parser"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And pytest output should contain "unknown"
@@ -114,7 +112,7 @@ Feature: Optional native Go parser and Python fallback
           Given a valid first step
           Invalid syntax without keyword
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-parser=auto --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=auto"
     Then pytest should exit with a non-zero code
     And pytest output should contain "malformed.feature"
     And pytest output should contain "parse"
@@ -149,6 +147,6 @@ Feature: Optional native Go parser and Python fallback
       """
     When I run the native parser model parity test in the installed consumer
     Then the installed native wheel preserves the Python Feature model
-    When I run installed pytest with arguments "--rootdir=. --cuke-parser=go --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=go"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios

@@ -30,7 +30,6 @@ Feature: Cached batch feature collection
       [tool.pytest.ini_options]
       cuke_features_dir = "features"
       cuke_autoload = true
-      cuke_summary = true
       cuke_batch_threshold = 2
       """
     And the consumer cannot start spawn workers
@@ -45,7 +44,6 @@ Feature: Cached batch feature collection
       [tool.pytest.ini_options]
       cuke_features_dir = "features"
       cuke_autoload = true
-      cuke_summary = true
       cuke_batch_threshold = 3
       """
     And the consumer cannot start spawn workers
@@ -102,7 +100,7 @@ Feature: Cached batch feature collection
       def test_second_explicit_binding(scenario):
           assert scenario.name == "Second requested scenario"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload"
     Then pytest should exit with code 0
     And the test outcome should have 4 passed scenarios
 
@@ -137,7 +135,7 @@ Feature: Cached batch feature collection
 
           Examples: table: unreadable.csv
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-batch-threshold=1 --cuke-summary"
+    When I run installed pytest with arguments "--rootdir=. --cuke-batch-threshold=1"
     Then pytest should exit with a non-zero code
     And pytest output should contain "malformed.feature"
     And pytest output should contain "parse"

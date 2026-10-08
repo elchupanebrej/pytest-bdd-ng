@@ -39,7 +39,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_explicit_unmatched_scenario():
           Path("pytest-body.txt").write_text("ran", encoding="utf-8")
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-summary -q tests/test_explicit_unmatched.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python -q tests/test_explicit_unmatched.py"
     Then collection should reject consumer feature "features/explicit-unmatched.feature", scenario "The explicit scenario has no matching definitions", and step "the first explicit step is unmatched" before files "preventive-hooks.txt" and "pytest-body.txt" are created
     And pytest output should include "the second explicit step is unmatched"
 
@@ -89,7 +89,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_explicit_unmatched_scenario():
           Path("pytest-body.txt").write_text("ran", encoding="utf-8")
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-allow-empty-scenarios --cuke-summary -rs -q tests/test_explicit_unmatched.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-allow-empty-scenarios -rs -q tests/test_explicit_unmatched.py"
     Then pytest should skip all-unmatched scenario "The explicit scenario has no matching definitions" with a meaningful reason from feature "features/explicit-unmatched.feature" before files "preventive-hooks.txt" and "pytest-body.txt" are created
     And pytest output should include "No scenario step matched a step definition"
 
@@ -139,7 +139,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_explicit_unmatched_scenario():
           Path("pytest-body.txt").write_text("ran", encoding="utf-8")
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-summary -rs -q tests/test_explicit_unmatched.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python -rs -q tests/test_explicit_unmatched.py"
     Then pytest should skip all-unmatched scenario "The explicit scenario has no matching definitions" with a meaningful reason from feature "features/explicit-unmatched.feature" before files "preventive-hooks.txt" and "pytest-body.txt" are created
     And pytest output should include "No scenario step matched a step definition"
 
@@ -173,7 +173,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_empty_scenario_title():
           Path("strict-title-test-body.txt").write_text("ran", encoding="utf-8")
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-allow-empty-scenarios --cuke-strict --cuke-summary -q tests/test_strict_title.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-allow-empty-scenarios --cuke-strict -q tests/test_strict_title.py"
     Then pytest should exit with a non-zero code
     And pytest output should include "EMPTY_HEADING_TITLE"
     And pytest output should identify source "strict-title.feature" at the line containing "Scenario:" in consumer feature "features/strict-title.feature"
@@ -227,7 +227,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_partial_match_reaches_runtime():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-summary -q tests/test_partial_match.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python -q tests/test_partial_match.py"
     Then pytest should exit with a non-zero code
     And pytest output should include "Step definition is not found"
     And pytest output should include "the unmatched partial step is absent"
@@ -309,7 +309,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_fully_matched_registry():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-summary -q tests/test_matched_registry.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python -q tests/test_matched_registry.py"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer marker file "registry-body-calls.txt" should contain lines "parent-exact,module-parse,module-regex,module-expression"
@@ -371,7 +371,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_excluded_by_keyword_only():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload -k test_selected_guard --cuke-summary -q tests/test_filter_unmatched.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload -k test_selected_guard -q tests/test_filter_unmatched.py"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And pytest output should report exactly 2 deselected items
@@ -433,7 +433,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_unmatched_with_other_marker():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload -m selected_validation --cuke-summary -q tests/test_filter_unmatched.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload -m selected_validation -q tests/test_filter_unmatched.py"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And pytest output should report exactly 2 deselected items
@@ -460,7 +460,7 @@ Feature: Preventive guard for all-unmatched scenarios
           Given the first autoloaded step is unmatched
           When the second autoloaded step is unmatched
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "Step definition is not found"
     And pytest output should include "the first autoloaded step is unmatched"
@@ -489,7 +489,7 @@ Feature: Preventive guard for all-unmatched scenarios
           Given the first autoloaded mock-run step is unmatched
           When the second autoloaded mock-run step is unmatched
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "the first autoloaded mock-run step is unmatched"
     And pytest output should include "the second autoloaded mock-run step is unmatched"
@@ -514,7 +514,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_zero_step_scenario():
           Path("zero-step-body.txt").write_text("ran", encoding="utf-8")
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-summary -q tests/test_zero_step.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python -q tests/test_zero_step.py"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And the consumer file "zero-step-body.txt" should exist
@@ -552,7 +552,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_mock_run_unmatched_scenario():
           Path("mock-run-body.txt").write_text("ran", encoding="utf-8")
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-mock-run --cuke-summary -q tests/test_mock_run_unmatched.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-mock-run -q tests/test_mock_run_unmatched.py"
     Then pytest should exit with a non-zero code
     And pytest output should include "the first mock-run step is unmatched"
     And pytest output should include "the second mock-run step is unmatched"
@@ -577,7 +577,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_generation_target():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-generate-missing --cuke-feature=features/generation-unmatched.feature --cuke-summary -q tests/test_generation_unmatched.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-generate-missing --cuke-feature=features/generation-unmatched.feature -q tests/test_generation_unmatched.py"
     Then pytest should exit with code 0
     And pytest output should include "the step generated in generation mode is missing"
     And pytest output should include "Please place the code above to the test file(s):"
@@ -602,7 +602,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_generation_code_target():
           Path("generation-code-body.txt").write_text("ran", encoding="utf-8")
       """
-    When I run installed pytest from consumer directory "." with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-generate --cuke-feature={consumer_path}/features/generation-code.feature --cuke-summary -q tests/test_generation_code.py"
+    When I run installed pytest from consumer directory "." with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-generate --cuke-feature={consumer_path}/features/generation-code.feature -q tests/test_generation_code.py"
     Then pytest should exit with code 0
     And pytest output should include "the generation-owned step is missing"
     And pytest output should include "raise NotImplementedError"
@@ -650,7 +650,7 @@ Feature: Preventive guard for all-unmatched scenarios
       def test_second_session_registry():
           Path("second-session-body.txt").write_text("ran", encoding="utf-8")
       """
-    When I run installed pytest twice in one process with arguments "--rootdir=first --cuke-no-autoload --cuke-parser=python --cuke-features-dir=features --cuke-summary -q first/tests/test_first_registry.py" and then "--rootdir=second --cuke-no-autoload --cuke-parser=python --cuke-features-dir=features --cuke-summary -q second/tests/test_second_registry.py"
+    When I run installed pytest twice in one process with arguments "--rootdir=first --cuke-no-autoload --cuke-parser=python --cuke-features-dir=features -q first/tests/test_first_registry.py" and then "--rootdir=second --cuke-no-autoload --cuke-parser=python --cuke-features-dir=features -q second/tests/test_second_registry.py"
     Then consumer repeated pytest sessions should exit with codes "0,4"
     And pytest output should include "UsageError"
     And pytest output should identify source "second/features/session-registry.feature" at the line containing "Given the session registry step is shared" in consumer feature "second/features/session-registry.feature"

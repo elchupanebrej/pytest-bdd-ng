@@ -77,12 +77,12 @@ Feature: Binding-only mock run validation
         Scenario: Every step binding is present
           Given the bound step body records its execution
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer marker artifact "mock-run-markers.txt" should contain the normal BDD execution markers
     When I remove consumer file "mock-run-markers.txt"
-    And I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run --cuke-summary -q"
+    And I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer marker artifact "mock-run-markers.txt" should contain only 1 instance of the pytest test-function body marker
@@ -161,7 +161,7 @@ Feature: Binding-only mock run validation
           And the missing binding probe alpha is absent
           And the missing binding probe beta is absent
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "the missing binding probe alpha is absent"
     And pytest output should include "the missing binding probe beta is absent"
@@ -231,7 +231,7 @@ Feature: Binding-only mock run validation
       def test_explicit_all_missing_bindings():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "the missing explicit binding first is absent"
     And pytest output should include "the missing explicit binding second is absent"
@@ -389,7 +389,7 @@ Feature: Binding-only mock run validation
       def test_selected_outline_validation_but_marker_filtered():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload -k test_selected_outline_validation -m mock_validation --cuke-messages-ndjson=selected-outline.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload -k test_selected_outline_validation -m mock_validation --cuke-messages-ndjson=selected-outline.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And pytest output should not include "the missing keyword-filtered binding is absent"
@@ -440,7 +440,7 @@ Feature: Binding-only mock run validation
           Given the first missing IDE message step is absent
           When the second missing IDE message step is absent
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run --cuke-messages-ndjson=mock-run.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run --cuke-messages-ndjson=mock-run.ndjson -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "the first missing IDE message step is absent"
     And pytest output should include "the second missing IDE message step is absent"

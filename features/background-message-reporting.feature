@@ -85,20 +85,20 @@ Feature: Cucumber Messages reporting for Background execution
             | 2      | 12       |
             | 7      | 17       |
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/basic --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/basic -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And the consumer file "messages.ndjson" should not exist
     And the consumer file "report.json" should not exist
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/basic --cuke-messages-ndjson=messages-only.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/basic --cuke-messages-ndjson=messages-only.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "messages-only.ndjson" should preserve the two-row feature Background step identities
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/basic --cuke-json=json-only.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/basic --cuke-json=json-only.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "json-only.json" should report both Background rows as passed
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/basic --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/basic --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "messages.ndjson" should preserve the two-row feature Background step identities
@@ -145,7 +145,7 @@ Feature: Cucumber Messages reporting for Background execution
               | 2      | 12       |
               | 7      | 17       |
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/rule --cuke-messages-ndjson=rule-messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/rule --cuke-messages-ndjson=rule-messages.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "rule-messages.ndjson" should preserve repeated feature and Rule Background step identities
@@ -232,13 +232,13 @@ Feature: Cucumber Messages reporting for Background execution
         Scenario: A failed Background fixture closes the scenario lifecycle
           When the scenario step after a setup failure must not run
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/failure --cuke-messages-ndjson=failure.ndjson --cuke-json=failure.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/failure --cuke-messages-ndjson=failure.ndjson --cuke-json=failure.json -q"
     Then pytest should exit with a non-zero code
     And consumer artifact "failure.ndjson" should close the Background lifecycle with statuses "failed, skipped, skipped, skipped" and an unsuccessful run
     And consumer artifact "failure.json" should report the Background failure and skipped steps
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/skip --cuke-messages-ndjson=skip.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/skip --cuke-messages-ndjson=skip.ndjson -q"
     Then pytest should exit with code 0
     And consumer artifact "skip.ndjson" should close the Background lifecycle with statuses "skipped, skipped" and a successful run
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/setup --cuke-messages-ndjson=setup-failure.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/setup --cuke-messages-ndjson=setup-failure.ndjson -q"
     Then pytest should exit with a non-zero code
     And consumer artifact "setup-failure.ndjson" should close the Background lifecycle with statuses "failed, skipped" and an unsuccessful run

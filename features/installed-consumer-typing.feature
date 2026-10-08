@@ -78,7 +78,7 @@ Feature: Installed pytest-cuke typing contract
           When I double the installed number
           Then the installed result is 42
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-summary --color=no"
+    When I run installed pytest with arguments "--rootdir=. --color=no"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And the installed archive publishes type metadata for both public facades

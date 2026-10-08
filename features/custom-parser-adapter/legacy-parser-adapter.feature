@@ -5,7 +5,7 @@ Feature: Historical custom feature parsers use an explicit adapter
   Scenario: An installed extension parses its legacy feature during autoload
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer has the runnable custom parser example
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-json=legacy-report.json --cuke-summary --color=no"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-json=legacy-report.json --color=no"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And the installed custom parser example should preserve its invocation inputs, source, and report identity
@@ -45,7 +45,7 @@ Feature: Historical custom feature parsers use an explicit adapter
           assert feature.source_content == source.read_text(encoding="latin-1")
           assert Path(feature.filename).resolve() == source.resolve()
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload test_legacy_encoding.py --cuke-summary --color=no"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload test_legacy_encoding.py --color=no"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And the custom encoding invocation should preserve the Unicode source path and URI
@@ -53,7 +53,7 @@ Feature: Historical custom feature parsers use an explicit adapter
   Scenario: A missing optional codec does not prevent native Gherkin collection
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer has a native Gherkin feature and a custom parser with an absent optional codec
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary --continue-on-collection-errors -vv --color=no"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --continue-on-collection-errors -vv --color=no"
     Then pytest should exit with a non-zero code
     And the native Gherkin scenario should pass while the optional codec error is actionable
 
@@ -68,7 +68,7 @@ Feature: Historical custom feature parsers use an explicit adapter
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer has the runnable custom parser example
     And the legacy parser is configured to return a malformed result
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary --continue-on-collection-errors -vv --color=no"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --continue-on-collection-errors -vv --color=no"
     Then pytest should exit with a non-zero code
     And the legacy parser collection error should name the parser, source, and adapter remedy
 
@@ -76,6 +76,6 @@ Feature: Historical custom feature parsers use an explicit adapter
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer has the runnable custom parser example
     And the legacy parser is configured to raise an internal TypeError
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary --continue-on-collection-errors -vv --color=no"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --continue-on-collection-errors -vv --color=no"
     Then pytest should exit with a non-zero code
     And the original legacy parser TypeError should be preserved

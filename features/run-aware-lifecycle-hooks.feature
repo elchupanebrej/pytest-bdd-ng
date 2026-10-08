@@ -18,7 +18,7 @@ Feature: Run-aware lifecycle hooks
           When the custom caller step records "custom-middle"
           Then the last run-aware step records "custom-end"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer run-aware hook artifact "run-aware-master.jsonl" should show successful run transitions
@@ -69,7 +69,7 @@ Feature: Run-aware lifecycle hooks
               observation[key] = getattr(value, "name", value)
           Path("run-aware-cleanup.json").write_text(json.dumps(observation, sort_keys=True), encoding="utf-8")
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q"
     Then pytest should exit with code 1
     And consumer run-aware hook artifact "run-aware-master.jsonl" should distinguish failures and cleanup
 
@@ -85,7 +85,7 @@ Feature: Run-aware lifecycle hooks
         Scenario: Second pytest.main session starts clean
           Given the first run-aware step records "session-two"
       """
-    When I run installed pytest twice in one process with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary -q -k First" and then "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary -q -k Second"
+    When I run installed pytest twice in one process with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q -k First" and then "--rootdir=. --cuke-autoload --cuke-features-dir=features -q -k Second"
     Then consumer repeated pytest sessions should exit with codes "0,0"
     And consumer run-aware observations should isolate two pytest.main sessions
 
@@ -101,7 +101,7 @@ Feature: Run-aware lifecycle hooks
         Scenario: Second xdist worker scenario
           Given the first run-aware step records "worker-two"
       """
-    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-summary -q -n2 --dist=each"
+    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features -q -n2 --dist=each"
     Then pytest should exit with code 0
     And consumer run-aware xdist artifacts should show isolated contexts on two workers
 
@@ -109,7 +109,7 @@ Feature: Run-aware lifecycle hooks
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And Copy path from "examples/run-aware-hooks" to test path "run-aware-hooks"
     And the staged E2E example "run-aware-hooks" is copied to the installed consumer
-    When I run installed pytest from consumer directory "run-aware-hooks" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary -q"
+    When I run installed pytest from consumer directory "run-aware-hooks" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q"
     Then pytest should exit with code 0
     And the test outcome should have 3 passed scenarios
     And consumer run-aware example artifact "run-aware-hooks/run-aware-observations.jsonl" should show all scenarios, lifecycle context, and the attachment

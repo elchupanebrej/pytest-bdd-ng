@@ -20,7 +20,7 @@ Feature: Cucumber Messages reporting spine
         Scenario: An undefined reporting spine step stays undefined
           Given this reporting spine step has no definition
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
     And consumer reporting-spine artifacts "messages.ndjson" and "messages.validated.ndjson" should preserve outcome terminal events with protocol "28.0.0"
 
@@ -33,7 +33,7 @@ Feature: Cucumber Messages reporting spine
         Scenario: A step passes before pytest teardown fails
           Given the reporting spine step passes before pytest teardown
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
     And pytest output should contain "reporting spine teardown failure sentinel"
     And consumer reporting-spine artifacts "messages.ndjson" and "messages.validated.ndjson" should keep the passed step and failed run after teardown failure
@@ -62,7 +62,7 @@ Feature: Cucumber Messages reporting spine
         Scenario: The step passes before session finish fails
           Given the external session-finish scenario passes
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
     And pytest output should contain "external tryfirst pytest_sessionfinish failure sentinel"
     And consumer Messages artifact "messages.ndjson" should record the failed terminal run and AFTER_TEST_RUN diagnostic after an external tryfirst session-finish failure
@@ -184,7 +184,7 @@ Feature: Cucumber Messages reporting spine
       def test_reporting_spine_probe():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-messages-ndjson=messages.ndjson --cuke-summary -q test_reporting_spine.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-messages-ndjson=messages.ndjson -q test_reporting_spine.py"
     Then pytest should exit with code 1
     And the consumer should report one structured message diagnostic "INVALID_PAYLOAD_SHAPE" at position 7 with payload kind "null"
     And consumer Messages artifact "messages.ndjson" should retain the valid terminal reporting spine around the rejected "multi-payload" event
@@ -197,7 +197,7 @@ Feature: Cucumber Messages reporting spine
       def test_reporting_spine_probe():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-messages-ndjson=messages.ndjson --cuke-summary -q test_reporting_spine.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-messages-ndjson=messages.ndjson -q test_reporting_spine.py"
     Then pytest should exit with code 1
     And the consumer should report one structured message diagnostic "SCHEMA_VALIDATION_ERROR" at position 7 with payload kind "test_run_started"
     And consumer Messages artifact "messages.ndjson" should retain the valid terminal reporting spine around the rejected "schema-invalid" event
@@ -211,7 +211,7 @@ Feature: Cucumber Messages reporting spine
         Scenario: The extension probe runs
           Given the reporting spine probe passes
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
     And the consumer should report one structured message diagnostic "DUPLICATE_LIFECYCLE_ID" with payload kind "test_case_started"
     And consumer Messages artifact "messages.ndjson" should retain the valid terminal reporting spine around the rejected "duplicate-lifecycle-id" event
@@ -225,7 +225,7 @@ Feature: Cucumber Messages reporting spine
         Scenario: The extension probe runs
           Given the reporting spine probe passes
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
     And the consumer should report one structured message diagnostic "ORPHAN_REFERENCE" with payload kind "attachment"
     And consumer Messages artifact "messages.ndjson" should retain the valid terminal reporting spine around the rejected "orphan-reference" event
@@ -239,7 +239,7 @@ Feature: Cucumber Messages reporting spine
         Scenario: The extension probe runs
           Given the reporting spine probe passes
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
     And the late lifecycle probe should capture one structured message diagnostic "OUT_OF_ORDER_LIFECYCLE" with payload kind "test_run_hook_started"
     And consumer Messages artifact "messages.ndjson" should retain the valid terminal reporting spine around the rejected "out-of-order-lifecycle" event

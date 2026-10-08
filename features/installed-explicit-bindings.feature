@@ -37,7 +37,7 @@ Feature: Installed pytest-cuke explicit bindings
           "explicit-bindings.feature", filter_="Bound with scenarios"
       )
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-summary --cuke-json=explicit-report.json --color=no test_explicit_bindings.py"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-json=explicit-report.json --color=no test_explicit_bindings.py"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "explicit-report.json" should report both explicitly bound scenarios
