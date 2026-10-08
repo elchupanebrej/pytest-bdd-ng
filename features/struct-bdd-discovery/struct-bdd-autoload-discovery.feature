@@ -15,7 +15,7 @@ Feature: StructBDD autoload discovery
   Scenario: Overlapping directory and explicit file locators collect one scenario
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer has one structured feature selected through overlapping locators
-    When I run installed pytest with arguments "--rootdir=. --cuke-summary -vv --color=no test_overlap.py"
+    When I run installed pytest with arguments "--rootdir=. -vv --color=no test_overlap.py"
     Then pytest should exit with code 0
     And the overlapping locators should collect the structured scenario once
 
@@ -30,7 +30,7 @@ Feature: StructBDD autoload discovery
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer has a core Gherkin feature, malformed structured data, and an optional JSON5 feature
     And the consumer blocks the optional JSON5 loader
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary --continue-on-collection-errors -vv --color=no features"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --continue-on-collection-errors -vv --color=no features"
     Then pytest should exit with a non-zero code
     And the StructBDD collection errors should identify both source files and the optional install extra
     And the core Gherkin scenario should still pass

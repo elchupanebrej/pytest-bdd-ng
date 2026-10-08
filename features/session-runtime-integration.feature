@@ -70,7 +70,7 @@ Feature: Session-owned scenario runtime integration
           Given the scenario hook has observed the active runtime
           When I inspect the active scenario identity
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer runtime observation "runtime-observation.json" should link to scenario "An autoloaded scenario observes its execution context" in Messages "messages.ndjson" and report "report.json"
@@ -341,7 +341,7 @@ Feature: Session-owned scenario runtime integration
             | outline-a |
             | outline-b |
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=runtime-sequence.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=runtime-sequence.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 4 passed scenarios
     And consumer runtime artifact "runtime-sequence-observations.jsonl" should show isolated rows and monotonic hook phases
@@ -467,7 +467,7 @@ Feature: Session-owned scenario runtime integration
         Scenario: A fresh scenario follows a teardown failure
           Given a fresh BDD item follows the teardown failure
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q"
     Then pytest should exit with code 1
     And consumer runtime artifact "runtime-cleanup-observations.jsonl" should show failed teardown then clean BDD state
     And consumer runtime snapshot "plain-after-bdd-observation.json" should show clean plain pytest state after BDD teardown
@@ -505,7 +505,7 @@ Feature: Session-owned scenario runtime integration
           When the nonterminal tolerant step fails
           Then a later step passes
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=tolerant-teardown-runtime.ndjson --cuke-json=tolerant-teardown-runtime.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=tolerant-teardown-runtime.ndjson --cuke-json=tolerant-teardown-runtime.json -q"
     Then pytest should exit with code 1
     And consumer runtime artifacts "tolerant-teardown-runtime.ndjson" and "tolerant-teardown-runtime.json" should retain both step and teardown errors
 
@@ -583,7 +583,7 @@ Feature: Session-owned scenario runtime integration
         Scenario: Skip is retained after teardown cleanup
           Then a runtime step requests a skip
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=runtime-terminal-outcomes.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=runtime-terminal-outcomes.ndjson -q"
     Then pytest should exit with code 1
     And consumer runtime artifacts "runtime-terminal-outcomes.jsonl" and "runtime-terminal-outcomes.ndjson" should retain distinct terminal outcomes after cleanup
 
@@ -805,7 +805,7 @@ Feature: Session-owned scenario runtime integration
               | 2      | 13       |
               | 6      | 17       |
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=rule-runtime.ndjson --cuke-json=rule-runtime.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=rule-runtime.ndjson --cuke-json=rule-runtime.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer runtime artifacts "rule-runtime-observations.jsonl", "rule-runtime.ndjson" and "rule-runtime.json" should agree on Rule Background step links
@@ -913,7 +913,7 @@ Feature: Session-owned scenario runtime integration
         Scenario: South has its own worker root
           Given the xdist runtime source is south
       """
-    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=xdist-runtime.ndjson -n2 --dist=loadfile --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=xdist-runtime.ndjson -n2 --dist=loadfile -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer xdist runtime artifacts should show separate run roots in "xdist-runtime.ndjson"
@@ -1095,7 +1095,7 @@ Feature: Session-owned scenario runtime integration
         Scenario: The same scenario name executes
           Given the same source step name executes
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=source-identity.ndjson --cuke-json=source-identity.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=source-identity.ndjson --cuke-json=source-identity.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer runtime artifacts "source-identity-observations.jsonl", "source-identity.ndjson" and "source-identity.json" should keep source bindings and report identities separate
@@ -1191,7 +1191,7 @@ Feature: Session-owned scenario runtime integration
         Scenario: KeyboardInterrupt leaves an interrupted runtime outcome
           Given the runtime step interrupts pytest
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=interrupt-messages.ndjson --cuke-json=interrupt-report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=interrupt-messages.ndjson --cuke-json=interrupt-report.json -q"
     Then the interrupted consumer should exit with code 2, retain runtime artifacts "interrupt-after-scenario.json" and "interrupt-session-history.json", and report an UNKNOWN Messages step in "interrupt-messages.ndjson" and an UNKNOWN JSON result in "interrupt-report.json"
 
   Scenario: A teardown KeyboardInterrupt is retained by runtime and reporting
@@ -1293,7 +1293,7 @@ Feature: Session-owned scenario runtime integration
           When the first runtime action completes
           Then the terminal runtime action completes before pytest teardown
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=teardown-interrupt-messages.ndjson --cuke-json=teardown-interrupt-report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=teardown-interrupt-messages.ndjson --cuke-json=teardown-interrupt-report.json -q"
     Then pytest should exit with code 2
     And consumer runtime artifacts "teardown-after-scenario.json", "teardown-runtime.json", "teardown-interrupt-messages.ndjson" and "teardown-interrupt-report.json" should retain the teardown interruption
 
@@ -1354,7 +1354,7 @@ Feature: Session-owned scenario runtime integration
           When the preliminary scenario action completes
           Then the terminal scenario step is skipped
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=terminal-skip-interrupt-messages.ndjson --cuke-json=terminal-skip-interrupt-report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=terminal-skip-interrupt-messages.ndjson --cuke-json=terminal-skip-interrupt-report.json -q"
     Then pytest should exit with code 2
     And consumer artifacts "terminal-skip-before-teardown.json", "terminal-skip-interrupt-messages.ndjson" and "terminal-skip-interrupt-report.json" should report the teardown interruption over the skipped terminal step
 
@@ -1468,7 +1468,7 @@ Feature: Session-owned scenario runtime integration
           When the preliminary assertion scenario action completes
           Then the terminal runtime assertion fails with its sentinel
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=assertion-teardown-messages.ndjson --cuke-json=assertion-teardown-report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=assertion-teardown-messages.ndjson --cuke-json=assertion-teardown-report.json -q"
     Then pytest should exit with code 2
     And consumer runtime artifacts "assertion-before-teardown.json", "assertion-teardown-runtime.json", "assertion-teardown-messages.ndjson" and "assertion-teardown-report.json" should retain both assertion reporting and the teardown error
 
@@ -1570,7 +1570,7 @@ Feature: Session-owned scenario runtime integration
           When the middle scenario step is skipped
           Then the final scenario step remains unstarted
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=middle-skip-interrupt-messages.ndjson --cuke-json=middle-skip-interrupt-report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=middle-skip-interrupt-messages.ndjson --cuke-json=middle-skip-interrupt-report.json -q"
     Then pytest should exit with code 2
     And consumer runtime artifacts "middle-skip-before-teardown.json", "middle-skip-teardown-runtime.json", "middle-skip-interrupt-messages.ndjson" and "middle-skip-interrupt-report.json" should preserve skipped and interrupted step outcomes
 
@@ -1665,7 +1665,7 @@ Feature: Session-owned scenario runtime integration
           When the tolerant first step raises an AssertionError and continues
           Then the terminal scenario step completes successfully
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=tolerant-teardown-messages.ndjson --cuke-json=tolerant-teardown-report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=tolerant-teardown-messages.ndjson --cuke-json=tolerant-teardown-report.json -q"
     Then pytest should exit with code 2
     And consumer runtime artifacts "tolerant-before-teardown.json", "tolerant-teardown-runtime.json", "tolerant-teardown-messages.ndjson" and "tolerant-teardown-report.json" should preserve the tolerant failure and interrupt sentinels
 
@@ -1764,6 +1764,6 @@ Feature: Session-owned scenario runtime integration
           Then the middle runtime step remains unstarted
           And the final runtime step remains unstarted
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=undefined-teardown-messages.ndjson --cuke-json=undefined-teardown-report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=undefined-teardown-messages.ndjson --cuke-json=undefined-teardown-report.json -q"
     Then pytest should exit with code 2
     And consumer runtime artifacts "undefined-before-teardown.json", "undefined-teardown-runtime.json", "undefined-teardown-messages.ndjson" and "undefined-teardown-report.json" should preserve the undefined step and final teardown interruption

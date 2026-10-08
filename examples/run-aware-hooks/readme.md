@@ -15,6 +15,7 @@ From this directory, install pytest-cuke and run the example:
 
 ```sh
 python -m pip install -r requirements.txt
+npm install --no-save --no-package-lock "@cucumber/cucumber@13.3.0"
 python -m pytest --cuke-autoload --cuke-features-dir=features --cuke-summary
 ```
 

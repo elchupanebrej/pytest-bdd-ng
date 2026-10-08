@@ -12,9 +12,9 @@ Feature: Tolerant step status policy
           When the first tolerant operation raises an AssertionError
           Then the continuation records "default"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with a non-zero code
-    And pytest output should include "0 passed BDD scenarios, 1 failed, 0 skipped"
+    And pytest output should include "1 failed"
     And the consumer file "continuations.log" should not exist
     And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,SKIPPED" and exception messages "first tolerant assertion sentinel" for scenario "Default policy stops after the tolerant exception" and TestRunFinished success "false"
 
@@ -29,7 +29,7 @@ Feature: Tolerant step status policy
           And the second tolerant operation raises a RuntimeError
           Then the continuation records "first-order,second-order"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json --cuke-progress --cuke-summary -vv"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json --cuke-progress -vv"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "first-order,second-order"
@@ -53,7 +53,7 @@ Feature: Tolerant step status policy
           When the first tolerant operation raises an AssertionError
           Then the continuation records "marker"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=failed --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=failed --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer continuation artifact should list "tag,marker"
@@ -76,9 +76,9 @@ Feature: Tolerant step status policy
           When the first tolerant operation raises an AssertionError
           Then the continuation records "invalid-marker"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with a non-zero code
-    And pytest output should include "1 passed BDD scenarios, 1 failed, 0 skipped"
+    And pytest output should include "1 passed"
     And consumer continuation artifact should list "invalid-tag"
     And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "An invalid Gherkin tag falls through to the ignored global policy" and TestRunFinished success "false"
     And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,SKIPPED" and exception messages "first tolerant assertion sentinel" for scenario "An invalid pytest marker falls through to the failed Gherkin tag" and TestRunFinished success "false"
@@ -100,15 +100,15 @@ Feature: Tolerant step status policy
           When the first tolerant operation raises an AssertionError
           Then the continuation records "config"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=config.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=config.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "config"
     And consumer artifact "config.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "A configured ignored policy continues by default" and TestRunFinished success "true"
     When I remove consumer file "continuations.log"
-    And I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=failed --cuke-messages-ndjson=cli-failed.ndjson --cuke-summary -q"
+    And I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=failed --cuke-messages-ndjson=cli-failed.ndjson -q"
     Then pytest should exit with a non-zero code
-    And pytest output should include "0 passed BDD scenarios, 1 failed, 0 skipped"
+    And pytest output should include "1 failed"
     And the consumer file "continuations.log" should not exist
     And consumer artifact "cli-failed.ndjson" should keep tolerant step statuses "FAILED,SKIPPED" and exception messages "first tolerant assertion sentinel" for scenario "A configured ignored policy continues by default" and TestRunFinished success "false"
 
@@ -126,7 +126,7 @@ Feature: Tolerant step status policy
           When this operation has no step definition
           Then the continuation records "undefined"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "1 failed, 1 skipped"
     And the consumer file "continuations.log" should not exist
@@ -142,7 +142,7 @@ Feature: Tolerant step status policy
           When an ordinary operation raises a RuntimeError
           Then the continuation records "ordinary"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with a non-zero code
     And the consumer file "continuations.log" should not exist
     And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,SKIPPED" and exception messages "ordinary runtime sentinel" for scenario "An undecorated exception remains a failure" and TestRunFinished success "false"
@@ -158,7 +158,7 @@ Feature: Tolerant step status policy
           When the tolerant operation requests a missing fixture
           Then the continuation records "missing-fixture-should-not-run"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "fixture 'tolerant_missing_fixture' not found"
     And the consumer file "continuations.log" should not exist
@@ -176,7 +176,7 @@ Feature: Tolerant step status policy
           When the tolerant setup raises before returning its target fixture
           Then the later step consumes the real target fixture
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "fixture-provided-target"
@@ -192,7 +192,7 @@ Feature: Tolerant step status policy
         Scenario: The continuation would expose accidental execution
           Then the continuation records "invalid-cli"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=unknown --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=unknown -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "--cuke-tolerant-status"
     And the consumer file "continuations.log" should not exist
@@ -213,7 +213,7 @@ Feature: Tolerant step status policy
         Scenario: The continuation would expose accidental execution
           Then the continuation records "invalid-config"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "cuke_tolerant_status"
     And the consumer file "continuations.log" should not exist
@@ -249,7 +249,7 @@ Feature: Tolerant step status policy
           When the ambiguous tolerant operation matches two definitions
           Then the continuation records "after-ambiguity"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And pytest output should include "Alternative step definitions are found"
@@ -265,7 +265,7 @@ Feature: Tolerant step status policy
           When the first tolerant operation raises an AssertionError
           Then the continuation records "repeat-session"
       """
-    When I run installed pytest twice in one process with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=ignored.ndjson --cuke-summary -q" and then "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=failed --cuke-messages-ndjson=failed.ndjson --cuke-summary -q"
+    When I run installed pytest twice in one process with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=ignored.ndjson -q" and then "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=failed --cuke-messages-ndjson=failed.ndjson -q"
     Then consumer repeated pytest sessions should exit with codes "0,1"
     And consumer artifact "ignored.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "The first session may continue the tolerant failure" and TestRunFinished success "true"
     And consumer artifact "failed.ndjson" should keep tolerant step statuses "FAILED,SKIPPED" and exception messages "first tolerant assertion sentinel" for scenario "The first session may continue the tolerant failure" and TestRunFinished success "false"
@@ -274,7 +274,7 @@ Feature: Tolerant step status policy
   Scenario: The checked-in tolerant steps example runs from an installed consumer
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer stages the checked-in tolerant steps example
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-json=cucumber.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "continued"

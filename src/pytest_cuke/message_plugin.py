@@ -195,6 +195,7 @@ class MessagePlugin:
     process_messages_error_reported: bool = attrib(default=False)
     process_messages_closed: bool = attrib(default=False)
     process_messages_lock: Any = attrib(factory=Lock)
+    test_cases_by_nodeid: dict[str, TestCase] = attrib(factory=dict)
     parameter_type_registry: set[int] = attrib(factory=set)
     hook_registry: set[int] = attrib(factory=set)
     ide_bindings: IdeBindingCollection = attrib(factory=IdeBindingCollection)
@@ -1002,6 +1003,14 @@ class MessagePlugin:
             raise RuntimeError("There is no active pytest-cuke test case start event.")
         return self.current_test_case_start
 
+    @staticmethod
+    def _cucumber_attempt(item: Any) -> int:
+        """Return the zero-based Cucumber attempt number for a pytest item."""
+        execution_count = getattr(item, "execution_count", 0)
+        if isinstance(execution_count, int) and not isinstance(execution_count, bool):
+            return max(0, execution_count - 1)
+        return 0
+
     @hookimpl(hookwrapper=True, tryfirst=True)
     def pytest_sessionstart(self, session: Session) -> Generator[None, Any, Any]:
         if self.is_disabled:
@@ -1381,10 +1390,12 @@ class MessagePlugin:
             self.parameter_type_registry.update(not_yet_registered_parameter_types)
             step_registry = step_registry.parent
 
+        cached_test_case = self.test_cases_by_nodeid.get(item.nodeid)
         test_steps = []
         previous_step = None
 
         self._reset_current_test_case()
+        self._set_scenario_state("attempt", self._cucumber_attempt(item))
         self._set_scenario_state("defer_test_case_finish", True)
         feature_uri = feature.uri or feature.filename or feature.name
         callspec_id = getattr(getattr(request.node, "callspec", None), "id", "")
@@ -1392,7 +1403,11 @@ class MessagePlugin:
         scenario_id = scenario_pickle_id(scenario, uri=feature_uri, default_id=fallback_id)
         step_binding_records: list[tuple[Step, Any | None, tuple[Any, ...]]] = []
 
-        for step_index, step in enumerate(execution_steps(feature, scenario)):
+        scenario_steps = list(execution_steps(feature, scenario))
+        if cached_test_case is not None and len(cached_test_case.test_steps) != len(scenario_steps):
+            cached_test_case = None
+
+        for step_index, step in enumerate(scenario_steps):
             try:
                 step_matcher = request.getfixturevalue("step_matcher")
             except Exception:
@@ -1423,21 +1438,26 @@ class MessagePlugin:
             step_matches = tuple(getattr(step_matcher, "last_matches", ()))
             step_binding_records.append((step, step_definition, step_matches))
 
-            test_step = TestStep(
-                id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
-                pickle_step_id=f"{scenario_id}-step-{step_index}",
-                step_definition_ids=step_definition_ids,
+            test_step = (
+                cached_test_case.test_steps[step_index]
+                if cached_test_case is not None
+                else TestStep(
+                    id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
+                    pickle_step_id=f"{scenario_id}-step-{step_index}",
+                    step_definition_ids=step_definition_ids,
+                )
             )
             test_steps.append(test_step)
             self.current_test_case_step_order.append(test_step)
             self.current_test_case_step_id_to_step_mapping[id(step)] = test_step
 
-        current_test_case = TestCase(
+        current_test_case = cached_test_case or TestCase(
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
             pickle_id=scenario_id,
             test_steps=test_steps,
         )
         self.current_test_case = current_test_case
+        self.test_cases_by_nodeid[item.nodeid] = current_test_case
         run_context = get_run_context(config)
         if run_context is not None:
             active_run = run_context.active_scenario_run
@@ -1448,10 +1468,11 @@ class MessagePlugin:
                     test_steps=test_steps,
                 )
 
-        hook_handler.pytest_cuke_message(
-            config=config,
-            message=Message(test_case=current_test_case),
-        )
+        if cached_test_case is None:
+            hook_handler.pytest_cuke_message(
+                config=config,
+                message=Message(test_case=current_test_case),
+            )
 
         run_context = get_run_context(config)
         binding = run_context.bind_feature(feature) if run_context is not None else None
@@ -1520,14 +1541,73 @@ class MessagePlugin:
 
     @hookimpl(tryfirst=True)
     def pytest_runtest_logreport(self, report: TestReport) -> None:
-        if self.is_disabled or report.when != "teardown":
+        if self.is_disabled:
             return
         run_context = get_run_context(self.config)
         if run_context is None:
             return
         scenario_run = run_context.get_scenario_run(report.nodeid)
-        if scenario_run is not None:
+        if scenario_run is None:
+            return
+
+        if getattr(report, "outcome", None) == "rerun":
+            scenario_run.message_state.will_be_retried = True
+            if report.when == "teardown":
+                self._finish_scenario_test_case(scenario_run)
+            return
+
+        if report.when == "setup" and report.outcome == "skipped":
+            self._finish_setup_skipped_test_case(scenario_run, report)
+            return
+
+        if report.when == "teardown":
             self._finish_scenario_test_case(scenario_run)
+
+    def _finish_setup_skipped_test_case(self, scenario_run: Any, report: TestReport) -> None:
+        message_state = scenario_run.message_state
+        test_case = message_state.test_case
+        if test_case is None or message_state.test_case_started is not None:
+            return
+
+        test_case_started = TestCaseStarted(
+            attempt=message_state.attempt,
+            id=cast("PytestBDDIdGeneratorHandler", self.config).pytest_cuke_id_generator.get_next_id(),
+            test_case_id=test_case.id,
+            worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
+            timestamp=self.get_timestamp(),
+        )
+        message_state.test_case_started = test_case_started
+        scenario_run.test_case_started_id = test_case_started.id
+        scenario_run.attempt_id = test_case_started.id
+        self.config.hook.pytest_cuke_message(
+            config=self.config,
+            message=Message(test_case_started=test_case_started),
+        )
+
+        longrepr = getattr(report, "longrepr", None)
+        skip_reason = str(longrepr[-1] if isinstance(longrepr, tuple) and longrepr else longrepr or "")
+        for test_step in message_state.test_steps:
+            start_timestamp = self._start_test_step(
+                config=self.config,
+                test_case_started=test_case_started,
+                test_step=test_step,
+            )
+            self._finish_test_step(
+                config=self.config,
+                test_case_started=test_case_started,
+                test_step=test_step,
+                start_timestamp=start_timestamp,
+                status=Status.skipped,
+                message=skip_reason,
+                scenario_message_state=message_state,
+                defer_final_step=False,
+            )
+        self._emit_test_case_finished(
+            self.config,
+            test_case_started,
+            will_be_retried=message_state.will_be_retried,
+        )
+        self._reset_scenario_message_state(message_state)
 
     def _finish_scenario_test_case(self, scenario_run: Any) -> None:
         message_state = scenario_run.message_state
@@ -1599,7 +1679,11 @@ class MessagePlugin:
                 finish_timestamp=pending.finish_timestamp,
             )
 
-        self._emit_test_case_finished(self.config, test_case_started)
+        self._emit_test_case_finished(
+            self.config,
+            test_case_started,
+            will_be_retried=message_state.will_be_retried,
+        )
         self._reset_scenario_message_state(message_state)
 
     def pytest_cuke_before_scenario(self, request: FixtureRequest, run: RunContext) -> None:
@@ -1612,7 +1696,7 @@ class MessagePlugin:
         current_test_case = self._get_current_test_case()
 
         self.current_test_case_start = TestCaseStarted(
-            attempt=getattr(request.node, "execution_count", 0),
+            attempt=self._get_scenario_state("attempt", self._cucumber_attempt(request.node)),
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
             test_case_id=current_test_case.id,
             worker_id=os.environ.get("PYTEST_XDIST_WORKER", "master"),
@@ -1666,14 +1750,20 @@ class MessagePlugin:
             if not retain_until_teardown:
                 self._reset_current_test_case()
 
-    def _emit_test_case_finished(self, config: Config, test_case_started: TestCaseStarted) -> None:
+    def _emit_test_case_finished(
+        self,
+        config: Config,
+        test_case_started: TestCaseStarted,
+        *,
+        will_be_retried: bool = False,
+    ) -> None:
         config.hook.pytest_cuke_message(
             config=config,
             message=Message(
                 test_case_finished=TestCaseFinished(
                     test_case_started_id=test_case_started.id,
                     timestamp=self.get_timestamp(),
-                    will_be_retried=False,
+                    will_be_retried=will_be_retried,
                 )
             ),
         )
@@ -1687,6 +1777,8 @@ class MessagePlugin:
     def _reset_scenario_message_state(message_state: Any) -> None:
         message_state.test_case = None
         message_state.test_case_started = None
+        message_state.attempt = 0
+        message_state.will_be_retried = False
         message_state.test_steps = []
         message_state.test_steps_by_identity = {}
         message_state.finished_test_step_ids = set()

@@ -122,7 +122,7 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
 
 -  When I run installed pytest with arguments "--rootdir=.
    --cuke-json=report.json --cuke-messages-ndjson=messages.ndjson
-   --cuke-summary --cuke-progress"
+   --cuke-progress"
 
 -  Then pytest should exit with a non-zero code
 
@@ -153,7 +153,7 @@ Scenario: Invalid external sources fail collection with both paths
           Examples: table: broken.csv
 
 -  When I run installed pytest with arguments "--rootdir=.
-   --cuke-autoload --cuke-summary"
+   --cuke-autoload"
 
 -  Then pytest should exit with a non-zero code
 
@@ -218,7 +218,7 @@ Scenario: Explicit bindings and subsequent sessions read current source rows
           pass
 
 -  And I run installed pytest with arguments "--rootdir=.
-   --cuke-no-autoload --cuke-summary"
+   --cuke-no-autoload"
 
 -  Then pytest should exit with code 0
 
@@ -232,7 +232,7 @@ Scenario: Explicit bindings and subsequent sessions read current source rows
       Lin,platinum
 
 -  And I run installed pytest with arguments "--rootdir=.
-   --cuke-no-autoload --cuke-summary"
+   --cuke-no-autoload"
 
 -  Then pytest should exit with code 0
 

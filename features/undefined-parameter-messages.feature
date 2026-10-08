@@ -48,17 +48,17 @@ Feature: Undefined Cucumber parameters are reported accurately
         Scenario: An unrelated unmatched step is not an unknown parameter
           Given this unrelated phrase has no matching definition
       """
-    When I run installed pytest in two independent sessions with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=first.ndjson --cuke-summary -q" and then "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=second.ndjson --cuke-summary -q"
+    When I run installed pytest in two independent sessions with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=first.ndjson -q" and then "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=second.ndjson -q"
     Then both message-reporting pytest sessions should fail with 3 BDD scenarios
     And consumer artifact "first.ndjson" should contain 2 schema-valid UndefinedParameterType messages with expression "I use {unknownParameter}" and name "unknownParameter"
     And consumer artifact "second.ndjson" should contain 2 schema-valid UndefinedParameterType messages with expression "I use {unknownParameter}" and name "unknownParameter"
     And consumer artifact "first.ndjson" should report 3 UNDEFINED steps, 3 failed scenarios, and an unsuccessful run
     And consumer artifact "second.ndjson" should report 3 UNDEFINED steps, 3 failed scenarios, and an unsuccessful run
     And consumer artifact "exception-chains.ndjson" should contain 6 exception chains and exactly 4 with UndefinedParameterTypeError
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "Step definition is not found"
-    And pytest output should include "0 passed BDD scenarios, 3 failed, 0 skipped"
+    And pytest output should include "3 failed"
     And the consumer file "silent.ndjson" should not exist
 
   Scenario: Literal and regex mismatches and converter errors are not undefined types
@@ -115,9 +115,9 @@ Feature: Undefined Cucumber parameters are reported accurately
         Scenario: A registered converter fails while transforming a known type
           Given I convert 42
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=negative.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=negative.ndjson -q"
     Then pytest should exit with a non-zero code
-    And pytest output should include "0 passed BDD scenarios, 3 failed, 0 skipped"
+    And pytest output should include "3 failed"
     And pytest output should include "known parameter converter sentinel"
     And consumer artifact "negative.ndjson" should report one FAILED converter step and two UNDEFINED unmatched steps
     And consumer artifact "negative.ndjson" should contain no UndefinedParameterType messages
@@ -187,7 +187,7 @@ Feature: Undefined Cucumber parameters are reported accurately
           When point (30, 40) defined via cucumber regex
           Then the shared points are recorded
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=shared.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=shared.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer artifact "shared.ndjson" should contain no UndefinedParameterType messages

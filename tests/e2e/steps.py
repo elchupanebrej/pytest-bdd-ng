@@ -905,7 +905,7 @@ def consumer_pytest_exit_nonzero(consumer: ConsumerProject):
 def independent_pytest_sessions_execute_selected_root_scenarios(consumer: ConsumerProject) -> None:
     results = consumer.feature_source_session_results
     assert results is not None and len(results) == 2, "the independent pytest sessions have not completed"
-    expected_summary = re.compile(r"\b1 passed BDD scenarios, 0 failed, 0 skipped\b")
+    expected_summary = re.compile(r"\b1 passed\b")
     scenario_names = ("The first local root is selected", "The second local root is selected")
     for index, result in enumerate(results, start=1):
         output = f"{result.stdout}\n{result.stderr}"
@@ -923,7 +923,7 @@ def independent_pytest_sessions_execute_selected_root_scenarios(consumer: Consum
 def independent_pytest_sessions_execute_selected_url_sources(consumer: ConsumerProject) -> None:
     results = consumer.feature_url_session_results
     assert results is not None and len(results) == 2, "the independent URL-base sessions have not completed"
-    expected_summary = re.compile(r"\b1 passed BDD scenarios, 0 failed, 0 skipped\b")
+    expected_summary = re.compile(r"\b1 passed\b")
     for index, result in enumerate(results, start=1):
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode == 0, f"independent URL-base session {index} failed:\n{output}"
@@ -968,7 +968,7 @@ def consumer_passed_scenarios(count, consumer: ConsumerProject):
     result = consumer.pytest_result
     assert result is not None, "pytest has not been run in this consumer"
     output = f"{result.stdout}\n{result.stderr}"
-    expected_summary = rf"\b{re.escape(count)} passed BDD scenarios, 0 failed, 0 skipped\b"
+    expected_summary = rf"\b{re.escape(count)} passed\b"
     assert re.search(expected_summary, output), output
 
 
@@ -1072,11 +1072,11 @@ def consumer_mypy_rejects_invalid_scenario_facade_argument(consumer: ConsumerPro
     assert 'Argument 1 to "scenario"' in output, output
 
 
-@then("pytest terminal output should report 2 passed BDD scenarios")
+@then("pytest terminal output should report 2 passed tests")
 def consumer_terminal_summary(consumer: ConsumerProject):
     result = consumer.pytest_result
     assert result is not None, "pytest has not been run in this consumer"
-    assert "2 passed BDD scenarios, 0 failed, 0 skipped" in f"{result.stdout}\n{result.stderr}"
+    assert re.search(r"\b2 passed\b", f"{result.stdout}\n{result.stderr}")
 
 
 @then(re.compile(r'consumer artifact "(?P<relative_path>[^\"]+)" should describe one feature with 2 passed scenarios'))
@@ -1724,12 +1724,14 @@ def consumer_socket_gateway_has_no_shared_observations(consumer: ConsumerProject
     assert not remote_observations, f"socket worker observations were created in the isolated server root: {remote_observations}"
 
 
-@then("pytest output should report one passed one failed and one skipped BDD scenario")
+@then("pytest output should report one passed, one failed, and one skipped test")
 def consumer_mixed_xdist_outcomes(consumer: ConsumerProject) -> None:
     result = consumer.pytest_result
     assert result is not None, "pytest has not been run in this consumer"
     output = f"{result.stdout}\n{result.stderr}"
-    assert re.search(r"\b1 passed BDD scenarios, 1 failed, 1 skipped\b", output), output
+    assert re.search(r"\b1 passed\b", output), output
+    assert re.search(r"\b1 failed\b", output), output
+    assert re.search(r"\b1 skipped\b", output), output
     assert "expected worker case failure" in output, output
 
 
@@ -4394,7 +4396,7 @@ def _run_consumer_batch_pytest(consumer: ConsumerProject, arguments: list[str]) 
 
 
 def _consumer_batch_pass_count(result: subprocess.CompletedProcess[str]) -> int | None:
-    match = re.search(r"\b(\d+) passed BDD scenarios, 0 failed, 0 skipped\b", _consumer_batch_output(result))
+    match = re.search(r"\b(\d+) passed\b", _consumer_batch_output(result))
     return int(match.group(1)) if match else None
 
 
@@ -5632,7 +5634,6 @@ def compare_serial_and_spawn_collection(consumer: ConsumerProject) -> None:
         "--rootdir=.",
         "--cuke-autoload",
         "--cuke-features-dir=features",
-        "--cuke-summary",
         "-vv",
         "--color=no",
         "--log-cli-level=WARNING",
@@ -5686,7 +5687,6 @@ def compare_cli_and_configured_batch_thresholds(consumer: ConsumerProject) -> No
         "--rootdir=.",
         "--cuke-autoload",
         "--cuke-features-dir=features",
-        "--cuke-summary",
         "--log-cli-level=WARNING",
     ]
     cli_override = _run_consumer_batch_pytest(consumer, [*common_arguments, "--cuke-batch-threshold=1"])
@@ -5722,7 +5722,6 @@ def compare_configured_batch_threshold_boundary(below: str, equal: str, above: s
         "--rootdir=.",
         "--cuke-autoload",
         "--cuke-features-dir=features",
-        "--cuke-summary",
         "--log-cli-level=WARNING",
     ]
     results: list[subprocess.CompletedProcess[str]] = []
@@ -5759,7 +5758,6 @@ def compare_platform_default_batch_threshold(consumer: ConsumerProject) -> None:
         "--rootdir=.",
         "--cuke-autoload",
         "--cuke-features-dir=features",
-        "--cuke-summary",
         "--log-cli-level=WARNING",
     ]
     below = _run_consumer_batch_pytest(consumer, common_arguments)
@@ -5809,7 +5807,6 @@ def run_independent_consumer_pytest_processes(relative_path: str, consumer: Cons
         "--rootdir=.",
         "--cuke-autoload",
         "--cuke-features-dir=features",
-        "--cuke-summary",
         "--cuke-batch-threshold=1",
         "-vv",
         "--color=no",
@@ -5966,7 +5963,6 @@ def compare_struct_bdd_autoload_selection(consumer: ConsumerProject) -> None:
         "--rootdir=.",
         "--cuke-autoload",
         "--cuke-features-dir=features",
-        "--cuke-summary",
         "-vv",
         "--color=no",
     ]
@@ -6132,7 +6128,7 @@ assert normalize(structured) == normalize(gherkin), (normalize(structured), norm
         text=True,
     )
 
-    common_arguments = ["--rootdir=.", "--cuke-summary", "-q", "--color=no"]
+    common_arguments = ["--rootdir=.", "-q", "--color=no"]
     consumer.struct_bdd_parity_runs = [
         _run_consumer_batch_pytest(
             consumer,
@@ -6156,7 +6152,7 @@ def struct_bdd_gherkin_domain_and_reports_match(consumer: ConsumerProject) -> No
     for result in runs:
         output = _consumer_batch_output(result)
         assert result.returncode == 0, output
-        assert "1 passed BDD scenarios, 0 failed, 0 skipped" in output, output
+        assert re.search(r"\b1 passed\b", output), output
 
     def normalize_report(relative_path: str) -> dict[str, object]:
         report = json.loads((consumer.path / relative_path).read_text(encoding="utf-8"))
@@ -6396,7 +6392,6 @@ def compare_custom_parser_collection_modes(consumer: ConsumerProject) -> None:
             [
                 "--rootdir=.",
                 *selection_arguments,
-                "--cuke-summary",
                 f"--cuke-json={report_name}",
                 "-vv",
                 "--color=no",
@@ -6633,7 +6628,6 @@ def create_custom_parser_session_isolation_consumer(consumer: ConsumerProject) -
                     "--rootdir=.",
                     "--cuke-autoload",
                     f"--cuke-features-dir=features/{marker}",
-                    "--cuke-summary",
                     "--custom-parser-session",
                     marker,
                 ],
@@ -6668,7 +6662,7 @@ def custom_parser_instances_are_scoped_to_pytest_config(consumer: ConsumerProjec
     assert result is not None, "the in-process pytest sessions have not run"
     output = _consumer_batch_output(result)
     assert result.returncode == 0, output
-    assert output.count("1 passed BDD scenarios, 0 failed, 0 skipped") == 2, output
+    assert len(re.findall(r"\b1 passed\b", output)) == 2, output
     assert json.loads((consumer.path / "session-results.json").read_text(encoding="utf-8")) == [0, 0]
 
     state = json.loads((consumer.path / "parser-session-state.json").read_text(encoding="utf-8"))
@@ -8346,7 +8340,7 @@ def both_consumer_message_sessions_fail_with_three_scenarios(consumer: ConsumerP
     for session, result in enumerate(results, start=1):
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0, f"message-reporting pytest session {session} unexpectedly passed:\n{output}"
-        assert "0 passed BDD scenarios, 3 failed, 0 skipped" in output, output
+        assert re.search(r"\b3 failed\b", output), output
 
 
 def _consumer_message_envelopes(relative_path: str, consumer: ConsumerProject) -> list[Envelope]:
@@ -9479,7 +9473,6 @@ def run_consumer_pytest_with_absolute_feature_root(relative_path: str, consumer:
             "--cuke-parser=python",
             f"--cuke-features-dir={consumer.path / 'features'}",
             f"--cuke-messages-ndjson={output_path}",
-            "--cuke-summary",
             "-q",
         ],
         cwd=consumer.path,

@@ -541,3 +541,88 @@ def test_message_plugin_ignores_ordinary_pytest_tests() -> None:
     list(plugin.pytest_runtest_setup(item))
 
     request.getfixturevalue.assert_not_called()
+
+
+def test_message_plugin_marks_an_intermediate_retry_attempt() -> None:
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="retry.feature::Scenario",
+        feature=Feature(name="Retry", uri="retry.feature"),
+        scenario=Scenario(name="Retry"),
+        attempt=1,
+    )
+    scenario_run.message_state.test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=[])
+    scenario_run.message_state.test_case_started = TestCaseStarted(
+        attempt=0,
+        id="tcs-1",
+        test_case_id="tc-1",
+        worker_id="master",
+        timestamp=Timestamp(seconds=1, nanos=0),
+    )
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+    )
+    plugin = MessagePlugin(config=config)
+
+    plugin.pytest_runtest_logreport(SimpleNamespace(nodeid=scenario_run.nodeid, when="call", outcome="rerun"))
+    plugin.pytest_runtest_logreport(SimpleNamespace(nodeid=scenario_run.nodeid, when="teardown", outcome="passed"))
+
+    finished = [
+        call.kwargs["message"].test_case_finished
+        for call in config.hook.pytest_cuke_message.call_args_list
+        if call.kwargs["message"].test_case_finished is not None
+    ]
+    assert len(finished) == 1
+    assert finished[0].will_be_retried is True
+
+
+def test_message_plugin_emits_skipped_messages_for_a_setup_skip() -> None:
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="skip.feature::Scenario",
+        feature=Feature(name="Setup skip", uri="skip.feature"),
+        scenario=Scenario(
+            name="Setup skip",
+            steps=(Step(name="first", keyword="Given "), Step(name="second", keyword="Then ")),
+        ),
+    )
+    test_steps = [
+        TestStep(id="ts-1", pickle_step_id="ps-1", step_definition_ids=[]),
+        TestStep(id="ts-2", pickle_step_id="ps-2", step_definition_ids=[]),
+    ]
+    scenario_run.message_state.test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=test_steps)
+    scenario_run.message_state.test_steps = test_steps
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+        pytest_cuke_id_generator=IdGenerator(),
+    )
+    plugin = MessagePlugin(config=config)
+
+    plugin.pytest_runtest_logreport(
+        SimpleNamespace(
+            nodeid=scenario_run.nodeid,
+            when="setup",
+            outcome="skipped",
+            longrepr=("skip.py", 1, "fixture setup skip sentinel"),
+        )
+    )
+
+    messages = [call.kwargs["message"] for call in config.hook.pytest_cuke_message.call_args_list]
+    started = [message.test_case_started for message in messages if message.test_case_started is not None]
+    finished_steps = [message.test_step_finished for message in messages if message.test_step_finished is not None]
+    finished_cases = [message.test_case_finished for message in messages if message.test_case_finished is not None]
+    assert len(started) == 1
+    assert started[0].attempt == 0
+    assert [message.test_step_result.status for message in finished_steps] == [Status.skipped, Status.skipped]
+    assert all(message.test_step_result.message == "fixture setup skip sentinel" for message in finished_steps)
+    assert len(finished_cases) == 1
+    assert finished_cases[0].test_case_started_id == started[0].id
+    assert finished_cases[0].will_be_retried is False

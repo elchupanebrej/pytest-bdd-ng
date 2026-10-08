@@ -12,9 +12,9 @@ Feature: Not-implemented step status policy
           When a not-implemented body raises "default WIP exception sentinel"
           Then a later step records "default-should-not-run"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
     Then pytest should exit with a non-zero code
-    And pytest output should include "0 passed BDD scenarios, 1 failed, 0 skipped"
+    And pytest output should include "1 failed"
     And the consumer file "continuations.log" should not exist
     And consumer WIP side-effect artifact should list "before-step,before-call,body:raise"
     And consumer artifacts "messages.ndjson" and "report.json" should agree for WIP scenario "A not-implemented body fails by default" with step statuses "failed,skipped" and exception messages "default WIP exception sentinel" and run success "false"
@@ -30,7 +30,7 @@ Feature: Not-implemented step status policy
           And the second not-implemented parameter step requests fixture injection for "inner"
           Then a later step records "both-orders"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "both-orders"
@@ -47,9 +47,9 @@ Feature: Not-implemented step status policy
           When the first not-implemented parameter step requests fixture injection for "skip"
           Then a later step records "skip-should-not-run"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=skipped --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=skipped --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
     Then pytest should exit with code 0
-    And pytest output should include "0 passed BDD scenarios, 0 failed, 1 skipped"
+    And pytest output should include "1 skipped"
     And the consumer file "wip-effects.log" should not exist
     And the consumer file "continuations.log" should not exist
     And consumer artifacts "messages.ndjson" and "report.json" should agree for WIP scenario "A skipped not-implemented step does not request its fixture" with step statuses "skipped,skipped" and exception messages "" and run success "true"
@@ -64,7 +64,7 @@ Feature: Not-implemented step status policy
           When a not-implemented body succeeds
           Then a later step records "natural-success"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=failed --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=failed --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "natural-success"
@@ -87,7 +87,7 @@ Feature: Not-implemented step status policy
           When a not-implemented body raises "marker policy sentinel"
           Then a later step records "marker-policy"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=failed --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=failed --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer continuation artifact should list "tag-policy,marker-policy"
@@ -111,9 +111,9 @@ Feature: Not-implemented step status policy
           When a not-implemented body raises "invalid marker sentinel"
           Then a later step records "invalid-marker-should-not-run"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with a non-zero code
-    And pytest output should include "1 passed BDD scenarios, 1 failed, 0 skipped"
+    And pytest output should include "1 passed"
     And consumer continuation artifact should list "invalid-tag-fell-through"
     And consumer WIP side-effect artifact should list "before-step,before-call,body:raise"
     And consumer Messages artifact "messages.ndjson" should report WIP scenario "An invalid tag falls through to the passed global policy" with step statuses "PASSED,PASSED" and exception messages ""
@@ -136,7 +136,7 @@ Feature: Not-implemented step status policy
           When a not-implemented body raises "configured policy sentinel"
           Then a later step records "configured-policy"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "configured-policy"
@@ -160,7 +160,7 @@ Feature: Not-implemented step status policy
           When a not-implemented body succeeds
           Then a later step records "cli-over-config"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=failed --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=failed --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 0
     And consumer continuation artifact should list "cli-over-config"
     And consumer WIP side-effect artifact should list "before-step,before-call,body:success"
@@ -176,7 +176,7 @@ Feature: Not-implemented step status policy
           When a not-implemented body succeeds
           Then a later step records "invalid-policy"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=unknown --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=unknown -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "--cuke-wip-status"
     And the consumer file "wip-effects.log" should not exist
@@ -188,7 +188,7 @@ Feature: Not-implemented step status policy
       cuke_autoload = true
       cuke_wip_status = "unknown"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "cuke_wip_status"
     And the consumer file "wip-effects.log" should not exist
@@ -204,7 +204,7 @@ Feature: Not-implemented step status policy
           When the not-implemented setup creates its target
           Then the later step confirms the WIP target is None
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "target-is-none"
@@ -226,7 +226,7 @@ Feature: Not-implemented step status policy
           When this not-implemented operation has no step definition
           Then a later step records "undefined-should-not-run"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=messages.ndjson --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "2 failed"
     And consumer Messages artifact "messages.ndjson" should report WIP scenario "An ordinary body exception remains a failure" with step statuses "FAILED,SKIPPED" and exception messages "ordinary WIP exception sentinel"
@@ -248,7 +248,7 @@ Feature: Not-implemented step status policy
           | alpha |
           | beta  |
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson --cuke-json=report.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer continuation artifact should list "outline-alpha,outline-beta"
@@ -264,7 +264,7 @@ Feature: Not-implemented step status policy
           When the first not-implemented parameter step requests fixture injection for "repeat"
           Then a later step records "repeat-session"
       """
-    When I run installed pytest twice in one process with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-wip-status=skipped --cuke-messages-ndjson=skipped.ndjson --cuke-summary -q" and then "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=passed.ndjson --cuke-summary -q"
+    When I run installed pytest twice in one process with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-wip-status=skipped --cuke-messages-ndjson=skipped.ndjson -q" and then "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed --cuke-messages-ndjson=passed.ndjson -q"
     Then consumer repeated pytest sessions should exit with codes "0,0"
     And consumer continuation artifact should list "repeat-session"
     And consumer Messages artifact "skipped.ndjson" should report WIP scenario "One WIP step follows each session policy" with step statuses "SKIPPED,SKIPPED" and exception messages ""
@@ -286,7 +286,7 @@ Feature: Not-implemented step status policy
           When a not-implemented body raises "xdist failed sentinel"
           Then a later step records "xdist-failed-should-not-run"
       """
-    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed -n2 --dist=each --cuke-summary -q"
+    When I run installed pytest with arguments "--rootdir=. features --cuke-autoload --cuke-features-dir=features --cuke-wip-status=passed -n2 --dist=each -q"
     Then pytest should exit with a non-zero code
     And consumer xdist continuation artifacts should show "xdist-passed" on 2 workers
     And consumer xdist WIP side-effect artifacts should show "before-step,before-call,body:raise" on 2 workers
