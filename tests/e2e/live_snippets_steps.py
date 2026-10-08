@@ -246,6 +246,11 @@ def _install_official_cucumber(consumer: Any) -> None:
     assert install.returncode == 0, (
         f"could not install pinned official @cucumber/cucumber packages:\n{install.stdout}\n{install.stderr}"
     )
+    package_metadata = root / "node_modules" / "@cucumber" / "cucumber" / "package.json"
+    installed_version = json.loads(package_metadata.read_text(encoding="utf-8")).get("version")
+    assert installed_version == _OFFICIAL_CUCUMBER_PACKAGES["@cucumber/cucumber"], (
+        f"expected the pinned official @cucumber/cucumber version, got {installed_version!r}"
+    )
     consumer.env["PATH"] = environment["PATH"]
     consumer._snippets_node = node
 
@@ -273,7 +278,12 @@ def _output(consumer: Any) -> str:
     return f"{result.stdout}\n{result.stderr}"
 
 
-def _assert_pytest_undefined_failure(consumer: Any) -> str:
+def _assert_pytest_undefined_failure(
+    consumer: Any,
+    *,
+    expected_failure_count: int,
+    expected_pass_count: int = 0,
+) -> str:
     result = consumer.pytest_result
     output = _output(consumer)
     assert result is not None and result.returncode != 0, f"undefined steps must keep pytest failing:\n{output}"
@@ -282,6 +292,18 @@ def _assert_pytest_undefined_failure(consumer: Any) -> str:
         f"pytest's short failure summary was lost:\n{output}"
     )
     assert "StepDefinitionNotFoundError" in output or "step definition is not found" in output.lower(), output
+    summary_lines = [
+        line.strip()
+        for line in output.splitlines()
+        if re.search(r"\b\d+ failed\b", line) and re.search(r"\bin \d+(?:\.\d+)?s\b", line)
+    ]
+    assert len(summary_lines) == 1, f"pytest's normal result summary should appear once:\n{output}"
+    summary = summary_lines[0]
+    assert re.search(rf"\b{expected_failure_count} failed\b", summary), summary
+    if expected_pass_count:
+        assert re.search(rf"\b{expected_pass_count} passed\b", summary), summary
+    else:
+        assert not re.search(r"\b\d+ passed\b", summary), summary
     return output
 
 
@@ -295,8 +317,23 @@ def _snippet_output(output: str) -> str:
 
 
 def _assert_official_js_snippets(consumer: Any, *, expected_count: int) -> str:
-    output = _assert_pytest_undefined_failure(consumer)
-    snippet_output = _snippet_output(output)
+    output = _assert_pytest_undefined_failure(
+        consumer,
+        expected_failure_count=4,
+        expected_pass_count=1,
+    )
+    result = consumer.pytest_result
+    assert result is not None
+    snippet_streams = [
+        stream
+        for stream in (result.stdout, result.stderr)
+        if re.search(r"(?://\s*)?(?:Given|When|Then|And|But)\(['\"]", stream)
+    ]
+    assert len(snippet_streams) == 1, (
+        "the Cucumber backend should print one readable snippet block on one terminal stream; "
+        f"stdout={result.stdout!r}, stderr={result.stderr!r}"
+    )
+    snippet_output = _snippet_output(snippet_streams[0])
     assert "function (" in snippet_output and "return 'pending';" in snippet_output, (
         f"the real Cucumber runtime did not emit JavaScript snippet bodies:\n{snippet_output}"
     )
@@ -437,6 +474,28 @@ def _assert_distinct_file_reports(consumer: Any) -> None:
     }, usage_report
 
 
+def _patch_official_snippets_formatter_to_fail_after_messages(consumer: Any) -> None:
+    root = getattr(consumer, "_snippets_workspace", _consumer_root(consumer))
+    formatter_path = root / "node_modules" / "@cucumber" / "cucumber" / "lib" / "formatter" / "snippets_formatter.js"
+    formatter_source = formatter_path.read_text(encoding="utf-8")
+    hook = "    logSnippets() {\n"
+    assert formatter_source.count(hook) == 1, (
+        "the pinned Cucumber SnippetsFormatter.logSnippets hook changed; "
+        f"cannot inject the backend failure sentinel into {formatter_path}"
+    )
+    formatter_path.write_text(
+        formatter_source.replace(
+            hook,
+            f"{hook}        throw new Error('{_SNIPPETS_BACKEND_FAILURE_SENTINEL}');\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+
+
+_SNIPPETS_BACKEND_FAILURE_SENTINEL = "PYTEST_CUKE_SNIPPETS_BACKEND_FAILURE_SENTINEL"
+
+
 @given("the consumer prepares an undefined-step snippets scenario with the default configuration")
 def prepare_default_undefined_snippets_scenario(consumer: Any) -> None:
     _prepare_consumer(
@@ -455,7 +514,7 @@ def node_and_npm_are_unavailable_to_consumer(consumer: Any) -> None:
 
 @then("the undefined-step failure should remain and no snippet backend should be requested")
 def default_snippets_are_inert_and_keep_pytest_failure(consumer: Any) -> None:
-    output = _assert_pytest_undefined_failure(consumer)
+    output = _assert_pytest_undefined_failure(consumer, expected_failure_count=1)
     assert "function (" not in output and "return 'pending';" not in output, (
         f"snippets were emitted without opt-in:\n{output}"
     )
@@ -501,6 +560,23 @@ def enable_snippets_in_consumer_configuration(consumer: Any) -> None:
 )
 def configured_snippets_are_javascript_and_preserve_undefined(consumer: Any) -> None:
     _assert_selected_snippets_and_messages(consumer)
+
+
+@step("the consumer patches the pinned snippets formatter to fail after receiving the run messages")
+def patch_official_snippets_formatter_to_fail_after_messages(consumer: Any) -> None:
+    _patch_official_snippets_formatter_to_fail_after_messages(consumer)
+
+
+@then("the snippets backend failure should preserve pytest's undefined-step failures")
+def snippets_backend_failure_preserves_undefined_step_failures(consumer: Any) -> None:
+    output = _assert_pytest_undefined_failure(
+        consumer,
+        expected_failure_count=4,
+        expected_pass_count=1,
+    )
+    assert re.search(rf"(?m)^Error: {re.escape(_SNIPPETS_BACKEND_FAILURE_SENTINEL)}$", output), (
+        f"the selected official snippets backend should report its post-startup failure; output was:\n{output}"
+    )
 
 
 @given("the consumer prepares a snippets backend preflight marker scenario")
