@@ -136,6 +136,24 @@ root directory. The shared formatter catalog checks these dependencies only
 when the option is selected. Unselected tests remain independent of Node and
 npm.
 
+Built-in Cucumber snippets
+--------------------------
+
+Select Cucumber's snippets formatter with ``--cuke-snippets`` or
+``cuke_snippets = true`` in pytest configuration. At the end of the run, it
+prints JavaScript step definitions for undefined steps. Defined steps are
+omitted, and the undefined pytest result and exit status remain unchanged.
+The formatter uses Cucumber Messages execution results and parameter type
+metadata; it does not execute user step definitions to build suggestions.
+
+The snippets formatter writes to the terminal stream and can be combined with
+Messages and distinct file formatters. It cannot share stdout with
+``--cuke-pretty``, ``--cuke-progress``, or ``--cuke-progress-bar``.
+
+The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
+installed in the pytest root directory. When snippets are not selected,
+pytest-cuke does not check for these dependencies.
+
 Lifecycle and distributed runs
 -------------------------------
 
