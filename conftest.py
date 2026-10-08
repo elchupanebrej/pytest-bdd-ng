@@ -14,6 +14,7 @@ pytest_plugins = [
     "tests.e2e.environment_inventory_steps",
     "tests.e2e.environment_proof_aggregation_steps",
     "tests.e2e.browser_report_steps",
+    "tests.e2e.native_allure_reporting_steps",
 ]
 if find_spec("pytest_httpserver") is not None:
     pytest_plugins.append("pytest_httpserver.pytest_plugin")
