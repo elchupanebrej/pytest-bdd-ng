@@ -23,8 +23,19 @@ class FormatterHook:
         return self.requests
 
 
-def _config(root: Path, requests: tuple[FormatterRequest, ...]) -> SimpleNamespace:
-    return SimpleNamespace(rootpath=root, hook=FormatterHook(requests))
+def _config(
+    root: Path,
+    requests: tuple[FormatterRequest, ...],
+    *,
+    options: dict[str, str | None] | None = None,
+    ini: dict[str, str] | None = None,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        rootpath=root,
+        hook=FormatterHook(requests),
+        option=SimpleNamespace(**(options or {})),
+        getini=lambda name: (ini or {}).get(name, ""),
+    )
 
 
 def test_catalog_sorts_requests_and_resolves_paths_from_root(tmp_path: Path) -> None:
@@ -51,6 +62,90 @@ def test_catalog_rejects_duplicate_normalized_destinations(tmp_path: Path) -> No
 
     with pytest.raises(pytest.UsageError, match="same output path"):
         resolve_formatter_requests(_config(tmp_path, requests))
+
+
+def test_catalog_rejects_duplicate_reserved_outputs_through_symlink_alias(tmp_path: Path) -> None:
+    report_directory = tmp_path / "reports"
+    report_directory.mkdir()
+    report_directory_alias = tmp_path / "report-alias"
+    try:
+        report_directory_alias.symlink_to(report_directory, target_is_directory=True)
+    except (NotImplementedError, OSError) as error:
+        pytest.skip(f"directory symlinks are unavailable: {error}")
+    requests: tuple[FormatterRequest, ...] = ()
+    config = _config(
+        tmp_path,
+        requests,
+        options={"cuke_json": str(report_directory_alias / "report.json")},
+        ini={"cuke_messages_ndjson": str(report_directory / "report.json")},
+    )
+
+    with pytest.raises(
+        pytest.UsageError,
+        match=r"--cuke-json and --cuke-messages-ndjson resolve to the same output path",
+    ):
+        resolve_formatter_requests(config)
+
+
+def test_catalog_rejects_reserved_output_conflict_before_formatter_runtime_check(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "artifacts").mkdir()
+    request = FormatterRequest(
+        name="extension-json",
+        command=(sys.executable,),
+        output_path=Path("artifacts/../artifacts/report.json"),
+    )
+    config = _config(
+        tmp_path,
+        (request,),
+        options={"cuke_json": str(tmp_path / "artifacts" / "report.json")},
+    )
+
+    def fail_if_checked(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise AssertionError("formatter runtime was checked before the output collision")
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog._check_request_runtime", fail_if_checked)
+
+    with pytest.raises(
+        pytest.UsageError,
+        match=r"'extension-json' and --cuke-json resolve to the same output path",
+    ):
+        resolve_formatter_requests(config)
+
+
+@pytest.mark.parametrize(
+    ("option_name", "output_flag"),
+    (
+        ("cuke_html", "--cuke-html"),
+        ("cuke_allure", "--cuke-allure"),
+        ("xmlpath", "--junitxml"),
+    ),
+)
+def test_catalog_rejects_formatter_conflicts_with_each_reserved_sink(
+    tmp_path: Path,
+    option_name: str,
+    output_flag: str,
+) -> None:
+    (tmp_path / "artifacts").mkdir()
+    request = FormatterRequest(
+        name="extension-json",
+        command=(sys.executable,),
+        output_path=Path("artifacts/../artifacts/report.json"),
+    )
+    config = _config(
+        tmp_path,
+        (request,),
+        options={option_name: str(tmp_path / "artifacts" / "report.json")},
+    )
+
+    with pytest.raises(
+        pytest.UsageError,
+        match=rf"'extension-json' and {output_flag} resolve to the same output path",
+    ):
+        resolve_formatter_requests(config)
 
 
 def test_catalog_does_not_check_optional_runtime_when_no_formatter_is_selected(

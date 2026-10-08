@@ -11,14 +11,38 @@ Feature: Live Cucumber progress bar
     Then pytest should exit with code 0
     And progress bar should remain disabled while the scenario runs
 
-  Scenario: cuke_progress_bar enables readable piped progress with distinct JSON output
+  Scenario: cuke_progress_bar enables readable piped progress with distinct file outputs
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer prepares failing, skipped, and passing progress-bar scenarios in a Unicode workspace with spaces
+    And the consumer registers a public usage formatter with a distinct output path
     And the consumer installs pinned official Cucumber progress formatter packages in that workspace
-    When I run installed pytest from consumer directory "progress workspace café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/report.json -q --color=no"
+    When I run installed pytest from consumer directory "progress workspace café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/cucumber.json --junitxml=artifacts/pytest.xml -q --color=no"
     Then pytest should exit with a non-zero code
     And piped progress-bar markers should match completed Messages attempts in "artifacts/messages.ndjson"
-    And progress-bar output should have no cursor controls and both file reports should be valid
+    And progress-bar output should have no cursor controls and all distinct file reports should be valid
+
+  Scenario: Cucumber JSON and an extension cannot write to the same canonical destination
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer prepares a progress-bar scenario that records execution
+    And the consumer registers a public formatter targeting a Cucumber JSON path alias
+    And the consumer installs pinned official Cucumber progress formatter packages
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-progress-bar --cuke-json=artifacts/report.json -q --color=no"
+    Then progress bar and Cucumber JSON destination collision should fail before the scenario starts
+
+  Scenario: Core report sinks cannot share a destination
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer prepares a progress-bar scenario that records execution
+    And the consumer creates the shared report output directory
+    And the consumer PATH has no Node.js or npm executables
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-progress-bar --cuke-json=artifacts/shared.json --junitxml=artifacts/shared.json -q --color=no"
+    Then duplicate core report destinations should fail before the scenario starts
+
+  Scenario: A live backend failure preserves the ordinary scenario failure
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer prepares a failing scenario for progress-bar backend errors
+    And the official progress formatter shim throws after receiving a test case
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-progress-bar -q --color=no"
+    Then progress-bar backend failure should retain its error and the pytest scenario failure
 
   Scenario: Selecting the progress bar without its formatter package fails before execution
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
