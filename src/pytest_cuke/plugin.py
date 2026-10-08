@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from argparse import ArgumentTypeError
 from collections import deque
 from contextlib import suppress
@@ -535,16 +536,56 @@ def _allure_messages_input(config: Config) -> str | None:
 
 
 def _allure_output_path(config: Config) -> str | None:
-    option = getattr(config.option, "cuke_allure", None)
+    namespace = getattr(config, "known_args_namespace", None)
+    if namespace is None:
+        namespace = getattr(config, "option", None)
+    option = getattr(namespace, "cuke_allure", None)
     if option is not None:
         return option if isinstance(option, str) else None
     ini_value = config.getini("cuke_allure")
     return ini_value if isinstance(ini_value, str) and ini_value else None
 
 
+def _allure_adapter_output_path(config: Config) -> str | None:
+    namespace = getattr(config, "known_args_namespace", None)
+    if namespace is None:
+        namespace = getattr(config, "option", None)
+    option = getattr(namespace, "allure_report_dir", None)
+    return option if isinstance(option, str) and option else None
+
+
+def _same_output_directory(first: str, second: str) -> bool:
+    def resolved(path: str) -> Path:
+        expanded = os.path.expandvars(os.path.expanduser(path))
+        return Path(expanded).resolve()
+
+    first_path = resolved(first)
+    second_path = resolved(second)
+    try:
+        if first_path.exists() and second_path.exists() and os.path.samefile(first_path, second_path):
+            return True
+    except OSError:
+        pass
+    return normcase(str(first_path)) == normcase(str(second_path))
+
+
+def _validate_allure_output_paths(config: Config) -> None:
+    native_output = _allure_output_path(config)
+    adapter_output = _allure_adapter_output_path(config)
+    if (
+        native_output is not None
+        and adapter_output is not None
+        and _same_output_directory(native_output, adapter_output)
+    ):
+        raise pytest.UsageError(
+            "--cuke-allure and --alluredir must use different directories when both reporting modes are enabled"
+        )
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_load_initial_conftests(early_config: Config) -> None:
     """Keep saved-stream conversion independent from consumer conftest files."""
+    _validate_allure_output_paths(early_config)
     if _allure_messages_input(early_config) is not None:
         early_config.known_args_namespace.noconftest = True
         return
@@ -659,7 +700,7 @@ class _SessionFinishOrderingHookAdapter:
         plugin: Any,
         manager: PytestPluginManager,
     ) -> None:
-        """Reorder finish hooks whenever a plugin adds new hook implementations."""
+        """Reorder finish hooks when new implementations register after session startup."""
         if not self._session_started or plugin is self:
             return
         session_finish_hook = manager.get_plugin("pytest_cuke_messages_session_finish")

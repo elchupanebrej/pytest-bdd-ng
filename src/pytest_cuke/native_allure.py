@@ -8,6 +8,7 @@ import json
 import mimetypes
 import os
 import re
+import time
 import traceback
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -118,6 +119,8 @@ class NativeAllureReporter:
         self._api_hooks: object | None = None
         self._api_step_uuids: dict[str, str] = {}
         self._api_step_stack: list[tuple[str, str]] = []
+        self._test_run_finished_seen = False
+        self._session_container_reported = False
         self._started = False
 
     def start(self) -> None:
@@ -131,10 +134,14 @@ class NativeAllureReporter:
         """Unregister reporting hooks after pytest has finished emitting Messages."""
         if not self._started:
             return
-        if self._api_hooks is not None:
-            self._allure_commons.plugin_manager.unregister(self._api_hooks)
-            self._api_hooks = None
-        self._started = False
+        try:
+            if not self._test_run_finished_seen:
+                self._finish_partial_session()
+        finally:
+            if self._api_hooks is not None:
+                self._allure_commons.plugin_manager.unregister(self._api_hooks)
+                self._api_hooks = None
+            self._started = False
 
     @pytest.hookimpl
     def pytest_cuke_message_validated(self, config: Config, message: Envelope) -> None:
@@ -193,6 +200,7 @@ class NativeAllureReporter:
         elif kind == "attachment":
             self._attach(cast("messages.Attachment", envelope.attachment))
         elif kind == "test_run_finished":
+            self._test_run_finished_seen = True
             self._finish_session(cast("messages.TestRunFinished", envelope.test_run_finished), wire)
 
     def _start_session_container(self, run_started: messages.TestRunStarted) -> None:
@@ -247,12 +255,8 @@ class NativeAllureReporter:
             result.start = start
             result.stage = "running"
             result.description = "\n\n".join(description_parts) or None
-            result.titlePath = [
-                value for value in (feature_name, rule_name, name) if isinstance(value, str) and value
-            ]
-            result.labels.extend(
-                self._model["Label"](name=label["name"], value=label["value"]) for label in tags
-            )
+            result.titlePath = [value for value in (feature_name, rule_name, name) if isinstance(value, str) and value]
+            result.labels.extend(self._model["Label"](name=label["name"], value=label["value"]) for label in tags)
             if isinstance(feature_name, str) and feature_name:
                 result.labels.append(self._model["Label"](name="feature", value=feature_name))
                 result.labels.append(self._model["Label"](name="parentSuite", value=feature_name))
@@ -330,8 +334,12 @@ class NativeAllureReporter:
         details = _status_details(finished.test_step_result, trace)
         if status != "passed" and details:
             case.failures.append((status, details))
-        update = self._lifecycle.update_step if step.kind == "step" else (
-            self._lifecycle.update_before_fixture if step.kind == "before" else self._lifecycle.update_after_fixture
+        update = (
+            self._lifecycle.update_step
+            if step.kind == "step"
+            else (
+                self._lifecycle.update_before_fixture if step.kind == "before" else self._lifecycle.update_after_fixture
+            )
         )
         with update(step.uuid) as result:
             result.status = self._allure_status_value(status)
@@ -657,6 +665,54 @@ class NativeAllureReporter:
         session_container = self._lifecycle._pop_item(uuid=container_uuid)
         if session_container is not None:
             self._file_logger.report_container(session_container)
+            self._session_container_reported = True
+
+    def _finish_partial_session(self) -> None:
+        """Persist known session fixtures if pytest exits before TestRunFinished."""
+        if self._session_container_reported:
+            return
+        if (
+            self._session_container_uuid is None
+            and not self._active_run_hooks
+            and not self._session_children
+            and not self._case_result_uuids
+        ):
+            return
+
+        stopped_at = time.time_ns() // 1_000_000
+        for active in self._active_run_hooks.values():
+            update_fixture = (
+                self._lifecycle.update_before_fixture
+                if active.kind == "before"
+                else self._lifecycle.update_after_fixture
+            )
+            with update_fixture(active.fixture_uuid) as fixture:
+                fixture.status = self._allure_status_value("unknown")
+                fixture.stage = "finished"
+                fixture.stop = stopped_at
+            if active.kind == "before":
+                self._lifecycle.stop_before_fixture(active.fixture_uuid)
+            else:
+                self._lifecycle.stop_after_fixture(active.fixture_uuid)
+        self._active_run_hooks.clear()
+
+        active_result_uuids = {case.result_uuid for case in self._active_cases.values()}
+        for result_uuids in self._case_result_uuids.values():
+            for result_uuid in result_uuids:
+                if result_uuid in active_result_uuids:
+                    continue
+                result = self._lifecycle._get_item(uuid=result_uuid)
+                if result is not None:
+                    self._write_result(result)
+
+        container_uuid = self._ensure_session_container()
+        with self._lifecycle.update_container(container_uuid) as container:
+            container.children.extend(child for child in self._session_children if child not in container.children)
+            container.stop = stopped_at
+        session_container = self._lifecycle._pop_item(uuid=container_uuid)
+        if session_container is not None:
+            self._file_logger.report_container(session_container)
+            self._session_container_reported = True
 
     def _write_result(self, result: Any) -> None:
         result_uuid = result.uuid
@@ -899,6 +955,7 @@ class NativeAllureReporter:
         if case is None:
             return None
         return case.step_uuids[case.active_step_ids[-1]].uuid if case.active_step_ids else case.result_uuid
+
 
 def _enum_value(value: Any) -> str:
     return str(getattr(value, "value", value)).upper()
