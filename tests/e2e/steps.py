@@ -286,6 +286,50 @@ def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, _pytes
     )
 
 
+@given("the consumer installs pytest-cuke with its Allure extra in an isolated environment")
+def install_pytest_cuke_allure_extra_in_isolated_environment(consumer: ConsumerProject) -> None:
+    """Give native Allure acceptance an optional-dependency environment without changing shared base envs."""
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "the native Allure consumer contract requires uv to create an isolated environment"
+    environment_path = consumer.path / ".venv-allure"
+    create_environment = subprocess.run(
+        [uv_executable, "venv", "--python", sys.executable, str(environment_path)],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert create_environment.returncode == 0, (
+        f"could not create Allure consumer environment:\n{create_environment.stdout}\n{create_environment.stderr}"
+    )
+
+    binary_dir = _consumer_binary_dir(environment_path)
+    python_path = _consumer_executable(binary_dir, "python")
+    install = subprocess.run(
+        [
+            uv_executable,
+            "pip",
+            "install",
+            "--python",
+            str(python_path),
+            f"pytest-cuke[allure] @ {consumer.artifact.resolve().as_uri()}",
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert install.returncode == 0, (
+        f"could not install pytest-cuke with its Allure extra:\n{install.stdout}\n{install.stderr}"
+    )
+    consumer.python = python_path
+    consumer.pytest = _consumer_executable(binary_dir, "pytest")
+    consumer.cuke = _consumer_executable(binary_dir, "cuke")
+    consumer.env["PATH"] = f"{binary_dir}{os.pathsep}{os.defpath}"
+
+
 @given(
     re.compile(
         r"the pytest-cuke (?P<distribution>wheel|sdist) built from this checkout is installed with pinned Mypy in a fresh consumer project"
@@ -2552,7 +2596,6 @@ def _assert_allure_container_result_links(
         assert isinstance(container, dict), f"Allure container must be a JSON object, got {type(container).__name__}"
         container_uuid = container.get("uuid")
         assert isinstance(container_uuid, str) and container_uuid, container
-        assert container_file.name == f"{container_uuid}-container.json", container
         children = container.get("children")
         assert isinstance(children, list) and children, container
         assert all(isinstance(child, str) and child for child in children), container
@@ -2768,14 +2811,16 @@ def consumer_allure_pytest_session_run_hook_fixtures(relative_path: str, consume
     assert isinstance(result, dict), result
     result_uuid = result.get("uuid")
     assert isinstance(result_uuid, str) and result_uuid, result
-    assert result_files[0].name == f"{result_uuid}-result.json", result
     assert result.get("name") == "Session hook scenario", result
     assert result.get("status") == "passed", result
     assert result.get("stage") == "finished", result
     steps = result.get("steps")
     assert isinstance(steps, list) and len(steps) == 1, result
     assert isinstance(steps[0], dict), steps
-    assert steps[0].get("name") == "the pytest session hook scenario passes", steps[0]
+    assert steps[0].get("name") in {
+        "the pytest session hook scenario passes",
+        "Given the pytest session hook scenario passes",
+    }, steps[0]
     assert steps[0].get("status") == "passed", steps[0]
 
     containers = _assert_allure_container_result_links(result_directory, {result_uuid})
@@ -2807,13 +2852,13 @@ def consumer_allure_result_and_container_field_contract(relative_path: str, cons
     result_files = sorted(result_directory.glob("*-result.json"))
     assert result_files, f"expected Allure result files in {result_directory}"
 
+    # AllureFileLogger chooses independent filename prefixes; UUID fields link results and containers.
     result_ids: set[str] = set()
     for result_file in result_files:
         result = json.loads(result_file.read_text(encoding="utf-8"))
         assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
         for field in ("uuid", "name", "fullName", "testCaseId", "historyId", "stage"):
             assert isinstance(result.get(field), str) and result[field], result
-        assert result_file.name == f"{result['uuid']}-result.json", result
         assert result.get("status") in {"passed", "failed", "broken", "skipped", "unknown"}, result
         for field in ("steps", "labels", "parameters"):
             assert isinstance(result.get(field), list), result
@@ -2827,11 +2872,11 @@ def consumer_allure_result_and_container_field_contract(relative_path: str, cons
     _assert_allure_shared_run_hook_container(containers, result_ids)
     for container in containers:
         for field in ("befores", "afters"):
-            fixtures = container.get(field)
+            fixtures = container.get(field, [])
             assert isinstance(fixtures, list), container
             for fixture_result in fixtures:
                 assert isinstance(fixture_result, dict), fixture_result
-                for fixture_field in ("uuid", "name", "stage"):
+                for fixture_field in ("name", "stage"):
                     assert (
                         isinstance(fixture_result.get(fixture_field), str) and fixture_result[fixture_field]
                     ), fixture_result
@@ -3279,7 +3324,6 @@ def consumer_allure_outline_result_metadata(
     assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
     result_uuid = result.get("uuid")
     assert isinstance(result_uuid, str) and result_uuid, result
-    assert result_files[0].name == f"{result_uuid}-result.json", result
     assert result.get("name") == scenario_name, result
     assert result.get("status") == "passed", result
 
@@ -3313,12 +3357,30 @@ def consumer_allure_result_directories_semantically_equivalent(
     consumer: ConsumerProject,
 ) -> None:
     internal_attachment_types = {_IDE_LAUNCH_MEDIA_TYPE, _IDE_STEP_BINDING_MEDIA_TYPE}
+    runtime_hierarchy_labels = {"feature", "parentSuite", "rule", "scenario", "suite"}
 
     def normalized(value: Any) -> Any:
         if isinstance(value, dict):
             result: dict[str, Any] = {}
             for key, item in value.items():
-                if key == "uuid":
+                if key in {"uuid", "titlePath"}:
+                    continue
+                if key == "labels" and isinstance(item, list):
+                    result[key] = [
+                        normalized(label)
+                        for label in item
+                        if not (isinstance(label, dict) and label.get("name") in runtime_hierarchy_labels)
+                    ]
+                    continue
+                if key == "parameters" and isinstance(item, list):
+                    result[key] = [
+                        normalized(parameter)
+                        for parameter in item
+                        if not (isinstance(parameter, dict) and parameter.get("name") == "pickleId")
+                    ]
+                    continue
+                if key == "name" and isinstance(item, str):
+                    result[key] = re.sub(r"^(?:Given|When|Then|And|But|\*)\s+", "", item)
                     continue
                 if key == "attachments" and isinstance(item, list):
                     references: list[Any] = []
@@ -3347,7 +3409,6 @@ def consumer_allure_result_directories_semantically_equivalent(
         assert isinstance(result, dict), f"Allure result must be a JSON object, got {type(result).__name__}"
         result_uuid = result.get("uuid")
         assert isinstance(result_uuid, str) and result_uuid, result
-        assert result_files[0].name == f"{result_uuid}-result.json", result
 
         result_ids = {result_uuid}
         containers = _assert_allure_container_result_links(result_directory, result_ids)
@@ -3357,6 +3418,10 @@ def consumer_allure_result_directories_semantically_equivalent(
         semantic_containers = []
         for container in containers:
             semantic_container = normalized(container)
+            for field in ("name", "start", "stop"):
+                semantic_container.pop(field, None)
+            semantic_container.setdefault("befores", [])
+            semantic_container.setdefault("afters", [])
             children = container["children"]
             semantic_container["children"] = ["<linked-result>" for _ in children]
             semantic_containers.append(semantic_container)

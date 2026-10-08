@@ -47,6 +47,8 @@ from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import Feature, Scenario
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.session_run import RunContext
+from pytest_cuke.native_allure import NativeAllureDependencyError, NativeAllureReporter
+from pytest_cuke.native_allure_worker import NativeAllureWorkerBridge, NativeAllureWorkerDependencyError
 from pytest_cuke.npm_resource import check_npm, check_npm_package
 from pytest_cuke.parser import GherkinParser, MarkdownGherkinParser, clear_parser_registrations
 from pytest_cuke.parsers import cucumber_expression
@@ -573,6 +575,24 @@ def pytest_configure(config: Config) -> None:
     config.pluginmanager.register(ScenarioRunner(), name="pytest_cuke_scenario_runner")
     message_plugin = MessagePlugin(config=config)
     config.pluginmanager.register(message_plugin, name="pytest_cuke_messages")
+    allure_output_path = _allure_output_path(config)
+    if allure_output_path is not None:
+        if isinstance(getattr(config, "workerinput", None), dict):
+            try:
+                native_allure_worker = NativeAllureWorkerBridge(config)
+                native_allure_worker.start()
+            except NativeAllureWorkerDependencyError as error:
+                raise pytest.UsageError(str(error)) from error
+            config.pluginmanager.register(native_allure_worker, name="pytest_cuke_native_allure_worker")
+        else:
+            try:
+                native_allure_reporter = NativeAllureReporter(Path(allure_output_path))
+                native_allure_reporter.start()
+            except NativeAllureDependencyError as error:
+                raise pytest.UsageError(str(error)) from error
+            except OSError as error:
+                raise pytest.UsageError(f"cannot initialize native Allure reporting: {error}") from error
+            config.pluginmanager.register(native_allure_reporter, name="pytest_cuke_native_allure")
     session_finish_hook = config.pluginmanager.get_plugin("pytest_cuke_messages_session_finish")
     if isinstance(session_finish_hook, MessageSessionFinishHookAdapter):
         session_finish_hook.bind(message_plugin)
@@ -736,6 +756,18 @@ def pytest_unconfigure(config: Config) -> None:
     config.pluginmanager.unregister(name="pytest_cuke_messages_session_finish")
     config.pluginmanager.unregister(name="pytest_cuke_messages")
     config.pluginmanager.unregister(name="pytest_cuke_summary")
+    native_allure_reporter = config.pluginmanager.get_plugin("pytest_cuke_native_allure")
+    if native_allure_reporter is not None:
+        stop = getattr(native_allure_reporter, "stop", None)
+        if callable(stop):
+            stop()
+        config.pluginmanager.unregister(name="pytest_cuke_native_allure")
+    native_allure_worker = config.pluginmanager.get_plugin("pytest_cuke_native_allure_worker")
+    if native_allure_worker is not None:
+        stop = getattr(native_allure_worker, "stop", None)
+        if callable(stop):
+            stop()
+        config.pluginmanager.unregister(name="pytest_cuke_native_allure_worker")
     with suppress(AttributeError):
         config.__allure_plugin__.unregister(config)  # type: ignore[attr-defined]  # Allure is attached dynamically during configuration.
     cucumber_json.unconfigure(config)

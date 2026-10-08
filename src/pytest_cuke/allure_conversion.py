@@ -1344,6 +1344,7 @@ def _scenario_metadata(
     documents: list[messages.GherkinDocument] = _messages(envelopes, "gherkin_document")
     scenario: messages.Scenario | None = None
     scenario_document: messages.GherkinDocument | None = None
+    scenario_rule: Any | None = None
     if pickle.ast_node_ids:
         scenario_id = pickle.ast_node_ids[0]
         for document in documents:
@@ -1355,18 +1356,18 @@ def _scenario_metadata(
                 if child.scenario is not None and child.scenario.id == scenario_id:
                     candidate = child.scenario
                     if scenario is None:
-                        scenario, scenario_document = candidate, document
+                        scenario, scenario_document, scenario_rule = candidate, document, None
                     if document.uri == pickle.uri:
-                        scenario, scenario_document = candidate, document
+                        scenario, scenario_document, scenario_rule = candidate, document, None
                         break
                 if child.rule is not None:
                     for rule_child in child.rule.children:
                         if rule_child.scenario is not None and rule_child.scenario.id == scenario_id:
                             candidate = rule_child.scenario
                             if scenario is None:
-                                scenario, scenario_document = candidate, document
+                                scenario, scenario_document, scenario_rule = candidate, document, child.rule
                             if document.uri == pickle.uri:
-                                scenario, scenario_document = candidate, document
+                                scenario, scenario_document, scenario_rule = candidate, document, child.rule
                                 break
             if scenario is not None and scenario_document is document and document.uri == pickle.uri:
                 break
@@ -1379,7 +1380,12 @@ def _scenario_metadata(
         history_id = _history_id(test_case_id, [])
         return title, labels, [], None, full_name, test_case_id, history_id
 
-    labels = _scenario_tag_labels(pickle, scenario)
+    labels = _scenario_tag_labels(
+        pickle,
+        scenario,
+        feature=scenario_document.feature if scenario_document is not None else None,
+        rule=scenario_rule,
+    )
 
     parameters: list[dict[str, str]] = []
     if len(pickle.ast_node_ids) > 1:
@@ -1429,8 +1435,10 @@ def _history_id(test_case_id: str, parameters: list[dict[str, str]]) -> str:
     return hashlib.md5(identity.encode("utf-8")).hexdigest()
 
 
-def _scenario_tag_labels(pickle: messages.Pickle, scenario: Any) -> list[dict[str, str]]:
-    """Use Gherkin tags for scenario tags while retaining inherited Pickle tags."""
+def _scenario_tag_labels(
+    pickle: messages.Pickle, scenario: Any, *, feature: Any = None, rule: Any = None
+) -> list[dict[str, str]]:
+    """Use Gherkin tags for each scenario ancestor while retaining Pickle tags."""
     gherkin_tags = {tag.id: tag for tag in scenario.tags}
     pickle_tag_ids: set[str] = set()
     labels: list[dict[str, str]] = []
@@ -1441,6 +1449,12 @@ def _scenario_tag_labels(pickle: messages.Pickle, scenario: Any) -> list[dict[st
     labels.extend(
         {"name": "tag", "value": tag.name} for tag_id, tag in gherkin_tags.items() if tag_id not in pickle_tag_ids
     )
+    for node in (feature, rule):
+        for tag in getattr(node, "tags", ()):
+            tag_id = getattr(tag, "id", None)
+            if isinstance(tag_id, str) and tag_id in pickle_tag_ids:
+                continue
+            labels.append({"name": "tag", "value": tag.name})
     return labels
 
 

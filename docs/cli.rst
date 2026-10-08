@@ -345,6 +345,20 @@ JSON and Markdown reports include the baseline, scope, observed fields and
 selected explicit decisions in stable order. Reports against supplied files
 use local schema and policy artifacts and do not access the network.
 
+Native Allure reporting during pytest runs
+------------------------------------------
+
+Use ``--cuke-allure`` to write native Allure results from the live Cucumber
+Messages stream while pytest executes scenarios. The optional directory
+defaults to ``allure-results``. Install the runtime support with
+``pytest-cuke[allure]``; when the option is absent, Allure dependencies are not
+needed.
+
+.. code-block:: console
+
+   pytest --cuke-allure
+   pytest --cuke-allure=build/allure-results
+
 Converting saved Cucumber Messages to Allure
 ---------------------------------------------
 
