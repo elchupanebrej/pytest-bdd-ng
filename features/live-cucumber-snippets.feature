@@ -14,7 +14,7 @@ Feature: Cucumber undefined-step snippets
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer prepares mixed undefined-step snippets in a Unicode workspace with spaces
     And the consumer installs the pinned official Cucumber snippets runtime in that workspace
-    When I run installed pytest from consumer directory "snippet workspace 東京 café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets --cuke-messages-ndjson=artifacts/messages.ndjson -q --color=no"
+    When I run installed pytest from consumer directory "snippet workspace 東京 café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/report.json --junitxml=artifacts/junit.xml -q --color=no"
     Then the CLI selection should emit usable JavaScript snippets and preserve the undefined failure
     And the consumer enables cuke_snippets in its configuration
     When I run installed pytest from consumer directory "snippet workspace 東京 café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=artifacts/messages.ndjson -v --capture=tee-sys --color=no"
