@@ -42,10 +42,25 @@ def add_options(parser: Parser) -> None:
     parser.addini("cuke_json", "Cucumber JSON report path.", default="", type="string")
 
 
+def normalize_cucumber_json_path(logfile: str | Path) -> Path:
+    """Normalize a Cucumber JSON destination using the logger's path rules."""
+    logfile_str = os.path.expanduser(os.path.expandvars(str(logfile)))
+    return Path(os.path.normpath(os.path.abspath(logfile_str)))
+
+
+def configured_cucumber_json_output_path(config: BaseConfig) -> Path | None:
+    """Return the effective CLI/ini Cucumber JSON destination, if selected."""
+    option = getattr(getattr(config, "option", None), "cuke_json", None)
+    if option is None:
+        getini = getattr(config, "getini", None)
+        option = getini("cuke_json") if callable(getini) else None
+    if not isinstance(option, (str, Path)) or not option:
+        return None
+    return normalize_cucumber_json_path(option)
+
+
 def configure(config: Config | BaseConfig) -> None:
-    cucumber_json_path = config.option.cuke_json
-    if cucumber_json_path is None:
-        cucumber_json_path = config.getini("cuke_json") or None
+    cucumber_json_path = configured_cucumber_json_output_path(config)
     # prevent opening json log on worker nodes (xdist)
     if cucumber_json_path and not hasattr(config, "workerinput"):
         cast("Config", config)._bddcucumberjson = LogBDDCucumberJSON(cucumber_json_path)
@@ -209,8 +224,7 @@ class LogBDDCucumberJSON:
     """Logging plugin for cucumber like json output."""
 
     def __init__(self, logfile: str | Path) -> None:
-        logfile_str = os.path.expanduser(os.path.expandvars(str(logfile)))
-        self.logfile = os.path.normpath(os.path.abspath(logfile_str))
+        self.logfile = str(normalize_cucumber_json_path(logfile))
         self.features: dict[str, dict[str, Any]] = {}
         self.reported_elements_by_nodeid: dict[str, dict[str, Any]] = {}
         self.suite_start_time: float = 0.0
