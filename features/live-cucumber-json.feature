@@ -74,3 +74,22 @@ Feature: Live message-driven Cucumber JSON formatter
     And the Cucumber JSON consumer installs a Node preload that fails during JSON finalization
     When I run installed pytest in the Cucumber JSON workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-json=artifacts/finalization.json -q --color=no"
     Then the Cucumber JSON backend failure should be visible and no partial report should be published
+
+  Scenario: Checked-in autoload example matches its reference artifact
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And Copy path from "examples/cucumber-json" to test path "cucumber-json-example"
+    And the staged E2E example "cucumber-json-example" is copied to the installed consumer
+    And the installed consumer uses staged directory "cucumber-json-example" as its Cucumber JSON workspace
+    And the fixed Cucumber JSON Messages reference fixture is copied to the installed consumer
+    And the consumer installs the pinned official Cucumber JSON runtime
+    When I run installed pytest in the Cucumber JSON workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-json=report.json --cuke-messages-ndjson=messages.ndjson -q --color=no"
+    Then the public Cucumber JSON example should preserve live schema content and valid durations
+    When I run command "cuke" in the Cucumber JSON workspace with arguments "replay reference.ndjson --formatter cucumber-json=reference.json"
+    Then the pinned official formatter should match the checked-in reference golden exactly
+
+  Scenario: Official JSON output coexists with the Messages v28 run hook lifecycle
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the Cucumber JSON consumer prepares a feature for run hook lifecycle coverage
+    And the consumer installs the pinned official Cucumber JSON runtime
+    When I run installed pytest in the Cucumber JSON workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-json=artifacts/hooks.json --cuke-messages-ndjson=artifacts/hooks.ndjson -q --color=no"
+    Then the Cucumber JSON report should preserve the scenario while Messages records both test run hooks

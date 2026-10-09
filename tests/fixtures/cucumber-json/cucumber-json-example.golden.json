@@ -1,0 +1,253 @@
+[
+  {
+    "description": "A checked-in project that demonstrates the public autoload contract.",
+    "elements": [
+      {
+        "description": "",
+        "id": "cucumber-json-example;result-serialization;a-report-includes-structured-inputs-and-an-attachment",
+        "keyword": "Scenario",
+        "line": 13,
+        "name": "A report includes structured inputs and an attachment",
+        "steps": [
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 6,
+            "name": "the Cucumber JSON example prepares a request",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:14"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 10,
+            "name": "the Cucumber JSON example resets its output",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:20"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [
+              {
+                "content": "{\"message\": \"hello\", \"ready\": true}",
+                "line": 15
+              }
+            ],
+            "keyword": "Given ",
+            "line": 14,
+            "name": "the Cucumber JSON example receives a document",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:25"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [
+              {
+                "rows": [
+                  {
+                    "cells": [
+                      "field",
+                      "value"
+                    ]
+                  },
+                  {
+                    "cells": [
+                      "café",
+                      "alpha"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "keyword": "And ",
+            "line": 18,
+            "name": "the Cucumber JSON example receives a table",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:32"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "When ",
+            "line": 21,
+            "name": "the Cucumber JSON example processes the request",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:38"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "Then ",
+            "line": 22,
+            "name": "the Cucumber JSON example response is \"hello\"",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:46"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "And ",
+            "line": 23,
+            "name": "the Cucumber JSON example attaches a report",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:51"
+            },
+            "embeddings": [
+              {
+                "data": "Y2hlY2tlZC1pbiBDdWN1bWJlciBKU09OIGV4YW1wbGUgYXR0YWNobWVudCBjYWbDqQ==",
+                "mime_type": "text/plain"
+              }
+            ]
+          }
+        ],
+        "tags": [
+          {
+            "name": "@report",
+            "line": 12
+          }
+        ],
+        "type": "scenario"
+      },
+      {
+        "description": "",
+        "id": "cucumber-json-example;result-serialization;an-example-row-is-recorded[table_rows:[line:-30]]",
+        "keyword": "Scenario Outline",
+        "line": 30,
+        "name": "An example row is recorded[table_rows:[line: 30]]",
+        "steps": [
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 6,
+            "name": "the Cucumber JSON example prepares a request",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:14"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 10,
+            "name": "the Cucumber JSON example resets its output",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:20"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 26,
+            "name": "the Cucumber JSON example records \"alpha\"",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:60"
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      },
+      {
+        "description": "",
+        "id": "cucumber-json-example;result-serialization;an-example-row-is-recorded[table_rows:[line:-31]]",
+        "keyword": "Scenario Outline",
+        "line": 31,
+        "name": "An example row is recorded[table_rows:[line: 31]]",
+        "steps": [
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 6,
+            "name": "the Cucumber JSON example prepares a request",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:14"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 10,
+            "name": "the Cucumber JSON example resets its output",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:20"
+            }
+          },
+          {
+            "result": {
+              "status": "passed",
+              "duration": 250000000
+            },
+            "arguments": [],
+            "keyword": "Given ",
+            "line": 26,
+            "name": "the Cucumber JSON example records \"bravo\"",
+            "match": {
+              "location": "file:///consumer/cucumber_json_example_steps.py:60"
+            }
+          }
+        ],
+        "tags": [],
+        "type": "scenario"
+      }
+    ],
+    "id": "cucumber-json-example",
+    "line": 2,
+    "keyword": "Feature",
+    "name": "Cucumber JSON example",
+    "tags": [
+      {
+        "name": "@public-json",
+        "line": 1
+      }
+    ],
+    "uri": "file:cucumber-json-example.feature"
+  }
+]
