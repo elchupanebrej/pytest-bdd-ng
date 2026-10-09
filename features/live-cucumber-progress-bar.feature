@@ -16,10 +16,17 @@ Feature: Live Cucumber progress bar
     And the consumer prepares failing, skipped, and passing progress-bar scenarios in a Unicode workspace with spaces
     And the consumer registers a public usage formatter with a distinct output path
     And the consumer installs pinned official Cucumber progress formatter packages in that workspace
-    When I run installed pytest from consumer directory "progress workspace café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/cucumber.json --junitxml=artifacts/pytest.xml -q --color=no"
+    When I run installed pytest from consumer directory "progress workspace café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/cucumber.json --cuke-usage-json=artifacts/cucumber-usage.json --junitxml=artifacts/pytest.xml -q --color=no"
     Then pytest should exit with a non-zero code
     And piped progress-bar markers should match completed Messages attempts in "artifacts/messages.ndjson"
     And progress-bar output should have no cursor controls and all distinct file reports should be valid
+
+  Scenario: The public progress-bar example runs with the pinned formatter
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the public Cucumber progress-bar example is copied to the installed consumer
+    And the consumer installs pinned official Cucumber progress formatter packages in that workspace
+    When I run installed pytest from consumer directory "cucumber-progress-bar-example" with arguments "--rootdir=. --cuke-parser=python --cuke-progress-bar -q --color=no"
+    Then the public progress-bar example should emit its markers and pass
 
   Scenario: Cucumber JSON and an extension cannot write to the same canonical destination
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

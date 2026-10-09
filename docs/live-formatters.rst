@@ -131,6 +131,10 @@ and skipped attempts use their worse step outcome. The bar can share a run
 with Messages and file formatters, but it cannot share stdout with
 ``--cuke-pretty`` or ``--cuke-progress``.
 
+The runnable consumer in ``examples/cucumber-progress-bar/`` shows the public
+autoload and step-definition setup with the pinned
+``@cucumber/pretty-formatter`` 4.0.2 package.
+
 The progress bar uses Node.js and ``@cucumber/pretty-formatter`` in the pytest
 root directory. The shared formatter catalog checks these dependencies only
 when the option is selected. Unselected tests remain independent of Node and
