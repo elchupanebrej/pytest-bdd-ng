@@ -171,6 +171,31 @@ The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
 installed in the pytest root directory. When the summary is not selected,
 pytest-cuke does not check for these dependencies.
 
+Built-in Cucumber JSON
+----------------------
+
+Select the message-driven Cucumber JSON formatter with ``--cuke-json[=PATH]``
+or ``cuke_json = "PATH"`` in pytest configuration. The option without a path
+writes ``cucumber.json`` under pytest's root directory; relative paths resolve
+from that root. The ``cuke_json_backend`` setting defaults to ``"cucumber"``.
+This backend uses the JSON formatter from ``@cucumber/cucumber`` and preserves
+the formatter's feature, scenario, step, hook, argument, attachment, status,
+duration, and diagnostic fields.
+
+The former pytest-cuke JSON writer remains available through explicit routing:
+set ``--cuke-json-backend=native`` or ``cuke_json_backend = "native"``. Both
+backends use the same ``--cuke-json`` destination setting. The native backend
+does not need Node.js or npm; the message-driven backend requires Node.js, npm,
+and ``@cucumber/cucumber`` installed in the pytest root directory. These
+optional dependencies are checked only when the message-driven backend is
+selected.
+
+The message-driven formatter writes a file and can run beside one terminal
+formatter and other reports with distinct paths. It also works with saved
+streams through ``cuke replay MESSAGES.ndjson --formatter
+cucumber-json=PATH``; replay does not collect or execute tests. Live and replay
+both use the shared formatter catalog and output lifecycle.
+
 Built-in Cucumber step-definition usage
 ---------------------------------------
 

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from attrs import evolve
 
-from pytest_cuke.cucumber_json import configured_cucumber_json_output_path
+from pytest_cuke.cucumber_json import configured_cucumber_json_backend, configured_cucumber_json_output_path
 from pytest_cuke.formatter_api import FormatterRequest, FormatterSelection
 
 if TYPE_CHECKING:
@@ -209,7 +209,7 @@ def _configured_live_output_paths(config: Config) -> tuple[tuple[str, Path], ...
     """Resolve selected built-in report paths using each writer's path rules."""
     output_paths: list[tuple[str, Path]] = []
     cucumber_json_path = configured_cucumber_json_output_path(config)
-    if cucumber_json_path is not None:
+    if cucumber_json_path is not None and configured_cucumber_json_backend(config) == "native":
         output_paths.append(("--cuke-json", cucumber_json_path))
 
     for option, label, expand in (

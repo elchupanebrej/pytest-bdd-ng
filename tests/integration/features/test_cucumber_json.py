@@ -13,7 +13,13 @@ if TYPE_CHECKING:  # pragma: no cover
 def runandparse(testdir, *args: Any) -> tuple["RunResult", Sequence[dict[str, Any]]]:
     """Run tests in testdir and parse json output."""
     resultpath = testdir.tmpdir.join("cucumber.json")
-    result = run_pytester_isolated(testdir, f"--cuke-json={resultpath}", "-s", *args)
+    result = run_pytester_isolated(
+        testdir,
+        f"--cuke-json={resultpath}",
+        "--cuke-json-backend=native",
+        "-s",
+        *args,
+    )
     with resultpath.open() as f:
         jsonobject = json.load(f)
     return result, jsonobject
