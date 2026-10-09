@@ -154,6 +154,16 @@ The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
 installed in the pytest root directory. When snippets are not selected,
 pytest-cuke does not check for these dependencies.
 
+The runnable consumer in ``examples/cucumber-snippets/`` demonstrates the
+JavaScript output from the pinned ``@cucumber/cucumber`` 13.3.0 runtime. For
+example, an undefined quoted Given produces this binding shape:
+
+.. code-block:: javascript
+
+   Given('a customer named {string} is registered', function (string) {
+     return 'pending';
+   });
+
 Built-in Cucumber summary
 ------------------------
 
