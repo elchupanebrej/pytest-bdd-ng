@@ -72,4 +72,5 @@ def setup_smoke_test(request):
 ### Reporting & Compatibility
 - **Cucumber Messages**: Pass `--cuke-messages-ndjson=<path>` to emit v22+ compliant messages.
 - **Cucumber JSON**: Pass `--cuke-json[=<path>]` for the official message-driven JSON execution report (`cucumber.json` by default). Use `--cuke-json-backend=native` to retain the earlier pytest-cuke JSON writer; `cuke_json_backend = "native"` provides the same routing in configuration.
+- **Cucumber JUnit XML**: Pass `--cuke-junit[=<path>]` for the official message-driven JUnit XML report (`cucumber.xml` by default), or set `cuke_junit = "path"` in pytest configuration. It can coexist with pytest's native `--junitxml` when each report has a distinct path.
 - **Allure**: Native integration via `pytest_cuke.allure_logging` when `allure-pytest` is installed.

@@ -404,6 +404,7 @@ use the same request and runtime contracts as live formatters.
 
    cuke replay messages.ndjson --formatter html=reports/cucumber.html
    pytest-cuke replay messages.ndjson --formatter summary=reports/summary.txt
+   cuke replay messages.ndjson --formatter cucumber-junit=reports/cucumber.xml
 
 See :doc:`formatter-replay` for the entry-point factory contract, publication
 rules, and input validation behavior.
