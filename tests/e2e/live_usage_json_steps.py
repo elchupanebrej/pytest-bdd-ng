@@ -12,13 +12,14 @@ import subprocess
 import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import unquote
 
 import pytest
 from pytest_cuke import given, parsers, then, when
 
 
+_PRODUCT_ROOT = Path(__file__).resolve().parents[2]
 _CUCUMBER_PACKAGES = {"@cucumber/cucumber": "13.3.0"}
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _IDENTITY_FEATURE = """\
@@ -289,6 +290,69 @@ def _read_usage_json(consumer: Any, relative_path: str) -> tuple[list[dict[str, 
     assert all(isinstance(definition, dict) for definition in document), document
     consumer._usage_json_last_report = document
     return document, text
+
+
+def _normalized_usage_json_report(report: list[dict[str, Any]], workspace: Path) -> list[dict[str, Any]]:
+    workspace = workspace.resolve()
+    uri_prefixes = (
+        (workspace.as_uri().rstrip("/"), "file:///workspace"),
+        (f"file://{workspace.as_posix()}".rstrip("/"), "file:///workspace"),
+        (workspace.as_posix().rstrip("/"), "<workspace>"),
+    )
+
+    def normalize_uri(value: str) -> str:
+        normalized = value.replace("\\", "/")
+        for prefix, replacement in uri_prefixes:
+            if normalized == prefix or normalized.startswith(prefix + "/"):
+                return replacement + normalized[len(prefix) :]
+        return normalized
+
+    def normalize_duration(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: 0 if key in {"seconds", "nanos"} and isinstance(item, (int, float)) else normalize(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return 0
+        if isinstance(value, str):
+            return "0"
+        return normalize(value)
+
+    def normalize(value: Any) -> Any:
+        if isinstance(value, dict):
+            normalized: dict[str, Any] = {}
+            for key, item in value.items():
+                if key == "uri" and isinstance(item, str):
+                    normalized[key] = normalize_uri(item)
+                elif key in {"duration", "meanDuration"}:
+                    normalized[key] = normalize_duration(item)
+                else:
+                    normalized[key] = normalize(item)
+            return normalized
+        if isinstance(value, list):
+            return [normalize(item) for item in value]
+        return value
+
+    normalized = normalize(json.loads(json.dumps(report, ensure_ascii=False)))
+    for definition in normalized:
+        # Match array order is not contractual; retain and sort every record for semantic comparison.
+        definition["matches"] = sorted(
+            definition["matches"],
+            key=lambda match: (match.get("uri", ""), match.get("line", 0), match.get("text", "")),
+        )
+    # Definition array order is also not contractual and can vary across fresh consumers.
+    normalized.sort(
+        key=lambda definition: (
+            definition.get("pattern", ""),
+            definition.get("uri", ""),
+            definition.get("line", 0),
+            definition.get("patternType", ""),
+            definition.get("code", ""),
+            json.dumps(definition, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        )
+    )
+    return cast(list[dict[str, Any]], normalized)
 
 
 def _definition(report: list[dict[str, Any]], pattern_fragment: str) -> dict[str, Any]:
@@ -712,3 +776,116 @@ def usage_json_backend_failure_is_visible(consumer: Any) -> None:
     assert "usage JSON backend finalization sentinel" in output, output
     assert re.search(r"\b1 passed\b", output), output
     assert re.search(r"\b1 failed\b", output) is None, output
+
+
+@given("the public Cucumber Usage JSON example is copied to the installed consumer")
+def copy_public_usage_json_example_to_consumer(consumer: Any) -> None:
+    source = _PRODUCT_ROOT / "examples" / "cucumber-usage-json"
+    destination = Path(consumer.path) / "cucumber-usage-json-example"
+    shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    (destination / "artifacts").mkdir(exist_ok=True)
+    consumer._usage_json_workspace = destination.resolve()
+    consumer._usage_json_readonly_directory = None
+
+
+@then("the public Usage JSON example should preserve used and unused definitions")
+def public_usage_json_example_preserves_definition_semantics(consumer: Any) -> None:
+    _assert_usage_json_success(consumer)
+    report, _ = _read_usage_json(consumer, "artifacts/usage.json")
+    assert consumer._usage_json_cucumber_version == "13.3.0"
+    assert len(report) == 4, report
+
+    workspace = consumer._usage_json_workspace
+    feature_source = (workspace / "features/cucumber-usage-json-example.feature").read_text(encoding="utf-8")
+    step_source = (workspace / "cucumber_usage_json_example_steps.py").read_text(encoding="utf-8")
+    background = _definition(report, "the Usage JSON example starts a clean request")
+    assert background["pattern"] == "the Usage JSON example starts a clean request", background
+    assert background["patternType"] == "CucumberExpression", background
+    assert background["uri"].replace("\\", "/").endswith("cucumber_usage_json_example_steps.py"), background
+    assert background["line"] == _feature_line(
+        step_source,
+        '@given("the Usage JSON example starts a clean request")',
+    )
+    _assert_match_source(
+        background,
+        uri_suffix="cucumber-usage-json-example.feature",
+        feature_line=_feature_line(feature_source, "Given the Usage JSON example starts a clean request"),
+        expected_texts=["the Usage JSON example starts a clean request"] * 2,
+        durations=True,
+    )
+
+    handler = _definition(report, "the Usage JSON example handles")
+    assert handler["pattern"] == "the Usage JSON example handles {word}", handler
+    assert handler["patternType"] == "CucumberExpression", handler
+    assert handler["uri"].replace("\\", "/").endswith("cucumber_usage_json_example_steps.py"), handler
+    assert handler["line"] == _feature_line(step_source, "@when(")
+    _assert_match_source(
+        handler,
+        uri_suffix="cucumber-usage-json-example.feature",
+        feature_line=_feature_line(feature_source, "When the Usage JSON example handles <value>"),
+        expected_texts=["the Usage JSON example handles alpha", "the Usage JSON example handles bravo"],
+        durations=True,
+    )
+
+    recorder = _definition(report, "the Usage JSON example records")
+    assert recorder["pattern"] == "the Usage JSON example records {word}", recorder
+    assert recorder["patternType"] == "CucumberExpression", recorder
+    assert recorder["uri"].replace("\\", "/").endswith("cucumber_usage_json_example_steps.py"), recorder
+    assert recorder["line"] == _feature_line(step_source, "@then(")
+    _assert_match_source(
+        recorder,
+        uri_suffix="cucumber-usage-json-example.feature",
+        feature_line=_feature_line(feature_source, "Then the Usage JSON example records <value>"),
+        expected_texts=["the Usage JSON example records alpha", "the Usage JSON example records bravo"],
+        durations=True,
+    )
+
+    unused = _definition(report, "the Usage JSON example documents an unused definition")
+    assert unused["pattern"] == "the Usage JSON example documents an unused definition", unused
+    assert unused["patternType"] == "CucumberExpression", unused
+    assert unused["uri"].replace("\\", "/").endswith("cucumber_usage_json_example_steps.py"), unused
+    assert unused["matches"] == [], unused
+    assert "meanDuration" not in unused, unused
+    consumer._usage_json_example_baseline_patterns = {str(item.get("pattern", "")) for item in report}
+    consumer._usage_json_example_baseline_count = len(report)
+
+
+@when("the consumer adds a new unused definition to the public Usage JSON example")
+def add_new_unused_public_usage_json_definition(consumer: Any) -> None:
+    plugin = consumer._usage_json_workspace / "cucumber_usage_json_example_steps.py"
+    with plugin.open("a", encoding="utf-8") as stream:
+        stream.write(
+            '\n\n@given("the Usage JSON example introduces a new unused definition")\n'
+            "def newly_unused_definition():\n"
+            '    """This added definition should appear without matches."""\n'
+        )
+
+
+@then("the newly added Usage JSON definition should appear without matches")
+def newly_added_usage_json_definition_is_present(consumer: Any) -> None:
+    _assert_usage_json_success(consumer)
+    report, _ = _read_usage_json(consumer, "artifacts/usage.json")
+    baseline_patterns = consumer._usage_json_example_baseline_patterns
+    newly_added_pattern = "the Usage JSON example introduces a new unused definition"
+    assert newly_added_pattern not in baseline_patterns, baseline_patterns
+    assert len(report) == consumer._usage_json_example_baseline_count + 1, report
+    assert {str(item.get("pattern", "")) for item in report} >= baseline_patterns, report
+    added = _definition(report, newly_added_pattern)
+    assert added["pattern"] == newly_added_pattern, added
+    assert added["matches"] == [], added
+    assert "meanDuration" not in added, added
+    built_in_unused = _definition(report, "the Usage JSON example documents an unused definition")
+    assert built_in_unused["matches"] == [], built_in_unused
+
+
+@then("the real pinned Usage JSON artifact should match the checked-in semantic golden")
+def real_pinned_usage_json_matches_semantic_golden(consumer: Any) -> None:
+    report, _ = _read_usage_json(consumer, "artifacts/usage.json")
+    actual = _normalized_usage_json_report(report, consumer._usage_json_workspace)
+    golden_path = _PRODUCT_ROOT / "tests/fixtures/cucumber-usage-json/cucumber-usage-json-example.golden.json"
+    assert golden_path.is_file(), f"the pinned Usage JSON semantic golden is missing: {golden_path}"
+    expected = json.loads(golden_path.read_text(encoding="utf-8"))
+    assert actual == expected, (
+        "normalized live Usage JSON differs from the pinned Cucumber semantic golden:\n"
+        f"{json.dumps(actual, ensure_ascii=False, indent=2)}"
+    )

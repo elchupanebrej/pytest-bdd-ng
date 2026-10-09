@@ -252,6 +252,10 @@ machine-readable, including discovered definitions without matches. Match
 records identify feature URI, source line, and interpolated step text; the
 backend does not serialize per-execution IDs.
 
+The runnable consumer in ``examples/cucumber-usage-json/`` demonstrates the
+autoloaded feature, outline matches, and a discovered definition with no
+matches. It uses the pinned ``@cucumber/cucumber`` 13.3.0 package.
+
 This formatter writes only to its requested file. It can run beside one
 terminal formatter such as ``--cuke-summary`` and other report files, provided
 each destination is distinct. Missing directories, duplicate destinations,
