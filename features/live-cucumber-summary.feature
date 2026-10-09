@@ -14,9 +14,25 @@ Feature: Live Cucumber Summary formatter
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the summary consumer prepares a Background, two outline rows, a failure, and a skip with a public file formatter
     And the consumer installs the pinned official Cucumber Summary runtime in its workspace
-    When I run installed pytest from consumer directory "summary workspace café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/report.json --junitxml=artifacts/junit.xml -q --color=no"
+    When I run installed pytest from consumer directory "summary workspace café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/report.json --cuke-usage-json=artifacts/cucumber-usage.json --junitxml=artifacts/junit.xml -q --color=no"
     Then the official Cucumber summary should report finalized scenario and step outcomes with duration
     And Messages, Cucumber JSON, JUnit XML, and the public FormatterRequest usage JSON should agree on four execution cases
+    And the built-in Usage JSON should contain the used summary background definition
+    And the official summary should appear on stdout and not stderr
+
+  Scenario: The public Summary example runs with the official formatter
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the public Cucumber Summary example is copied to the installed consumer
+    And the consumer installs the pinned official Cucumber Summary runtime in its workspace
+    When I run installed pytest from consumer directory "cucumber-summary-example" with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-summary -q --color=no"
+    Then the public Summary example should pass with the official summary
+
+  Scenario: Summary selection rejects duplicate canonical file destinations before execution
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the summary consumer prepares a marker scenario for destination preflight
+    And the consumer installs the pinned official Cucumber Summary runtime in its workspace
+    When I run installed pytest from consumer directory "summary destination conflict workspace" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary --cuke-json=artifacts/../artifacts/shared.json --cuke-messages-ndjson=artifacts/shared.json -q --color=no"
+    Then duplicate summary file destinations should fail before the marker scenario runs
 
   Scenario: The cuke_summary setting works with verbose tee-sys output
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
