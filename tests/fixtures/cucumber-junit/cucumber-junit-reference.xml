@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="pytest-bdd-ng" tests="2" failures="1">
+  <testcase name="passing scenario" classname="formatter_suite"/>
+  <testcase name="failing scenario" classname="formatter_suite">
+    <failure message="boom">RuntimeError: boom</failure>
+  </testcase>
+</testsuite>

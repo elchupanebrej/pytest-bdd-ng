@@ -91,7 +91,7 @@ jobs:
         run: >-
           python -m pytest features/live-cucumber-progress-bar.feature
           features/live-cucumber-snippets.feature features/live-cucumber-summary.feature
-          features/live-cucumber-json.feature
+          features/live-cucumber-json.feature features/live-cucumber-junit-xml.feature
           features/live-cucumber-usage.feature features/live-cucumber-usage-json.feature
           features/native-allure-reporting.feature
           -m e2e -q

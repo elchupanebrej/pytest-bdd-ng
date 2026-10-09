@@ -151,6 +151,23 @@ def test_catalog_rejects_formatter_conflicts_with_each_reserved_sink(
         resolve_formatter_requests(config)
 
 
+def test_catalog_rejects_cucumber_junit_conflict_with_native_pytest_junit(tmp_path: Path) -> None:
+    (tmp_path / "artifacts").mkdir()
+    destination = tmp_path / "artifacts" / "report.xml"
+    request = FormatterRequest(
+        name="cucumber-junit",
+        command=(sys.executable,),
+        output_path=Path("artifacts/../artifacts/report.xml"),
+    )
+    config = _config(tmp_path, (request,), options={"xmlpath": str(destination)})
+
+    with pytest.raises(
+        pytest.UsageError,
+        match=r"'cucumber-junit' and --junitxml resolve to the same output path",
+    ):
+        resolve_formatter_requests(config)
+
+
 def test_catalog_does_not_check_optional_runtime_when_no_formatter_is_selected(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -196,6 +196,27 @@ streams through ``cuke replay MESSAGES.ndjson --formatter
 cucumber-json=PATH``; replay does not collect or execute tests. Live and replay
 both use the shared formatter catalog and output lifecycle.
 
+Built-in Cucumber JUnit XML
+---------------------------
+
+Select Cucumber's official message-driven JUnit XML formatter with
+``--cuke-junit[=PATH]`` or ``cuke_junit = "PATH"`` in pytest configuration.
+The option without a path writes ``cucumber.xml`` under pytest's root directory;
+relative paths resolve from that root. The report follows
+``@cucumber/junit-xml-formatter``'s XML projection: suites and test cases carry
+scenario identity and outcomes, step details appear in ``system-out``, and
+failed or skipped cases use the corresponding JUnit elements. Scenario outline
+rows remain distinct test cases. The formatter does not add separate XML
+elements for Gherkin tags, descriptions, doc strings, or data tables.
+
+The report can run beside pytest's native ``--junitxml`` when the two outputs
+use distinct paths. It also works with saved streams through ``cuke replay
+MESSAGES.ndjson --formatter cucumber-junit=PATH``; replay does not collect or
+execute tests. Live and replay both use the shared formatter catalog and output
+lifecycle. The formatter requires Node.js, npm, and
+``@cucumber/junit-xml-formatter`` installed in the pytest root directory. These
+dependencies are checked only when the formatter is selected.
+
 Built-in Cucumber step-definition usage
 ---------------------------------------
 

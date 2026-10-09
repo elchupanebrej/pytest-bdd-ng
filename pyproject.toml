@@ -93,6 +93,7 @@ cuke = "pytest_cuke.cli:main"
 
 [project.entry-points."pytest_cuke.formatters"]
 cucumber-json = "pytest_cuke.cucumber_json_formatter:replay_cucumber_json_formatter_request"
+cucumber-junit = "pytest_cuke.cucumber_junit_formatter:replay_cucumber_junit_formatter_request"
 
 
 [project.optional-dependencies]
@@ -338,6 +339,7 @@ cuke_features_dir = "features"
 cuke_strict = false
 cuke_liberal_steps = false
 cuke_json = ""
+cuke_junit = ""
 cuke_messages_ndjson = ""
 cuke_html = ""
 cuke_progress = false
