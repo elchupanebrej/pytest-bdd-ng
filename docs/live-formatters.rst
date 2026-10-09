@@ -171,6 +171,10 @@ The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
 installed in the pytest root directory. When the summary is not selected,
 pytest-cuke does not check for these dependencies.
 
+The runnable consumer in ``examples/cucumber-summary/`` demonstrates the
+public step facade, autoloaded outline rows, and the pinned
+``@cucumber/cucumber`` 13.3.0 formatter.
+
 Built-in Cucumber JSON
 ----------------------
 

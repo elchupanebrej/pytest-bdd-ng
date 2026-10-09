@@ -17,6 +17,7 @@ from pytest_cuke.model.message_stream_validation import validate_message_stream
 from pytest_cuke.model.message_types import message_from_dict
 
 
+_PRODUCT_ROOT = Path(__file__).resolve().parents[2]
 _CUCUMBER_PACKAGES = {"@cucumber/cucumber": "13.3.0"}
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _SUMMARY_FEATURE = """\
@@ -306,6 +307,9 @@ def _install_official_summary_runtime(consumer: Any) -> None:
     assert install.returncode == 0, (
         f"could not install pinned official @cucumber/cucumber@13.3.0:\n{install.stdout}\n{install.stderr}"
     )
+    package_metadata = json.loads((root / "node_modules/@cucumber/cucumber/package.json").read_text(encoding="utf-8"))
+    assert package_metadata.get("version") == "13.3.0", package_metadata
+    consumer._summary_cucumber_version = package_metadata["version"]
     consumer.env["PATH"] = environment["PATH"]
 
 
@@ -450,6 +454,79 @@ def install_official_summary_runtime(consumer: Any) -> None:
     _install_official_summary_runtime(consumer)
 
 
+@given("the public Cucumber Summary example is copied to the installed consumer")
+def copy_public_cucumber_summary_example(consumer: Any) -> None:
+    source = _PRODUCT_ROOT / "examples" / "cucumber-summary"
+    assert source.is_dir(), f"the public Cucumber Summary example is missing: {source}"
+    destination = _safe_workspace(consumer, "cucumber-summary-example")
+    shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    consumer._summary_workspace = destination
+
+
+@given("the summary consumer prepares a marker scenario for destination preflight")
+def prepare_summary_destination_preflight_consumer(consumer: Any) -> None:
+    _prepare_consumer(
+        consumer,
+        workspace="summary destination conflict workspace",
+        feature=_PREFLIGHT_FEATURE,
+        feature_name="destination-conflict.feature",
+    )
+
+
+@then("the official summary should appear on stdout and not stderr")
+def official_summary_is_written_only_to_stdout(consumer: Any) -> None:
+    _assert_summary_output_on_stdout(
+        consumer,
+        expected_scenario_summary="4 scenarios (1 failed, 1 skipped, 2 passed)",
+        expected_step_summary="11 steps (1 failed, 2 skipped, 8 passed)",
+    )
+
+
+def _assert_summary_output_on_stdout(
+    consumer: Any,
+    *,
+    expected_scenario_summary: str,
+    expected_step_summary: str,
+) -> str:
+    result = consumer.pytest_result
+    assert result is not None, "the installed consumer has not run"
+    stdout = _ANSI.sub("", result.stdout)
+    stderr = _ANSI.sub("", result.stderr)
+    assert _summary_line(stdout, "scenario") == expected_scenario_summary, stdout
+    assert _summary_line(stdout, "step") == expected_step_summary, stdout
+    assert not re.search(r"\b\d+ scenarios? \([^()\r\n]*\)", stderr), stderr
+    assert not re.search(r"\b\d+ steps? \([^()\r\n]*\)", stderr), stderr
+    _assert_duration(stdout)
+    return stdout
+
+
+@then("the public Summary example should pass with the official summary")
+def public_summary_example_passes_with_official_formatter(consumer: Any) -> None:
+    result = consumer.pytest_result
+    assert result is not None and result.returncode == 0, (
+        f"public Summary example failed:\n{result.stdout if result else ''}\n{result.stderr if result else ''}"
+    )
+    assert consumer._summary_cucumber_version == "13.3.0"
+    _assert_summary_output_on_stdout(
+        consumer,
+        expected_scenario_summary="2 scenarios (2 passed)",
+        expected_step_summary="6 steps (6 passed)",
+    )
+    assert "2 passed" in _output(consumer), _output(consumer)
+
+
+@then("duplicate summary file destinations should fail before the marker scenario runs")
+def duplicate_summary_file_destination_preflights(consumer: Any) -> None:
+    result = consumer.pytest_result
+    output = _output(consumer)
+    assert consumer._summary_cucumber_version == "13.3.0"
+    assert result is not None and result.returncode != 0, output
+    assert "shared.json" in output, output
+    assert any(token in output.lower() for token in ("same output path", "duplicate", "same path", "resolve")), output
+    assert not (consumer._summary_workspace / "scenario-started.marker").exists(), output
+    assert not (consumer._summary_workspace / "artifacts/shared.json").exists(), output
+
+
 @then("the official Cucumber summary should report finalized scenario and step outcomes with duration")
 def summary_reports_mixed_outcomes_and_duration(consumer: Any) -> None:
     result = consumer.pytest_result
@@ -498,15 +575,15 @@ def summary_artifacts_agree_on_execution_cases(consumer: Any) -> None:
     outline_name = "A passing outline row <record>"
     failure_name = "A failing scenario preserves its detail"
     skip_name = "A skipped scenario is counted"
-    assert [element["name"] for element in elements].count(outline_name) == 2, elements
+    outline_elements = [element for element in elements if element["name"].startswith(outline_name)]
+    assert len(outline_elements) == 2, elements
     assert [element["name"] for element in elements].count(failure_name) == 1, elements
     assert [element["name"] for element in elements].count(skip_name) == 1, elements
 
-    outline_elements = [element for element in elements if element["name"] == outline_name]
     outline_row_lines = set()
     for element in outline_elements:
-        row_line = re.search(r"table_rows:\[line: (\d+)\]", element["id"])
-        assert row_line is not None, element["id"]
+        row_line = re.search(r"table_rows:\[line: (\d+)\]", element["name"])
+        assert row_line is not None, element["name"]
         outline_row_lines.add(row_line.group(1))
         assert [step["result"]["status"] for step in element["steps"]] == ["passed", "passed", "passed"], element
     assert outline_row_lines == {"11", "12"}, outline_elements
@@ -526,7 +603,7 @@ def summary_artifacts_agree_on_execution_cases(consumer: Any) -> None:
         "the summary background step passes",
         "the summary scenario deliberately skips",
     ], skip_element
-    assert [step["result"]["status"] for step in skip_element["steps"]] == ["skipped", "skipped"], skip_element
+    assert [step["result"]["status"] for step in skip_element["steps"]] == ["passed", "skipped"], skip_element
 
     junit_root = ET.parse(root / "artifacts/junit.xml").getroot()
     suites = [junit_root] if junit_root.tag == "testsuite" else list(junit_root.findall("testsuite"))
@@ -547,6 +624,30 @@ def summary_artifacts_agree_on_execution_cases(consumer: Any) -> None:
         "background",
         "background",
     ]
+
+
+@then("the built-in Usage JSON should contain the used summary background definition")
+def built_in_usage_json_contains_summary_background(consumer: Any) -> None:
+    path = consumer._summary_workspace / "artifacts/cucumber-usage.json"
+    assert path.is_file(), f"the built-in Usage JSON artifact was not written: {path}"
+    usage = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(usage, list) and all(isinstance(definition, dict) for definition in usage), usage
+    matches = [definition for definition in usage if definition.get("pattern") == "the summary background step passes"]
+    assert len(matches) == 1, matches
+    definition = matches[0]
+    assert definition.get("patternType") == "CucumberExpression", definition
+    assert isinstance(definition.get("uri"), str) and definition["uri"].endswith("summary_consumer_steps.py"), (
+        definition
+    )
+    assert isinstance(definition.get("line"), int) and definition["line"] > 0, definition
+    assert isinstance(definition.get("matches"), list), definition
+    assert len(definition["matches"]) == 4, definition
+    assert [match.get("text") for match in definition["matches"]] == [
+        "the summary background step passes",
+        "the summary background step passes",
+        "the summary background step passes",
+        "the summary background step passes",
+    ], definition
 
 
 @given("the summary consumer prepares a passing feature with cuke_summary enabled in configuration")
