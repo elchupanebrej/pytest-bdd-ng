@@ -10,6 +10,7 @@ import shutil
 import stat
 import subprocess
 import xml.etree.ElementTree as ET
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -413,11 +414,102 @@ def _normalized_junit_artifact(path: Path) -> str:
     declaration = raw.splitlines()[0] if raw.startswith("<?xml") else ""
     root = ET.fromstring(raw)
     for node in root.iter():
-        if "time" in node.attrib:
-            node.set("time", "DURATION")
         node.attrib.pop("timestamp", None)
     canonical = ET.canonicalize(ET.tostring(root, encoding="unicode"), strip_text=False)
     return f"{declaration}\n{canonical}\n" if declaration else f"{canonical}\n"
+
+
+def _message_timestamp_nanoseconds(value: Any) -> int:
+    if isinstance(value, dict):
+        return int(value["seconds"]) * 1_000_000_000 + int(value.get("nanos", 0))
+    parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    delta = parsed - datetime(1970, 1, 1, tzinfo=timezone.utc)
+    return (delta.days * 86_400 + delta.seconds) * 1_000_000_000 + delta.microseconds * 1_000
+
+
+def _junit_message_durations(messages_path: Path) -> tuple[float, list[float]]:
+    envelopes = [json.loads(line) for line in messages_path.read_text(encoding="utf-8").splitlines() if line]
+    run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    assert len(run_started) == len(run_finished) == 1, (run_started, run_finished)
+    suite_duration = (
+        _message_timestamp_nanoseconds(run_finished[0]["timestamp"])
+        - _message_timestamp_nanoseconds(run_started[0]["timestamp"])
+    ) / 1_000_000_000
+
+    started_by_id = {
+        envelope["testCaseStarted"]["id"]: envelope["testCaseStarted"]
+        for envelope in envelopes
+        if "testCaseStarted" in envelope
+    }
+    finished = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    assert len(started_by_id) == len(finished), (started_by_id, finished)
+    case_durations = [
+        (
+            _message_timestamp_nanoseconds(event["timestamp"])
+            - _message_timestamp_nanoseconds(started_by_id[event["testCaseStartedId"]]["timestamp"])
+        )
+        / 1_000_000_000
+        for event in finished
+    ]
+    return suite_duration, case_durations
+
+
+def _assert_junit_durations_match_messages(consumer: Any, relative_xml: str, relative_messages: str) -> None:
+    root, cases = _read_junit(consumer, relative_xml)
+    suite = root if root.tag == "testsuite" else root.find("testsuite")
+    assert suite is not None, ET.tostring(root, encoding="unicode")
+    expected_suite_duration, expected_case_durations = _junit_message_durations(
+        consumer._cucumber_junit_workspace / relative_messages
+    )
+    assert float(suite.get("time", "nan")) == pytest.approx(expected_suite_duration, abs=1e-6), suite.attrib
+    assert len(cases) == len(expected_case_durations), (cases, expected_case_durations)
+    for case, expected_duration in zip(cases, expected_case_durations, strict=True):
+        assert float(case.get("time", "nan")) == pytest.approx(expected_duration, abs=1e-6), (
+            case.attrib,
+            expected_duration,
+        )
+
+
+def _write_deterministic_junit_messages(consumer: Any) -> Path:
+    workspace = consumer._cucumber_junit_workspace
+    source = workspace / "artifacts/messages.ndjson"
+    destination = workspace / "artifacts/deterministic-messages.ndjson"
+    envelopes = [json.loads(line) for line in source.read_text(encoding="utf-8").splitlines() if line]
+    started = [envelope["testCaseStarted"] for envelope in envelopes if "testCaseStarted" in envelope]
+    finished = [envelope["testCaseFinished"] for envelope in envelopes if "testCaseFinished" in envelope]
+    run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    assert len(started) == len(finished) == 2, (started, finished)
+    assert len(run_started) == len(run_finished) == 1, (run_started, run_finished)
+
+    base = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    base_seconds = int(base.timestamp())
+    intervals = ((1, 3), (4, 7))
+    case_start_offsets = {event["id"]: start for event, (start, _) in zip(started, intervals, strict=True)}
+    case_finish_offsets = {event["id"]: finish for event, (_, finish) in zip(started, intervals, strict=True)}
+
+    def timestamp(offset_seconds: int) -> dict[str, int]:
+        return {"seconds": base_seconds + offset_seconds, "nanos": 0}
+
+    for envelope in envelopes:
+        if "testRunStarted" in envelope:
+            envelope["testRunStarted"]["timestamp"] = timestamp(0)
+        elif "testCaseStarted" in envelope:
+            event = envelope["testCaseStarted"]
+            event["timestamp"] = timestamp(case_start_offsets[event["id"]])
+        elif "testCaseFinished" in envelope:
+            event = envelope["testCaseFinished"]
+            started_id = event["testCaseStartedId"]
+            event["timestamp"] = timestamp(case_finish_offsets[started_id])
+        elif "testRunFinished" in envelope:
+            envelope["testRunFinished"]["timestamp"] = timestamp(10)
+
+    destination.write_text(
+        "".join(json.dumps(envelope, ensure_ascii=False, separators=(",", ":")) + "\n" for envelope in envelopes),
+        encoding="utf-8",
+    )
+    return destination
 
 
 def _assert_junit_rich_report(consumer: Any, relative_path: str) -> None:
@@ -506,6 +598,7 @@ def copy_public_cucumber_junit_example_to_consumer(consumer: Any) -> None:
     source = _PRODUCT_ROOT / "examples" / "cucumber-junit"
     destination = Path(consumer.path) / "cucumber-junit-example"
     shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    (destination / "artifacts").mkdir()
     consumer._cucumber_junit_workspace = destination.resolve()
     consumer._cucumber_junit_readonly_directory = None
 
@@ -790,7 +883,7 @@ def cucumber_junit_backend_finalization_failure_is_visible(consumer: Any) -> Non
     assert not (consumer._cucumber_junit_workspace / "artifacts/finalization.xml").exists(), output
 
 
-@then("the public Cucumber JUnit example should match its pinned formatter golden and preserve its report contract")
+@then("the public Cucumber JUnit example should preserve its contract and match live durations to Messages")
 def public_cucumber_junit_example_preserves_contract(consumer: Any) -> None:
     assert consumer.cucumber_junit_result.returncode == 0, _junit_output(consumer)
     root, cases = _read_junit(consumer, "report.xml")
@@ -809,7 +902,28 @@ def public_cucumber_junit_example_preserves_contract(consumer: Any) -> None:
         assert "passed" in output.lower(), output
         expected_customer = "Ada" if "#1.1" in case.get("name", "") else "Boris"
         assert f'Cucumber JUnit example accepts "{expected_customer}"' in output, output
-    actual = _normalized_junit_artifact(consumer._cucumber_junit_workspace / "report.xml")
+    _assert_junit_durations_match_messages(consumer, "report.xml", "artifacts/messages.ndjson")
+
+
+@when("the consumer creates deterministic Cucumber JUnit Messages for golden comparison")
+def prepare_deterministic_junit_messages(consumer: Any) -> None:
+    _write_deterministic_junit_messages(consumer)
+
+
+@when(parsers.re(r'I replay deterministic Cucumber JUnit Messages to "(?P<relative_path>[^"]+)"'))
+def replay_deterministic_junit_messages(relative_path: str, consumer: Any) -> None:
+    result = _run_junit_replay(consumer, "artifacts/deterministic-messages.ndjson", relative_path)
+    assert result.returncode == 0, _junit_output(consumer, replay=True)
+
+
+@then("deterministic Cucumber JUnit replay should match the pinned example golden including numeric durations")
+def deterministic_cucumber_junit_replay_matches_pinned_golden(consumer: Any) -> None:
+    _assert_junit_durations_match_messages(
+        consumer,
+        "report-replayed.xml",
+        "artifacts/deterministic-messages.ndjson",
+    )
+    actual = _normalized_junit_artifact(consumer._cucumber_junit_workspace / "report-replayed.xml")
     golden_path = _PRODUCT_ROOT / "tests/fixtures/cucumber-junit/cucumber-junit-example.xml"
     golden = golden_path.read_text(encoding="utf-8")
-    assert actual == golden, f"normalized live JUnit XML differs from {golden_path}:\n{actual}"
+    assert actual == golden, f"normalized deterministic replay XML differs from {golden_path}:\n{actual}"

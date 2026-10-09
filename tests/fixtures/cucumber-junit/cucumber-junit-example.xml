@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
-<testsuite errors="0" failures="0" name="Cucumber" skipped="0" tests="2" time="DURATION">
-  <testcase classname="Cucumber JUnit example café" name="Customer profiles - Submit a profile for &lt;customer> - named profiles - #1.1: Submit a profile for &lt;customer>[table_rows:[line: 30]]" time="DURATION">
+<testsuite errors="0" failures="0" name="Cucumber" skipped="0" tests="2" time="10">
+  <testcase classname="Cucumber JUnit example café" name="Customer profiles - Submit a profile for &lt;customer> - named profiles - #1.1: Submit a profile for &lt;customer>[table_rows:[line: 30]]" time="2">
     <system-out>Given the Cucumber JUnit example prepares a profile.........................passed
 Given the Cucumber JUnit example confirms its profile setup.................passed
 When the Cucumber JUnit example receives a profile document.................passed
 And the Cucumber JUnit example receives profile fields......................passed
 Then the Cucumber JUnit example accepts "Ada"...............................passed</system-out>
   </testcase>
-  <testcase classname="Cucumber JUnit example café" name="Customer profiles - Submit a profile for &lt;customer> - named profiles - #1.2: Submit a profile for &lt;customer>[table_rows:[line: 31]]" time="DURATION">
+  <testcase classname="Cucumber JUnit example café" name="Customer profiles - Submit a profile for &lt;customer> - named profiles - #1.2: Submit a profile for &lt;customer>[table_rows:[line: 31]]" time="3">
     <system-out>Given the Cucumber JUnit example prepares a profile.........................passed
 Given the Cucumber JUnit example confirms its profile setup.................passed
 When the Cucumber JUnit example receives a profile document.................passed
