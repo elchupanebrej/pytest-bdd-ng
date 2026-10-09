@@ -253,6 +253,7 @@ def _install_official_cucumber(consumer: Any) -> None:
     )
     consumer.env["PATH"] = environment["PATH"]
     consumer._snippets_node = node
+    consumer._snippets_cucumber_version = installed_version
 
 
 def _run_pytest(consumer: Any, arguments: str, *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -316,24 +317,44 @@ def _snippet_output(output: str) -> str:
     return output[start : end + len("});")]
 
 
-def _assert_official_js_snippets(consumer: Any, *, expected_count: int) -> str:
-    output = _assert_pytest_undefined_failure(
+def _assert_keyworded_snippets(
+    snippet_output: str,
+    expected_keyword_expressions: tuple[tuple[str, str], ...],
+) -> None:
+    for keyword, expression in expected_keyword_expressions:
+        pattern = re.compile(rf"(?m)^\s*(?://\s*)?{keyword}\(\s*(['\"]){re.escape(expression)}\1\s*,\s*function\s*\(")
+        matches = list(pattern.finditer(snippet_output))
+        assert len(matches) == 1, (
+            f"expected exactly one {keyword} snippet for {expression!r}, got {len(matches)}:\n{snippet_output}"
+        )
+
+
+def _assert_official_js_snippets(
+    consumer: Any,
+    *,
+    expected_count: int,
+    expected_failure_count: int = 4,
+    expected_pass_count: int = 1,
+    expected_keyword_expressions: tuple[tuple[str, str], ...] = (),
+    defined_step_not_suggested: str | None = "a snippet control step that records normal execution",
+) -> str:
+    _assert_pytest_undefined_failure(
         consumer,
-        expected_failure_count=4,
-        expected_pass_count=1,
+        expected_failure_count=expected_failure_count,
+        expected_pass_count=expected_pass_count,
     )
     result = consumer.pytest_result
     assert result is not None
-    snippet_streams = [
-        stream
-        for stream in (result.stdout, result.stderr)
-        if re.search(r"(?://\s*)?(?:Given|When|Then|And|But)\(['\"]", stream)
-    ]
-    assert len(snippet_streams) == 1, (
-        "the Cucumber backend should print one readable snippet block on one terminal stream; "
+    snippet_pattern = re.compile(r"(?://\s*)?(?:Given|When|Then|And|But)\(['\"]")
+    assert snippet_pattern.search(result.stdout), (
+        "the official Cucumber snippets should be written to stdout:\n"
         f"stdout={result.stdout!r}, stderr={result.stderr!r}"
     )
-    snippet_output = _snippet_output(snippet_streams[0])
+    assert not snippet_pattern.search(result.stderr), (
+        "the official Cucumber snippets must not be written to stderr:\n"
+        f"stdout={result.stdout!r}, stderr={result.stderr!r}"
+    )
+    snippet_output = _snippet_output(result.stdout)
     assert "function (" in snippet_output and "return 'pending';" in snippet_output, (
         f"the real Cucumber runtime did not emit JavaScript snippet bodies:\n{snippet_output}"
     )
@@ -345,26 +366,26 @@ def _assert_official_js_snippets(consumer: Any, *, expected_count: int) -> str:
         f"got {snippet_output.count('function (')}:\n{snippet_output}"
     )
     assert "\ufffd" not in snippet_output, f"Unicode output was not preserved:\n{snippet_output}"
-    assert "a snippet control step that records normal execution" not in snippet_output, snippet_output
-    return output
+    if defined_step_not_suggested is not None:
+        assert defined_step_not_suggested not in snippet_output, snippet_output
+    _assert_keyworded_snippets(snippet_output, expected_keyword_expressions)
+    return snippet_output
 
 
 def _assert_selected_snippets_and_messages(consumer: Any) -> None:
     root = getattr(consumer, "_snippets_workspace", _consumer_root(consumer))
-    output = _assert_official_js_snippets(consumer, expected_count=6)
-    snippet_output = _snippet_output(output)
-    for expression in (
-        "a customer named {string} is registered",
-        "the customer waits {int} seconds",
-        "the customer waits {float} seconds",
-        "the customer receives {int} results",
-        "the customer receives {float} results",
-        "the selected shade is {shade}",
-    ):
-        assert snippet_output.count(expression) == 1, (
-            f"expected one Cucumber expression {expression!r}:\n{snippet_output}"
-        )
-    assert "Given('a snippet control step that records normal execution'" not in snippet_output
+    _assert_official_js_snippets(
+        consumer,
+        expected_count=6,
+        expected_keyword_expressions=(
+            ("Given", "a customer named {string} is registered"),
+            ("When", "the customer waits {int} seconds"),
+            ("When", "the customer waits {float} seconds"),
+            ("Then", "the customer receives {int} results"),
+            ("Then", "the customer receives {float} results"),
+            ("Given", "the selected shade is {shade}"),
+        ),
+    )
     assert (root / "control-step-ran.marker").is_file(), "the defined control step should run normally"
     assert not (root / "custom-shade-transformer-ran.marker").exists(), (
         "snippet generation must use parameter metadata without invoking user transformers"
@@ -435,7 +456,7 @@ def _assert_distinct_file_reports(consumer: Any) -> None:
         steps = scenario.get("steps")
         assert isinstance(steps, list) and len(steps) == 1, scenario
         step = steps[0]
-        assert (step.get("keyword"), step.get("name"), step.get("result", {}).get("status")) == (
+        assert (step.get("keyword", "").strip(), step.get("name"), step.get("result", {}).get("status")) == (
             *expected_scenarios[scenario["name"]],
         ), scenario
 
@@ -472,6 +493,38 @@ def _assert_distinct_file_reports(consumer: Any) -> None:
         "testCaseFinished": 5,
         "testRunFinished": 1,
     }, usage_report
+
+    usage_json_path = root / "artifacts" / "cucumber-usage.json"
+    assert usage_json_path.is_file() and usage_json_path.stat().st_size > 0, usage_json_path
+    usage_json = json.loads(usage_json_path.read_text(encoding="utf-8"))
+    assert isinstance(usage_json, list) and all(isinstance(definition, dict) for definition in usage_json), usage_json
+    control_definitions = [
+        definition
+        for definition in usage_json
+        if definition.get("pattern") == "a snippet control step that records normal execution"
+    ]
+    assert len(control_definitions) == 1, control_definitions
+    control_definition = control_definitions[0]
+    assert control_definition.get("patternType") == "CucumberExpression", control_definition
+    assert isinstance(control_definition.get("uri"), str), control_definition
+    assert control_definition["uri"].endswith("snippets_consumer_steps.py"), control_definition
+    assert isinstance(control_definition.get("line"), int) and control_definition["line"] > 0, control_definition
+    control_matches = control_definition.get("matches")
+    assert isinstance(control_matches, list) and len(control_matches) == 1, control_definition
+    assert control_matches[0].get("text") == "a snippet control step that records normal execution", control_matches
+    assert all(
+        isinstance(control_matches[0].get(key), expected_type)
+        for key, expected_type in (("uri", str), ("line", int), ("duration", dict))
+    ), control_matches
+
+    selected_file_paths = (
+        root / "artifacts" / "messages.ndjson",
+        cucumber_json_path,
+        junit_path,
+        usage_path,
+        usage_json_path,
+    )
+    assert len({path.resolve() for path in selected_file_paths}) == len(selected_file_paths), selected_file_paths
 
 
 def _patch_official_snippets_formatter_to_fail_after_messages(consumer: Any) -> None:
@@ -562,6 +615,49 @@ def configured_snippets_are_javascript_and_preserve_undefined(consumer: Any) -> 
     _assert_selected_snippets_and_messages(consumer)
 
 
+@given("the public Cucumber snippets example is copied to the installed consumer")
+def copy_public_cucumber_snippets_example(consumer: Any) -> None:
+    source = Path(__file__).resolve().parents[2] / "examples" / "cucumber-snippets"
+    assert source.is_dir(), f"the checked-in Cucumber snippets example is missing: {source}"
+    destination = _safe_workspace(consumer, "cucumber-snippets-example")
+    shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    consumer._snippets_workspace = destination
+
+
+@then("the public snippets example should emit JavaScript suggestions and preserve its undefined failure")
+def public_cucumber_snippets_example_preserves_undefined_failure(consumer: Any) -> None:
+    assert consumer._snippets_cucumber_version == "13.3.0"
+    _assert_official_js_snippets(
+        consumer,
+        expected_count=5,
+        expected_failure_count=3,
+        expected_pass_count=0,
+        expected_keyword_expressions=(
+            ("Given", "a customer named {string} is registered"),
+            ("When", "the customer waits {int} seconds"),
+            ("When", "the customer waits {float} seconds"),
+            ("Then", "the customer receives {int} results"),
+            ("Then", "the customer receives {float} results"),
+        ),
+        defined_step_not_suggested="the snippets example is ready",
+    )
+
+
+@then("duplicate snippets file destinations should fail before marker execution or artifact publication")
+def duplicate_snippets_file_destinations_preflight(consumer: Any) -> None:
+    result = consumer.pytest_result
+    output = _output(consumer)
+    root = getattr(consumer, "_snippets_workspace", _consumer_root(consumer))
+    assert consumer._snippets_cucumber_version == "13.3.0"
+    assert result is not None and result.returncode != 0, output
+    assert "shared.json" in output, output
+    assert "same output path" in output.lower(), output
+    assert not (root / "scenario-started.marker").exists(), output
+    assert not (root / "artifacts" / "shared.json").exists(), output
+    snippet_declaration = re.compile(r"(?://\s*)?(?:Given|When|Then|And|But)\(['\"]")
+    assert not snippet_declaration.search(result.stdout), result.stdout
+
+
 @step("the consumer patches the pinned snippets formatter to fail after receiving the run messages")
 def patch_official_snippets_formatter_to_fail_after_messages(consumer: Any) -> None:
     _patch_official_snippets_formatter_to_fail_after_messages(consumer)
@@ -624,7 +720,7 @@ def consumer_exposes_node_without_npm(consumer: Any) -> None:
     assert len(consumer.env["PATH"].split(os.pathsep)) == 2, consumer.env["PATH"]
     assert shutil.which("npm", path=isolated_path) is None, "the isolated consumer PATH must not expose npm"
     if os.name == "nt":
-        detected = subprocess.run(
+        detected_output = subprocess.run(
             [str(consumer.python), "-c", "import shutil; print(shutil.which('node') or '')"],
             env=consumer.env,
             capture_output=True,
@@ -632,11 +728,11 @@ def consumer_exposes_node_without_npm(consumer: Any) -> None:
             check=False,
             timeout=10,
         )
-        assert detected.returncode == 0, detected.stderr
-        assert Path(detected.stdout.strip()).name.casefold() == "node.cmd", detected.stdout
+        assert detected_output.returncode == 0, detected_output.stderr
+        assert Path(detected_output.stdout.strip()).name.casefold() == "node.cmd", detected_output.stdout
     else:
-        detected = shutil.which("node", path=isolated_path)
-        assert detected is not None and Path(detected).resolve() == node_stub.resolve(), detected
+        detected_path = shutil.which("node", path=isolated_path)
+        assert detected_path is not None and Path(detected_path).resolve() == node_stub.resolve(), detected_path
 
 
 @then("missing Cucumber snippets package preflight should be actionable and happen before execution")
