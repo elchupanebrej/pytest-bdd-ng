@@ -367,6 +367,15 @@ def _definition(report: list[dict[str, Any]], pattern_fragment: str) -> dict[str
     return definition
 
 
+def _duration_nanoseconds(duration: Any) -> int:
+    assert isinstance(duration, dict), duration
+    seconds = duration.get("seconds")
+    nanos = duration.get("nanos")
+    assert isinstance(seconds, (int, float)) and isinstance(nanos, (int, float)), duration
+    assert seconds >= 0 and nanos >= 0, duration
+    return round(seconds * 1_000_000_000 + nanos)
+
+
 def _assert_match_source(
     definition: dict[str, Any],
     *,
@@ -384,10 +393,7 @@ def _assert_match_source(
         assert str(match.get("uri", "")).replace("\\", "/").endswith(uri_suffix), match
         duration = match.get("duration")
         if durations:
-            assert isinstance(duration, dict), match
-            assert isinstance(duration.get("seconds"), (int, float)), duration
-            assert isinstance(duration.get("nanos"), (int, float)), duration
-            assert duration["seconds"] >= 0 and duration["nanos"] >= 0, duration
+            _duration_nanoseconds(duration)
         else:
             assert duration is None, match
 
@@ -404,15 +410,6 @@ def _read_messages(consumer: Any, relative_path: str) -> list[dict[str, Any]]:
     path = consumer._usage_json_workspace / relative_path
     assert path.is_file(), f"Messages artifact is missing: {path}; {_combined_output(consumer)}"
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-
-
-def _duration_nanoseconds(duration: Any) -> int:
-    assert isinstance(duration, dict), duration
-    seconds = duration.get("seconds")
-    nanos = duration.get("nanos")
-    assert isinstance(seconds, (int, float)) and isinstance(nanos, (int, float)), duration
-    assert seconds >= 0 and nanos >= 0, duration
-    return round(seconds * 1_000_000_000 + nanos)
 
 
 def _latest_test_run(envelopes: list[dict[str, Any]]) -> list[dict[str, Any]]:
