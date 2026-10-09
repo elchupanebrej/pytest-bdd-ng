@@ -1,0 +1,14 @@
+[project]
+name = "pytest-cuke-cucumber-json-example"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = ["pytest-cuke>=2.3.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["features"]
+cuke_autoload = true
+cuke_features_dir = "features"
+markers = [
+    "public-json: identifies the public Cucumber JSON example feature",
+    "report: identifies the scenario that attaches a reference report",
+]

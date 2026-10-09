@@ -21,6 +21,7 @@ from pytest_cuke import given, parsers, then, when
 
 _CUCUMBER_VERSION = "13.3.0"
 _CUCUMBER_DEPENDENCY = {"@cucumber/cucumber": _CUCUMBER_VERSION}
+_PRODUCT_ROOT = Path(__file__).resolve().parents[2]
 _RICH_FEATURE = '''\
 @feature-tag
 Feature: Cucumber JSON contract café
@@ -81,6 +82,11 @@ Feature: Cucumber JSON outcomes
 """
 _MARKER_FEATURE = """\
 Feature: Cucumber JSON marker
+  Scenario: The marker records that execution began
+    Given cuke json marker scenario starts
+"""
+_HOOK_FEATURE = """\
+Feature: Cucumber JSON hook lifecycle
   Scenario: The marker records that execution began
     Given cuke json marker scenario starts
 """
@@ -349,14 +355,14 @@ def _read_json(consumer: Any, relative_path: str) -> tuple[Any, str]:
     return json.loads(text), text
 
 
-def _one_feature(report: Any, feature_name: str) -> dict[str, Any]:
+def _one_feature(
+    report: Any, feature_name: str, *, source_suffix: str = "cucumber-json-consumer.feature"
+) -> dict[str, Any]:
     assert isinstance(report, list) and len(report) == 1, report
     feature = report[0]
     assert feature.get("name") == feature_name, feature
     assert feature.get("keyword") == "Feature", feature
-    assert isinstance(feature.get("uri"), str) and feature["uri"].replace("\\", "/").endswith(
-        "cucumber-json-consumer.feature"
-    ), feature
+    assert isinstance(feature.get("uri"), str) and feature["uri"].replace("\\", "/").endswith(source_suffix), feature
     return feature
 
 
@@ -364,6 +370,10 @@ def _scenario(feature: dict[str, Any], name: str) -> dict[str, Any]:
     found = [element for element in feature.get("elements", []) if element.get("name") == name]
     assert len(found) == 1, (name, feature.get("elements"))
     return found[0]
+
+
+def _feature_line(source: str, expected_line: str) -> int:
+    return next(index for index, line in enumerate(source.splitlines(), start=1) if line.strip() == expected_line)
 
 
 def _assert_rich_report(consumer: Any, relative_path: str) -> None:
@@ -384,6 +394,12 @@ def _assert_rich_report(consumer: Any, relative_path: str) -> None:
     described_steps = described.get("steps", [])
     step_names = [step.get("name") for step in described_steps]
     assert step_names[:2] == ["cuke json shared background", "cuke json rule background"], described_steps
+    background_locations = [step.get("line") for step in described_steps[:2]]
+    expected_background_locations = [
+        _feature_line(_RICH_FEATURE, "Given cuke json shared background"),
+        _feature_line(_RICH_FEATURE, "Given cuke json rule background"),
+    ]
+    assert background_locations == expected_background_locations, described_steps
     document_step = next(step for step in described_steps if step.get("name") == "cuke json accepts a document")
     document_arguments = document_step.get("arguments", [])
     assert len(document_arguments) == 1, document_step
@@ -424,6 +440,8 @@ def _assert_rich_report(consumer: Any, relative_path: str) -> None:
     outline_ids = [element.get("id") for element in outlines]
     assert all(isinstance(identifier, str) and "account-actions" in identifier for identifier in outline_ids), outlines
     assert all({tag.get("name") for tag in element.get("tags", [])} == {"@rule-tag"} for element in outlines), outlines
+    for element in outlines:
+        assert [step.get("line") for step in element.get("steps", [])[:2]] == expected_background_locations, element
 
 
 def _require_preflight_failure(consumer: Any, expected: str) -> str:
@@ -552,6 +570,195 @@ def remove_cucumber_json_sources(consumer: Any) -> None:
 @when(parsers.re(r'I run command "cuke" in the Cucumber JSON workspace with arguments "(?P<arguments>[^"]*)"'))
 def replay_cucumber_json_messages(arguments: str, consumer: Any) -> None:
     _run_cuke(consumer, arguments)
+
+
+@given(
+    parsers.re(
+        r'the installed consumer uses staged directory "(?P<relative_path>[^"]+)" as its Cucumber JSON workspace'
+    )
+)
+def use_staged_cucumber_json_example(relative_path: str, consumer: Any) -> None:
+    workspace = Path(relative_path)
+    if workspace.is_absolute() or ".." in workspace.parts:
+        raise ValueError("staged Cucumber JSON example paths must stay inside the installed consumer")
+    consumer._cucumber_json_workspace = (Path(consumer.path) / workspace).resolve()
+    consumer._cucumber_json_workspace.joinpath("artifacts").mkdir(exist_ok=True)
+
+
+@then("the public Cucumber JSON example should match the checked-in golden artifact")
+def copy_cucumber_json_reference_messages(consumer: Any) -> None:
+    source = _PRODUCT_ROOT / "tests/fixtures/cucumber-json/cucumber-json-example-messages.ndjson"
+    destination = consumer._cucumber_json_workspace / "reference.ndjson"
+    shutil.copyfile(source, destination)
+
+
+@given("the fixed Cucumber JSON Messages reference fixture is copied to the installed consumer")
+def given_cucumber_json_reference_messages_copied(consumer: Any) -> None:
+    copy_cucumber_json_reference_messages(consumer)
+
+
+@then("the public Cucumber JSON example should preserve live schema content and valid durations")
+def public_cucumber_json_example_preserves_live_schema(consumer: Any) -> None:
+    result = consumer.cucumber_json_result
+    output = _combined_output(consumer)
+    assert result.returncode == 0, output
+    report, _ = _read_json(consumer, "report.json")
+    feature = _one_feature(
+        report,
+        "Cucumber JSON example",
+        source_suffix="cucumber-json-example.feature",
+    )
+    feature_source = (_PRODUCT_ROOT / "examples/cucumber-json/features/cucumber-json-example.feature").read_text(
+        encoding="utf-8"
+    )
+    assert feature.get("description", "").strip() == (
+        "A checked-in project that demonstrates the public autoload contract."
+    ), feature
+    assert {tag.get("name") for tag in feature.get("tags", [])} == {"@public-json"}, feature
+    scenarios = feature["elements"]
+    assert len(scenarios) == 3, scenarios
+    described = _scenario(feature, "A report includes structured inputs and an attachment")
+    assert described.get("type") == "scenario", described
+    assert "result-serialization" in described.get("id", ""), described
+    assert {tag.get("name") for tag in described.get("tags", [])} == {"@report"}, described
+    steps = described["steps"]
+    assert [step.get("name") for step in steps[:2]] == [
+        "the Cucumber JSON example prepares a request",
+        "the Cucumber JSON example resets its output",
+    ], steps
+    assert [step.get("line") for step in steps[:2]] == [
+        _feature_line(feature_source, "Given the Cucumber JSON example prepares a request"),
+        _feature_line(feature_source, "Given the Cucumber JSON example resets its output"),
+    ], steps
+    doc_step = next(step for step in steps if step.get("name") == "the Cucumber JSON example receives a document")
+    assert doc_step.get("arguments") == [
+        {"content": '{"message": "hello", "ready": true}', "line": _feature_line(feature_source, '"""application/json')}
+    ], doc_step
+    table_step = next(step for step in steps if step.get("name") == "the Cucumber JSON example receives a table")
+    assert table_step.get("arguments") == [{"rows": [{"cells": ["field", "value"]}, {"cells": ["café", "alpha"]}]}], (
+        table_step
+    )
+    attachment_step = next(step for step in steps if step.get("name") == "the Cucumber JSON example attaches a report")
+    assert attachment_step.get("embeddings") == [
+        {
+            "data": base64.b64encode("checked-in Cucumber JSON example attachment café".encode("utf-8")).decode(
+                "ascii"
+            ),
+            "mime_type": "text/plain",
+        }
+    ], attachment_step
+    outline_pattern = re.compile(r"^An example row is recorded\[table_rows:\[line: (?P<line>\d+)\]\]$")
+    outlines = [scenario for scenario in scenarios if outline_pattern.fullmatch(str(scenario.get("name", "")))]
+    assert len(outlines) == 2 and len({scenario.get("id") for scenario in outlines}) == 2, outlines
+    assert {scenario["name"] for scenario in outlines} == {
+        "An example row is recorded[table_rows:[line: 30]]",
+        "An example row is recorded[table_rows:[line: 31]]",
+    }, outlines
+    assert all({tag.get("name") for tag in scenario.get("tags", [])} == set() for scenario in outlines), outlines
+    assert all(
+        step.get("result", {}).get("status") == "passed" for scenario in scenarios for step in scenario["steps"]
+    ), scenarios
+    durations = [step.get("result", {}).get("duration") for scenario in scenarios for step in scenario.get("steps", [])]
+    assert durations and all(isinstance(duration, (int, float)) and duration >= 0 for duration in durations), durations
+    assert all(
+        re.search(r"(?:^|[/\\])cucumber_json_example_steps\.py:\d+$", step.get("match", {}).get("location", ""))
+        for scenario in scenarios
+        for step in scenario.get("steps", [])
+    ), scenarios
+
+
+@then("the pinned official formatter should match the checked-in reference golden exactly")
+def pinned_official_formatter_matches_golden(consumer: Any) -> None:
+    result = consumer.cucumber_json_replay_result
+    output = _combined_output(consumer, replay=True)
+    assert result.returncode == 0, output
+    report, _ = _read_json(consumer, "reference.json")
+    golden_path = _PRODUCT_ROOT / "tests/fixtures/cucumber-json/cucumber-json-example.golden.json"
+    golden = json.loads(golden_path.read_text(encoding="utf-8"))
+    assert report == golden
+
+
+@given("the Cucumber JSON consumer prepares a feature for run hook lifecycle coverage")
+def prepare_cucumber_json_hook_lifecycle(consumer: Any) -> None:
+    _prepare(consumer, _HOOK_FEATURE)
+
+
+@then("the Cucumber JSON report should preserve the scenario while Messages records both test run hooks")
+def cucumber_json_report_preserves_messages_run_hooks(consumer: Any) -> None:
+    result = consumer.cucumber_json_result
+    output = _combined_output(consumer)
+    assert result.returncode == 0, output
+    report, _ = _read_json(consumer, "artifacts/hooks.json")
+    feature = _one_feature(report, "Cucumber JSON hook lifecycle")
+    scenario = _scenario(feature, "The marker records that execution began")
+    assert scenario["steps"][0]["result"]["status"] == "passed", scenario
+
+    messages_path = consumer._cucumber_json_workspace / "artifacts/hooks.ndjson"
+    envelopes = [json.loads(line) for line in messages_path.read_text(encoding="utf-8").splitlines() if line]
+    meta = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
+    assert len(meta) == 1 and meta[0].get("protocolVersion") == "28.0.0", meta
+    run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
+    run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    assert len(run_started) == len(run_finished) == 1, (run_started, run_finished)
+    run_id = run_started[0]["id"]
+    assert run_finished[0].get("testRunStartedId") == run_id and run_finished[0].get("success") is True, run_finished
+
+    expected_hooks = {
+        "BEFORE_TEST_RUN": "pytest session start",
+        "AFTER_TEST_RUN": "pytest session finish",
+    }
+    definitions = {
+        hook["type"]: hook
+        for envelope in envelopes
+        if isinstance((hook := envelope.get("hook")), dict) and hook.get("type") in expected_hooks
+    }
+    assert set(definitions) == set(expected_hooks), definitions
+    assert {kind: hook.get("name") for kind, hook in definitions.items()} == expected_hooks, definitions
+    started_by_type = {}
+    positions = {}
+    for index, envelope in enumerate(envelopes):
+        started = envelope.get("testRunHookStarted")
+        if not isinstance(started, dict):
+            continue
+        kind = next((name for name, hook in definitions.items() if hook.get("id") == started.get("hookId")), None)
+        assert kind is not None and kind not in started_by_type, started
+        assert started.get("testRunStartedId") == run_id, started
+        started_by_type[kind] = started
+        positions[f"{kind}:start"] = index
+    assert set(started_by_type) == set(expected_hooks), started_by_type
+
+    finished_by_type = {}
+    for index, envelope in enumerate(envelopes):
+        finished = envelope.get("testRunHookFinished")
+        if not isinstance(finished, dict):
+            continue
+        kind = next(
+            (
+                name
+                for name, started in started_by_type.items()
+                if started.get("id") == finished.get("testRunHookStartedId")
+            ),
+            None,
+        )
+        assert kind is not None and kind not in finished_by_type, finished
+        assert finished.get("result", {}).get("status") == "PASSED", finished
+        finished_by_type[kind] = finished
+        positions[f"{kind}:finish"] = index
+    assert set(finished_by_type) == set(expected_hooks), finished_by_type
+    case_start = next(index for index, envelope in enumerate(envelopes) if "testCaseStarted" in envelope)
+    case_finish = next(index for index, envelope in enumerate(envelopes) if "testCaseFinished" in envelope)
+    run_start = next(index for index, envelope in enumerate(envelopes) if "testRunStarted" in envelope)
+    run_finish = next(index for index, envelope in enumerate(envelopes) if "testRunFinished" in envelope)
+    assert (
+        run_start
+        < positions["BEFORE_TEST_RUN:start"]
+        < positions["BEFORE_TEST_RUN:finish"]
+        < case_start
+        < case_finish
+        < positions["AFTER_TEST_RUN:start"]
+        < positions["AFTER_TEST_RUN:finish"]
+        < run_finish
+    ), positions
 
 
 @then("replay should succeed without importing removed sources or running pytest fixtures")
