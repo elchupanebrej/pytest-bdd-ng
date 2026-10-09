@@ -22,7 +22,7 @@ from pytest_cuke.model.message_types import message_from_dict
 from pytest_cuke.model.message_validation import validate_envelope
 
 
-_SUPPORT_PLUGIN = '''\
+_SUPPORT_PLUGIN = """\
 from pathlib import Path
 import time
 
@@ -80,9 +80,9 @@ def final_progress_bar_scenario_waits_for_release():
 @then("the final progress-bar scenario is released")
 def final_progress_bar_scenario_is_released():
     assert (ROOT / "gated-finished.marker").is_file()
-'''
+"""
 
-_OUTCOME_FEATURE = '''\
+_OUTCOME_FEATURE = """\
 Feature: Piped progress-bar outcomes
   Scenario: A failure remains worse than its skipped continuation
     Given a progress-bar scenario fails before its following step
@@ -93,9 +93,9 @@ Feature: Piped progress-bar outcomes
 
   Scenario: A progress-bar scenario passes
     Given a progress-bar scenario passes
-'''
+"""
 
-_RETRY_FEATURE = '''\
+_RETRY_FEATURE = """\
 Feature: TTY progress-bar retries
   Scenario: A progress-bar Pickle fails once and then passes
     Given the progress-bar scenario fails once and then passes
@@ -106,16 +106,16 @@ Feature: TTY progress-bar retries
   Scenario: The final progress-bar Pickle waits for release
     When the final progress-bar scenario waits for release
     Then the final progress-bar scenario is released
-'''
+"""
 
-_BACKEND_FAILURE_FEATURE = '''\
+_BACKEND_FAILURE_FEATURE = """\
 Feature: Progress-bar backend failure
   Scenario: A failing scenario remains failed after backend failure
     Given a progress-bar scenario records execution
     And a progress-bar scenario fails before its following step
-'''
+"""
 
-_PUBLIC_USAGE_FORMATTER = '''\
+_PUBLIC_USAGE_FORMATTER = """\
 from pathlib import Path
 import sys
 
@@ -138,7 +138,7 @@ def pytest_cuke_formatter_requests(config):
         output_path=Path("artifacts/usage.json"),
         working_directory=Path(__file__).parent,
     ),)
-'''
+"""
 
 _PUBLIC_COLLIDING_FORMATTER = _PUBLIC_USAGE_FORMATTER.replace(
     'output_path=Path("artifacts/usage.json")',
@@ -149,6 +149,7 @@ _PUBLIC_COLLIDING_FORMATTER = _PUBLIC_USAGE_FORMATTER.replace(
 )
 
 _OFFICIAL_PACKAGES = {
+    "@cucumber/cucumber": "13.3.0",
     "@cucumber/messages": "34.2.1",
     "@cucumber/pretty-formatter": "4.0.2",
     "@cucumber/query": "16.1.1",
@@ -266,7 +267,7 @@ def _output(consumer: Any) -> str:
 def _message_rows(consumer: Any, relative_path: str) -> list[dict[str, Any]]:
     root = getattr(consumer, "_progress_bar_workspace", _consumer_root(consumer))
     path = root / relative_path
-    assert path.is_file(), f"Cucumber Messages artifact was not written: {path}"
+    assert path.is_file(), f"Cucumber Messages artifact was not written: {path}\nPytest output:\n{_output(consumer)}"
     rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert rows and all(isinstance(row, dict) for row in rows), rows
     envelopes = []
@@ -275,8 +276,8 @@ def _message_rows(consumer: Any, relative_path: str) -> list[dict[str, Any]]:
         diagnostics = validate_envelope(envelope)
         assert not diagnostics, f"invalid Messages envelope at line {line_number}: {diagnostics!r}"
         envelopes.append(envelope)
-    diagnostics = validate_message_stream(envelopes)
-    assert not diagnostics, f"invalid Cucumber Messages lifecycle: {diagnostics!r}"
+    stream_diagnostics = validate_message_stream(envelopes)
+    assert not stream_diagnostics, f"invalid Cucumber Messages lifecycle: {stream_diagnostics!r}"
     return rows
 
 
@@ -365,6 +366,15 @@ def install_progress_formatter_in_unicode_workspace(consumer: Any) -> None:
     _install_formatter(consumer)
 
 
+@given("the public Cucumber progress-bar example is copied to the installed consumer")
+def copy_public_progress_bar_example(consumer: Any) -> None:
+    source = Path(__file__).resolve().parents[2] / "examples" / "cucumber-progress-bar"
+    assert source.is_dir(), f"the public progress-bar example is missing: {source}"
+    destination = _safe_workspace(consumer, "cucumber-progress-bar-example")
+    shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    consumer._progress_bar_workspace = destination.resolve()
+
+
 @given("the official progress formatter shim throws after receiving a test case")
 def install_progress_formatter_with_deterministic_failure(consumer: Any) -> None:
     _install_formatter(consumer)
@@ -373,7 +383,9 @@ def install_progress_formatter_with_deterministic_failure(consumer: Any) -> None
     source = printer.read_text(encoding="utf-8")
     method = "    update(envelope) {\n"
     assert source.count(method) == 1, f"pinned SummaryPrinter.update changed unexpectedly: {printer}"
-    injected = method + '        if (envelope.testCaseStarted) throw new Error("progress-bar backend update sentinel");\n'
+    injected = (
+        method + '        if (envelope.testCaseStarted) throw new Error("progress-bar backend update sentinel");\n'
+    )
     printer.write_text(source.replace(method, injected, 1), encoding="utf-8")
 
 
@@ -407,7 +419,12 @@ def prepare_tty_progress_bar_scenarios(consumer: Any) -> None:
         workspace="progress workspace café",
     )
     (root / "artifacts").mkdir()
-    for marker in ("retry-attempt-count.txt", "gated-started.marker", "gated-finished.marker", "release-gated-scenario.marker"):
+    for marker in (
+        "retry-attempt-count.txt",
+        "gated-started.marker",
+        "gated-finished.marker",
+        "release-gated-scenario.marker",
+    ):
         (root / marker).unlink(missing_ok=True)
 
 
@@ -465,11 +482,16 @@ def piped_progress_markers_match_messages(relative_path: str, consumer: Any) -> 
     assert [attempt["status"] for attempt in attempts] == ["FAILED", "SKIPPED", "PASSED"], attempts
     assert len({attempt["pickle_id"] for attempt in attempts}) == 3, attempts
     expected = "".join(_MARKERS[attempt["status"]] for attempt in attempts)
-    output = _output(consumer)
+    result = consumer.pytest_result
+    assert result is not None
+    output = result.stdout
+    assert expected not in result.stderr, f"piped progress markers must use stdout:\n{result.stderr!r}"
     lines = _progress_marker_lines(output)
     marker_indexes = [index for index, line in enumerate(lines) if expected in line]
     assert marker_indexes, (expected, output)
-    summary_rows = [(index, line.lower()) for index, line in enumerate(lines) if re.search(r"\b3 scenarios?\b", line, re.I)]
+    summary_rows = [
+        (index, line.lower()) for index, line in enumerate(lines) if re.search(r"\b3 scenarios?\b", line, re.I)
+    ]
     assert summary_rows, f"Cucumber's final scenario statistics are missing:\n{output}"
     summary_index, summary = summary_rows[-1]
     assert summary_index > marker_indexes[-1], f"Cucumber's final summary should follow the progress markers:\n{output}"
@@ -515,7 +537,33 @@ def piped_progress_bar_has_readable_output_and_distinct_file_reports(consumer: A
     assert usage["messageCount"] > 0, usage
     assert usage["testCases"] == 3, usage
     assert usage["finishedSteps"] > 0, usage
+    usage_json_path = root / "artifacts" / "cucumber-usage.json"
+    assert usage_json_path.is_file(), f"built-in Usage JSON file is missing: {usage_json_path}"
+    usage_json = json.loads(usage_json_path.read_text(encoding="utf-8"))
+    assert isinstance(usage_json, list) and all(isinstance(row, dict) for row in usage_json), usage_json
+    passed_definitions = [row for row in usage_json if row.get("pattern") == "a progress-bar scenario passes"]
+    assert len(passed_definitions) == 1, passed_definitions
+    assert len(passed_definitions[0].get("matches", [])) == 1, passed_definitions[0]
+    assert passed_definitions[0]["matches"][0].get("text") == "a progress-bar scenario passes", passed_definitions[0]
     _message_rows(consumer, "artifacts/messages.ndjson")
+    destinations = (messages_path, cucumber_json_path, junit_path, usage_path, usage_json_path)
+    assert len({path.resolve() for path in destinations}) == len(destinations), destinations
+
+
+@then("the public progress-bar example should emit its markers and pass")
+def public_progress_bar_example_emits_markers_and_passes(consumer: Any) -> None:
+    result = consumer.pytest_result
+    assert result is not None and result.returncode == 0, _output(consumer)
+    output = result.stdout
+    assert ".." in _progress_marker_lines(output), output
+    assert ".." not in _progress_marker_lines(result.stderr), result.stderr
+    assert not _CURSOR_CONTROL.search(output), f"piped example output should not contain cursor controls:\n{output!r}"
+    assert "2 passed" in output, output
+    scenario_summaries = [
+        line.lower() for line in _progress_marker_lines(output) if re.search(r"\b2 scenarios?\b", line, re.I)
+    ]
+    assert scenario_summaries, f"Cucumber's two-scenario summary is missing:\n{output}"
+    assert "2 passed" in scenario_summaries[-1], scenario_summaries
 
 
 @then("missing progress-bar backend should fail before the scenario starts")
@@ -695,7 +743,12 @@ def _run_progress_bar_geometry_replay(consumer: Any, *, columns: int | None) -> 
 
     root = getattr(consumer, "_progress_bar_workspace", _consumer_root(consumer))
     release_path = root / "release-gated-scenario.marker"
-    for marker in ("retry-attempt-count.txt", "gated-started.marker", "gated-finished.marker", "release-gated-scenario.marker"):
+    for marker in (
+        "retry-attempt-count.txt",
+        "gated-started.marker",
+        "gated-finished.marker",
+        "release-gated-scenario.marker",
+    ):
         (root / marker).unlink(missing_ok=True)
     release_path.write_text("release", encoding="utf-8")
 
@@ -767,6 +820,9 @@ def terminal_progress_updates_fit_width_and_cap_counts(consumer: Any) -> None:
     assert result is not None and result.returncode == 0, _output(consumer)
     assert getattr(consumer, "_progress_bar_live_update_observed", False), _output(consumer)
     output = _output(consumer)
+    assert "\r" in output and "\x1b[0K" in output, (
+        f"TTY progress should redraw and clear the current line in place:\n{output!r}"
+    )
     attempts = _attempts(_message_rows(consumer, "artifacts/messages.ndjson"))
     unique_pickles = {attempt["pickle_id"] for attempt in attempts}
     assert len(unique_pickles) == 3, attempts
