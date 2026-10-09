@@ -351,13 +351,21 @@ Native Allure reporting during pytest runs
 Use ``--cuke-allure`` to write native Allure results from the live Cucumber
 Messages stream while pytest executes scenarios. The optional directory
 defaults to ``allure-results``. Install the runtime support with
-``pytest-cuke[allure]``; when the option is absent, Allure dependencies are not
-needed.
+``pytest-cuke[allure]``; when native reporting is disabled, Allure dependencies
+are not needed.
 
 .. code-block:: console
 
    pytest --cuke-allure
    pytest --cuke-allure=build/allure-results
+
+To enable native reporting from pytest configuration instead of a command-line
+option, set ``cuke_allure`` in ``pyproject.toml``:
+
+.. code-block:: toml
+
+   [tool.pytest.ini_options]
+   cuke_allure = "build/allure-results"
 
 Converting saved Cucumber Messages to Allure
 ---------------------------------------------
