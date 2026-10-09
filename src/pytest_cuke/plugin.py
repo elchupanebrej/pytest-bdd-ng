@@ -36,6 +36,7 @@ from pytest_cuke.compatibility.pytest import (
     PytestPluginManager,
 )
 from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+from pytest_cuke.cucumber_json_formatter import selected_cucumber_json_formatter_requests
 from pytest_cuke.cucumber_pretty import selected_pretty_formatter_requests
 from pytest_cuke.cucumber_progress import add_options as add_cucumber_progress_options
 from pytest_cuke.cucumber_progress import progress_formatter_selected, selected_progress_formatter_requests
@@ -109,6 +110,7 @@ def pytest_cuke_formatter_requests(config: Config) -> tuple[FormatterRequest, ..
         *selected_progress_bar_formatter_requests(config),
         *selected_snippets_formatter_requests(config),
         *selected_summary_formatter_requests(config),
+        *selected_cucumber_json_formatter_requests(config),
         *selected_usage_formatter_requests(config),
         *selected_usage_json_formatter_requests(config),
     )

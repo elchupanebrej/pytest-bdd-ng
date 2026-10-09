@@ -76,7 +76,7 @@ def test_catalog_rejects_duplicate_reserved_outputs_through_symlink_alias(tmp_pa
     config = _config(
         tmp_path,
         requests,
-        options={"cuke_json": str(report_directory_alias / "report.json")},
+        options={"cuke_json": str(report_directory_alias / "report.json"), "cuke_json_backend": "native"},
         ini={"cuke_messages_ndjson": str(report_directory / "report.json")},
     )
 
@@ -100,7 +100,10 @@ def test_catalog_rejects_reserved_output_conflict_before_formatter_runtime_check
     config = _config(
         tmp_path,
         (request,),
-        options={"cuke_json": str(tmp_path / "artifacts" / "report.json")},
+        options={
+            "cuke_json": str(tmp_path / "artifacts" / "report.json"),
+            "cuke_json_backend": "native",
+        },
     )
 
     def fail_if_checked(*args: object, **kwargs: object) -> None:
