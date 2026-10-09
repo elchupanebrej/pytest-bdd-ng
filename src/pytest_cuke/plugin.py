@@ -19,7 +19,7 @@ import pytest
 from ordered_set import OrderedSet
 from pathvalidate import is_valid_filepath
 
-from pytest_cuke import cucumber_json, generation, given, hooks, steps, then, when
+from pytest_cuke import cucumber_json, cucumber_junit, generation, given, hooks, steps, then, when
 from pytest_cuke.allure_conversion import AllureConversionError, convert_allure_messages
 from pytest_cuke.allure_logging import AllurePytestBDD
 from pytest_cuke.batch_collection import CollectionBatchService, get_batch_service
@@ -37,6 +37,7 @@ from pytest_cuke.compatibility.pytest import (
 )
 from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_cuke.cucumber_json_formatter import selected_cucumber_json_formatter_requests
+from pytest_cuke.cucumber_junit_formatter import selected_cucumber_junit_formatter_requests
 from pytest_cuke.cucumber_pretty import selected_pretty_formatter_requests
 from pytest_cuke.cucumber_progress import add_options as add_cucumber_progress_options
 from pytest_cuke.cucumber_progress import progress_formatter_selected, selected_progress_formatter_requests
@@ -111,6 +112,7 @@ def pytest_cuke_formatter_requests(config: Config) -> tuple[FormatterRequest, ..
         *selected_snippets_formatter_requests(config),
         *selected_summary_formatter_requests(config),
         *selected_cucumber_json_formatter_requests(config),
+        *selected_cucumber_junit_formatter_requests(config),
         *selected_usage_formatter_requests(config),
         *selected_usage_json_formatter_requests(config),
     )
@@ -292,6 +294,7 @@ def pytest_addoption(parser: Parser) -> None:
     steps.add_options(parser)
     scenario_add_options(parser)
     cucumber_json.add_options(parser)
+    cucumber_junit.add_options(parser)
     generation.add_options(parser)
     add_cucumber_progress_options(parser)
     add_cucumber_progress_bar_options(parser)

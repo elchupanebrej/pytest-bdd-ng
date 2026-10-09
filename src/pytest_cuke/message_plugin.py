@@ -199,6 +199,7 @@ class MessagePlugin:
     process_messages_closed: bool = attrib(default=False)
     process_messages_lock: Any = attrib(factory=Lock)
     test_cases_by_nodeid: dict[str, TestCase] = attrib(factory=dict)
+    test_case_hook_steps_by_nodeid: dict[str, dict[str, TestStep]] = attrib(factory=dict)
     parameter_type_registry: set[int] = attrib(factory=set)
     hook_registry: set[int] = attrib(factory=set)
     ide_bindings: IdeBindingCollection = attrib(factory=IdeBindingCollection)
@@ -1025,6 +1026,70 @@ class MessagePlugin:
             raise RuntimeError("There is no active pytest-cuke test case start event.")
         return self.current_test_case_start
 
+    def _has_external_hook_implementation(self, hook_caller: Any) -> bool:
+        get_hookimpls = getattr(hook_caller, "get_hookimpls", None)
+        if not callable(get_hookimpls):
+            return False
+        return any(getattr(implementation, "plugin", None) is not self for implementation in get_hookimpls())
+
+    def _new_scenario_hook_test_step(self, config: Config, *, phase: Literal["before", "after"]) -> TestStep:
+        generator = cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator
+        hook_id = generator.get_next_id()
+        hook_type = HookType.before_test_case if phase == "before" else HookType.after_test_case
+        hook_name = f"pytest_cuke_{phase}_scenario"
+        config.hook.pytest_cuke_message(
+            config=config,
+            message=Message(
+                hook=Hook(
+                    id=hook_id,
+                    name=hook_name,
+                    type=hook_type,
+                    source_reference=SourceReference(
+                        uri="pytest-cuke:runtime",
+                        location=Location(line=1),
+                    ),
+                )
+            ),
+        )
+        return TestStep(id=generator.get_next_id(), hook_id=hook_id)
+
+    def _finish_scenario_hook_test_step(
+        self,
+        *,
+        config: Config,
+        test_case_started: TestCaseStarted,
+        test_step: TestStep,
+        start_timestamp: Timestamp,
+        exception: BaseException | None,
+    ) -> None:
+        if exception is None:
+            status = Status.passed
+        elif isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
+            status = Status.skipped
+        elif isinstance(exception, KeyboardInterrupt):
+            status = Status.unknown
+        else:
+            status = Status.failed
+        exception_message = (
+            ExceptionMessage(
+                type=type(exception).__name__,
+                message=str(exception),
+                stack_trace="".join(traceback.format_exception(exception)),
+            )
+            if exception is not None
+            else None
+        )
+        self._finish_test_step(
+            config=config,
+            test_case_started=test_case_started,
+            test_step=test_step,
+            start_timestamp=start_timestamp,
+            status=status,
+            message=str(exception) if exception is not None else None,
+            exception=exception_message,
+            exception_stack_trace=exception_message.stack_trace if exception_message is not None else None,
+        )
+
     @staticmethod
     def _cucumber_attempt(item: Any) -> int:
         """Return the zero-based Cucumber attempt number for a pytest item."""
@@ -1413,6 +1478,15 @@ class MessagePlugin:
             step_registry = step_registry.parent
 
         cached_test_case = self.test_cases_by_nodeid.get(item.nodeid)
+        hook_caller_by_phase: dict[Literal["before", "after"], Any] = {
+            "before": hook_handler.pytest_cuke_before_scenario,
+            "after": hook_handler.pytest_cuke_after_scenario,
+        }
+        external_hook_phases: set[Literal["before", "after"]] = set()
+        for phase, hook_caller in hook_caller_by_phase.items():
+            if self._has_external_hook_implementation(hook_caller):
+                external_hook_phases.add(phase)
+        case_hook_steps = self.test_case_hook_steps_by_nodeid.get(item.nodeid, {})
         test_steps = []
         previous_step = None
 
@@ -1426,8 +1500,12 @@ class MessagePlugin:
         step_binding_records: list[tuple[Step, Any | None, tuple[Any, ...]]] = []
 
         scenario_steps = list(execution_steps(feature, scenario))
-        if cached_test_case is not None and len(cached_test_case.test_steps) != len(scenario_steps):
+        if cached_test_case is not None and (
+            len(cached_test_case.test_steps) != len(scenario_steps) + len(external_hook_phases)
+            or set(case_hook_steps) != external_hook_phases
+        ):
             cached_test_case = None
+            case_hook_steps = {}
 
         for step_index, step in enumerate(scenario_steps):
             try:
@@ -1460,8 +1538,9 @@ class MessagePlugin:
             step_matches = tuple(getattr(step_matcher, "last_matches", ()))
             step_binding_records.append((step, step_definition, step_matches))
 
+            cached_step_index = step_index + int("before" in case_hook_steps)
             test_step = (
-                cached_test_case.test_steps[step_index]
+                cached_test_case.test_steps[cached_step_index]
                 if cached_test_case is not None
                 else TestStep(
                     id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
@@ -1470,13 +1549,25 @@ class MessagePlugin:
                 )
             )
             test_steps.append(test_step)
-            self.current_test_case_step_order.append(test_step)
             self.current_test_case_step_id_to_step_mapping[id(step)] = test_step
+
+        if cached_test_case is None:
+            case_hook_steps = {
+                phase: self._new_scenario_hook_test_step(config, phase=phase) for phase in sorted(external_hook_phases)
+            }
+            self.test_case_hook_steps_by_nodeid[item.nodeid] = case_hook_steps
+
+        case_test_steps = [
+            *([case_hook_steps["before"]] if "before" in case_hook_steps else []),
+            *test_steps,
+            *([case_hook_steps["after"]] if "after" in case_hook_steps else []),
+        ]
+        self.current_test_case_step_order = case_test_steps
 
         current_test_case = cached_test_case or TestCase(
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
             pickle_id=scenario_id,
-            test_steps=test_steps,
+            test_steps=case_test_steps,
         )
         self.current_test_case = current_test_case
         self.test_cases_by_nodeid[item.nodeid] = current_test_case
@@ -1486,8 +1577,8 @@ class MessagePlugin:
             if active_run is not None and active_run.nodeid == request.node.nodeid:
                 run_context.set_test_case(
                     test_case_id=current_test_case.id,
-                    test_step_ids=[test_step.id for test_step in test_steps],
-                    test_steps=test_steps,
+                    test_step_ids=[test_step.id for test_step in case_test_steps],
+                    test_steps=case_test_steps,
                 )
 
         if cached_test_case is None:
@@ -1716,8 +1807,10 @@ class MessagePlugin:
         )
         self._reset_scenario_message_state(message_state)
 
-    def pytest_cuke_before_scenario(self, request: FixtureRequest, run: RunContext) -> None:
+    @hookimpl(hookwrapper=True, tryfirst=True)
+    def pytest_cuke_before_scenario(self, request: FixtureRequest, run: RunContext) -> Generator[None, Any, Any]:
         if self.is_disabled:
+            yield
             return
         config = request.config
         run.require_feature("pytest_cuke_before_scenario")
@@ -1733,16 +1826,55 @@ class MessagePlugin:
         if active_run is not None and active_run.nodeid == request.node.nodeid:
             run.set_attempt_id(current_test_case_start.id)
 
-    def pytest_cuke_after_scenario(self, request: FixtureRequest, run: RunContext) -> None:
+        hook_step = self.test_case_hook_steps_by_nodeid.get(request.node.nodeid, {}).get("before")
+        hook_start_timestamp = (
+            self._start_test_step(config=config, test_case_started=current_test_case_start, test_step=hook_step)
+            if hook_step is not None
+            else None
+        )
+        outcome = yield
+        exc_info = outcome.excinfo
+        exception = exc_info[1] if exc_info is not None else None
+        if hook_step is not None and hook_start_timestamp is not None:
+            self._finish_scenario_hook_test_step(
+                config=config,
+                test_case_started=current_test_case_start,
+                test_step=hook_step,
+                start_timestamp=hook_start_timestamp,
+                exception=exception,
+            )
+
+    @hookimpl(hookwrapper=True, tryfirst=True)
+    def pytest_cuke_after_scenario(self, request: FixtureRequest, run: RunContext) -> Generator[None, Any, Any]:
         if self.is_disabled:
+            yield
             return
         config = request.config
         run.require_scenario("pytest_cuke_after_scenario")
 
         current_test_case_start = self.current_test_case_start
         if current_test_case_start is None:
+            yield
             self._reset_current_test_case()
             return
+
+        hook_step = self.test_case_hook_steps_by_nodeid.get(request.node.nodeid, {}).get("after")
+        hook_start_timestamp = (
+            self._start_test_step(config=config, test_case_started=current_test_case_start, test_step=hook_step)
+            if hook_step is not None
+            else None
+        )
+        outcome = yield
+        exc_info = outcome.excinfo
+        exception = exc_info[1] if exc_info is not None else None
+        if hook_step is not None and hook_start_timestamp is not None:
+            self._finish_scenario_hook_test_step(
+                config=config,
+                test_case_started=current_test_case_start,
+                test_step=hook_step,
+                start_timestamp=hook_start_timestamp,
+                exception=exception,
+            )
 
         active_run = run.active_scenario_run
         retain_until_teardown = active_run is not None and active_run.nodeid == request.node.nodeid
