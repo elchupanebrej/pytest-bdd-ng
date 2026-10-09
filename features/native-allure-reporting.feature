@@ -31,6 +31,26 @@ Feature: Live native Allure reporting
     When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure -q"
     Then the native Allure consumer should exit with code 0
     And native Allure results should preserve the full Gherkin field contract
+    And native Allure timestamps should match the live Messages timestamps
+
+  Scenario: Native reporting activates from cuke_allure ini configuration alone
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains one native Allure scenario with attachments
+    And the consumer configures native Allure output in cuke_allure ini
+    And the consumer installs pytest-cuke with its Allure extra
+    When I run the native Allure consumer with arguments "-q"
+    Then the native Allure consumer should exit with code 0
+    And native Allure results in "allure-results" should contain the passed scenario "Native live report scenario" and its steps
+    And the native report consumer should not write a Messages NDJSON file
+
+  Scenario: Native reporting works with allure-python-commons and no allure-pytest adapter
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains one native Allure scenario without adapter API calls
+    And the consumer installs allure-python-commons without allure-pytest
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results -q"
+    Then the native Allure consumer should exit with code 0
+    And native Allure results in "allure-results" should contain the passed scenario "Native live report scenario" with Gherkin steps only
+    And the consumer should confirm allure-pytest is absent and allure-python-commons is present
 
   Scenario: xdist workers publish Allure results through the controller once
     Given a fresh isolated pytest-cuke consumer is ready
