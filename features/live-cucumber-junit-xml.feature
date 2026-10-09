@@ -22,7 +22,7 @@ Feature: Live message-driven Cucumber JUnit XML formatter
     When I run installed pytest in the Cucumber JUnit workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-junit=artifacts/live.xml --cuke-messages-ndjson=artifacts/messages.ndjson -q --color=no"
     Then the selected Cucumber JUnit report should preserve cases fields order and durations
     When I replay Cucumber JUnit from the saved Messages stream to "artifacts/replayed.xml"
-    Then replayed Cucumber JUnit XML should match live XML after normalizing durations
+    Then replayed Cucumber JUnit XML should match live XML after normalizing timestamps
 
   Scenario: Passed failed skipped and undefined cases have truthful JUnit outcomes
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
