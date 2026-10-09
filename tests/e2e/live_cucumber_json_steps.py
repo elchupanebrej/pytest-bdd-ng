@@ -453,14 +453,6 @@ def _require_preflight_failure(consumer: Any, expected: str) -> str:
     return output
 
 
-def _semantic_json(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {key: _semantic_json(item) for key, item in value.items() if key != "duration"}
-    if isinstance(value, list):
-        return [_semantic_json(item) for item in value]
-    return value
-
-
 def _write_consumer_config(consumer: Any, cuke_json_value: str | None) -> None:
     config = "[tool.pytest.ini_options]\ncuke_autoload = true\ncuke_features_dir = 'features'\n"
     if cuke_json_value is not None:
@@ -774,7 +766,7 @@ def cucumber_json_replay_does_not_import_sources(consumer: Any) -> None:
 def replayed_cucumber_json_matches_live(consumer: Any) -> None:
     live, _ = _read_json(consumer, "artifacts/live.json")
     replayed, _ = _read_json(consumer, "artifacts/replayed.json")
-    assert _semantic_json(live) == _semantic_json(replayed)
+    assert live == replayed
 
 
 @given("the Cucumber JSON consumer prepares passing failing skipped and undefined scenarios")
