@@ -406,6 +406,113 @@ def _read_messages(consumer: Any, relative_path: str) -> list[dict[str, Any]]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
+def _duration_nanoseconds(duration: Any) -> int:
+    assert isinstance(duration, dict), duration
+    seconds = duration.get("seconds")
+    nanos = duration.get("nanos")
+    assert isinstance(seconds, (int, float)) and isinstance(nanos, (int, float)), duration
+    assert seconds >= 0 and nanos >= 0, duration
+    return round(seconds * 1_000_000_000 + nanos)
+
+
+def _latest_test_run(envelopes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    run_starts = [index for index, envelope in enumerate(envelopes) if isinstance(envelope.get("testRunStarted"), dict)]
+    assert run_starts, "Messages artifact has no TestRunStarted envelope"
+    latest = envelopes[run_starts[-1] :]
+    assert sum(isinstance(envelope.get("testRunStarted"), dict) for envelope in latest) == 1, latest
+    assert sum(isinstance(envelope.get("testRunFinished"), dict) for envelope in latest) == 1, latest
+    return latest
+
+
+def _message_durations_by_definition_and_text(envelopes: list[dict[str, Any]]) -> dict[tuple[str, str], list[int]]:
+    definitions = {
+        envelope["stepDefinition"]["id"]: envelope["stepDefinition"]["pattern"]["source"]
+        for envelope in envelopes
+        if isinstance(envelope.get("stepDefinition"), dict)
+    }
+    pickles = {
+        envelope["pickle"]["id"]: {
+            step["id"]: step["text"] for step in envelope["pickle"].get("steps", []) if isinstance(step, dict)
+        }
+        for envelope in envelopes
+        if isinstance(envelope.get("pickle"), dict)
+    }
+    test_cases = {
+        envelope["testCase"]["id"]: envelope["testCase"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCase"), dict)
+    }
+    case_starts = {
+        envelope["testCaseStarted"]["id"]: envelope["testCaseStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testCaseStarted"), dict)
+    }
+    durations: dict[tuple[str, str], list[int]] = {}
+
+    for envelope in envelopes:
+        finished = envelope.get("testStepFinished")
+        if not isinstance(finished, dict):
+            continue
+        started_id = finished.get("testCaseStartedId")
+        assert started_id in case_starts, finished
+        case_start = case_starts[started_id]
+        test_case_id = case_start["testCaseId"]
+        test_case = test_cases[test_case_id]
+        test_step = next(
+            (
+                step
+                for step in test_case.get("testSteps", [])
+                if isinstance(step, dict) and step.get("id") == finished.get("testStepId")
+            ),
+            None,
+        )
+        assert test_step is not None, (test_case, finished)
+        definition_ids = test_step.get("stepDefinitionIds", [])
+        if not definition_ids:
+            continue
+        pickle_id = test_case["pickleId"]
+        pickle_step_id = test_step.get("pickleStepId")
+        step_text = pickles[pickle_id][pickle_step_id]
+        duration = _duration_nanoseconds(finished["testStepResult"].get("duration"))
+        for definition_id in definition_ids:
+            pattern = definitions[definition_id]
+            durations.setdefault((pattern, step_text), []).append(duration)
+
+    return durations
+
+
+def _assert_usage_json_durations_match_messages(consumer: Any) -> None:
+    report, _ = _read_usage_json(consumer, "artifacts/usage.json")
+    envelopes = _latest_test_run(_read_messages(consumer, "artifacts/messages.ndjson"))
+    expected = _message_durations_by_definition_and_text(envelopes)
+    observed: dict[tuple[str, str], list[int]] = {}
+
+    for definition in report:
+        pattern = str(definition.get("pattern", ""))
+        for match in definition.get("matches", []):
+            key = (pattern, str(match.get("text", "")))
+            observed.setdefault(key, []).append(_duration_nanoseconds(match.get("duration")))
+
+    assert set(observed) == set(expected), (observed, expected)
+    for key, message_durations in expected.items():
+        assert Counter(observed[key]) == Counter(message_durations), (key, observed[key], message_durations)
+
+    for definition in report:
+        mean_duration = definition.get("meanDuration")
+        if mean_duration is None:
+            continue
+        matched_durations = [
+            duration
+            for (pattern, _), values in expected.items()
+            if pattern == definition.get("pattern")
+            for duration in values
+        ]
+        assert matched_durations, definition
+        expected_mean = round(sum(matched_durations) / len(matched_durations))
+        actual_mean = _duration_nanoseconds(mean_duration)
+        assert abs(actual_mean - expected_mean) <= 1, (definition, expected_mean, actual_mean)
+
+
 def _assert_usage_json_success(consumer: Any) -> None:
     result = consumer.pytest_result
     assert result is not None and result.returncode == 0, _combined_output(consumer)
@@ -848,6 +955,11 @@ def public_usage_json_example_preserves_definition_semantics(consumer: Any) -> N
     assert "meanDuration" not in unused, unused
     consumer._usage_json_example_baseline_patterns = {str(item.get("pattern", "")) for item in report}
     consumer._usage_json_example_baseline_count = len(report)
+
+
+@then("Usage JSON match durations should equal the emitted Messages durations")
+def usage_json_match_durations_match_messages(consumer: Any) -> None:
+    _assert_usage_json_durations_match_messages(consumer)
 
 
 @when("the consumer adds a new unused definition to the public Usage JSON example")
