@@ -9,6 +9,7 @@ Feature: Live Cucumber Usage formatter
     And the consumer installs the pinned official Cucumber UsageFormatter runtime
     When I run pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage --cuke-messages-ndjson=artifacts/messages.ndjson -q --tb=short --color=no"
     Then the official usage table should match Messages definition identities and preserve pytest failure
+    And the displayed Usage durations should match the latest Messages run
     When the consumer adds an unused usage definition
     And I run pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage=- --cuke-messages-ndjson=artifacts/messages.ndjson -q --tb=short --color=no"
     Then the official usage output should add the unused definition as UNUSED
@@ -46,8 +47,20 @@ Feature: Live Cucumber Usage formatter
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the usage consumer prepares a Unicode workspace with spaces and a public terminal formatter
     And the consumer installs the pinned official Cucumber UsageFormatter runtime
-    When I run pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage='artifacts/usage report.txt' --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/cucumber.json --junitxml=artifacts/junit.xml -q --color=no"
+    When I run pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage='artifacts/usage report.txt' --cuke-usage-json=artifacts/usage.json --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/cucumber.json --junitxml=artifacts/junit.xml -q --color=no"
     Then the usage file and all independent report outputs should be valid
+
+  Scenario: The checked-in Usage example matches the pinned formatter and a new unused definition changes its report
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the public Cucumber Usage example is copied into the consumer
+    And the consumer installs the pinned official Cucumber UsageFormatter runtime
+    When I run pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-usage=artifacts/usage.txt --cuke-messages-ndjson=artifacts/messages.ndjson -q --color=no"
+    Then the public Usage example should preserve real matches and its unused definition
+    And the public Usage report durations should match the latest Messages run
+    When the consumer adds a new unused definition to the public Usage example
+    And I run pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-usage=artifacts/usage.txt --cuke-messages-ndjson=artifacts/second-run-messages.ndjson -q --color=no"
+    Then the new public Usage definition should change the real report
+    And the public Usage report durations should match the latest Messages run
 
   Scenario: Bare and dash usage selections reject a competing stdout formatter before tests
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

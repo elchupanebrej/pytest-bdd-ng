@@ -25,6 +25,7 @@ from pytest_cuke.model.message_types import message_from_dict
 from pytest_cuke.model.message_validation import validate_envelope
 
 
+_PRODUCT_ROOT = Path(__file__).resolve().parents[2]
 _OFFICIAL_CUCUMBER_PACKAGES = {"@cucumber/cucumber": "13.3.0"}
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _USAGE_FEATURE = """\
@@ -434,12 +435,16 @@ def _read_messages(consumer: Any, relative_path: str) -> list[dict[str, Any]]:
     envelopes = []
     for line_number, row in enumerate(rows, start=1):
         envelope = message_from_dict(row)
-        diagnostics = validate_envelope(envelope)
-        assert not diagnostics, f"invalid Messages envelope at line {line_number}: {diagnostics!r}"
+        envelope_diagnostics = validate_envelope(envelope)
+        assert not envelope_diagnostics, f"invalid Messages envelope at line {line_number}: {envelope_diagnostics!r}"
         envelopes.append(envelope)
-    diagnostics = validate_message_stream(envelopes)
-    assert not diagnostics, f"invalid Messages lifecycle: {diagnostics!r}"
+    stream_diagnostics = validate_message_stream(envelopes)
+    assert not stream_diagnostics, f"invalid Messages lifecycle: {stream_diagnostics!r}"
     return rows
+
+
+def _current_usage_messages_path(consumer: Any) -> str:
+    return str(getattr(consumer, "_usage_messages_relative_path", "artifacts/messages.ndjson"))
 
 
 def _usage_stream(consumer: Any) -> str:
@@ -479,6 +484,84 @@ def _message_definition_records(rows: list[dict[str, Any]]) -> tuple[dict[str, d
     return definitions, counts
 
 
+def _latest_complete_test_run(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    starts = [index for index, row in enumerate(rows) if isinstance(row.get("testRunStarted"), dict)]
+    assert starts, "Messages stream has no testRunStarted envelope"
+    start = starts[-1]
+    finishes = [index for index in range(start, len(rows)) if isinstance(rows[index].get("testRunFinished"), dict)]
+    assert finishes, "latest Messages test run has no testRunFinished envelope"
+    finish = finishes[-1]
+    run = rows[start : finish + 1]
+    assert sum(isinstance(row.get("testRunStarted"), dict) for row in run) == 1, run
+    assert sum(isinstance(row.get("testRunFinished"), dict) for row in run) == 1, run
+    return run
+
+
+def _message_definition_durations(rows: list[dict[str, Any]]) -> dict[str, list[int]]:
+    run = _latest_complete_test_run(rows)
+    cases = {row["testCase"]["id"]: row["testCase"] for row in run if isinstance(row.get("testCase"), dict)}
+    starts = {
+        row["testCaseStarted"]["id"]: row["testCaseStarted"]
+        for row in run
+        if isinstance(row.get("testCaseStarted"), dict)
+    }
+    durations: dict[str, list[int]] = {}
+    for row in run:
+        finished = row.get("testStepFinished")
+        if not isinstance(finished, dict):
+            continue
+        started = starts.get(finished.get("testCaseStartedId"))
+        assert started is not None, finished
+        test_case = cases[started["testCaseId"]]
+        test_step = next(
+            (
+                step
+                for step in test_case.get("testSteps", [])
+                if isinstance(step, dict) and step.get("id") == finished.get("testStepId")
+            ),
+            None,
+        )
+        assert test_step is not None, (test_case, finished)
+        definition_ids = test_step.get("stepDefinitionIds", [])
+        # Cucumber's UsageFormatter excludes ambiguous matches in the same way.
+        if len(definition_ids) != 1:
+            continue
+        duration = finished.get("testStepResult", {}).get("duration")
+        if not isinstance(duration, dict):
+            continue
+        seconds = duration.get("seconds", 0)
+        nanos = duration.get("nanos", 0)
+        assert isinstance(seconds, (int, float)) and isinstance(nanos, (int, float)), duration
+        assert seconds >= 0 and nanos >= 0, duration
+        duration_ns = round(seconds * 1_000_000_000 + nanos)
+        durations.setdefault(definition_ids[0], []).append(duration_ns)
+    return durations
+
+
+def _assert_displayed_usage_durations_match_messages(report: str, messages: list[dict[str, Any]]) -> None:
+    run = _latest_complete_test_run(messages)
+    definitions, counts = _message_definition_records(run)
+    durations_by_definition = _message_definition_durations(run)
+    table_rows = _table_rows(report)
+    assert table_rows and table_rows[0] == ["Pattern / Text", "Duration", "Location"], table_rows
+
+    for definition_id, definition in definitions.items():
+        match_count = counts[definition_id]
+        durations = durations_by_definition.get(definition_id, [])
+        if not match_count:
+            assert not durations, (definition, durations)
+            continue
+        assert durations, f"Messages has no executed step duration for used definition {definition!r}"
+        row = _assert_reported_definition(table_rows, definition)
+        displayed = re.fullmatch(r"(?P<milliseconds>\d+(?:\.\d+)?)ms", row[1])
+        assert displayed is not None, row
+        actual_ms = float(displayed.group("milliseconds"))
+        expected_ms = sum(durations) / len(durations) / 1_000_000
+        # Cucumber UsageFormatter renders a two-decimal mean in milliseconds;
+        # allow half of its last displayed unit plus sub-microsecond conversion noise.
+        assert abs(actual_ms - expected_ms) <= 0.005001, (definition, expected_ms, actual_ms, durations)
+
+
 def _source_line(definition: dict[str, Any]) -> tuple[str, int]:
     source_reference = definition["sourceReference"]
     uri = str(source_reference["uri"]).replace("\\", "/")
@@ -507,10 +590,12 @@ def _assert_reported_definition(
 def _reported_examples_for_definition(table_rows: list[list[str]], definition: dict[str, Any]) -> tuple[list[str], int]:
     definition_row = _assert_reported_definition(table_rows, definition)
     definition_index = table_rows.index(definition_row)
+    definition_filename, _ = _source_line(definition)
     examples: list[str] = []
     remainder_count = 0
     for row in table_rows[definition_index + 1 :]:
-        if "usage_consumer_steps.py:" in row[2]:
+        location = row[2].replace("\\", "/")
+        if location.rsplit("/", 1)[-1].startswith(f"{definition_filename}:"):
             break
         if row[0] == "1 more":
             remainder_count += 1
@@ -658,6 +743,12 @@ def install_pinned_usage_runtime(consumer: Any) -> None:
 
 @when(parsers.re(r'I run pytest with arguments "(?P<flags>[^"]*)"'))
 def run_usage_consumer_pytest(flags: str, consumer: Any) -> None:
+    messages_argument = next(
+        (argument for argument in shlex.split(flags) if argument.startswith("--cuke-messages-ndjson=")),
+        None,
+    )
+    if messages_argument is not None:
+        consumer._usage_messages_relative_path = messages_argument.split("=", 1)[1]
     if getattr(consumer, "_usage_pty_width", None) is None:
         _run_pytest(consumer, flags)
     else:
@@ -667,6 +758,14 @@ def run_usage_consumer_pytest(flags: str, consumer: Any) -> None:
 @then("the official usage table should match Messages definition identities and preserve pytest failure")
 def usage_report_matches_actual_messages_identities(consumer: Any) -> None:
     consumer._usage_first_report = _assert_usage_matches_messages(consumer)
+
+
+@then("the displayed Usage durations should match the latest Messages run")
+def displayed_usage_durations_match_latest_messages(consumer: Any) -> None:
+    report = _usage_stream(consumer)
+    _assert_displayed_usage_durations_match_messages(
+        report, _read_messages(consumer, _current_usage_messages_path(consumer))
+    )
 
 
 @when("the consumer adds an unused usage definition")
@@ -824,10 +923,12 @@ def usage_file_coexists_with_independent_outputs(consumer: Any) -> None:
     cucumber_json_path = root / "artifacts" / "cucumber.json"
     junit_path = root / "artifacts" / "junit.xml"
     public_usage_path = root / "artifacts" / "public-usage.json"
+    usage_json_path = root / "artifacts" / "usage.json"
     destinations = {
-        path.resolve() for path in (usage_path, messages_path, cucumber_json_path, junit_path, public_usage_path)
+        path.resolve()
+        for path in (usage_path, usage_json_path, messages_path, cucumber_json_path, junit_path, public_usage_path)
     }
-    assert len(destinations) == 5, destinations
+    assert len(destinations) == 6, destinations
 
     assert usage_path.is_file(), usage_path
     usage_report = usage_path.read_text(encoding="utf-8")
@@ -852,11 +953,128 @@ def usage_file_coexists_with_independent_outputs(consumer: Any) -> None:
     public_usage = json.loads(public_usage_path.read_text(encoding="utf-8"))
     assert public_usage["messageCount"] > 0, public_usage
     assert public_usage["testCases"] == 1 and public_usage["finishedSteps"] == 1, public_usage
+
+    usage_json = json.loads(usage_json_path.read_text(encoding="utf-8"))
+    assert isinstance(usage_json, list) and all(isinstance(item, dict) for item in usage_json), usage_json
+    matched_usage_definitions = [
+        item for item in usage_json if item.get("pattern") == "usage consumer sample scenario passes"
+    ]
+    assert len(matched_usage_definitions) == 1, usage_json
+    usage_json_definition = matched_usage_definitions[0]
+    assert usage_json_definition["patternType"] == "CucumberExpression", usage_json_definition
+    assert usage_json_definition["uri"].replace("\\", "/").endswith("usage_consumer_steps.py"), usage_json_definition
+    assert len(usage_json_definition["matches"]) == 1, usage_json_definition
+    usage_json_match = usage_json_definition["matches"][0]
+    assert usage_json_match["text"] == "usage consumer sample scenario passes", usage_json_match
+    assert isinstance(usage_json_match.get("duration"), dict), usage_json_match
+
     assert (root / "terminal-formatter-started.marker").is_file(), (
         "a file-selected usage formatter must leave the terminal formatter slot available"
     )
     assert output.count("USAGE_PUBLIC_TERMINAL_SENTINEL") == 1, output
     assert getattr(consumer, "_usage_cucumber_version", None) == "13.3.0"
+
+
+@given("the public Cucumber Usage example is copied into the consumer")
+def copy_public_usage_example(consumer: Any) -> None:
+    source = _PRODUCT_ROOT / "examples" / "cucumber-usage"
+    assert source.is_dir(), f"the public Cucumber Usage example is missing: {source}"
+    workspace = _safe_workspace(consumer, "cucumber-usage-example")
+    shutil.copytree(source, workspace)
+    (workspace / "artifacts").mkdir()
+    consumer._usage_workspace = workspace
+
+
+def _public_usage_example_report(consumer: Any) -> str:
+    result = consumer.pytest_result
+    output = _output(consumer)
+    assert result is not None and result.returncode == 0, output
+    assert "2 passed" in output, output
+    workspace: Path = Path(consumer._usage_workspace)
+    report_path = workspace / "artifacts" / "usage.txt"
+    assert report_path.is_file(), f"the public Usage example did not write its report: {report_path}\n{output}"
+    report = report_path.read_text(encoding="utf-8")
+    assert all(header in report for header in ("Pattern / Text", "Duration", "Location")), report
+    assert "\ufffd" not in report, report
+    return report
+
+
+@then("the public Usage example should preserve real matches and its unused definition")
+def public_usage_example_preserves_real_matches_and_unused(consumer: Any) -> None:
+    report = _public_usage_example_report(consumer)
+    messages = _read_messages(consumer, _current_usage_messages_path(consumer))
+    run = _latest_complete_test_run(messages)
+    definitions, counts = _message_definition_records(run)
+    expected_patterns = {
+        "the Usage example starts a clean request": 2,
+        "the Usage example handles {word}": 2,
+        "the Usage example records {word}": 2,
+        "the Usage example documents an unused definition": 0,
+    }
+    assert len(definitions) == len(expected_patterns), definitions
+    table_rows = _table_rows(report)
+    for pattern, expected_count in expected_patterns.items():
+        found = [definition for definition in definitions.values() if definition["pattern"]["source"] == pattern]
+        assert len(found) == 1, (pattern, found)
+        definition = found[0]
+        assert _source_line(definition)[0] == "cucumber_usage_example_steps.py", definition
+        assert counts[definition["id"]] == expected_count, (definition, counts)
+        row = _assert_reported_definition(table_rows, definition, expected_duration=expected_count > 0)
+        assert (row[1] == "UNUSED") is (expected_count == 0), row
+    for text in (
+        "the Usage example starts a clean request",
+        "the Usage example handles alpha",
+        "the Usage example handles bravo",
+        "the Usage example records alpha",
+        "the Usage example records bravo",
+    ):
+        assert text in report, (text, report)
+    assert getattr(consumer, "_usage_cucumber_version", None) == "13.3.0"
+    consumer._public_usage_example_first_report = report
+
+
+@then("the public Usage report durations should match the latest Messages run")
+def public_usage_report_durations_match_latest_messages(consumer: Any) -> None:
+    report = _public_usage_example_report(consumer)
+    messages = _read_messages(consumer, _current_usage_messages_path(consumer))
+    _assert_displayed_usage_durations_match_messages(report, messages)
+
+
+@when("the consumer adds a new unused definition to the public Usage example")
+def add_unused_public_usage_definition(consumer: Any) -> None:
+    plugin = consumer._usage_workspace / "cucumber_usage_example_steps.py"
+    with plugin.open("a", encoding="utf-8") as stream:
+        stream.write(
+            '\n\n@given("the Usage example introduces another unused definition")\n'
+            "def another_unused_definition() -> None:\n"
+            '    """This newly added definition must appear as UNUSED."""\n'
+        )
+
+
+@then("the new public Usage definition should change the real report")
+def added_unused_public_usage_definition_changes_report(consumer: Any) -> None:
+    report = _public_usage_example_report(consumer)
+    previous_report = consumer._public_usage_example_first_report
+    new_pattern = "the Usage example introduces another unused definition"
+    assert report != previous_report, "adding a real unused public definition did not change the report"
+    assert new_pattern not in previous_report, previous_report
+    table_rows = _table_rows(report)
+    run = _latest_complete_test_run(_read_messages(consumer, _current_usage_messages_path(consumer)))
+    definitions, counts = _message_definition_records(run)
+    found = [definition for definition in definitions.values() if definition["pattern"]["source"] == new_pattern]
+    assert len(found) == 1, found
+    definition = found[0]
+    assert counts[definition["id"]] == 0, (definition, counts)
+    row = _assert_reported_definition(table_rows, definition, expected_duration=False)
+    assert row[1] == "UNUSED", row
+    assert sum(row[1] == "UNUSED" for row in table_rows) == 2, table_rows
+    plugin_lines = (
+        (consumer._usage_workspace / "cucumber_usage_example_steps.py").read_text(encoding="utf-8").splitlines()
+    )
+    definition_line = next(
+        index for index, line in enumerate(plugin_lines, start=1) if line.startswith("def another_unused_definition")
+    )
+    assert f"cucumber_usage_example_steps.py:{definition_line - 1}" in row[2].replace("\\", "/"), row
 
 
 @given("the usage consumer prepares a terminal conflict scenario and a public terminal formatter")
