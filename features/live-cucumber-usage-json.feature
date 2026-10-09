@@ -74,3 +74,14 @@ Feature: Live Cucumber Usage JSON formatter
     And the usage-json consumer installs a Node preload that fails during Usage JSON finalization
     When I run installed pytest in the usage-json workspace with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage-json=artifacts/usage.json -q --color=no"
     Then the Usage JSON backend failure should remain visible
+
+  Scenario: Checked-in autoload example matches the pinned Usage JSON semantic golden
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the public Cucumber Usage JSON example is copied to the installed consumer
+    And the consumer installs the pinned official Cucumber Usage JSON runtime
+    When I run installed pytest in the usage-json workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-usage-json=artifacts/usage.json -q --color=no"
+    Then the public Usage JSON example should preserve used and unused definitions
+    When the consumer adds a new unused definition to the public Usage JSON example
+    And I run installed pytest in the usage-json workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-usage-json=artifacts/usage.json -q --color=no"
+    Then the newly added Usage JSON definition should appear without matches
+    And the real pinned Usage JSON artifact should match the checked-in semantic golden
