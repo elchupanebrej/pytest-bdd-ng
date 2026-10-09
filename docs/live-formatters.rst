@@ -240,6 +240,10 @@ The formatter uses Node.js, npm, and the ``@cucumber/cucumber`` package
 installed in the pytest root directory. When usage is not selected, pytest-cuke
 does not check for these dependencies.
 
+The runnable consumer in ``examples/cucumber-usage/`` demonstrates autoloaded
+step definitions, outline matches, and an unused definition with the pinned
+``@cucumber/cucumber`` 13.3.0 formatter.
+
 Built-in machine-readable step-definition usage
 ------------------------------------------------
 
