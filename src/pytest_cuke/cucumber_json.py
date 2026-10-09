@@ -6,6 +6,7 @@ import json
 import math
 import os
 import time
+from argparse import ArgumentTypeError
 from enum import Enum
 from pathlib import Path
 from types import SimpleNamespace
@@ -28,18 +29,69 @@ if TYPE_CHECKING:  # pragma: no cover
         pass
 
 
+DEFAULT_CUCUMBER_JSON_PATH = "cucumber.json"
+CUCUMBER_JSON_BACKENDS = ("cucumber", "native")
+
+
 def add_options(parser: Parser) -> None:
-    """Add canonical JSON report settings."""
+    """Add canonical JSON output and backend settings."""
     group = parser.getgroup("cuke", "Cucumber JSON")
     group.addoption(
         "--cuke-json",
         action="store",
+        nargs="?",
+        const=DEFAULT_CUCUMBER_JSON_PATH,
         dest="cuke_json",
-        metavar="path",
+        metavar="PATH",
         default=None,
-        help="create cucumber json style report file at given path.",
+        type=_required_output_path,
+        help="write the message-driven Cucumber JSON report to PATH (default: cucumber.json)",
+    )
+    group.addoption(
+        "--cuke-json-backend",
+        action="store",
+        choices=CUCUMBER_JSON_BACKENDS,
+        dest="cuke_json_backend",
+        metavar="BACKEND",
+        default=None,
+        help="select the Cucumber JSON backend: cucumber (default) or native",
     )
     parser.addini("cuke_json", "Cucumber JSON report path.", default="", type="string")
+    parser.addini("cuke_json_backend", "Cucumber JSON backend (cucumber or native).", default="cucumber", type="string")
+
+
+def configured_cucumber_json_output_value(config: BaseConfig) -> str | None:
+    """Return the raw selected Cucumber JSON destination, if enabled."""
+    option = getattr(getattr(config, "option", None), "cuke_json", None)
+    if option is None:
+        getini = getattr(config, "getini", None)
+        option = getini("cuke_json") if callable(getini) else None
+    if not isinstance(option, (str, Path)) or not option:
+        return None
+    return str(option)
+
+
+def _required_output_path(value: str) -> str:
+    if not value:
+        raise ArgumentTypeError("Cucumber JSON output path must not be empty")
+    return value
+
+
+def configured_cucumber_json_backend(config: BaseConfig) -> str:
+    """Return the selected Cucumber JSON backend, validating its ini value."""
+    option = getattr(getattr(config, "option", None), "cuke_json_backend", None)
+    if option is None:
+        getini = getattr(config, "getini", None)
+        option = getini("cuke_json_backend") if callable(getini) else None
+    backend = option if isinstance(option, str) and option else "cucumber"
+    if backend not in CUCUMBER_JSON_BACKENDS:
+        from pytest import (  # noqa: PLC0415 -- standalone replay does not import pytest unless this live setting is invalid.
+            UsageError,
+        )
+
+        choices = ", ".join(CUCUMBER_JSON_BACKENDS)
+        raise UsageError(f"Invalid cuke_json_backend {backend!r}; expected one of: {choices}.")
+    return backend
 
 
 def normalize_cucumber_json_path(logfile: str | Path) -> Path:
@@ -50,16 +102,17 @@ def normalize_cucumber_json_path(logfile: str | Path) -> Path:
 
 def configured_cucumber_json_output_path(config: BaseConfig) -> Path | None:
     """Return the effective CLI/ini Cucumber JSON destination, if selected."""
-    option = getattr(getattr(config, "option", None), "cuke_json", None)
+    option = configured_cucumber_json_output_value(config)
     if option is None:
-        getini = getattr(config, "getini", None)
-        option = getini("cuke_json") if callable(getini) else None
-    if not isinstance(option, (str, Path)) or not option:
         return None
     return normalize_cucumber_json_path(option)
 
 
 def configure(config: Config | BaseConfig) -> None:
+    if configured_cucumber_json_output_value(config) is None:
+        return
+    if configured_cucumber_json_backend(config) != "native":
+        return
     cucumber_json_path = configured_cucumber_json_output_path(config)
     # prevent opening json log on worker nodes (xdist)
     if cucumber_json_path and not hasattr(config, "workerinput"):
