@@ -14,7 +14,7 @@ Feature: Cucumber undefined-step snippets
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer prepares mixed undefined-step snippets in a Unicode workspace with spaces
     And the consumer installs the pinned official Cucumber snippets runtime in that workspace
-    When I run installed pytest from consumer directory "snippet workspace 東京 café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/report.json --junitxml=artifacts/junit.xml -q --color=no"
+    When I run installed pytest from consumer directory "snippet workspace 東京 café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/report.json --cuke-usage-json=artifacts/cucumber-usage.json --junitxml=artifacts/junit.xml -q --color=no"
     Then the CLI selection should emit usable JavaScript snippets and preserve the undefined failure
     And the consumer enables cuke_snippets in its configuration
     When I run installed pytest from consumer directory "snippet workspace 東京 café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=artifacts/messages.ndjson -v --capture=tee-sys --color=no"
@@ -22,6 +22,20 @@ Feature: Cucumber undefined-step snippets
     And the consumer patches the pinned snippets formatter to fail after receiving the run messages
     When I run installed pytest from consumer directory "snippet workspace 東京 café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets -q --color=no"
     Then the snippets backend failure should preserve pytest's undefined-step failures
+
+  Scenario: Duplicate canonical file destinations fail with snippets selected
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer prepares a snippets backend preflight marker scenario
+    And the consumer installs the pinned official Cucumber snippets runtime in that workspace
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets --cuke-json=artifacts/../artifacts/shared.json --cuke-messages-ndjson=artifacts/shared.json -q --color=no"
+    Then duplicate snippets file destinations should fail before marker execution or artifact publication
+
+  Scenario: The public snippets example emits real suggestions and keeps its undefined failure
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the public Cucumber snippets example is copied to the installed consumer
+    And the consumer installs the pinned official Cucumber snippets runtime in that workspace
+    When I run installed pytest from consumer directory "cucumber-snippets-example" with arguments "--cuke-parser=python --cuke-snippets -q --color=no"
+    Then the public snippets example should emit JavaScript suggestions and preserve its undefined failure
 
   Scenario: Missing selected backend dependencies fail before a scenario starts
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
