@@ -128,8 +128,12 @@ def main() -> int:
     overall_status = "passed"
     for env_name in selected["tox_envs"]:
         result_json = tox_results_dir / f"{env_name}.json"
+        remote_runtime_path = tox_results_dir / f"{env_name}.remote-workers.json"
         command = [tox, "run", "--result-json", str(result_json), "-e", env_name]
         command_environment = os.environ.copy()
+        if args.job == "remote":
+            remote_runtime_path.unlink(missing_ok=True)
+            command_environment["PYTEST_CUKE_REMOTE_RUNTIME_EVIDENCE"] = str(remote_runtime_path)
         if args.job == "native-go-parser":
             command_environment["PYTEST_CUKE_BUILD_GO"] = "off"
         print(f"Running {' '.join(command)}", flush=True)
@@ -184,6 +188,16 @@ def main() -> int:
             "platform_name": sys.platform,
             "result_json": result_json.as_posix(),
         }
+        if args.job == "remote":
+            try:
+                remote_payload = json.loads(remote_runtime_path.read_text(encoding="utf-8"))
+                if remote_payload.get("schema_version") != 1 or not isinstance(remote_payload.get("runs"), list):
+                    raise ValueError("remote worker evidence has an unsupported schema or missing runs")
+                environment_record["remote_worker_runs"] = remote_payload["runs"]
+            except (OSError, json.JSONDecodeError, AttributeError, ValueError) as error:
+                environment_record["remote_worker_evidence_error"] = str(error)
+                environment_record["outcome"] = "failed"
+                overall_status = "failed"
         try:
             runtime_evidence = _installed_versions(_python_in_tox_environment(project_root, env_name))
             packages = runtime_evidence.pop("packages")
@@ -191,9 +205,7 @@ def main() -> int:
             environment_record["pytest"] = packages.pop("pytest", None)
             environment_record["optional_versions"] = packages
             missing_optional = [
-                package
-                for package in required_optional_versions(env_name)
-                if not packages.get(package)
+                package for package in required_optional_versions(env_name) if not packages.get(package)
             ]
             if missing_optional:
                 environment_record["outcome"] = "failed"
