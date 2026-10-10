@@ -734,6 +734,25 @@ def usage_json_coexists_with_independent_reports(consumer: Any) -> None:
     assert usage_text != cucumber_path.read_text(encoding="utf-8")
 
 
+@then("Usage JSON and live progress should both report the two passing scenarios")
+def usage_json_coexists_with_live_progress(consumer: Any) -> None:
+    _assert_usage_json_success(consumer)
+    report, _ = _read_usage_json(consumer, "artifacts/usage.json")
+    passing_step = _definition(report, "usage json passing step")
+    assert len(passing_step["matches"]) == 2, passing_step
+    for match in passing_step["matches"]:
+        _duration_nanoseconds(match.get("duration"))
+
+    output = _combined_output(consumer)
+    progress_lines = [
+        line.strip()
+        for line in output.splitlines()
+        if re.fullmatch(r"[.FPAU?\-]+", line.strip())
+    ]
+    assert progress_lines == [".", "."], output
+    assert re.search(r"\b2 scenarios\b.*\b2 passed\b", output), output
+
+
 @given("the usage-json consumer prepares a marker scenario for preflight checks")
 def prepare_usage_json_preflight_consumer(consumer: Any) -> None:
     _prepare(consumer, feature=_MARKER_FEATURE, feature_name="usage-json-preflight-marker.feature")
