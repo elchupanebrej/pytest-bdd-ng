@@ -163,6 +163,7 @@ def _validate_inventory_records(
 ) -> list[dict[str, str]]:
     diagnostics: list[dict[str, str]] = []
     lane_ids: set[str] = set()
+    lanes_by_dimensions: dict[tuple[str, ...], list[tuple[str, str, set[str]]]] = {}
     for lane in lanes:
         lane_id = _lane_id(lane)
         if not lane_id:
@@ -187,6 +188,26 @@ def _validate_inventory_records(
                     "Use required, optional, or unsupported.",
                 )
             )
+        dimensions = tuple(
+            str(lane.get(key) or "").strip().casefold()
+            for key in ("runtime", "python", "platform", "capability")
+        )
+        pytest_factors = _pytest_factors(lane.get("pytest"))
+        if status in _SUPPORTED_STATUSES and all(dimensions) and pytest_factors:
+            for other_id, other_status, other_pytest_factors in lanes_by_dimensions.get(dimensions, []):
+                overlap = pytest_factors & other_pytest_factors
+                if overlap and status != other_status:
+                    diagnostics.append(
+                        _diagnostic(
+                            lane_id,
+                            "lane-status-conflict",
+                            f"lane {other_id!r} has status {other_status!r} and lane {lane_id!r} has status "
+                            f"{status!r} for overlapping {dimensions[0]} Python {dimensions[1]}, pytest "
+                            f"{', '.join(sorted(overlap))}, platform {dimensions[2]}, capability {dimensions[3]}",
+                            "Align lane statuses, merge the records, or remove the stale entry.",
+                        )
+                    )
+            lanes_by_dimensions.setdefault(dimensions, []).append((lane_id, status, pytest_factors))
         missing = [
             key for key in ("runtime", "python", "pytest", "platform", "capability") if lane.get(key) in (None, "", [])
         ]
@@ -311,6 +332,32 @@ def _validate_inventory_records(
     return diagnostics
 
 
+def _pytest_factors(value: Any) -> set[str]:
+    """Expand declared pytest minor ranges so overlapping lane statuses are comparable."""
+    factors = value if isinstance(value, list) else [value]
+    versions: set[str] = set()
+    for factor in factors:
+        if not isinstance(factor, (str, int, float)) or isinstance(factor, bool):
+            continue
+        version = str(factor).strip().casefold().replace(" ", "")
+        match = re.fullmatch(r"(\d+)\.(\d+)-(\d+)\.(\d+)", version)
+        if match is None:
+            if version:
+                versions.add(version)
+            continue
+
+        major, minor, end_major, end_minor = (int(part) for part in match.groups())
+        current = (major, minor)
+        end = (end_major, end_minor)
+        if current > end:
+            versions.add(version)
+            continue
+        while current <= end:
+            versions.add(f"{current[0]}.{current[1]}")
+            current = (current[0] + 1, 0) if current[1] == 9 else (current[0], current[1] + 1)
+    return versions
+
+
 def _index_cells(cells: list[dict[str, Any]], diagnostics: list[dict[str, str]]) -> dict[str, dict[str, Any]]:
     index: dict[str, dict[str, Any]] = {}
     for cell in cells:
@@ -355,7 +402,7 @@ def _check_workflow_jobs(
     project_root: Path,
     cells: list[dict[str, Any]],
     diagnostics: list[dict[str, str]],
-) -> dict[str, bool]:
+) -> dict[str, tuple[bool, str]]:
     workflow_jobs: dict[str, set[str]] = {}
     for cell in cells:
         workflow_path = _workflow_path(project_root, cell)
@@ -397,33 +444,92 @@ def _load_workflow_jobs(path: Path) -> set[str]:
     return set(jobs) if isinstance(jobs, dict) else set()
 
 
-def _cell_selected(project_root: Path, workflow_path: Path, cell: dict[str, Any]) -> bool:
+def _cell_selected(project_root: Path, workflow_path: Path, cell: dict[str, Any]) -> tuple[bool, str]:
     """Confirm that the configured workflow job consumes this inventory cell."""
     job_id = str(cell.get("job", ""))
     try:
         content = workflow_path.read_text(encoding="utf-8")
     except OSError:
-        return False
+        return False, f"workflow file {workflow_path} cannot be read"
     command = f"scripts/env_matrix.py --job {job_id}"
     if command not in content:
-        return False
+        return False, f"workflow does not generate a matrix with {command!r}"
     yaml = _yaml_module()
     try:
         workflow = yaml.safe_load(content)
     except (ValueError, yaml.YAMLError):
-        return False
+        return False, f"workflow file {workflow_path} is not valid YAML"
     jobs = workflow.get("jobs") if isinstance(workflow, dict) else None
     job = jobs.get(job_id) if isinstance(jobs, dict) else None
     strategy = job.get("strategy") if isinstance(job, dict) else None
     matrix = strategy.get("matrix") if isinstance(strategy, dict) else None
     selected_cells = matrix.get("cell") if isinstance(matrix, dict) else None
-    return isinstance(selected_cells, str) and "fromJSON(needs." in selected_cells
+    if not isinstance(selected_cells, str) or not isinstance(jobs, dict) or not isinstance(job, dict):
+        return False, f"job {job_id!r} has no matrix.cell expression"
+
+    dependencies = job.get("needs")
+    if isinstance(dependencies, str):
+        dependencies = [dependencies]
+    if not isinstance(dependencies, list) or len(dependencies) != 1:
+        return False, f"job {job_id!r} must depend on one inventory matrix selector job"
+    selector_job_id = dependencies[0]
+    selector_job = jobs.get(selector_job_id) if isinstance(selector_job_id, str) else None
+    if not isinstance(selector_job, dict):
+        return False, f"job {job_id!r} depends on an undefined matrix selector job"
+
+    steps = selector_job.get("steps")
+    outputs = selector_job.get("outputs")
+    if not isinstance(steps, list) or not isinstance(outputs, dict):
+        return False, f"selector job {selector_job_id!r} has no steps or declared outputs"
+    matching_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict)
+        and isinstance(step.get("id"), str)
+        and f"scripts/env_matrix.py --job {job_id}" in str(step.get("run", ""))
+    ]
+    if len(matching_steps) != 1:
+        return False, f"selector job {selector_job_id!r} does not run exactly one {command!r} step"
+
+    selector_step = matching_steps[0]
+    step_id = selector_step["id"]
+    if "--github-output" not in str(selector_step.get("run", "")):
+        return (
+            False,
+            f"selector step {step_id!r} for job {job_id!r} must pass --github-output to expose its matrix output",
+        )
+    matching_outputs = [
+        name
+        for name, value in outputs.items()
+        if isinstance(name, str) and value == f"${{{{ steps.{step_id}.outputs.cells }}}}"
+    ]
+    if len(matching_outputs) != 1:
+        return False, f"selector job {selector_job_id!r} does not expose exactly one output for step {step_id!r}"
+
+    expected_selection = f"${{{{ fromJSON(needs.{selector_job_id}.outputs.{matching_outputs[0]}) }}}}"
+    normalized_selection = re.sub(r"\s+", "", selected_cells)
+    normalized_expected_selection = re.sub(r"\s+", "", expected_selection)
+    if normalized_selection == normalized_expected_selection:
+        return True, ""
+
+    actual_output_match = re.fullmatch(
+        r"\$\{\{\s*fromJSON\(needs\.([^.]+)\.outputs\.([^)]+)\)\s*\}\}",
+        selected_cells.strip(),
+    )
+    if actual_output_match is not None:
+        actual_selector_job, actual_output = actual_output_match.groups()
+        return (
+            False,
+            f"job {job_id!r} consumes matrix output {actual_selector_job!r}.{actual_output!r}; expected "
+            f"{selector_job_id!r}.{matching_outputs[0]!r} for scripts/env_matrix.py --job {job_id}",
+        )
+    return False, f"job {job_id!r} matrix.cell must consume {expected_selection}"
 
 
 def _build_lane_proof(
     lanes: list[dict[str, Any]],
     cells: dict[str, dict[str, Any]],
-    workflow_results: dict[str, bool],
+    workflow_results: dict[str, tuple[bool, str]],
     tox_environments: set[str],
     project_root: Path,
     diagnostics: list[dict[str, str]],
@@ -547,21 +653,24 @@ def _build_lane_proof(
                             "Add the lane's resolved tox environments to the workflow cell in config/env-matrix.yaml.",
                         )
                     )
-                ci_selected = workflow_results.get(str(selector), False)
+                ci_selected, workflow_detail = workflow_results.get(
+                    str(selector), (False, "workflow cell has no matrix selection result")
+                )
                 if not ci_selected:
                     diagnostics.append(
                         _diagnostic(
                             lane_id,
                             "workflow-not-selected",
-                            f"workflow cell {selector!r} is not consumed by its GitHub Actions job",
-                            "Generate the job matrix from config/env-matrix.yaml with "
+                            f"workflow cell {selector!r} is not selected by its GitHub Actions job matrix output: "
+                            f"{workflow_detail}",
+                            "Make the job consume the matrix output generated from config/env-matrix.yaml with "
                             f"`python scripts/env_matrix.py --job {cell.get('job')}`.",
                         )
                     )
         elif cell is not None:
             workflow_path = _workflow_path(project_root, cell)
             workflow_name = str(workflow_path.relative_to(project_root)).replace("\\", "/")
-            ci_selected = workflow_results.get(str(selector), False)
+            ci_selected = workflow_results.get(str(selector), (False, ""))[0]
 
         declared_command = _command_text(lane.get("command"))
         if status == "required" and (not declared_command or any(env not in declared_command for env in env_names)):
