@@ -99,6 +99,7 @@ _RETRY_FEATURE = """\
 Feature: TTY progress-bar retries
   Scenario: A progress-bar Pickle fails once and then passes
     Given the progress-bar scenario fails once and then passes
+    Then the following progress-bar step remains skipped
 
   Scenario: A progress-bar Pickle is skipped
     Given a progress-bar scenario deliberately skips
@@ -827,6 +828,7 @@ def terminal_progress_updates_fit_width_and_cap_counts(consumer: Any) -> None:
     unique_pickles = {attempt["pickle_id"] for attempt in attempts}
     assert len(unique_pickles) == 3, attempts
     assert len(attempts) == 4, attempts
+    expected_markers = [_MARKERS[attempt["status"]] for attempt in attempts]
     ratios = _ratio_updates(output)
     assert ratios.count((1, 3)) >= 2, f"retry completion did not update the live count:\n{output}"
     assert ratios[-1] == (3, 3), f"final progress count should be 3/3:\n{output}"
@@ -834,6 +836,23 @@ def terminal_progress_updates_fit_width_and_cap_counts(consumer: Any) -> None:
     progress_rows = _progress_rows(output)
     assert progress_rows, output
     assert all(len(line) <= 32 for line in progress_rows), progress_rows
+    actual_markers = [line.rsplit(" ", 1)[-1] for line in progress_rows]
+    assert actual_markers == expected_markers, (actual_markers, expected_markers, attempts, output)
+    lines = _progress_marker_lines(output)
+    progress_indexes = [index for index, line in enumerate(lines) if _PROGRESS_BAR_ROW.search(line)]
+    assert progress_indexes, f"the official Cucumber progress rows are missing from TTY output:\n{output}"
+    last_progress_index = progress_indexes[-1]
+    summary_rows = [
+        (index, line.lower())
+        for index, line in enumerate(lines)
+        if index > last_progress_index
+        and not _PROGRESS_BAR_ROW.search(line)
+        and re.search(r"\b3\s+scenarios?\b", line, re.I)
+    ]
+    assert summary_rows, f"the official Cucumber final 3-scenario summary is missing after progress in TTY output:\n{output}"
+    summary = summary_rows[-1][1]
+    for expected_result in ("passed", "skipped"):
+        assert expected_result in summary, f"the final Cucumber summary omitted {expected_result!r}: {summary!r}"
 
     wide_rows = _progress_rows(_run_progress_bar_geometry_replay(consumer, columns=100))
     assert wide_rows and max(len(line) for line in wide_rows) == 100, wide_rows
