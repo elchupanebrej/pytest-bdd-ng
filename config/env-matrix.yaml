@@ -407,6 +407,8 @@ lanes:
     command: "tox run -e py312-pytest73-coverage-win,py312-pytest74-coverage-win,py312-pytest80-coverage-win,py312-pytest81-coverage-win"
     prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
     expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+    reason: "Retained as runnable manual coverage lanes outside the owner-frozen #149 required GitHub Actions matrix."
+    source_evidence: ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/149"]
   - id: py312-macos-manual
     status: optional
     runtime: CPython
@@ -419,6 +421,8 @@ lanes:
     command: "tox run -e py312-pytest73-coverage-mac,py312-pytest74-coverage-mac,py312-pytest80-coverage-mac,py312-pytest81-coverage-mac"
     prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
     expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+    reason: "Retained as runnable manual coverage lanes outside the owner-frozen #149 required GitHub Actions matrix."
+    source_evidence: ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/149"]
   - id: optional-dependency-probe
     status: optional
     runtime: CPython
@@ -674,17 +678,3 @@ lanes:
     expected_carrier: {kind: none, path: src/pytest_cuke/compatibility/runtime_compat.py}
     reason: "pytest 8.0 predates official Python 3.13 support; pytest 8.2 added it."
     source_evidence: ["https://docs.pytest.org/en/8.4.x/changelog.html"]
-  - id: py312-windows-excluded-from-ci
-    status: unsupported
-    runtime: CPython
-    python: "3.12"
-    pytest: "7.3-7.4"
-    platform: windows
-    capability: github-matrix-exclusion
-    tox_env: null
-    workflow_selector: null
-    command: null
-    prerequisites: []
-    expected_carrier: {kind: none, path: config/env-matrix.yaml}
-    reason: "The owner-frozen #149 GitHub matrix excludes CPython 3.12 on Windows and macOS; tox still lists manual lanes."
-    source_evidence: ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/149"]
