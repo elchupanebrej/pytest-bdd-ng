@@ -170,7 +170,8 @@ def resolve_formatter_catalog(
             if reserved_destination is not None:
                 reserved_name, _ = reserved_destination
                 raise FormatterCatalogError(
-                    f"{mode} formatter {request.name!r} and {reserved_name} resolve to the same output path: "
+                    f"{mode} formatter {_display_formatter_name(request.name)} and {reserved_name} "
+                    f"resolve to the same output path: "
                     f"{output_path}. Choose a different destination for each report."
                 )
             if output_path.exists() and output_path.is_dir():
@@ -203,6 +204,13 @@ def resolve_formatter_catalog(
         _check_request_runtime(request, mode=mode)
 
     return tuple(normalized)
+
+
+def _display_formatter_name(name: str) -> str:
+    """Show the public selector alongside a built-in formatter's internal name."""
+    if name == "cucumber-json":
+        return "'cucumber-json' (--cuke-json)"
+    return repr(name)
 
 
 def _configured_live_output_paths(config: Config) -> tuple[tuple[str, Path], ...]:
