@@ -111,6 +111,17 @@ Feature: Live native Allure reporting
     Then the native Allure consumer should exit nonzero
     And native Allure results should preserve failed skipped and undefined cases with truthful details
 
+  Scenario: Nested skip and error statuses agree in local and xdist runs
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains nested native Allure skip and error outcomes
+    And the consumer installs pytest-cuke with its Allure extra
+    And the consumer installs pinned pytest-xdist
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results-local -q"
+    Then the native Allure consumer should exit nonzero
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results-xdist -n 2 -q"
+    Then the native Allure consumer should exit nonzero
+    And native Allure results should preserve matching nested skip and error statuses in "allure-results-local" and "allure-results-xdist"
+
   Scenario: Live reporting preserves failed Background status and traceback
     Given a fresh isolated pytest-cuke consumer is ready
     And the consumer contains a native Allure scenario with a failing Gherkin Background
