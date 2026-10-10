@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from pytest_cuke.allure_status import _allure_api_step_status
 from pytest_cuke.model.message_types import Attachment, ContentEncoding, Envelope
 
 if TYPE_CHECKING:
@@ -202,12 +203,13 @@ class NativeAllureWorkerBridge:
             self._step_stack.remove(api_uuid)
 
         step_node["stop"] = _now_millis()
-        if exc_type is not None:
-            step_node["status"] = "failed" if issubclass(exc_type, AssertionError) else "broken"
-            message = str(exc_val) if exc_val is not None else exc_type.__name__
+        if exc_type is not None or exc_val is not None:
+            step_node["status"] = _allure_api_step_status(exc_type, exc_val)
+            exception_type = exc_type or (type(exc_val) if exc_val is not None else None)
+            message = str(exc_val) if exc_val is not None else exception_type.__name__ if exception_type else ""
             details: dict[str, str] = {"message": message}
-            if exc_tb is not None:
-                details["trace"] = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
+            if exc_tb is not None and exception_type is not None:
+                details["trace"] = "".join(traceback.format_exception(exception_type, exc_val, exc_tb))
             step_node["statusDetails"] = details
 
         if api_uuid != root_uuid:
