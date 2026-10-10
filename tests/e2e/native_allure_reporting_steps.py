@@ -278,6 +278,49 @@ def _write_terminal_outcomes_feature(context: NativeAllureConsumer) -> None:
     )
 
 
+def _write_nested_outcome_feature(context: NativeAllureConsumer) -> None:
+    feature_dir = context.project / "features"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "native-nested-outcomes.feature").write_text(
+        "Feature: Native Allure nested terminal outcomes\n\n"
+        "  Scenario: Native nested skip preserves its status\n"
+        "    When a native operation skips inside a nested Allure step\n\n"
+        "  Scenario: Native nested assertion failure preserves its status\n"
+        "    When a native assertion fails inside a nested Allure step\n\n"
+        "  Scenario: Native nested runtime error preserves its status\n"
+        "    When a native runtime error occurs inside a nested Allure step\n",
+        encoding="utf-8",
+    )
+    (context.project / "pyproject.toml").write_text(
+        "[tool.pytest.ini_options]\ncuke_autoload = true\ncuke_features_dir = 'features'\n",
+        encoding="utf-8",
+    )
+    (context.project / "conftest.py").write_text(
+        'pytest_plugins = ["native_nested_outcome_steps"]\n',
+        encoding="utf-8",
+    )
+    (context.project / "native_nested_outcome_steps.py").write_text(
+        "from pytest_cuke import when\n\n\n"
+        "@when('a native operation skips inside a nested Allure step')\n"
+        "def native_operation_skips_inside_nested_allure_step():\n"
+        "    import allure\n"
+        "    import pytest\n"
+        "    with allure.step('Nested native skip action'):\n"
+        "        pytest.skip('native nested skip sentinel')\n\n\n"
+        "@when('a native assertion fails inside a nested Allure step')\n"
+        "def native_assertion_fails_inside_nested_allure_step():\n"
+        "    import allure\n"
+        "    with allure.step('Nested native assertion action'):\n"
+        "        raise AssertionError('native nested assertion sentinel')\n\n\n"
+        "@when('a native runtime error occurs inside a nested Allure step')\n"
+        "def native_runtime_error_occurs_inside_nested_allure_step():\n"
+        "    import allure\n"
+        "    with allure.step('Nested native runtime action'):\n"
+        "        raise RuntimeError('native nested runtime sentinel')\n",
+        encoding="utf-8",
+    )
+
+
 def _write_background_failure_feature(context: NativeAllureConsumer) -> None:
     feature_dir = context.project / "features"
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -624,6 +667,11 @@ def consumer_has_terminal_outcome_scenarios(native_allure_consumer: NativeAllure
     _write_terminal_outcomes_feature(native_allure_consumer)
 
 
+@given("the consumer contains nested native Allure skip and error outcomes")
+def consumer_has_nested_native_allure_outcomes(native_allure_consumer: NativeAllureConsumer) -> None:
+    _write_nested_outcome_feature(native_allure_consumer)
+
+
 @given("the consumer contains a native Allure scenario with a failing Gherkin Background")
 def consumer_has_failing_native_background(native_allure_consumer: NativeAllureConsumer) -> None:
     _write_background_failure_feature(native_allure_consumer)
@@ -936,6 +984,69 @@ def native_allure_preserves_terminal_outcomes(native_allure_consumer: NativeAllu
     assert isinstance(traceback_text, str), nested_failure
     assert "AssertionError: native nested failure traceback sentinel" in traceback_text, nested_failure
     assert "native_terminal_outcome_steps.py" in traceback_text, nested_failure
+
+
+@then(
+    parsers.re(
+        r"native Allure results should preserve matching nested skip and error statuses in "
+        r'"(?P<local_path>[^"]+)" and "(?P<xdist_path>[^"]+)"'
+    )
+)
+def native_allure_preserves_nested_outcome_parity(
+    local_path: str,
+    xdist_path: str,
+    native_allure_consumer: NativeAllureConsumer,
+) -> None:
+    expected = {
+        "Native nested skip preserves its status": (
+            "skipped",
+            "Nested native skip action",
+            "skipped",
+            "native nested skip sentinel",
+        ),
+        "Native nested assertion failure preserves its status": (
+            "failed",
+            "Nested native assertion action",
+            "failed",
+            "native nested assertion sentinel",
+        ),
+        "Native nested runtime error preserves its status": (
+            "failed",
+            "Nested native runtime action",
+            "broken",
+            "native nested runtime sentinel",
+        ),
+    }
+
+    def outcome_signature(relative_path: str) -> dict[str, tuple[str, str, str, str]]:
+        results = [_load_json(path) for path in _result_files(native_allure_consumer, relative_path)]
+        assert len(results) == len(expected), results
+        signature: dict[str, tuple[str, str, str, str]] = {}
+        for result in results:
+            scenario_name = result.get("name")
+            assert scenario_name in expected, result
+            expected_case_status, nested_name, expected_nested_status, sentinel = expected[scenario_name]
+            assert result.get("status") == expected_case_status and result.get("stage") == "finished", result
+            nested_steps = [item for item in _all_objects(result) if item.get("name") == nested_name]
+            assert len(nested_steps) == 1, result
+            nested_step = nested_steps[0]
+            assert nested_step.get("status") == expected_nested_status, nested_step
+            details = nested_step.get("statusDetails")
+            assert isinstance(details, dict) and sentinel in details.get("message", ""), nested_step
+            trace = details.get("trace")
+            assert isinstance(trace, str) and sentinel in trace, nested_step
+            signature[scenario_name] = (
+                str(result.get("status")),
+                nested_name,
+                str(nested_step.get("status")),
+                str(details.get("message")),
+            )
+        assert set(signature) == set(expected), signature
+        return signature
+
+    local_signature = outcome_signature(local_path)
+    xdist_signature = outcome_signature(xdist_path)
+    assert local_signature == xdist_signature, (local_signature, xdist_signature)
 
 
 @then("native Allure results should preserve the failed Background diagnostic")

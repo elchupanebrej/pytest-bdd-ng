@@ -32,6 +32,7 @@ from pytest_cuke.allure_conversion import (
     _status_priority,
     _timestamp_millis,
 )
+from pytest_cuke.allure_status import _allure_api_step_status
 from pytest_cuke.model.message_consolidation import LiveMessageAdapter
 from pytest_cuke.model.message_extension import get_payload_kind
 from pytest_cuke.model.message_registry import EnvelopeRegistry
@@ -897,11 +898,11 @@ class NativeAllureReporter:
         if step_uuid is None:
             return
         self._api_step_stack = [entry for entry in self._api_step_stack if entry[0] != api_uuid]
-        status = "passed" if exc_val is None else "failed"
+        status = _allure_api_step_status(exc_type, exc_val)
         details: dict[str, str] = {}
         if exc_val is not None:
             details["message"] = str(exc_val)
-            details["trace"] = "".join(traceback.format_exception(exc_type, exc_val, exc_tb))
+            details["trace"] = "".join(traceback.format_exception(exc_type or type(exc_val), exc_val, exc_tb))
         with self._lifecycle.update_step(step_uuid) as step:
             step.status = self._allure_status_value(status)
             if details:
