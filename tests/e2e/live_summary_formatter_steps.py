@@ -149,7 +149,7 @@ _PUBLIC_FILE_FORMATTER = """\
 from pathlib import Path
 import sys
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def pytest_cuke_formatter_requests(config):
@@ -188,7 +188,7 @@ _PUBLIC_TERMINAL_FORMATTER = """\
 from pathlib import Path
 import sys
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def pytest_cuke_formatter_requests(config):

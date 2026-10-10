@@ -324,7 +324,7 @@ threshold-percent = 80
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "features"]
-addopts = ["-m", "not typecheck"]
+addopts = ["-m", "not typecheck and not doc_gen"]
 filterwarnings = [
   "ignore::DeprecationWarning",
   "ignore::ImportWarning",
@@ -336,7 +336,8 @@ markers = [
   "contract: Contract tests",
   "e2e: End-to-end tests",
   "external: External integration tests",
-  "typecheck: Strict runtime-source Mypy acceptance probes"
+  "typecheck: Strict runtime-source Mypy acceptance probes",
+  "doc_gen: Tests that require optional documentation-generation dependencies and Pandoc"
 ]
 cuke_autoload = true
 cuke_features_dir = "features"

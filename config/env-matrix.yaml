@@ -9,12 +9,12 @@ project:
     runner: ubuntu-latest
     runtime: CPython
     python: "3.13"
-    command: "python -m pytest -m 'not e2e and not external and not slow and not typecheck' -q"
-    marker: "not e2e and not external and not slow and not typecheck"
+    command: "python -m pytest -m 'not e2e and not external and not slow and not typecheck and not doc_gen' -q"
+    marker: "not e2e and not external and not slow and not typecheck and not doc_gen"
     rationale: "Fast feedback only; it is not a full-matrix acceptance result."
   evidence:
     command: "tox run --result-json tox-result.json -e <environment>"
-    fields: [git_sha, tox_environment, runtime, python, pytest, optional_versions, command, selected_tests, passed_tests, outcome]
+    fields: [git_sha, tox_environment, runtime, python, pytest, optional_versions, system_tool_versions, command, selected_tests, passed_tests, outcome]
     aggregate_groups: [serial, parallel, e2e, external, quality]
 
 # The twelve frozen #149 cells are retained. Three PyPy 3.10 cells preserve
@@ -201,6 +201,13 @@ workflow_cells:
     platform: linux
     runner: ubuntu-latest
     tox_envs: [typecheck, py314-pytest90-mypy, py314-pytestlatest-mypy, py314-pytestlatest-mypy-messages, messages-schema]
+  - id: doc-generation
+    job: quality
+    runtime: CPython
+    python: "3.14"
+    platform: linux
+    runner: ubuntu-latest
+    tox_envs: [py314-doc-gen]
 
 lanes:
   - id: cpython-310-linux-coverage
@@ -624,6 +631,24 @@ lanes:
     command: "tox run -e typecheck,py314-pytest90-mypy,py314-pytestlatest-mypy,py314-pytestlatest-mypy-messages"
     prerequisites: [{type: python-package, name: mypy, remedy: "install pytest-cuke[testtypes] in the typecheck tox environment"}]
     expected_carrier: {kind: pytest, path: features/mypy-runtime-gate.feature, command: "pytest -m typecheck features/mypy-runtime-gate.feature"}
+  - id: doc-generation
+    status: required
+    runtime: CPython
+    python: "3.14"
+    pytest: latest
+    platform: linux
+    capability: doc-generation
+    tox_env: py314-doc-gen
+    workflow_selector: doc-generation
+    command: "tox run -e py314-doc-gen"
+    extras: [doc-gen]
+    prerequisites:
+      - {type: python-package, name: pandoc, remedy: "install pytest-cuke[doc-gen] in the documentation tox environment"}
+      - {type: python-package, name: panflute, remedy: "install pytest-cuke[doc-gen] in the documentation tox environment"}
+      - {type: python-package, name: pycmarkgfm, remedy: "install pytest-cuke[doc-gen] in the documentation tox environment"}
+      - {type: python-package, name: pypandoc, remedy: "install pytest-cuke[doc-gen] in the documentation tox environment"}
+      - {type: command, name: pandoc, remedy: "install Pandoc before running the documentation tox environment"}
+    expected_carrier: {kind: pytest, path: tests/unit/docs/test_doc.py, command: "pytest tests/unit/docs/test_doc.py -m doc_gen"}
   - id: messages-schema
     status: required
     runtime: CPython

@@ -29,7 +29,7 @@ and returns a ``FormatterRequest``:
 
 .. code-block:: python
 
-   from pytest_cuke import FormatterRequest, FormatterSelection
+   from pytest_cuke.formatter_api import FormatterRequest, FormatterSelection
 
 
    def make_replay_request(selection: FormatterSelection) -> FormatterRequest:

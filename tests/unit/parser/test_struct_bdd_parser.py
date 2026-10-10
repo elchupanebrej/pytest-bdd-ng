@@ -69,24 +69,15 @@ def test_parse_json_struct_bdd_feature() -> None:
 
 
 def test_parse_toml_struct_bdd_feature() -> None:
-    import tomli_w
+    toml_text = """\
+Name = "TOML Feature"
+Tags = ["@toml"]
 
-    data = {
-        "Name": "TOML Feature",
-        "Tags": ["@toml"],
-        "Steps": [
-            {
-                "Step": {
-                    "Name": "TOML Scenario",
-                    "Steps": [
-                        {"Given": "toml given"},
-                        {"Then": "toml then"},
-                    ],
-                }
-            }
-        ],
-    }
-    toml_text = tomli_w.dumps(data)
+[[Steps]]
+[Steps.Step]
+Name = "TOML Scenario"
+Steps = [{Given = "toml given"}, {Then = "toml then"}]
+"""
     parser = StructBDDParser(kind="toml")
     feature = parser.parse_text(toml_text, uri="test.bdd.toml")
 

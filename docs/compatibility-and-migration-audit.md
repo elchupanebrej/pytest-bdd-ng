@@ -124,8 +124,10 @@ environments, CI selector, prerequisites and runnable carrier. Unsupported
 combinations include a source-backed reason. The checker compares these entries
 with the resolved tox listing and GitHub Actions selectors; an environment
 name alone does not establish that a lane ran. The fast PR selector excludes
-`slow`, `e2e`, `external` and `typecheck`; full runtime tox commands exclude
-`e2e`, `external` and `typecheck`. Dedicated browser, native and remote jobs
+`slow`, `e2e`, `external`, `typecheck` and `doc_gen`; full runtime tox commands
+exclude `e2e`, `external`, `typecheck` and `doc_gen`. The required
+`py314-doc-gen` quality lane runs the documentation test with its optional
+Python dependencies and Pandoc. Dedicated browser, native and remote jobs
 install or verify their own prerequisites. xdist proof is reported as
 `parallel`, separately from serial runtime proof.
 
@@ -167,18 +169,20 @@ required tool named in the diagnostic.
 
 The fast pull-request selector is only a Linux CPython 3.13 feedback run:
 
-    python -m pytest -m "not e2e and not external and not slow and not typecheck" -q
+    python -m pytest -m "not e2e and not external and not slow and not typecheck and not doc_gen" -q
 
-The fast selector excludes `slow`, `e2e`, `external` and `typecheck`. Full
-runtime tox commands exclude `e2e`, `external` and `typecheck`; dedicated
-browser, native and remote jobs run their own contracts and prerequisites.
+The fast selector excludes `slow`, `e2e`, `external`, `typecheck` and `doc_gen`.
+The `py314-doc-gen` quality cell runs the optional documentation-generation
+test with Pandoc on pull requests and full proof runs. Full runtime tox commands
+exclude `e2e`, `external`, `typecheck` and `doc_gen`; dedicated browser, native
+and remote jobs run their own contracts and prerequisites.
 On push and manual workflow dispatch, the full runtime matrix, browser report,
 native parser, remote xdist and quality jobs upload JSON evidence tied to the
 workflow's exact Git SHA. Each record contains the tox environment, resolved
-command, selected test count where applicable, actual Python/pytest and
-optional package versions, selected and passed test counts, and outcome. The `aggregate-proof` job requires
-every inventory environment, including the `serial`, `parallel`, `e2e`,
-`external` and `quality` groups, and publishes
+command, selected test count where applicable, actual Python/pytest, optional
+package and required system tool versions, selected and passed test counts,
+and outcome. The `aggregate-proof` job requires every inventory environment,
+including the `serial`, `parallel`, `e2e`, `external` and `quality` groups, and publishes
 `full-supported-proof-<sha>`. Missing, duplicated, mismatched or failed cell
 evidence, and test lanes with no selected tests, fail the aggregate. The
 separate native-parser workflow remains available for pull requests and manual

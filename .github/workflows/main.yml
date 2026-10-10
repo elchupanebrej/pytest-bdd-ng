@@ -63,7 +63,7 @@ jobs:
       - name: Verify the optional dependency probe selects tests
         run: cuke compatibility --check-environments --inventory config/env-matrix.yaml --lane optional-dependency-probe --json
       - name: Run the fast pull request test selector
-        run: python -m pytest -m "not e2e and not external and not slow and not typecheck" -q
+        run: python -m pytest -m "not e2e and not external and not slow and not typecheck and not doc_gen" -q
       - name: Run the environment inventory BDD acceptance
         run: python -m pytest features/compatibility/environment-inventory.feature -m e2e -q
 
@@ -270,6 +270,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.cell.python }}
+      - name: Install Pandoc for documentation generation
+        if: matrix.cell.id == 'doc-generation'
+        uses: r-lib/actions/setup-pandoc@v2
       - name: Install tox and the inventory reader
         run: python -m pip install "tox>=4.2" "PyYAML==6.0.3"
       - name: Run the selected quality lane

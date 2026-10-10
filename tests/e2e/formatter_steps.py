@@ -144,7 +144,7 @@ def _plugin_source(requests: list[dict[str, Any]]) -> str:
     return (
         "from pathlib import Path\n"
         "import sys\n\n"
-        "from pytest_cuke import FormatterRequest\n\n\n"
+        "from pytest_cuke.formatter_api import FormatterRequest\n\n\n"
         "def pytest_cuke_formatter_requests(config):\n"
         "    del config\n"
         "    return [\n"
@@ -282,7 +282,7 @@ for await (const line of input) {
     plugin = f'''\
 from pathlib import Path
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def pytest_cuke_formatter_requests(config):
@@ -383,7 +383,7 @@ def register_unselected_optional_formatter(consumer: Any) -> None:
 import sys
 from pathlib import Path
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def pytest_addoption(parser):
