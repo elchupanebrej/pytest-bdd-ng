@@ -15,8 +15,9 @@ from typing import Any
 
 import pytest
 import yaml
-from pytest_cuke.compatibility.runtime_compat import is_pair_compatible
 from pytest_cuke import given, then, when
+from pytest_cuke.compatibility.environment_matrix import check_environment_inventory
+from pytest_cuke.compatibility.runtime_compat import is_pair_compatible
 
 
 @dataclass
@@ -27,6 +28,18 @@ class EnvironmentInventoryContext:
     check_result: subprocess.CompletedProcess[str] | None = None
     report: dict[str, Any] | None = None
     tox_result: subprocess.CompletedProcess[str] | None = None
+
+
+@dataclass
+class TemporaryEnvironmentInventoryContext:
+    project_root: Path
+    inventory_path: Path
+    document: dict[str, Any]
+    report: dict[str, Any] | None = None
+    unrepresented_tox_lane: str | None = None
+    unrepresented_tox_environment: str | None = None
+    unresolved_workflow_cell: str | None = None
+    unresolved_workflow_environment: str | None = None
 
 
 def _context(consumer: Any) -> EnvironmentInventoryContext:
@@ -51,6 +64,26 @@ def _inventory_command_environment(consumer: Any) -> dict[str, str]:
     consumer_binary_directory = str(Path(consumer.python).resolve().parent)
     environment["PATH"] = os.pathsep.join((consumer_binary_directory, environment.get("PATH", os.defpath)))
     return environment
+
+
+def _list_tox_environment_names(
+    project_root: Path,
+    *,
+    environment: dict[str, str] | None = None,
+) -> tuple[subprocess.CompletedProcess[str], set[str]]:
+    result = subprocess.run(
+        ["tox", "list", "--no-desc"],
+        cwd=project_root,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"real tox list failed: {result.stdout}\n{result.stderr}"
+    names = {
+        line.strip() for line in result.stdout.splitlines() if line.strip() and not line.startswith("All environments:")
+    }
+    return result, names
 
 
 def _tox_configured_commands(consumer: Any, environment_name: str) -> list[str]:
@@ -320,23 +353,16 @@ def tox_listing_proof_matches_real_tox(consumer: Any) -> None:
     command = proof.get("command")
     assert command == ["tox", "list", "--no-desc"], proof
 
-    result = subprocess.run(
-        command,
-        cwd=consumer.path,
-        env=_inventory_command_environment(consumer),
-        check=False,
-        capture_output=True,
-        text=True,
+    result, actual_names = _list_tox_environment_names(
+        consumer.path,
+        environment=_inventory_command_environment(consumer),
     )
     context.tox_result = result
-    assert result.returncode == 0, f"real tox list failed: {result.stdout}\n{result.stderr}"
-    actual_names = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    actual_names = [line for line in actual_names if not line.startswith("All environments:")]
     proof_names = proof.get("environments")
     inventory_names = report.get("inventory", {}).get("toxEnvironments")
     assert isinstance(proof_names, list) and proof_names, proof
-    assert set(proof_names) == set(actual_names), (proof_names, actual_names)
-    assert isinstance(inventory_names, list) and set(inventory_names) == set(actual_names), inventory_names
+    assert set(proof_names) == actual_names, (proof_names, actual_names)
+    assert isinstance(inventory_names, list) and set(inventory_names) == actual_names, inventory_names
 
 
 @then("every required lane should have resolved command and CI selection proof")
@@ -633,3 +659,124 @@ def unresolved_selectors_fail_actionably(consumer: Any) -> None:
     assert "pytest-cuke-missing-command-000" in diagnostic_text, diagnostics
     assert "tox" in diagnostic_text and "workflow" in diagnostic_text and "command" in diagnostic_text, diagnostics
     assert any(item.get("remedy") for item in diagnostics if isinstance(item, dict)), diagnostics
+
+
+@given(
+    "the repository environment inventory is copied to a temporary project",
+    target_fixture="temporary_environment_inventory",
+)
+def repository_inventory_is_copied_to_temporary_project(
+    request: Any, tmp_path: Path
+) -> TemporaryEnvironmentInventoryContext:
+    repository_root = Path(request.config.rootpath)
+    project_root = tmp_path / "environment-inventory-project"
+    inventory_path = project_root / "config" / "env-matrix.yaml"
+    inventory_path.parent.mkdir(parents=True)
+    source_inventory = repository_root / "config" / "env-matrix.yaml"
+    document = yaml.safe_load(source_inventory.read_text(encoding="utf-8"))
+    assert isinstance(document, dict), document
+    inventory_path.write_text(yaml.safe_dump(document, sort_keys=False, allow_unicode=True), encoding="utf-8")
+
+    for filename in ("tox.ini", "pyproject.toml"):
+        shutil.copy2(repository_root / filename, project_root / filename)
+    workflow_directory = project_root / ".github" / "workflows"
+    workflow_directory.mkdir(parents=True)
+    for source in sorted((repository_root / ".github" / "workflows").glob("*.yml")):
+        shutil.copy2(source, workflow_directory / source.name)
+    for source in sorted((repository_root / ".github" / "workflows").glob("*.yaml")):
+        shutil.copy2(source, workflow_directory / source.name)
+    return TemporaryEnvironmentInventoryContext(project_root, inventory_path, document)
+
+
+@when("I check a temporary inventory omitting one resolved tox environment")
+def check_inventory_omitting_resolved_tox_environment(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    environment_name = "py312-pytest73-coverage-lin"
+    _, tox_names = _list_tox_environment_names(context.project_root)
+    assert environment_name in tox_names, f"expected a real resolved tox environment, got {tox_names!r}"
+
+    lane = next(
+        candidate for candidate in context.document["lanes"] if _lane_id(candidate) == "cpython-312-linux-pytest7"
+    )
+    environment_names = [part.strip() for part in str(lane["tox_env"]).split(",") if part.strip()]
+    assert environment_name in environment_names, lane
+    environment_names.remove(environment_name)
+    lane["tox_env"] = ",".join(environment_names)
+    lane_id = _lane_id(lane)
+    context.inventory_path.write_text(
+        yaml.safe_dump(context.document, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    context.unrepresented_tox_lane = lane_id
+    context.unrepresented_tox_environment = environment_name
+    context.report = check_environment_inventory(context.inventory_path)
+
+
+@then("the inventory check should fail with a workflow lane and environment diagnostic")
+def omitted_tox_environment_fails_with_scoped_diagnostic(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    report = context.report
+    assert report is not None, "the direct environment inventory check has not run"
+    assert report.get("status") == "fail", report
+    diagnostics = report.get("diagnostics")
+    assert isinstance(diagnostics, list) and diagnostics, report
+    lane_id = context.unrepresented_tox_lane
+    environment_name = context.unrepresented_tox_environment
+    assert lane_id is not None, "the temporary inventory has no lane ID to check"
+    assert environment_name is not None, "the temporary inventory has no tox environment to check"
+    matching = [
+        item
+        for item in diagnostics
+        if isinstance(item, dict) and item.get("laneId") == lane_id and environment_name in str(item.get("message", ""))
+    ]
+    assert matching, diagnostics
+
+
+@when("I add a nonexistent tox environment to a workflow cell")
+def add_nonexistent_tox_environment_to_workflow_cell(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    _, tox_names = _list_tox_environment_names(context.project_root)
+    environment_name = "pytest-cuke-acceptance-unresolved-tox-environment-000000"
+    assert environment_name not in tox_names, f"the test tox environment unexpectedly resolves: {tox_names!r}"
+
+    cell = next(
+        candidate for candidate in context.document["workflow_cells"] if candidate.get("id") == "cpython-312-linux"
+    )
+    cell["tox_envs"].append(environment_name)
+    cell_id = str(cell["id"])
+    context.inventory_path.write_text(
+        yaml.safe_dump(context.document, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    context.unresolved_workflow_cell = cell_id
+    context.unresolved_workflow_environment = environment_name
+    context.report = check_environment_inventory(context.inventory_path)
+
+
+@then("the inventory check should fail with a workflow cell and environment diagnostic")
+def unresolved_workflow_environment_fails_with_scoped_diagnostic(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    report = context.report
+    assert report is not None, "the direct environment inventory check has not run"
+    assert report.get("status") == "fail", report
+    diagnostics = report.get("diagnostics")
+    assert isinstance(diagnostics, list) and diagnostics, report
+    cell_id = context.unresolved_workflow_cell
+    environment_name = context.unresolved_workflow_environment
+    assert cell_id is not None, "the temporary inventory has no workflow cell ID to check"
+    assert environment_name is not None, "the temporary inventory has no tox environment to check"
+    matching = [
+        item
+        for item in diagnostics
+        if isinstance(item, dict)
+        and item.get("laneId") == cell_id
+        and item.get("code") == "workflow-tox-environment-unresolved"
+        and environment_name in str(item.get("message", ""))
+    ]
+    assert matching, diagnostics

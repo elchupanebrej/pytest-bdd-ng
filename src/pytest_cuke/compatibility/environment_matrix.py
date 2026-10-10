@@ -431,6 +431,77 @@ def _build_lane_proof(
     probe_lane_id: str | None,
 ) -> list[dict[str, Any]]:
     proof: list[dict[str, Any]] = []
+    if tox_environments:
+        for workflow_cell in cells.values():
+            cell_id = _cell_id(workflow_cell)
+            cell_environments = workflow_cell.get("tox_envs")
+            if not cell_id or not isinstance(cell_environments, list):
+                continue
+            for environment in cell_environments:
+                if not isinstance(environment, str) or environment in tox_environments:
+                    continue
+                diagnostics.append(
+                    _diagnostic(
+                        cell_id,
+                        "workflow-tox-environment-unresolved",
+                        f"workflow cell {cell_id!r} selects tox environment {environment!r}, which is not present "
+                        "in the real `tox list --no-desc` output",
+                        f"Add {environment!r} to tox.ini or remove it from workflow cell {cell_id!r} in "
+                        "config/env-matrix.yaml.",
+                    )
+                )
+
+    represented_environments = {
+        environment
+        for lane in lanes
+        if _status(lane) != "unsupported"
+        for environment in _split_tox_envs(lane.get("tox_env"))
+    }
+    for environment in sorted(set(tox_environments) - represented_environments):
+        command_lanes = [lane for lane in lanes if environment in _command_tox_environments(lane.get("command"))]
+        if command_lanes:
+            for lane in command_lanes:
+                lane_id = _lane_id(lane)
+                diagnostics.append(
+                    _diagnostic(
+                        lane_id,
+                        "tox-environment-unrepresented",
+                        f"resolved tox environment {environment!r} is missing from lane {lane_id!r}'s tox_env list",
+                        f"Add {environment!r} to lane {lane_id!r}'s tox_env list or remove it from tox.ini.",
+                    )
+                )
+            continue
+
+        workflow_cell_ids = [
+            _cell_id(workflow_cell)
+            for workflow_cell in cells.values()
+            if isinstance(workflow_cell.get("tox_envs"), list)
+            and environment in workflow_cell["tox_envs"]
+            and _cell_id(workflow_cell)
+        ]
+        if workflow_cell_ids:
+            for cell_id in workflow_cell_ids:
+                diagnostics.append(
+                    _diagnostic(
+                        cell_id,
+                        "tox-environment-unrepresented",
+                        f"resolved tox environment {environment!r} is selected by workflow cell {cell_id!r} "
+                        "but has no required or optional inventory lane",
+                        f"Add {environment!r} to a lane in config/env-matrix.yaml or remove it from workflow cell "
+                        f"{cell_id!r} in config/env-matrix.yaml.",
+                    )
+                )
+            continue
+
+        diagnostics.append(
+            _diagnostic(
+                "tox-inventory",
+                "tox-environment-unrepresented",
+                f"resolved tox environment {environment!r} has no required or optional inventory lane",
+                f"Add {environment!r} to a lane in config/env-matrix.yaml or remove it from tox.ini.",
+            )
+        )
+
     for lane in lanes:
         lane_id = _lane_id(lane)
         status = _status(lane)
@@ -725,6 +796,21 @@ def _tox_run_command(env_names: list[str]) -> list[str]:
     if not env_names:
         return []
     return ["tox", "run", "-e", ",".join(env_names)]
+
+
+def _command_tox_environments(value: Any) -> set[str]:
+    command = _command_text(value)
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return set()
+    environments: set[str] = set()
+    for index, argument in enumerate(tokens):
+        if argument == "-e" and index + 1 < len(tokens):
+            environments.update(name for name in tokens[index + 1].split(",") if name)
+        elif argument.startswith("-e") and argument != "-e":
+            environments.update(name for name in argument[2:].split(",") if name)
+    return environments
 
 
 def _command_text(value: Any) -> str:
