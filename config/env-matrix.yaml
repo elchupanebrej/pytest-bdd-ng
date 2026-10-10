@@ -399,24 +399,24 @@ lanes:
     status: optional
     runtime: CPython
     python: "3.12"
-    pytest: "7.3-7.4"
+    pytest: ["7.3", "7.4", "8.0", "8.1"]
     platform: windows
     capability: manual-tox-coverage
-    tox_env: "py312-pytest73-coverage-win,py312-pytest74-coverage-win"
+    tox_env: "py312-pytest73-coverage-win,py312-pytest74-coverage-win,py312-pytest80-coverage-win,py312-pytest81-coverage-win"
     workflow_selector: null
-    command: "tox run -e py312-pytest73-coverage-win,py312-pytest74-coverage-win"
+    command: "tox run -e py312-pytest73-coverage-win,py312-pytest74-coverage-win,py312-pytest80-coverage-win,py312-pytest81-coverage-win"
     prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
     expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
   - id: py312-macos-manual
     status: optional
     runtime: CPython
     python: "3.12"
-    pytest: "7.3-7.4"
+    pytest: ["7.3", "7.4", "8.0", "8.1"]
     platform: macos
     capability: manual-tox-coverage
-    tox_env: "py312-pytest73-coverage-mac,py312-pytest74-coverage-mac"
+    tox_env: "py312-pytest73-coverage-mac,py312-pytest74-coverage-mac,py312-pytest80-coverage-mac,py312-pytest81-coverage-mac"
     workflow_selector: null
-    command: "tox run -e py312-pytest73-coverage-mac,py312-pytest74-coverage-mac"
+    command: "tox run -e py312-pytest73-coverage-mac,py312-pytest74-coverage-mac,py312-pytest80-coverage-mac,py312-pytest81-coverage-mac"
     prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
     expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
   - id: optional-dependency-probe
