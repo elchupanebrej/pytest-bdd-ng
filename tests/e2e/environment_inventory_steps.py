@@ -40,6 +40,12 @@ class TemporaryEnvironmentInventoryContext:
     unrepresented_tox_environment: str | None = None
     unresolved_workflow_cell: str | None = None
     unresolved_workflow_environment: str | None = None
+    conflicting_optional_lane_id: str | None = None
+    conflicting_unsupported_lane_id: str | None = None
+    mismatched_workflow_cell_id: str | None = None
+    mismatched_workflow_lane_id: str | None = None
+    missing_matrix_export_cell_id: str | None = None
+    missing_matrix_export_lane_id: str | None = None
 
 
 def _context(consumer: Any) -> EnvironmentInventoryContext:
@@ -326,6 +332,41 @@ def unsupported_lanes_have_evidence_without_active_selectors(consumer: Any) -> N
         assert lane.get("reason"), lane
         assert lane.get("source_evidence"), lane
         assert not lane.get("workflow_selector") and not lane.get("tox_env"), lane
+
+
+@then("CPython 3.12 Windows and macOS lanes should remain optional manual entries")
+def cpython_312_windows_macos_are_manual_optional_lanes(consumer: Any) -> None:
+    context = _context(consumer)
+    lanes = _lanes(context)
+    manual_lanes = {
+        str(lane.get("platform")): lane
+        for lane in lanes
+        if _lane_id(lane) in {"py312-windows-manual", "py312-macos-manual"}
+    }
+    assert set(manual_lanes) == {"windows", "macos"}, manual_lanes
+    for platform_name, lane in manual_lanes.items():
+        assert _status(lane) == "optional", lane
+        assert "#149" in str(lane.get("reason", "")), lane
+        assert any("issues/149" in str(source) for source in lane.get("source_evidence", [])), lane
+        assert lane.get("workflow_selector") is None, lane
+        assert "py312-pytest73-coverage" in str(lane.get("tox_env", "")), lane
+        assert not any(
+            cell.get("runtime") == "CPython"
+            and str(cell.get("python")) == "3.12"
+            and cell.get("platform") == platform_name
+            for cell in context.document.get("workflow_cells", [])
+            if isinstance(cell, dict)
+        ), lane
+
+    excluded = [
+        lane
+        for lane in lanes
+        if _status(lane) == "unsupported"
+        and lane.get("runtime") == "CPython"
+        and str(lane.get("python")) == "3.12"
+        and lane.get("platform") in {"windows", "macos"}
+    ]
+    assert not excluded, excluded
 
 
 @when("I run the project environment inventory check in JSON mode")
@@ -780,3 +821,198 @@ def unresolved_workflow_environment_fails_with_scoped_diagnostic(
         and environment_name in str(item.get("message", ""))
     ]
     assert matching, diagnostics
+
+
+def _full_matrix_workflow_context(
+    context: TemporaryEnvironmentInventoryContext,
+) -> tuple[dict[str, Any], dict[str, Any], Path]:
+    cell = next(
+        candidate for candidate in context.document["workflow_cells"] if candidate.get("id") == "cpython-310-linux"
+    )
+    assert cell.get("job") == "full-matrix", cell
+    lane = next(
+        candidate
+        for candidate in context.document["lanes"]
+        if candidate.get("workflow_selector") == cell["id"] and _status(candidate) == "required"
+    )
+    workflow_path = context.project_root / str(context.document["project"]["workflow"])
+    return cell, lane, workflow_path
+
+
+@when("I wire a workflow job to a different matrix selection output")
+def wire_workflow_job_to_different_matrix_output(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    cell, lane, workflow_path = _full_matrix_workflow_context(context)
+    content = workflow_path.read_text(encoding="utf-8")
+    expected_expression = "fromJSON(needs.matrix-select.outputs.full_matrix)"
+    wrong_expression = "fromJSON(needs.matrix-select.outputs.remote)"
+    assert content.count(expected_expression) == 1, (
+        f"expected exactly one full-matrix selector in {workflow_path}, found {content.count(expected_expression)}"
+    )
+    content = content.replace(expected_expression, wrong_expression, 1)
+    assert "fromJSON(needs." in content and wrong_expression in content, content
+    workflow_path.write_text(content, encoding="utf-8")
+    context.mismatched_workflow_cell_id = str(cell["id"])
+    context.mismatched_workflow_lane_id = _lane_id(lane)
+    context.report = check_environment_inventory(context.inventory_path)
+
+
+@then("the inventory check should fail with a scoped matrix output diagnostic")
+def mismatched_workflow_matrix_output_fails_actionably(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    report = context.report
+    assert report is not None, "the direct environment inventory check has not run"
+    assert report.get("status") == "fail", report
+    diagnostics = report.get("diagnostics")
+    assert isinstance(diagnostics, list) and diagnostics, report
+    cell_id = context.mismatched_workflow_cell_id
+    lane_id = context.mismatched_workflow_lane_id
+    assert cell_id is not None, "the temporary inventory has no mismatched workflow cell ID"
+    assert lane_id is not None, "the temporary inventory has no required lane for the workflow cell"
+    matching = [
+        item
+        for item in diagnostics
+        if isinstance(item, dict)
+        and item.get("laneId") == lane_id
+        and cell_id in str(item.get("message", ""))
+        and "full-matrix" in str(item.get("message", ""))
+        and "full_matrix" in str(item.get("message", ""))
+        and "remote" in str(item.get("message", ""))
+    ]
+    assert matching, diagnostics
+    diagnostic = matching[0]
+    remedy = str(diagnostic.get("remedy", "")).casefold()
+    assert remedy and any(action in remedy for action in ("output", "matrix", "selector")), diagnostic
+
+
+@when("I remove the GitHub output flag from a selector step")
+def remove_github_output_flag_from_selector_step(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    cell, lane, workflow_path = _full_matrix_workflow_context(context)
+    content = workflow_path.read_text(encoding="utf-8")
+    selected_command = "scripts/env_matrix.py --job full-matrix --github-output"
+    command_without_export = "scripts/env_matrix.py --job full-matrix"
+    assert content.count(selected_command) == 1, (
+        f"expected exactly one full-matrix output-producing step in {workflow_path}, "
+        f"found {content.count(selected_command)}"
+    )
+    content = content.replace(selected_command, command_without_export, 1)
+    changed_step = next(
+        line for line in content.splitlines() if "scripts/env_matrix.py --job full-matrix" in line
+    )
+    assert changed_step.strip() == f"run: python {command_without_export}", changed_step
+    assert "--github-output" not in changed_step, changed_step
+    workflow_path.write_text(content, encoding="utf-8")
+    context.missing_matrix_export_cell_id = str(cell["id"])
+    context.missing_matrix_export_lane_id = _lane_id(lane)
+    context.report = check_environment_inventory(context.inventory_path)
+
+
+@then("the inventory check should fail with a scoped matrix export diagnostic")
+def missing_matrix_export_fails_actionably(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    report = context.report
+    assert report is not None, "the direct environment inventory check has not run"
+    assert report.get("status") == "fail", report
+    diagnostics = report.get("diagnostics")
+    assert isinstance(diagnostics, list) and diagnostics, report
+    cell_id = context.missing_matrix_export_cell_id
+    lane_id = context.missing_matrix_export_lane_id
+    assert cell_id is not None, "the temporary inventory has no matrix export cell ID"
+    assert lane_id is not None, "the temporary inventory has no required lane for the matrix export cell"
+    matching = [
+        item
+        for item in diagnostics
+        if isinstance(item, dict)
+        and item.get("laneId") == lane_id
+        and cell_id in str(item.get("message", ""))
+        and "full-matrix" in str(item.get("message", ""))
+        and any(word in str(item.get("message", "")).casefold() for word in ("output", "export"))
+    ]
+    assert matching, diagnostics
+    diagnostic = matching[0]
+    remedy = str(diagnostic.get("remedy", "")).casefold()
+    assert remedy and any(action in remedy for action in ("github-output", "output", "export")), diagnostic
+
+
+@when("I add an unsupported Windows lane overlapping the optional Windows lane")
+def add_overlapping_unsupported_windows_lane(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    optional_lane = next(
+        (
+            lane
+            for lane in context.document["lanes"]
+            if _lane_id(lane) == "py312-windows-manual" and _status(lane) == "optional"
+        ),
+        None,
+    )
+    assert optional_lane is not None, "the temporary inventory has no optional CPython 3.12 Windows lane"
+    optional_lane_id = _lane_id(optional_lane)
+    unsupported_lane_id = "py312-windows-pytest73-74-unsupported-conflict"
+    existing_lane_ids = {_lane_id(lane) for lane in context.document["lanes"]}
+    assert unsupported_lane_id not in existing_lane_ids, existing_lane_ids
+
+    unsupported_lane = optional_lane.copy()
+    unsupported_lane.update(
+        {
+            "id": unsupported_lane_id,
+            "status": "unsupported",
+            "pytest": "7.3-7.4",
+            "tox_env": None,
+            "workflow_selector": None,
+            "reason": "The acceptance fixture intentionally overlaps an optional runtime lane.",
+            "source_evidence": ["tests/e2e/environment_inventory_steps.py"],
+        }
+    )
+    context.document["lanes"].append(unsupported_lane)
+    context.inventory_path.write_text(
+        yaml.safe_dump(context.document, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    context.conflicting_optional_lane_id = optional_lane_id
+    context.conflicting_unsupported_lane_id = unsupported_lane_id
+    context.report = check_environment_inventory(context.inventory_path)
+
+
+@then("the inventory check should fail with an actionable runtime lane conflict diagnostic")
+def conflicting_lane_statuses_fail_actionably(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    report = context.report
+    assert report is not None, "the direct environment inventory check has not run"
+    assert report.get("status") == "fail", report
+    diagnostics = report.get("diagnostics")
+    assert isinstance(diagnostics, list) and diagnostics, report
+    optional_lane_id = context.conflicting_optional_lane_id
+    unsupported_lane_id = context.conflicting_unsupported_lane_id
+    assert optional_lane_id is not None, "the temporary inventory has no optional conflict lane"
+    assert unsupported_lane_id is not None, "the temporary inventory has no unsupported conflict lane"
+
+    matching = [
+        item
+        for item in diagnostics
+        if isinstance(item, dict)
+        and item.get("code") == "lane-status-conflict"
+        and optional_lane_id in str(item.get("message", ""))
+        and unsupported_lane_id in str(item.get("message", ""))
+    ]
+    assert matching, diagnostics
+    diagnostic = matching[0]
+    message = str(diagnostic.get("message", "")).casefold()
+    remedy = str(diagnostic.get("remedy", "")).casefold()
+    assert all(dimension in message for dimension in ("cpython", "3.12", "windows", "manual-tox-coverage")), (
+        diagnostic
+    )
+    assert "7.3" in message and "7.4" in message, diagnostic
+    assert "optional" in message and "unsupported" in message, diagnostic
+    assert remedy and any(action in remedy for action in ("align", "merge", "change", "remove")), diagnostic

@@ -10,6 +10,7 @@ Feature: Supported environment inventory and acceptance proof
     Then each lane should declare runtime Python pytest platform capability and status
     And required lanes should declare tox environment workflow selector command prerequisites and carrier
     And unsupported lanes should have a source-backed reason and no active selector
+    And CPython 3.12 Windows and macOS lanes should remain optional manual entries
 
   Scenario: Required lanes agree with resolved tox and workflow selections
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
@@ -68,3 +69,18 @@ Feature: Supported environment inventory and acceptance proof
     Given the repository environment inventory is copied to a temporary project
     When I add a nonexistent tox environment to a workflow cell
     Then the inventory check should fail with a workflow cell and environment diagnostic
+
+  Scenario: Workflow jobs consume their matching matrix selection output
+    Given the repository environment inventory is copied to a temporary project
+    When I wire a workflow job to a different matrix selection output
+    Then the inventory check should fail with a scoped matrix output diagnostic
+
+  Scenario: Selector steps export the matrix output consumed by workflow jobs
+    Given the repository environment inventory is copied to a temporary project
+    When I remove the GitHub output flag from a selector step
+    Then the inventory check should fail with a scoped matrix export diagnostic
+
+  Scenario: Semantically overlapping optional and unsupported lanes are rejected
+    Given the repository environment inventory is copied to a temporary project
+    When I add an unsupported Windows lane overlapping the optional Windows lane
+    Then the inventory check should fail with an actionable runtime lane conflict diagnostic
