@@ -17,9 +17,21 @@ from pytest_cuke import given, then, when
 
 _EXPECTED_GROUPS = ("serial", "parallel", "e2e", "external", "quality")
 _TEST_GROUPS = frozenset(("serial", "parallel", "e2e", "external"))
-_OPTIONAL_VERSION_KEYS = ("allure-pytest", "gherkin-official", "playwright", "pytest-xdist", "PyYAML")
+_OPTIONAL_VERSION_KEYS = (
+    "allure-pytest",
+    "gherkin-official",
+    "pandoc",
+    "panflute",
+    "playwright",
+    "pycmarkgfm",
+    "pypandoc",
+    "pytest-xdist",
+    "PyYAML",
+)
 _PLAYWRIGHT_REPORT_ENV = "py314-pytestlatest-playwright-report"
 _PLAYWRIGHT_REPORT_PACKAGES = ("allure-pytest", "pytest-xdist", "gherkin-official", "playwright")
+_DOC_GENERATION_PACKAGES = ("pandoc", "panflute", "pycmarkgfm", "pypandoc")
+_SYSTEM_TOOL_VERSION_KEYS = ("pandoc",)
 _PLATFORM_NAMES = {"linux": "linux", "macos": "darwin", "windows": "win32"}
 _PROOF_SHA = "a" * 40
 _OTHER_SHA = "b" * 40
@@ -56,6 +68,8 @@ def _load_cells(inventory_path: Path) -> list[dict[str, Any]]:
 
 
 def _group_for(job: str, tox_environment: str) -> str:
+    if "doc-gen" in tox_environment:
+        return "serial"
     if job == "full-matrix":
         return "parallel" if "xdist" in tox_environment else "serial"
     if job in {"browser-report", "native-go-parser"}:
@@ -79,14 +93,26 @@ def _pytest_version(tox_environment: str, group: str) -> str | None:
 
 def _optional_versions(tox_environment: str) -> dict[str, str | None]:
     is_playwright_report = tox_environment == _PLAYWRIGHT_REPORT_ENV
+    is_doc_generation = "doc-gen" in tox_environment
     has_gherkin_factor = "gherkin33" in tox_environment or "gherkinlatest" in tox_environment
     return {
         "allure-pytest": "2.16.2" if "allure" in tox_environment or is_playwright_report else None,
         "gherkin-official": "33.0.0" if has_gherkin_factor or is_playwright_report else "29.0.0",
+        "pandoc": "2.4.1" if is_doc_generation else None,
+        "panflute": "2.3.0" if is_doc_generation else None,
         "playwright": "1.63.0" if "playwright" in tox_environment else None,
+        "pycmarkgfm": "1.2.0" if is_doc_generation else None,
+        "pypandoc": "1.15" if is_doc_generation else None,
         "pytest-xdist": "3.8.0" if "xdist" in tox_environment or is_playwright_report else None,
         "PyYAML": "6.0.3",
     }
+
+
+def _system_tool_versions(tox_environment: str) -> dict[str, str | None]:
+    versions: dict[str, str | None] = dict.fromkeys(_SYSTEM_TOOL_VERSION_KEYS, None)
+    if "doc-gen" in tox_environment:
+        versions["pandoc"] = "3.6.4"
+    return versions
 
 
 def _tox_result(
@@ -168,6 +194,7 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
                 "selected_tests": 1 if group in _TEST_GROUPS else None,
                 "passed_tests": 1 if group in _TEST_GROUPS else None,
                 "optional_versions": optional_versions,
+                "system_tool_versions": _system_tool_versions(tox_environment),
                 "platform": f"synthetic-{expected_platform}",
                 "platform_name": platform_name,
                 "result_json": f"tox-results/{tox_environment}.json",
@@ -207,6 +234,27 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
 def _first_test_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
     artifact = next((item for item in context.artifacts if item.group in _TEST_GROUPS), None)
     assert artifact is not None, "the inventory must contain a serial, parallel, e2e, or external test environment"
+    return artifact
+
+
+def _doc_generation_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
+    inventory = yaml.safe_load(context.inventory_path.read_text(encoding="utf-8"))
+    assert isinstance(inventory, dict), inventory
+    lanes = inventory.get("lanes")
+    assert isinstance(lanes, list), lanes
+    matches = [
+        lane
+        for lane in lanes
+        if isinstance(lane, dict) and lane.get("capability") == "doc-generation"
+    ]
+    assert len(matches) == 1, f"expected one doc-generation lane, found {matches}"
+    tox_environment = matches[0].get("tox_env")
+    assert isinstance(tox_environment, str) and tox_environment, matches[0]
+    artifact = next((item for item in context.artifacts if item.tox_environment == tox_environment), None)
+    assert artifact is not None, (
+        "the inventory has no proof artifact for doc-generation environment "
+        f"{tox_environment!r}"
+    )
     return artifact
 
 
@@ -390,6 +438,44 @@ def remove_playwright_report_tox_extras(proof_aggregation: ProofAggregationConte
     _mutate_environment(artifact, mutate)
 
 
+@given("the doc-generation environment is missing its recorded optional package versions")
+def remove_doc_generation_tox_extras(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _doc_generation_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        optional_versions = environment["optional_versions"]
+        result_entry = environment["tox_result"]["testenvs"][artifact.tox_environment]
+        for package in _DOC_GENERATION_PACKAGES:
+            assert isinstance(optional_versions.get(package), str) and optional_versions[package], optional_versions
+            optional_versions[package] = None
+        result_entry["installed_packages"] = [
+            package
+            for package in result_entry["installed_packages"]
+            if re.sub(r"[-_.]+", "-", package.partition("==")[0]).casefold() not in _DOC_GENERATION_PACKAGES
+        ]
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("the doc-generation environment omits its required Pandoc CLI version")
+def remove_doc_generation_pandoc_cli_version(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _doc_generation_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        optional_versions = environment["optional_versions"]
+        for package in _DOC_GENERATION_PACKAGES:
+            assert isinstance(optional_versions.get(package), str) and optional_versions[package], optional_versions
+        system_tool_versions = environment.get("system_tool_versions")
+        assert isinstance(system_tool_versions, dict), environment
+        assert (
+            isinstance(system_tool_versions.get("pandoc"), str)
+            and system_tool_versions["pandoc"]
+        ), system_tool_versions
+        system_tool_versions.pop("pandoc")
+
+    _mutate_environment(artifact, mutate)
+
+
 @given("one tox test result has a zero return code but no command")
 def remove_command_from_successful_tox_test_result(proof_aggregation: ProofAggregationContext) -> None:
     artifact = _first_test_artifact(proof_aggregation)
@@ -498,6 +584,7 @@ def proof_summary_preserves_actual_environment_evidence(proof_aggregation: Proof
         "python",
         "pytest",
         "optional_versions",
+        "system_tool_versions",
         "command",
         "selected_tests",
         "passed_tests",
@@ -510,6 +597,9 @@ def proof_summary_preserves_actual_environment_evidence(proof_aggregation: Proof
         optional_versions = actual.get("optional_versions")
         assert isinstance(optional_versions, dict), (key, actual)
         assert set(optional_versions) == set(_OPTIONAL_VERSION_KEYS), (key, optional_versions)
+        system_tool_versions = actual.get("system_tool_versions")
+        assert isinstance(system_tool_versions, dict), (key, actual)
+        assert set(system_tool_versions) == set(_SYSTEM_TOOL_VERSION_KEYS), (key, system_tool_versions)
         if expected["group"] in _TEST_GROUPS:
             assert isinstance(actual.get("pytest"), str), (key, actual)
             assert actual.get("selected_tests", 0) > 0, (key, actual)
@@ -650,6 +740,42 @@ def proof_summary_fails_for_missing_playwright_report_extras(
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     for package in _PLAYWRIGHT_REPORT_PACKAGES:
         assert f"requires installed optional package '{package}'" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for missing doc-generation packages")
+def proof_summary_fails_for_missing_doc_generation_packages(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    for package in _DOC_GENERATION_PACKAGES:
+        assert f"requires installed optional package '{package}'" in proof_aggregation_result.stderr
+    assert "add it to the tox environment dependencies" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for missing Pandoc CLI version evidence")
+def proof_summary_fails_for_missing_pandoc_cli_version(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    artifact = _doc_generation_artifact(proof_aggregation)
+    document = json.loads(artifact.path.read_text(encoding="utf-8"))
+    environment = document["environments"][0]
+    for package in _DOC_GENERATION_PACKAGES:
+        version = environment["optional_versions"].get(package)
+        assert isinstance(version, str) and version, (package, environment)
+        versions = environment.get("system_tool_versions")
+        assert isinstance(versions, dict) and versions.get("pandoc") is None, environment
+
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    diagnostic = proof_aggregation_result.stderr.casefold()
+    assert "system tool 'pandoc'" in diagnostic, proof_aggregation_result.stderr
+    assert "version" in diagnostic, proof_aggregation_result.stderr
+    assert "install pandoc before running the documentation tox environment" in diagnostic, (
+        proof_aggregation_result.stderr
+    )
 
 
 @then("the proof summary should fail for a missing tox result command")

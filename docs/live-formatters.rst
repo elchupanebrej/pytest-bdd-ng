@@ -11,8 +11,8 @@ and temporary asset directory.
 Formatter requests
 ------------------
 
-Import ``FormatterRequest`` and ``FormatterAsset`` from the public
-``pytest_cuke`` package. A request names one formatter and describes its
+Import ``FormatterRequest`` and ``FormatterAsset`` from the public extension
+module ``pytest_cuke.formatter_api``. A request names one formatter and describes its
 argument vector, working directory, optional output path, runtime requirements,
 timeout, and any small files needed by the child.
 
@@ -31,7 +31,7 @@ This example uses a Node script shipped with a formatter plugin:
    from pathlib import Path
    import sys
 
-   from pytest_cuke import FormatterRequest
+   from pytest_cuke.formatter_api import FormatterAsset, FormatterRequest
 
 
    def pytest_addoption(parser):

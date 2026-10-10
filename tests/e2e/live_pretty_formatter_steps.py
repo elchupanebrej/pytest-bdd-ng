@@ -168,7 +168,7 @@ _USAGE_JSON_PLUGIN = """\
 import sys
 from pathlib import Path
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def pytest_cuke_formatter_requests(config):
@@ -604,7 +604,7 @@ def prepare_terminal_conflict_consumer(consumer: Any) -> None:
         "extra_terminal_formatter.py",
         "import sys\n"
         "from pathlib import Path\n\n"
-        "from pytest_cuke import FormatterRequest\n\n\n"
+        "from pytest_cuke.formatter_api import FormatterRequest\n\n\n"
         "def pytest_cuke_formatter_requests(config):\n"
         "    del config\n"
         "    return (FormatterRequest(\n"

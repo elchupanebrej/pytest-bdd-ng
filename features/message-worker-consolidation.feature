@@ -314,7 +314,8 @@ Feature: Local and subprocess Cucumber Messages consolidation
       import sys
       from pathlib import Path
 
-      from pytest_cuke import FormatterRequest, given, parsers
+      from pytest_cuke import given, parsers
+      from pytest_cuke.formatter_api import FormatterRequest
 
 
       @given(parsers.parse("crash probe case {case} runs"))

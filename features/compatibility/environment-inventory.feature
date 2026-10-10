@@ -54,6 +54,16 @@ Feature: Supported environment inventory and acceptance proof
     And the inventory should include socket via and SSH lanes with real report carriers
     And native and formatter lanes should name their test carriers and prerequisites
 
+  Scenario: The doc-generation extra has a dedicated required lane
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    Given the doc-generation package prerequisites are installed in the consumer
+    When I run the project environment inventory check in JSON mode
+    And I probe the required doc-generation lane
+    Then the required doc-generation lane should select its pytest carrier
+    And it should declare the doc-gen extra and Pandoc prerequisite
+    And its tox environment and workflow selector should be active
+
   Scenario: An unresolved required lane fails with an actionable diagnostic
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     Given the repository environment inventory is loaded

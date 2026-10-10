@@ -22,7 +22,7 @@ import json
 import sys
 from pathlib import Path
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def pytest_cuke_formatter_requests(config):
@@ -126,7 +126,7 @@ _STDOUT_CONFLICT_PLUGIN = """\
 import sys
 from pathlib import Path
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def pytest_cuke_formatter_requests(config):

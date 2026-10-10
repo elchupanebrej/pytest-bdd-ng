@@ -16,9 +16,11 @@ from typing import Any
 from env_matrix import load_cells
 from environment_evidence import (
     OPTIONAL_VERSION_KEYS,
+    SYSTEM_TOOL_VERSION_KEYS,
     TEST_EVIDENCE_GROUPS,
     evidence_group,
     required_optional_versions,
+    required_system_tool_versions,
 )
 
 _OPTIONAL_PACKAGES = ("pytest", *OPTIONAL_VERSION_KEYS)
@@ -43,6 +45,26 @@ def _installed_versions(python: Path) -> dict[str, Any]:
     if result.returncode:
         raise RuntimeError(f"cannot inspect tox environment with {python}: {result.stderr.strip()}")
     return json.loads(result.stdout)
+
+
+def _system_tool_versions(tox_environment: str) -> dict[str, str | None]:
+    versions: dict[str, str | None] = dict.fromkeys(SYSTEM_TOOL_VERSION_KEYS, None)
+    for tool in required_system_tool_versions(tox_environment):
+        executable = shutil.which(tool)
+        if executable is None:
+            continue
+        try:
+            result = subprocess.run(  # noqa: S603 - tool is selected from the fixed evidence contract
+                [executable, "--version"], capture_output=True, text=True, check=False
+            )
+        except OSError:
+            continue
+        output = result.stdout or result.stderr
+        first_line = output.splitlines()[0].strip() if output.splitlines() else ""
+        match = re.match(rf"^{re.escape(tool)}\s+([^\s]+)", first_line, flags=re.IGNORECASE)
+        if result.returncode == 0 and match:
+            versions[tool] = match.group(1)
+    return versions
 
 
 def _python_in_tox_environment(project_root: Path, env_name: str) -> Path:
@@ -155,6 +177,7 @@ def main() -> int:
             "command": command,
             "selected_tests": selected_tests,
             "passed_tests": passed_tests,
+            "system_tool_versions": _system_tool_versions(env_name),
             "outcome": "passed" if run.returncode == 0 else "failed",
             "returncode": run.returncode,
             "platform": platform.platform(),
@@ -179,6 +202,20 @@ def main() -> int:
                 print(
                     f"run-env-matrix: {env_name} is missing required optional package(s): "
                     f"{', '.join(missing_optional)}",
+                    file=sys.stderr,
+                )
+            missing_system_tools = [
+                tool
+                for tool in required_system_tool_versions(env_name)
+                if not environment_record["system_tool_versions"].get(tool)
+            ]
+            if missing_system_tools:
+                environment_record["outcome"] = "failed"
+                environment_record["missing_system_tools"] = missing_system_tools
+                overall_status = "failed"
+                print(
+                    f"run-env-matrix: {env_name} is missing a version for required system tool(s): "
+                    f"{', '.join(missing_system_tools)}",
                     file=sys.stderr,
                 )
         except (OSError, RuntimeError, json.JSONDecodeError) as error:
