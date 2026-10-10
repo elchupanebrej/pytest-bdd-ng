@@ -4251,11 +4251,11 @@ def check_pytest_stdout_lines(pytest_result, step):
 
 
 @given(
-    re.compile(r"Copy \"(?P<initial_path>(\w|\\|.)+)\" into \"(?P<final_path>(\w|\\|.)+)\""),
+    re.compile(r"Copy \"(?P<initial_path>[^\"]+)\" into \"(?P<final_path>[^\"]+)\""),
     converters={"initial_path": Path, "final_path": Path},
 )
 @given(
-    re.compile(r"Copy path from \"(?P<initial_path>(\w|\\|.)+)\" to test path \"(?P<final_path>(\w|\\|.)+)\""),
+    re.compile(r"Copy path from \"(?P<initial_path>[^\"]+)\" to test path \"(?P<final_path>[^\"]+)\""),
     converters={"initial_path": Path, "final_path": Path},
 )
 def copy_file(testdir, request, initial_path: Path, final_path: Path):
