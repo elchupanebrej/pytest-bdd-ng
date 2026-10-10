@@ -33,6 +33,7 @@ _PLAYWRIGHT_REPORT_PACKAGES = ("allure-pytest", "pytest-xdist", "gherkin-officia
 _DOC_GENERATION_PACKAGES = ("pandoc", "panflute", "pycmarkgfm", "pypandoc")
 _SYSTEM_TOOL_VERSION_KEYS = ("pandoc",)
 _PLATFORM_NAMES = {"linux": "linux", "macos": "darwin", "windows": "win32"}
+_REMOTE_MODES = {"remote-socket": "socket", "remote-via": "via", "remote-ssh": "ssh"}
 _PROOF_SHA = "a" * 40
 _OTHER_SHA = "b" * 40
 
@@ -113,6 +114,33 @@ def _system_tool_versions(tox_environment: str) -> dict[str, str | None]:
     if "doc-gen" in tox_environment:
         versions["pandoc"] = "3.6.4"
     return versions
+
+
+def _remote_worker_runs(
+    cell_id: str,
+    runtime: str,
+    python_version: str,
+    pytest_version: str | None,
+    xdist_version: str | None,
+) -> list[dict[str, Any]]:
+    mode = _REMOTE_MODES.get(cell_id)
+    assert mode is not None, f"unknown remote transport cell {cell_id!r}"
+    assert isinstance(pytest_version, str) and pytest_version, "remote worker evidence needs pytest"
+    assert isinstance(xdist_version, str) and xdist_version, "remote worker evidence needs pytest-xdist"
+    worker = {
+        "runtime": runtime,
+        "python": f"{python_version}.0",
+        "pytest": pytest_version,
+        "pytest-xdist": xdist_version,
+    }
+    return [
+        {
+            "mode": mode,
+            "partial": partial,
+            "workers": [{"worker_id": worker_id, **worker} for worker_id in ("gw0", "gw1")],
+        }
+        for partial in (False, True)
+    ]
 
 
 def _tox_result(
@@ -207,6 +235,14 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
                     optional_versions,
                 ),
             }
+            if job == "remote":
+                environment["remote_worker_runs"] = _remote_worker_runs(
+                    cell_id,
+                    runtime,
+                    python_version,
+                    pytest_version,
+                    optional_versions.get("pytest-xdist"),
+                )
             artifact_path = input_directory / f"evidence-{artifact_index:04d}.json"
             artifact_index += 1
             document = {
@@ -237,23 +273,24 @@ def _first_test_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
     return artifact
 
 
+def _first_remote_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
+    artifact = next((item for item in context.artifacts if item.job == "remote"), None)
+    assert artifact is not None, "the inventory must contain a remote transport environment"
+    return artifact
+
+
 def _doc_generation_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
     inventory = yaml.safe_load(context.inventory_path.read_text(encoding="utf-8"))
     assert isinstance(inventory, dict), inventory
     lanes = inventory.get("lanes")
     assert isinstance(lanes, list), lanes
-    matches = [
-        lane
-        for lane in lanes
-        if isinstance(lane, dict) and lane.get("capability") == "doc-generation"
-    ]
+    matches = [lane for lane in lanes if isinstance(lane, dict) and lane.get("capability") == "doc-generation"]
     assert len(matches) == 1, f"expected one doc-generation lane, found {matches}"
     tox_environment = matches[0].get("tox_env")
     assert isinstance(tox_environment, str) and tox_environment, matches[0]
     artifact = next((item for item in context.artifacts if item.tox_environment == tox_environment), None)
     assert artifact is not None, (
-        "the inventory has no proof artifact for doc-generation environment "
-        f"{tox_environment!r}"
+        "the inventory has no proof artifact for doc-generation environment " f"{tox_environment!r}"
     )
     return artifact
 
@@ -267,6 +304,21 @@ def _mutate_environment(artifact: EvidenceArtifact, mutation: Any) -> None:
     assert isinstance(environment, dict), environment
     mutation(environment)
     artifact.path.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _mutate_first_remote_worker(artifact: EvidenceArtifact, mutation: Any) -> None:
+    def mutate(environment: dict[str, Any]) -> None:
+        runs = environment.get("remote_worker_runs")
+        assert isinstance(runs, list) and runs, environment
+        complete_run = next((run for run in runs if isinstance(run, dict) and run.get("partial") is False), None)
+        assert isinstance(complete_run, dict), runs
+        workers = complete_run.get("workers")
+        assert isinstance(workers, list) and workers, complete_run
+        worker = workers[0]
+        assert isinstance(worker, dict), worker
+        mutation(worker)
+
+    _mutate_environment(artifact, mutate)
 
 
 def _summary(context: ProofAggregationContext) -> dict[str, Any]:
@@ -287,6 +339,37 @@ def _group_records(context: ProofAggregationContext) -> dict[str, dict[str, Any]
 )
 def synthesize_inventory_proof_artifacts(request: Any, tmp_path: Path) -> ProofAggregationContext:
     return _synthesize_context(Path(request.config.rootpath), tmp_path)
+
+
+@given("one remote environment omits actual worker runtime evidence")
+def omit_remote_worker_runtime_evidence(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_remote_artifact(proof_aggregation)
+    _mutate_environment(
+        artifact,
+        lambda environment: environment.pop("remote_worker_runs", None),
+    )
+
+
+@given("one remote worker omits its runtime and Python versions")
+def omit_remote_worker_runtime_versions(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_remote_artifact(proof_aggregation)
+
+    def mutate(worker: dict[str, Any]) -> None:
+        worker.pop("runtime", None)
+        worker.pop("python", None)
+
+    _mutate_first_remote_worker(artifact, mutate)
+
+
+@given("one remote worker reports runtime and Python versions that disagree with the inventory")
+def mismatch_remote_worker_runtime_versions(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_remote_artifact(proof_aggregation)
+
+    def mutate(worker: dict[str, Any]) -> None:
+        worker["runtime"] = "Jython"
+        worker["python"] = "0.0.0"
+
+    _mutate_first_remote_worker(artifact, mutate)
 
 
 @given("one expected environment is missing from the artifacts")
@@ -347,11 +430,7 @@ def omit_actual_pytest_version(proof_aggregation: ProofAggregationContext) -> No
 @given("the quality environment py314-pytestlatest-mypy omits its actual pytest version")
 def omit_latest_pytest_version_from_quality_environment(proof_aggregation: ProofAggregationContext) -> None:
     artifact = next(
-        (
-            item
-            for item in proof_aggregation.artifacts
-            if item.tox_environment == "py314-pytestlatest-mypy"
-        ),
+        (item for item in proof_aggregation.artifacts if item.tox_environment == "py314-pytestlatest-mypy"),
         None,
     )
     assert artifact is not None, "the inventory must include quality tox environment py314-pytestlatest-mypy"
@@ -362,11 +441,7 @@ def omit_latest_pytest_version_from_quality_environment(proof_aggregation: Proof
 @given("one environment records a pytest version that disagrees with its tox factor")
 def assign_pytest_version_mismatching_tox_factor(proof_aggregation: ProofAggregationContext) -> None:
     artifact = next(
-        (
-            item
-            for item in proof_aggregation.artifacts
-            if re.search(r"(?:^|-)pytest\d{2}(?:-|$)", item.tox_environment)
-        ),
+        (item for item in proof_aggregation.artifacts if re.search(r"(?:^|-)pytest\d{2}(?:-|$)", item.tox_environment)),
         None,
     )
     assert artifact is not None, "the inventory must contain an explicit numeric pytest tox factor"
@@ -468,8 +543,7 @@ def remove_doc_generation_pandoc_cli_version(proof_aggregation: ProofAggregation
         system_tool_versions = environment.get("system_tool_versions")
         assert isinstance(system_tool_versions, dict), environment
         assert (
-            isinstance(system_tool_versions.get("pandoc"), str)
-            and system_tool_versions["pandoc"]
+            isinstance(system_tool_versions.get("pandoc"), str) and system_tool_versions["pandoc"]
         ), system_tool_versions
         system_tool_versions.pop("pandoc")
 
@@ -542,9 +616,9 @@ def proof_summary_passes_with_every_inventory_environment(
 ) -> None:
     summary = _summary(proof_aggregation)
     expected_count = len(proof_aggregation.artifacts)
-    assert proof_aggregation_result.returncode == 0, (
-        f"full inventory proof should pass:\n{proof_aggregation_result.stdout}\n{proof_aggregation_result.stderr}"
-    )
+    assert (
+        proof_aggregation_result.returncode == 0
+    ), f"full inventory proof should pass:\n{proof_aggregation_result.stdout}\n{proof_aggregation_result.stderr}"
     assert summary.get("outcome") == "passed", summary
     assert summary.get("git_sha") == proof_aggregation.git_sha, summary
     assert summary.get("environment_count") == expected_count, summary
@@ -606,6 +680,48 @@ def proof_summary_preserves_actual_environment_evidence(proof_aggregation: Proof
             assert actual.get("passed_tests", 0) > 0, (key, actual)
 
 
+@then("the proof summary should preserve Linux Windows and macOS runner evidence")
+def proof_summary_preserves_supported_platform_runner_evidence(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    platform_names = {environment.get("platform_name") for environment in environments if isinstance(environment, dict)}
+    expected_platforms = {"linux", "win32", "darwin"}
+    assert expected_platforms <= platform_names, (expected_platforms, platform_names)
+
+
+@then("the proof summary should preserve two-worker socket via and ssh runtime evidence")
+def proof_summary_preserves_remote_worker_runtime_evidence(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    remote_records = {
+        environment.get("cell"): environment
+        for environment in environments
+        if isinstance(environment, dict) and environment.get("job") == "remote"
+    }
+    assert set(remote_records) == set(_REMOTE_MODES), remote_records
+
+    for cell_id, mode in _REMOTE_MODES.items():
+        record = remote_records[cell_id]
+        runs = record.get("remote_worker_runs")
+        assert isinstance(runs, list) and len(runs) == 2, (cell_id, record)
+        assert {run.get("mode") for run in runs} == {mode}, (cell_id, runs)
+        assert {run.get("partial") for run in runs} == {False, True}, (cell_id, runs)
+        for run in runs:
+            workers = run.get("workers")
+            assert isinstance(workers, list) and len(workers) == 2, (cell_id, run)
+            worker_ids = {worker.get("worker_id") for worker in workers}
+            assert len(worker_ids) == 2 and None not in worker_ids, (cell_id, workers)
+            for worker in workers:
+                assert worker.get("runtime") == record.get("runtime"), (cell_id, worker, record)
+                assert worker.get("python", "").startswith(record.get("python", "")), (cell_id, worker, record)
+                assert worker.get("pytest") == record.get("pytest"), (cell_id, worker, record)
+                assert worker.get("pytest-xdist") == record.get("optional_versions", {}).get("pytest-xdist"), (
+                    cell_id,
+                    worker,
+                    record,
+                )
+
+
 @then("the proof summary should fail with a missing environment diagnostic")
 def proof_summary_fails_for_missing_environment(
     proof_aggregation: ProofAggregationContext,
@@ -614,6 +730,38 @@ def proof_summary_fails_for_missing_environment(
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "missing evidence for expected environment" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with a missing remote worker runtime diagnostic")
+def proof_summary_fails_for_missing_remote_worker_runtime_evidence(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "is missing actual remote worker runtime evidence" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with missing remote worker version diagnostics")
+def proof_summary_fails_for_missing_remote_worker_versions(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "worker gw0 reports runtime None" in proof_aggregation_result.stderr
+    assert "worker gw0 reports Python None" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with mismatched remote worker version diagnostics")
+def proof_summary_fails_for_mismatched_remote_worker_versions(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "worker gw0 reports runtime 'Jython'" in proof_aggregation_result.stderr
+    assert "worker gw0 reports Python '0.0.0'" in proof_aggregation_result.stderr
 
 
 @then("the proof summary should fail with a selected no tests diagnostic")
@@ -773,9 +921,9 @@ def proof_summary_fails_for_missing_pandoc_cli_version(
     diagnostic = proof_aggregation_result.stderr.casefold()
     assert "system tool 'pandoc'" in diagnostic, proof_aggregation_result.stderr
     assert "version" in diagnostic, proof_aggregation_result.stderr
-    assert "install pandoc before running the documentation tox environment" in diagnostic, (
-        proof_aggregation_result.stderr
-    )
+    assert (
+        "install pandoc before running the documentation tox environment" in diagnostic
+    ), proof_aggregation_result.stderr
 
 
 @then("the proof summary should fail for a missing tox result command")

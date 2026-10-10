@@ -69,9 +69,7 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
         or any(not isinstance(group, str) for group in declared_groups)
         or set(declared_groups) != expected_groups
     ):
-        raise RuntimeError(
-            f"inventory evidence.aggregate_groups must declare exactly {sorted(expected_groups)!r}"
-        )
+        raise RuntimeError(f"inventory evidence.aggregate_groups must declare exactly {sorted(expected_groups)!r}")
 
     expected: dict[tuple[str, str, str], dict[str, str]] = {}
     for job in EXPECTED_JOBS:
@@ -114,10 +112,9 @@ def _tox_command_matches(command: Any, tox_environment: str) -> bool:
         environment_index = command.index("-e") + 1
     except ValueError:
         return False
-    return (
-        executable_name in {"tox", "tox.exe"}
-        and command[environment_index : environment_index + 1] == [tox_environment]
-    )
+    return executable_name in {"tox", "tox.exe"} and command[environment_index : environment_index + 1] == [
+        tox_environment
+    ]
 
 
 def _tox_result_entry(payload: Any, tox_environment: str) -> dict[str, Any] | None:
@@ -173,9 +170,84 @@ def _platform_matches(expected_platform: str, observed_platform: Any) -> bool:
     return expected_value is not None and observed_platform == expected_value
 
 
-def collect_evidence(
-    root: Path, expected_sha: str, inventory_path: Path
-) -> tuple[dict[str, Any], list[str]]:
+def _remote_worker_evidence_errors(
+    record: dict[str, Any],
+    specification: dict[str, str],
+) -> list[str]:
+    """Validate interpreter and package versions reported by actual remote workers."""
+    if record.get("job") != "remote":
+        return []
+
+    expected_mode = {
+        "remote-socket": "socket",
+        "remote-via": "via",
+        "remote-ssh": "ssh",
+    }.get(str(record.get("cell")))
+    prefix = f"{record.get('job')}/{record.get('cell')}/{record.get('tox_environment')}"
+    runs = record.get("remote_worker_runs")
+    if expected_mode is None:
+        return [f"{prefix} has an unknown remote worker cell"]
+    if not isinstance(runs, list):
+        return [f"{prefix} is missing actual remote worker runtime evidence"]
+
+    errors: list[str] = []
+    if len(runs) != 2 or any(not isinstance(run, dict) for run in runs):
+        errors.append(f"{prefix} must record exactly two valid remote worker runs")
+    matching_runs = [run for run in runs if isinstance(run, dict) and run.get("mode") == expected_mode]
+    partial_values = [run.get("partial") for run in matching_runs]
+    if (
+        len(matching_runs) != 2
+        or any(not isinstance(value, bool) for value in partial_values)
+        or set(partial_values) != {False, True}
+        or len(matching_runs) != len(runs)
+    ):
+        errors.append(f"{prefix} must record complete and interrupted {expected_mode} worker runs")
+
+    for run in matching_runs:
+        workers = run.get("workers")
+        run_label = "interrupted" if run.get("partial") is True else "complete"
+        if not isinstance(workers, list) or len(workers) != 2:
+            errors.append(f"{prefix} {run_label} {expected_mode} run must record two remote workers")
+            continue
+        worker_ids: set[str] = set()
+        runtime_versions: set[tuple[str, str, str, str]] = set()
+        for worker in workers:
+            if not isinstance(worker, dict):
+                errors.append(f"{prefix} {run_label} {expected_mode} run has an invalid worker record")
+                continue
+            worker_id = worker.get("worker_id")
+            if not isinstance(worker_id, str) or not worker_id:
+                errors.append(f"{prefix} {run_label} {expected_mode} run has a worker without an ID")
+                continue
+            worker_ids.add(worker_id)
+            runtime = worker.get("runtime")
+            python_version = worker.get("python")
+            pytest_version = worker.get("pytest")
+            xdist_version = worker.get("pytest-xdist")
+            if runtime != specification["runtime"]:
+                errors.append(f"{prefix} worker {worker_id} reports runtime {runtime!r}")
+            if _version_pair(python_version) != _version_pair(specification["python"]):
+                errors.append(
+                    f"{prefix} worker {worker_id} reports Python {python_version!r}; "
+                    f"expected {specification['python']!r}"
+                )
+            if _version_pair(pytest_version) is None:
+                errors.append(f"{prefix} worker {worker_id} has no actual pytest version")
+            xdist_pair = _version_pair(xdist_version)
+            if xdist_pair is None or xdist_pair[0] != 3:
+                errors.append(f"{prefix} worker {worker_id} must report pytest-xdist 3.x")
+            if all(
+                isinstance(value, str) and value for value in (runtime, python_version, pytest_version, xdist_version)
+            ):
+                runtime_versions.add((runtime, python_version, pytest_version, xdist_version))
+        if len(worker_ids) != 2:
+            errors.append(f"{prefix} {run_label} {expected_mode} run must report two distinct worker IDs")
+        if len(runtime_versions) > 1:
+            errors.append(f"{prefix} {run_label} {expected_mode} workers report inconsistent runtime versions")
+    return errors
+
+
+def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tuple[dict[str, Any], list[str]]:
     records: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
     errors: list[str] = []
     try:
@@ -315,10 +387,7 @@ def collect_evidence(
             invalid_groups.add(expected_group)
         recorded_system_tool_versions = system_tool_versions if isinstance(system_tool_versions, dict) else {}
         for tool in required_system_tool_versions(tox_environment):
-            if (
-                not isinstance(recorded_system_tool_versions.get(tool), str)
-                or not recorded_system_tool_versions[tool]
-            ):
+            if not isinstance(recorded_system_tool_versions.get(tool), str) or not recorded_system_tool_versions[tool]:
                 errors.append(
                     f"{job}/{cell}/{tox_environment} requires system tool {tool!r} with an actual version; "
                     "install Pandoc before running the documentation tox environment"
@@ -378,6 +447,9 @@ def collect_evidence(
                 f"tox factor requires {declared_pytest_pair[0]}.{declared_pytest_pair[1]}"
             )
             invalid_groups.add(expected_group)
+        for remote_error in _remote_worker_evidence_errors(record, specification):
+            errors.append(remote_error)
+            invalid_groups.add(expected_group)
         if expected_group in TEST_EVIDENCE_GROUPS:
             selected_tests = record.get("selected_tests")
             if isinstance(selected_tests, bool) or not isinstance(selected_tests, int) or selected_tests < 1:
@@ -427,6 +499,7 @@ def collect_evidence(
                     "command",
                     "selected_tests",
                     "passed_tests",
+                    "remote_worker_runs",
                     "outcome",
                     "returncode",
                     "result_json",

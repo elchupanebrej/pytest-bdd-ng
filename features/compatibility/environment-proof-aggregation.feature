@@ -8,6 +8,31 @@ Feature: Aggregate the full supported environment proof
     Then the proof summary should pass and include every inventory environment
     And the proof summary should report serial parallel e2e external and quality groups
     And the proof summary should preserve actual evidence for every environment
+    And the proof summary should preserve Linux Windows and macOS runner evidence
+
+  Scenario: The aggregator accepts complete and interrupted runtime evidence from every remote transport
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And the proof summary should preserve two-worker socket via and ssh runtime evidence
+
+  Scenario: The aggregator rejects a remote environment without worker runtime evidence
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one remote environment omits actual worker runtime evidence
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a missing remote worker runtime diagnostic
+
+  Scenario: The aggregator rejects a remote worker without its runtime versions
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one remote worker omits its runtime and Python versions
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with missing remote worker version diagnostics
+
+  Scenario: The aggregator rejects remote worker versions that disagree with the inventory
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one remote worker reports runtime and Python versions that disagree with the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with mismatched remote worker version diagnostics
 
   Scenario: The aggregator accepts an empty argument in a successful tox command
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory

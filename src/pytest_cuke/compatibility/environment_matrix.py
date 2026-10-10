@@ -96,6 +96,14 @@ def check_environment_inventory(
             )
         )
 
+    support_ledger_summary, support_ledger_diagnostics = _validate_support_ledger(
+        document,
+        valid_lanes,
+        valid_cells,
+        set(tox_environments),
+    )
+    diagnostics.extend(support_ledger_diagnostics)
+
     cell_index = _index_cells(valid_cells, diagnostics)
     workflow_results = _check_workflow_jobs(project_root, valid_cells, diagnostics)
     proof_lanes = _build_lane_proof(
@@ -125,6 +133,7 @@ def check_environment_inventory(
             "requiredLaneCount": sum(_status(lane) == "required" for lane in valid_lanes),
             "toxEnvironments": tox_environments,
             "workflowCells": valid_cells,
+            "supportLedger": support_ledger_summary,
         },
         "proof": {
             "tox": {"command": list(TOX_LIST_COMMAND), "environments": tox_environments},
@@ -189,8 +198,7 @@ def _validate_inventory_records(
                 )
             )
         dimensions = tuple(
-            str(lane.get(key) or "").strip().casefold()
-            for key in ("runtime", "python", "platform", "capability")
+            str(lane.get(key) or "").strip().casefold() for key in ("runtime", "python", "platform", "capability")
         )
         pytest_factors = _pytest_factors(lane.get("pytest"))
         if status in _SUPPORTED_STATUSES and all(dimensions) and pytest_factors:
@@ -330,6 +338,366 @@ def _validate_inventory_records(
                 )
             )
     return diagnostics
+
+
+def _validate_support_ledger(
+    document: dict[str, Any],
+    lanes: list[dict[str, Any]],
+    cells: list[dict[str, Any]],
+    tox_environments: set[str],
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    """Check that support history, active tox lanes, and exclusions agree."""
+    diagnostics: list[dict[str, str]] = []
+    ledger = document.get("support_ledger")
+    if not isinstance(ledger, dict):
+        return (
+            {"historicalCellCount": 0, "laneProvenanceCount": 0, "exclusionCount": 0, "originCounts": {}},
+            [
+                _diagnostic(
+                    "support-ledger",
+                    "support-ledger-missing",
+                    "inventory must contain a structured support_ledger",
+                    "Record the pinned historical reference, retained cells, active tox provenance, and exclusions.",
+                )
+            ],
+        )
+
+    reference = ledger.get("historical_reference")
+    expected_reference = {
+        "repository": "elchupanebrej/pytest-bdd-ng",
+        "revision": "fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce",
+        "tox_file": "tox.ini",
+        "workflow_file": ".github/workflows/main.yml",
+    }
+    if reference != expected_reference:
+        diagnostics.append(
+            _diagnostic(
+                "support-ledger",
+                "historical-reference-invalid",
+                "historical_reference must pin the source repository, revision, tox file, and workflow file",
+                "Use the exact R reference recorded in the compatibility acceptance baseline.",
+            )
+        )
+
+    historical_cells = ledger.get("historical_cells")
+    historical_cell_count = 0
+    historical_cell_keys: set[tuple[str, str, str]] = set()
+    if not isinstance(historical_cells, list) or len(historical_cells) != 12:
+        diagnostics.append(
+            _diagnostic(
+                "support-ledger",
+                "historical-cell-count-invalid",
+                "support_ledger.historical_cells must retain the twelve frozen #149 cells",
+                "Record CPython 3.10-3.12 on Linux, CPython 3.13-3.14 on all three platforms, and PyPy 3.11 "
+                "on all three platforms.",
+            )
+        )
+        historical_cells = historical_cells if isinstance(historical_cells, list) else []
+    workflow_tuples = {
+        (str(cell.get("runtime")), str(cell.get("python")), str(cell.get("platform")))
+        for cell in cells
+        if isinstance(cell, dict)
+    }
+    for item in historical_cells:
+        if not isinstance(item, dict):
+            diagnostics.append(
+                _diagnostic(
+                    "support-ledger",
+                    "historical-cell-invalid",
+                    "a historical cell record is not an object",
+                    "Declare runtime, Python, platform, required disposition, and source evidence.",
+                )
+            )
+            continue
+        runtime, python, platform_name = (item.get(key) for key in ("runtime", "python", "platform"))
+        key = (str(runtime), str(python), str(platform_name))
+        historical_cell_count += 1
+        if (
+            not all(isinstance(value, str) and value for value in (runtime, python, platform_name))
+            or item.get("disposition") != "required"
+            or not _has_source_evidence(item.get("source_evidence"))
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    str(item.get("id") or "support-ledger"),
+                    "historical-cell-invalid",
+                    "historical cells require runtime, Python, platform, required disposition, and source evidence",
+                    "Keep each frozen cell source-backed and mark it required.",
+                )
+            )
+        if key in historical_cell_keys:
+            diagnostics.append(
+                _diagnostic(
+                    str(item.get("id") or "support-ledger"),
+                    "historical-cell-duplicate",
+                    f"historical cell {key!r} is duplicated",
+                    "Keep exactly one record for each frozen runtime/Python/platform tuple.",
+                )
+            )
+        historical_cell_keys.add(key)
+        if key not in workflow_tuples:
+            diagnostics.append(
+                _diagnostic(
+                    str(item.get("id") or "support-ledger"),
+                    "historical-cell-not-retained",
+                    f"frozen historical cell {key!r} is not present in workflow_cells",
+                    "Restore the historical workflow cell or document an explicit product decision to change it.",
+                )
+            )
+
+    lane_by_id = {_lane_id(lane): lane for lane in lanes if _lane_id(lane)}
+    active_env_lanes: dict[str, list[dict[str, Any]]] = {}
+    for lane in lanes:
+        if _status(lane) == "unsupported":
+            continue
+        for environment in _split_tox_envs(lane.get("tox_env")):
+            active_env_lanes.setdefault(environment, []).append(lane)
+
+    provenance = ledger.get("lane_provenance")
+    provenance_count = 0
+    origin_counts: dict[str, int] = {}
+    provenance_ids: set[str] = set()
+    provenance_envs: set[str] = set()
+    if not isinstance(provenance, list) or not provenance:
+        diagnostics.append(
+            _diagnostic(
+                "support-ledger",
+                "lane-provenance-missing",
+                "support_ledger.lane_provenance must identify each active tox environment",
+                "Add a source-backed origin and required/manual disposition for every resolved environment.",
+            )
+        )
+        provenance = provenance if isinstance(provenance, list) else []
+    for item in provenance:
+        if not isinstance(item, dict):
+            diagnostics.append(
+                _diagnostic(
+                    "support-ledger",
+                    "lane-provenance-invalid",
+                    "a lane provenance record is not an object",
+                    "Declare id, lane_id, tox_env, origin, disposition, and source evidence.",
+                )
+            )
+            continue
+        provenance_count += 1
+        provenance_id = item.get("id")
+        lane_id = item.get("lane_id")
+        provenance_environment = item.get("tox_env")
+        provenance_origin = item.get("origin")
+        provenance_disposition = item.get("disposition")
+        if (
+            not isinstance(provenance_id, str)
+            or not provenance_id
+            or not isinstance(lane_id, str)
+            or not lane_id
+            or not isinstance(provenance_environment, str)
+            or not provenance_environment
+            or not isinstance(provenance_origin, str)
+            or provenance_origin not in {"historical", "added", "preserved-current"}
+            or not isinstance(provenance_disposition, str)
+            or provenance_disposition not in {"required", "manual"}
+            or not _has_source_evidence(item.get("source_evidence"))
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    str(provenance_id or "support-ledger"),
+                    "lane-provenance-invalid",
+                    "lane provenance requires an ID, active lane/tox environment, valid origin/disposition, and "
+                    "source evidence",
+                    "Use historical, added, or preserved-current origin and required or manual disposition.",
+                )
+            )
+            continue
+        if provenance_id in provenance_ids:
+            diagnostics.append(
+                _diagnostic(
+                    provenance_id,
+                    "lane-provenance-id-duplicate",
+                    f"lane provenance ID {provenance_id!r} is duplicated",
+                    "Give every provenance row a unique ID.",
+                )
+            )
+        provenance_ids.add(provenance_id)
+        origin_counts[provenance_origin] = origin_counts.get(provenance_origin, 0) + 1
+        if provenance_environment in provenance_envs:
+            diagnostics.append(
+                _diagnostic(
+                    provenance_id,
+                    "lane-provenance-environment-duplicate",
+                    f"tox environment {provenance_environment!r} has more than one provenance record",
+                    "Keep one provenance record for each concrete active tox environment.",
+                )
+            )
+        provenance_envs.add(provenance_environment)
+        provenance_lane = lane_by_id.get(lane_id)
+        if (
+            provenance_lane is None
+            or _status(provenance_lane) == "unsupported"
+            or provenance_environment not in _split_tox_envs(provenance_lane.get("tox_env"))
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    provenance_id,
+                    "lane-provenance-lane-unresolved",
+                    f"provenance references lane {lane_id!r} without active tox environment "
+                    f"{provenance_environment!r}",
+                    "Point the provenance row at an active inventory lane containing this exact tox environment.",
+                )
+            )
+        if provenance_environment not in tox_environments:
+            diagnostics.append(
+                _diagnostic(
+                    provenance_id,
+                    "lane-provenance-tox-unresolved",
+                    f"provenance tox environment {provenance_environment!r} is not present in `tox list --no-desc`",
+                    "Restore the exact tox environment or remove the stale provenance row.",
+                )
+            )
+        provenance_lane_status = _status(provenance_lane) if provenance_lane is not None else ""
+        selected_in_ci = any(
+            provenance_environment in cell.get("tox_envs", [])
+            for cell in cells
+            if isinstance(cell, dict) and isinstance(cell.get("tox_envs"), list)
+        )
+        if provenance_disposition == "required" and (provenance_lane_status != "required" or not selected_in_ci):
+            diagnostics.append(
+                _diagnostic(
+                    provenance_id,
+                    "lane-provenance-required-not-selected",
+                    f"required provenance for {provenance_environment!r} is not represented by a required CI lane",
+                    "Select the environment from a required workflow cell or mark it manual if it is not in CI.",
+                )
+            )
+        if provenance_disposition == "manual" and selected_in_ci:
+            diagnostics.append(
+                _diagnostic(
+                    provenance_id,
+                    "lane-provenance-manual-selected",
+                    f"manual provenance for {provenance_environment!r} is selected by a workflow cell",
+                    "Mark the lane required or remove it from automatic workflow cells.",
+                )
+            )
+
+    for environment in sorted(set(active_env_lanes) - provenance_envs):
+        lane_id = _lane_id(active_env_lanes[environment][0])
+        diagnostics.append(
+            _diagnostic(
+                lane_id,
+                "lane-provenance-environment-missing",
+                f"active tox environment {environment!r} has no support provenance",
+                "Add a lane_provenance row for every active environment in config/env-matrix.yaml.",
+            )
+        )
+    for environment in sorted(provenance_envs - set(active_env_lanes)):
+        diagnostics.append(
+            _diagnostic(
+                "support-ledger",
+                "lane-provenance-environment-orphaned",
+                f"provenance tox environment {environment!r} has no active required or optional lane",
+                "Remove stale provenance or restore the active lane.",
+            )
+        )
+
+    exclusions = ledger.get("exclusions")
+    exclusion_count = 0
+    exclusion_keys: set[tuple[str, str, str, str]] = set()
+    if not isinstance(exclusions, list) or len(exclusions) != 15:
+        diagnostics.append(
+            _diagnostic(
+                "support-ledger",
+                "historical-exclusion-count-invalid",
+                "support_ledger.exclusions must contain the fifteen source-backed historical upstream exclusions",
+                "Record pytest 7.0-7.2 on Python 3.12 and pytest 8.0-8.1 on Python 3.13 for all three platforms.",
+            )
+        )
+        exclusions = exclusions if isinstance(exclusions, list) else []
+    active_tuples: set[tuple[str, str, str, str]] = set()
+    for lane in lanes:
+        if _status(lane) == "unsupported":
+            continue
+        runtime = lane.get("runtime")
+        python = lane.get("python")
+        platform_name = lane.get("platform")
+        for pytest_factor in _pytest_factors(lane.get("pytest")):
+            active_tuples.add((str(runtime), str(python), pytest_factor, str(platform_name)))
+    for item in exclusions:
+        if not isinstance(item, dict):
+            diagnostics.append(
+                _diagnostic(
+                    "support-ledger",
+                    "historical-exclusion-invalid",
+                    "a historical exclusion record is not an object",
+                    "Declare runtime, Python, pytest, platform, basis, reason, and source evidence.",
+                )
+            )
+            continue
+        exclusion_count += 1
+        excluded_runtime = item.get("runtime")
+        excluded_python = item.get("python")
+        excluded_pytest = item.get("pytest")
+        excluded_platform = item.get("platform")
+        exclusion_basis = item.get("basis")
+        exclusion_reason = item.get("reason")
+        if (
+            not isinstance(excluded_runtime, str)
+            or not excluded_runtime
+            or not isinstance(excluded_python, str)
+            or not excluded_python
+            or not isinstance(excluded_pytest, str)
+            or not excluded_pytest
+            or not isinstance(excluded_platform, str)
+            or not excluded_platform
+            or not isinstance(exclusion_basis, str)
+            or not exclusion_basis.strip()
+            or not isinstance(exclusion_reason, str)
+            or not exclusion_reason.strip()
+            or not _has_source_evidence(item.get("source_evidence"))
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    str(item.get("id") or "support-ledger"),
+                    "historical-exclusion-invalid",
+                    "historical exclusions require a complete tuple, basis, reason, and HTTP(S) source evidence",
+                    "Add the source policy and the concrete reason the environment is not viable.",
+                )
+            )
+            continue
+        excluded_tuple = (excluded_runtime, excluded_python, excluded_pytest, excluded_platform)
+        if excluded_tuple in exclusion_keys:
+            diagnostics.append(
+                _diagnostic(
+                    str(item.get("id") or "support-ledger"),
+                    "historical-exclusion-duplicate",
+                    f"historical exclusion {excluded_tuple!r} is duplicated",
+                    "Keep one exclusion record for each exact runtime/Python/pytest/platform tuple.",
+                )
+            )
+        exclusion_keys.add(excluded_tuple)
+        if excluded_tuple in active_tuples:
+            diagnostics.append(
+                _diagnostic(
+                    str(item.get("id") or "support-ledger"),
+                    "historical-exclusion-conflict",
+                    f"excluded historical tuple {excluded_tuple!r} also appears in an active lane",
+                    "Remove the active unsupported tuple or revise the source-backed exclusion decision.",
+                )
+            )
+
+    return (
+        {
+            "historicalCellCount": historical_cell_count,
+            "laneProvenanceCount": provenance_count,
+            "exclusionCount": exclusion_count,
+            "originCounts": origin_counts,
+        },
+        diagnostics,
+    )
+
+
+def _has_source_evidence(value: Any) -> bool:
+    if not isinstance(value, list) or not value:
+        return False
+    return all(isinstance(item, str) and item.startswith(("https://", "http://")) for item in value)
 
 
 def _pytest_factors(value: Any) -> set[str]:

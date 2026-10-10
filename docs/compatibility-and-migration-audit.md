@@ -122,8 +122,14 @@ diagnostic text.
 optional-capability and CI-cell inventory. It records each cell's concrete tox
 environments, CI selector, prerequisites and runnable carrier. Unsupported
 combinations include a source-backed reason. The checker compares these entries
-with the resolved tox listing and GitHub Actions selectors; an environment
-name alone does not establish that a lane ran. The fast PR selector excludes
+with the resolved tox listing and GitHub Actions selectors. Its support ledger
+pins the historical repository revision, retains all twelve frozen #149
+workflow cells, and records a source-backed origin and required or manual
+disposition for each active tox environment. The independent BDD baseline
+retains 68 historical tox expansions: 46 required, 7 manual, and 15 excluded.
+The exclusions cover pytest 7.0–7.2 on Python 3.12 and pytest 8.0–8.1 on
+Python 3.13 across Linux, macOS, and Windows. An environment name alone does
+not establish that a lane ran. The fast PR selector excludes
 `slow`, `e2e`, `external`, `typecheck` and `doc_gen`; full runtime tox commands
 exclude `e2e`, `external`, `typecheck` and `doc_gen`. The required
 `py314-doc-gen` quality lane runs the documentation test with its optional
@@ -153,12 +159,18 @@ source evidence JSON from each matrix cell. Aggregation fails if a cell is missi
 duplicated, the SHA differs, the actual interpreter or pytest version conflicts
 with the inventory/tox factor, a declared environment fails, or a test lane
 selects no tests. Quality tool lanes are recorded without pretending that a
-pytest test count applies to them.
+pytest test count applies to them. Remote socket, via, and SSH records also
+preserve the runtime, Python, pytest, and pytest-xdist versions reported by both
+actual workers in complete and interrupted runs.
 
 `tox run` executes the complete declared tox environment list. To run the two
 manual CPython 3.12 platform lanes explicitly:
 
     tox run -e py312-pytest73-coverage-mac,py312-pytest74-coverage-mac,py312-pytest80-coverage-mac,py312-pytest81-coverage-mac,py312-pytest73-coverage-win,py312-pytest74-coverage-win,py312-pytest80-coverage-win,py312-pytest81-coverage-win
+
+The historical Windows remote-worker lanes also remain manually runnable:
+
+    tox run -e py314-pytestlatest-xdist-remote-socket-win,py314-pytestlatest-xdist-remote-via-win,py314-pytestlatest-xdist-remote-ssh-win
 
 The remote xdist environments require a working Docker Engine and Compose;
 the SSH mode also requires `ssh-keygen`. The browser-report environment requires
@@ -180,8 +192,8 @@ On push and manual workflow dispatch, the full runtime matrix, browser report,
 native parser, remote xdist and quality jobs upload JSON evidence tied to the
 workflow's exact Git SHA. Each record contains the tox environment, resolved
 command, selected test count where applicable, actual Python/pytest, optional
-package and required system tool versions, selected and passed test counts,
-and outcome. The `aggregate-proof` job requires every inventory environment,
+package and required system tool versions, remote worker versions, selected and
+passed test counts, and outcome. The `aggregate-proof` job requires every inventory environment,
 including the `serial`, `parallel`, `e2e`, `external` and `quality` groups, and publishes
 `full-supported-proof-<sha>`. Missing, duplicated, mismatched or failed cell
 evidence, and test lanes with no selected tests, fail the aggregate. The

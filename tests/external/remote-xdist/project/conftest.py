@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+from importlib.metadata import version
 import os
+import platform
 import socket
 import time
 from pathlib import Path
@@ -25,6 +27,10 @@ def passing_remote_scenario() -> None:
         "worker_id": worker_id,
         "mode": mode,
         "host": socket.gethostname(),
+        "runtime": platform.python_implementation(),
+        "python": platform.python_version(),
+        "pytest": version("pytest"),
+        "pytest-xdist": version("pytest-xdist"),
     }
     temporary_path = observation_dir / f"{worker_id}.json.tmp"
     temporary_path.write_text(json.dumps(observation), encoding="utf-8")
