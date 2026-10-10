@@ -31,6 +31,13 @@ Feature: Live Cucumber Usage JSON formatter
     When I run installed pytest in the usage-json workspace with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage-json=artifacts/usage.json --cuke-summary --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/cucumber.json --junitxml=artifacts/junit.xml -q --color=no"
     Then Usage JSON Summary Messages Cucumber JSON and JUnit should be distinct valid outputs
 
+  Scenario: Usage JSON file coexists with live Cucumber progress
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the usage-json consumer prepares two passing scenarios for combined reports
+    And the consumer installs the pinned official Cucumber Usage JSON runtime
+    When I run installed pytest in the usage-json workspace with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage-json=artifacts/usage.json --cuke-progress --capture=tee-sys -q --color=no"
+    Then Usage JSON and live progress should both report the two passing scenarios
+
   Scenario: Missing parents duplicate destinations and terminal conflicts fail before scenarios run
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the usage-json consumer prepares a marker scenario for preflight checks
