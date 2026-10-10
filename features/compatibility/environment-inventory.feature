@@ -58,3 +58,13 @@ Feature: Supported environment inventory and acceptance proof
     Given the repository environment inventory is loaded
     When I check a temporary inventory with an unresolved tox workflow selector and command
     Then the inventory check should fail with a lane-specific tox workflow and command diagnostic
+
+  Scenario: Every resolved tox environment has an inventory lane
+    Given the repository environment inventory is copied to a temporary project
+    When I check a temporary inventory omitting one resolved tox environment
+    Then the inventory check should fail with a workflow lane and environment diagnostic
+
+  Scenario: Workflow cells cannot select unresolved tox environments
+    Given the repository environment inventory is copied to a temporary project
+    When I add a nonexistent tox environment to a workflow cell
+    Then the inventory check should fail with a workflow cell and environment diagnostic
