@@ -14,9 +14,11 @@ from environment_evidence import (
     EVIDENCE_GROUPS,
     EXPECTED_JOBS,
     OPTIONAL_VERSION_KEYS,
+    SYSTEM_TOOL_VERSION_KEYS,
     TEST_EVIDENCE_GROUPS,
     evidence_group,
     required_optional_versions,
+    required_system_tool_versions,
 )
 
 
@@ -300,6 +302,28 @@ def collect_evidence(
                         "add it to the tox environment dependencies"
                     )
                     invalid_groups.add(expected_group)
+        system_tool_versions = record.get("system_tool_versions")
+        if (
+            not isinstance(system_tool_versions, dict)
+            or not set(SYSTEM_TOOL_VERSION_KEYS) <= set(system_tool_versions)
+            or any(
+                value is not None and (not isinstance(value, str) or not value)
+                for value in system_tool_versions.values()
+            )
+        ):
+            errors.append(f"{job}/{cell}/{tox_environment} is missing actual system tool versions")
+            invalid_groups.add(expected_group)
+        recorded_system_tool_versions = system_tool_versions if isinstance(system_tool_versions, dict) else {}
+        for tool in required_system_tool_versions(tox_environment):
+            if (
+                not isinstance(recorded_system_tool_versions.get(tool), str)
+                or not recorded_system_tool_versions[tool]
+            ):
+                errors.append(
+                    f"{job}/{cell}/{tox_environment} requires system tool {tool!r} with an actual version; "
+                    "install Pandoc before running the documentation tox environment"
+                )
+                invalid_groups.add(expected_group)
         if tox_result_entry is not None:
             tox_python = tox_result_entry.get("python")
             tox_version_info = tox_python.get("version_info") if isinstance(tox_python, dict) else None
@@ -397,6 +421,7 @@ def collect_evidence(
                     "python",
                     "pytest",
                     "optional_versions",
+                    "system_tool_versions",
                     "platform",
                     "platform_name",
                     "command",

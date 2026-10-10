@@ -12,8 +12,10 @@ Feature: Installed pytest-cuke product bootstrap
 
       import pytest_cuke
       from pytest_cuke import *
+      from pytest_cuke.formatter_api import FormatterAsset, FormatterRequest, FormatterRequestFactory, FormatterSelection
 
       PUBLIC_NAMES = {"given", "when", "then", "step", "parsers", "scenario", "scenarios"}
+      FORMATTER_NAMES = {"FormatterAsset", "FormatterRequest", "FormatterRequestFactory", "FormatterSelection"}
 
 
       def test_installed_public_facade():
@@ -21,6 +23,11 @@ Feature: Installed pytest-cuke product bootstrap
           assert distribution.version
           assert set(pytest_cuke.__all__) == PUBLIC_NAMES
           assert {name for name in globals() if name in PUBLIC_NAMES} == PUBLIC_NAMES
+          assert not any(hasattr(pytest_cuke, name) for name in FORMATTER_NAMES)
+          assert all(
+              value is not None
+              for value in (FormatterAsset, FormatterRequest, FormatterRequestFactory, FormatterSelection)
+          )
           assert all(callable(getattr(pytest_cuke, name)) for name in PUBLIC_NAMES - {"parsers"})
           assert all(hasattr(parsers, name) for name in ("parse", "re", "cfparse", "cuke_expressions"))
           assert all(not hasattr(pytest_cuke, name) for name in ("Feature", "Scenario", "Step", "Pickle", "Runner"))
@@ -32,7 +39,7 @@ Feature: Installed pytest-cuke product bootstrap
           harness_assets = {".planning", ".agents", "pytest_cuke_testing", "tests", "features", "examples"}
           assert not any(harness_assets.intersection(PurePosixPath(str(path)).parts) for path in files)
       """
-    When I run installed pytest with arguments "--rootdir=. test_public_api.py -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload test_public_api.py -q"
     Then pytest should exit with code 0
     And the installed distribution archive excludes harness and test assets
 

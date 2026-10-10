@@ -65,10 +65,18 @@ def _lane_text(lane: dict[str, Any]) -> str:
     return json.dumps(lane, ensure_ascii=False, sort_keys=True, default=str).casefold()
 
 
-def _inventory_command_environment(consumer: Any) -> dict[str, str]:
+def _inventory_command_environment(
+    consumer: Any,
+    *,
+    include_doc_generation_tools: bool = False,
+) -> dict[str, str]:
     environment = consumer.env.copy()
-    consumer_binary_directory = str(Path(consumer.python).resolve().parent)
-    environment["PATH"] = os.pathsep.join((consumer_binary_directory, environment.get("PATH", os.defpath)))
+    path_entries = [str(Path(consumer.python).resolve().parent)]
+    pandoc_executable = shutil.which("pandoc") if include_doc_generation_tools else None
+    if pandoc_executable is not None:
+        path_entries.append(str(Path(pandoc_executable).parent))
+    path_entries.extend(environment.get("PATH", os.defpath).split(os.pathsep))
+    environment["PATH"] = os.pathsep.join(dict.fromkeys(path_entries))
     return environment
 
 
@@ -123,6 +131,7 @@ def _run_environment_check(
     context: EnvironmentInventoryContext,
     *,
     lane_id: str | None = None,
+    include_doc_generation_tools: bool = False,
 ) -> subprocess.CompletedProcess[str]:
     consumer = context.consumer
     command = [
@@ -138,7 +147,10 @@ def _run_environment_check(
     result = subprocess.run(
         command,
         cwd=consumer.path,
-        env=_inventory_command_environment(consumer),
+        env=_inventory_command_environment(
+            consumer,
+            include_doc_generation_tools=include_doc_generation_tools,
+        ),
         check=False,
         capture_output=True,
         text=True,
@@ -214,6 +226,14 @@ def _carrier(lane: dict[str, Any]) -> dict[str, Any]:
     return carrier
 
 
+def _doc_generation_lane(context: EnvironmentInventoryContext) -> dict[str, Any]:
+    matches = [lane for lane in _lanes(context) if str(lane.get("capability", "")).casefold() == "doc-generation"]
+    assert len(matches) == 1, f"the inventory must declare exactly one doc-generation capability lane; found {matches}"
+    lane = matches[0]
+    assert _status(lane) == "required", f"the doc-generation lane must be required: {lane}"
+    return lane
+
+
 def _assert_carrier_path_exists(context: EnvironmentInventoryContext, lane: dict[str, Any]) -> None:
     carrier_path = _carrier(lane).get("path")
     if carrier_path:
@@ -285,6 +305,12 @@ def repository_environment_inventory_is_loaded(request: Any, consumer: Any) -> N
     carrier_destination = consumer.path / "tests" / "unit" / "compatibility" / carrier.name
     carrier_destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(carrier, carrier_destination)
+
+    doc_generation_carrier = repository_root / "tests" / "unit" / "docs" / "test_doc.py"
+    assert doc_generation_carrier.is_file(), f"the doc-generation carrier is missing: {doc_generation_carrier}"
+    doc_generation_destination = consumer.path / "tests" / "unit" / "docs" / doc_generation_carrier.name
+    doc_generation_destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(doc_generation_carrier, doc_generation_destination)
 
     _install_inventory_checker_tools(consumer)
 
@@ -384,6 +410,31 @@ def environment_inventory_check_passes(consumer: Any) -> None:
     assert report.get("inventory", {}).get("path") == "config/env-matrix.yaml", report
     required_lanes = [lane for lane in _lanes(context) if _status(lane) == "required"]
     assert report.get("inventory", {}).get("requiredLaneCount") == len(required_lanes), report
+
+
+@given("the doc-generation package prerequisites are installed in the consumer")
+def install_doc_generation_package_prerequisites(consumer: Any) -> None:
+    context = _context(consumer)
+    lane = _doc_generation_lane(context)
+    package_names = [
+        str(item["name"])
+        for item in _prerequisite_entries(lane)
+        if item.get("type") == "python-package" and item.get("name")
+    ]
+    uv_executable = shutil.which("uv")
+    assert uv_executable, "the doc-generation carrier probe requires uv to install declared Python packages"
+    result = subprocess.run(
+        [uv_executable, "pip", "install", "--python", str(consumer.python), *package_names],
+        cwd=consumer.path,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=180,
+    )
+    assert result.returncode == 0, (
+        f"could not install doc-generation package prerequisites {package_names!r}:\n"
+        f"{result.stdout}\n{result.stderr}"
+    )
 
 
 @then("its tox listing proof should match the real tox environment list")
@@ -642,6 +693,80 @@ def inventory_includes_playwright_html_carrier(consumer: Any) -> None:
     carrier_text = json.dumps(carrier, ensure_ascii=False).casefold()
     assert "html" in carrier_text or "html" in _lane_text(lane), (lane, carrier)
     assert "playwright" in _lane_text(lane), lane
+
+
+@then("the required doc-generation lane should select its pytest carrier")
+def required_doc_generation_lane_selects_pytest_carrier(consumer: Any) -> None:
+    context = _context(consumer)
+    lane = _doc_generation_lane(context)
+    carrier = _carrier(lane)
+    expected_path = "tests/unit/docs/test_doc.py"
+    assert carrier.get("kind") == "pytest", carrier
+    assert carrier.get("path") == expected_path, carrier
+    assert expected_path in str(carrier.get("command", "")), carrier
+    _assert_carrier_path_exists(context, lane)
+
+    lane_proof = _proof_lanes(context).get(_lane_id(lane))
+    assert lane_proof is not None, f"the doc-generation lane has no inventory proof: {lane}"
+    carrier_proof = lane_proof.get("carrier")
+    assert isinstance(carrier_proof, dict), lane_proof
+    assert carrier_proof.get("selected") is True, carrier_proof
+    assert carrier_proof.get("selectedCount", 0) > 0, carrier_proof
+
+
+@when("I probe the required doc-generation lane")
+def probe_required_doc_generation_lane(consumer: Any) -> None:
+    context = _context(consumer)
+    lane = _doc_generation_lane(context)
+    result = _run_environment_check(
+        context,
+        lane_id=_lane_id(lane),
+        include_doc_generation_tools=True,
+    )
+    assert result.returncode == 0, f"doc-generation lane probe failed:\n{result.stdout}\n{result.stderr}"
+
+
+@then("it should declare the doc-gen extra and Pandoc prerequisite")
+def doc_generation_lane_declares_extra_and_pandoc(consumer: Any) -> None:
+    lane = _doc_generation_lane(_context(consumer))
+    extras = lane.get("extras")
+    assert isinstance(extras, list) and any(str(extra).casefold() == "doc-gen" for extra in extras), lane
+
+    prerequisites = _prerequisite_entries(lane)
+    package_names = {
+        re.sub(r"[-_.]+", "-", str(item.get("name", "")).casefold())
+        for item in prerequisites
+        if item.get("type") == "python-package"
+    }
+    expected_packages = {"pandoc", "panflute", "pycmarkgfm", "pypandoc"}
+    assert expected_packages <= package_names, (expected_packages, package_names)
+    pandoc = [
+        item
+        for item in prerequisites
+        if item.get("type") == "command" and str(item.get("name", "")).casefold() == "pandoc"
+    ]
+    assert pandoc, f"the doc-generation lane must declare Pandoc as a command prerequisite: {prerequisites}"
+
+
+@then("its tox environment and workflow selector should be active")
+def doc_generation_lane_has_active_tox_and_workflow_selectors(consumer: Any) -> None:
+    context = _context(consumer)
+    lane = _doc_generation_lane(context)
+    report = _report(context)
+    result = context.check_result
+    assert result is not None and result.returncode == 0, (result, report)
+    assert report.get("status") == "pass", report
+
+    proof_lanes = _proof_lanes(context)
+    lane_proof = proof_lanes.get(_lane_id(lane))
+    assert lane_proof is not None, f"the doc-generation lane has no inventory proof: {lane}"
+    tox_proof = lane_proof.get("tox", {})
+    assert tox_proof.get("environment") == lane.get("tox_env"), (lane, tox_proof)
+    assert tox_proof.get("resolved") is True, (lane, tox_proof)
+    assert tox_proof.get("command"), (lane, tox_proof)
+    ci_proof = lane_proof.get("ci", {})
+    assert ci_proof.get("workflow") and ci_proof.get("selector"), (lane, ci_proof)
+    assert ci_proof.get("selected") is True, (lane, ci_proof)
 
 
 @then("the inventory should include socket via and SSH lanes with real report carriers")

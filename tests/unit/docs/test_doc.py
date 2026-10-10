@@ -10,6 +10,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from pytest_cuke.compatibility.pytest import Testdir
 
 
+@mark.doc_gen
 @mark.skipif(sys.version_info < (3, 12), reason="Verify only on the latest version")
 def test_doc_generation(testdir: "Testdir"):
     from pytest_cuke.script.bdd_tree_to_rst import convert

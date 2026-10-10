@@ -105,6 +105,18 @@ Feature: Aggregate the full supported environment proof
     When I run the full environment proof aggregator
     Then the proof summary should fail for missing Playwright report extras
 
+  Scenario: The aggregator rejects a doc-generation lane missing its optional packages
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the doc-generation environment is missing its recorded optional package versions
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for missing doc-generation packages
+
+  Scenario: The aggregator rejects doc-generation evidence without the Pandoc CLI version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the doc-generation environment omits its required Pandoc CLI version
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for missing Pandoc CLI version evidence
+
   Scenario: The aggregator rejects a tox test result without its executed command
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
     And one tox test result has a zero return code but no command

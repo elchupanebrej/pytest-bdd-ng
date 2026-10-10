@@ -29,7 +29,7 @@ _PROBE_FORMATTER_PLUGIN = """\
 import sys
 from pathlib import Path
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def _request(selection):
@@ -67,7 +67,7 @@ _FAILING_FORMATTER_PLUGIN = """\
 import sys
 from pathlib import Path
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def failure_request(selection):
@@ -185,7 +185,7 @@ def register_saved_stream_missing_npm_package_formatter(consumer: Any) -> None:
     plugin = f"""\
 from pathlib import Path
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def missing_package_request(selection):
@@ -238,7 +238,7 @@ for await (const line of input) {
     plugin = f"""\
 from pathlib import Path
 
-from pytest_cuke import FormatterRequest
+from pytest_cuke.formatter_api import FormatterRequest
 
 
 def official_pretty_request(selection):

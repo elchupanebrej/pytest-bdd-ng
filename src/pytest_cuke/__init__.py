@@ -3,15 +3,10 @@
 from __future__ import annotations
 
 from pytest_cuke import parsers as parsers
-from pytest_cuke.formatter_api import FormatterAsset, FormatterRequest, FormatterRequestFactory, FormatterSelection
 from pytest_cuke.scenario import scenario, scenarios
 from pytest_cuke.steps.decorators import given, step, then, when
 
 __all__ = [
-    "FormatterAsset",
-    "FormatterRequest",
-    "FormatterRequestFactory",
-    "FormatterSelection",
     "given",
     "parsers",
     "scenario",

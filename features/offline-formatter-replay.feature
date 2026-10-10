@@ -13,7 +13,8 @@ Feature: Standalone formatter rendering from saved Messages
       from pathlib import Path
 
       import pytest
-      from pytest_cuke import FormatterRequest, given
+      from pytest_cuke import given
+      from pytest_cuke.formatter_api import FormatterRequest
 
 
       ROOT = Path(__file__).parent
