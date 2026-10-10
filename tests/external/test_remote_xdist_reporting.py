@@ -127,6 +127,39 @@ def _read_observations(project_name: str, env: dict[str, str]) -> dict[str, dict
     return observations
 
 
+def _record_remote_worker_runtimes(mode: str, partial: bool, observations: dict[str, dict[str, Any]]) -> None:
+    """Persist versions reported by remote workers for the matrix proof artifact."""
+    workers: list[dict[str, str]] = []
+    for worker_id, observation in sorted(observations.items()):
+        worker = {"worker_id": worker_id}
+        for key in ("runtime", "python", "pytest", "pytest-xdist"):
+            value = observation.get(key)
+            assert isinstance(value, str) and value, f"remote worker {worker_id} omitted {key}: {observation!r}"
+            worker[key] = value
+        workers.append(worker)
+
+    evidence_path = os.environ.get("PYTEST_CUKE_REMOTE_RUNTIME_EVIDENCE")
+    if not evidence_path:
+        return
+
+    path = Path(evidence_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, Any] = {"schema_version": 1, "runs": []}
+    if path.is_file():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(payload, dict) and payload.get("schema_version") == 1, payload
+    runs = payload.get("runs")
+    assert isinstance(runs, list), payload
+    runs = [
+        run for run in runs if not (isinstance(run, dict) and run.get("mode") == mode and run.get("partial") is partial)
+    ]
+    runs.append({"mode": mode, "partial": partial, "workers": workers})
+    payload["runs"] = runs
+    temporary_path = path.with_suffix(path.suffix + ".tmp")
+    temporary_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary_path.replace(path)
+
+
 def _read_report(project_name: str, env: dict[str, str], destination: Path) -> list[dict[str, Any]]:
     result = _run_compose(
         project_name,
@@ -189,9 +222,9 @@ def test_remote_xdist_report_preserves_worker_contract(
 
     try:
         started = _run_compose(project_name, env, "up", "--detach", "--build", timeout=1200)
-        assert started.returncode == 0, (
-            f"could not start the remote xdist Compose cluster:\n{started.stdout}\n{started.stderr}"
-        )
+        assert (
+            started.returncode == 0
+        ), f"could not start the remote xdist Compose cluster:\n{started.stdout}\n{started.stderr}"
         runner = _run_compose(
             project_name,
             env,
@@ -220,6 +253,7 @@ def test_remote_xdist_report_preserves_worker_contract(
         assert set(observations) == worker_ids, (observations, worker_ids)
         assert all(item.get("worker_id") == worker_id for worker_id, item in observations.items()), observations
         assert all(item.get("mode") == mode for item in observations.values()), observations
+        _record_remote_worker_runtimes(mode, partial, observations)
 
         observed_hosts = {item.get("host") for item in observations.values()}
         if mode == "via":
@@ -230,9 +264,9 @@ def test_remote_xdist_report_preserves_worker_contract(
             controller = _run_compose(project_name, env, "exec", "-T", "controller", "hostname")
             assert controller.returncode == 0, controller.stdout + controller.stderr
             assert controller.stdout.strip() == "controller"
-            assert controller.stdout.strip() not in observed_hosts, (
-                "SSH workers must run in separate containers from the controller"
-            )
+            assert (
+                controller.stdout.strip() not in observed_hosts
+            ), "SSH workers must run in separate containers from the controller"
 
         run_finished = next(message["testRunFinished"] for message in messages if "testRunFinished" in message)
         assert run_finished.get("success") is (not partial), run_finished
