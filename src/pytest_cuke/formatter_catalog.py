@@ -338,7 +338,7 @@ def _check_output_destination_writable(
         ) from error
 
     if not directory_output and output_path.is_file():
-        file_descriptor: int | None = None
+        file_descriptor = None
         try:
             file_descriptor = os.open(output_path, os.O_WRONLY | getattr(os, "O_BINARY", 0))
             os.close(file_descriptor)
