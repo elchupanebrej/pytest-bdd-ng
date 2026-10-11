@@ -18,6 +18,7 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from pytest_cuke import given, parsers, then, when
@@ -1276,6 +1277,36 @@ def missing_usage_package_preflight(consumer: Any) -> None:
     package_metadata = json.loads((package / "package.json").read_text(encoding="utf-8"))
     assert package_metadata["version"] == "0.0.0-pytest-cuke-unavailable", package_metadata
     assert not (package / "__pytest_cuke_unavailable__.js").exists()
+
+
+@when(
+    parsers.parse('the UsageFormatter package mask receives "{package_name}"'),
+    target_fixture="masked_package_result",
+)
+def mask_usage_package_with_name(package_name: str) -> tuple[str | None, list[Path]]:
+    write_attempts: list[Path] = []
+
+    def record_write(path: Path, *args: Any, **kwargs: Any) -> None:
+        write_attempts.append(path)
+
+    error_message = None
+    with (
+        patch.object(Path, "mkdir", new=record_write),
+        patch.object(Path, "write_text", new=record_write),
+    ):
+        try:
+            mask_npm_package_from_node_resolution(Path("unused-workspace"), package_name)
+        except ValueError as error:
+            error_message = str(error)
+
+    return error_message, write_attempts
+
+
+@then("the package mask should reject the path before any filesystem writes")
+def usage_package_mask_rejects_windows_path(masked_package_result: tuple[str | None, list[Path]]) -> None:
+    error_message, write_attempts = masked_package_result
+    assert error_message is not None and error_message.startswith("invalid npm package name:")
+    assert write_attempts == []
 
 
 @given("the usage consumer prepares an undefined feature without step definitions")
