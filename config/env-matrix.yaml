@@ -1575,7 +1575,19 @@ lanes:
       - type: python-package
         name: uv
         remedy: "install uv>=0.8 for isolated consumer package setup"
-    expected_carrier: {kind: pytest, path: features/live-cucumber-progress-bar.feature, command: "python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e features/live-cucumber-progress-bar.feature"}
+    expected_carrier:
+      kind: pytest
+      path: features/live-cucumber-progress-bar.feature
+      command: >-
+        python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e
+        features/live-cucumber-progress-bar.feature
+        features/live-cucumber-snippets.feature
+        features/live-cucumber-summary.feature
+        features/live-cucumber-json.feature
+        features/live-cucumber-junit-xml.feature
+        features/live-cucumber-usage.feature
+        features/live-cucumber-usage-json.feature
+        features/native-allure-reporting.feature
   - id: live-formatters-acceptance-macos
     status: required
     runtime: CPython
@@ -1599,7 +1611,19 @@ lanes:
       - type: python-package
         name: uv
         remedy: "install uv>=0.8 for isolated consumer package setup"
-    expected_carrier: {kind: pytest, path: features/live-cucumber-progress-bar.feature, command: "python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e features/live-cucumber-progress-bar.feature"}
+    expected_carrier:
+      kind: pytest
+      path: features/live-cucumber-progress-bar.feature
+      command: >-
+        python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e
+        features/live-cucumber-progress-bar.feature
+        features/live-cucumber-snippets.feature
+        features/live-cucumber-summary.feature
+        features/live-cucumber-json.feature
+        features/live-cucumber-junit-xml.feature
+        features/live-cucumber-usage.feature
+        features/live-cucumber-usage-json.feature
+        features/native-allure-reporting.feature
   - id: live-formatters-acceptance-windows
     status: required
     runtime: CPython
@@ -1623,7 +1647,19 @@ lanes:
       - type: python-package
         name: uv
         remedy: "install uv>=0.8 for isolated consumer package setup"
-    expected_carrier: {kind: pytest, path: features/live-cucumber-progress-bar.feature, command: "python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e features/live-cucumber-progress-bar.feature"}
+    expected_carrier:
+      kind: pytest
+      path: features/live-cucumber-progress-bar.feature
+      command: >-
+        python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e
+        features/live-cucumber-progress-bar.feature
+        features/live-cucumber-snippets.feature
+        features/live-cucumber-summary.feature
+        features/live-cucumber-json.feature
+        features/live-cucumber-junit-xml.feature
+        features/live-cucumber-usage.feature
+        features/live-cucumber-usage-json.feature
+        features/native-allure-reporting.feature
   - id: allure-report
     status: required
     runtime: CPython

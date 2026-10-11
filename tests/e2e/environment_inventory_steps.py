@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import configparser
 import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -239,6 +241,14 @@ def _assert_carrier_path_exists(context: EnvironmentInventoryContext, lane: dict
     if carrier_path:
         path = context.repository_root / str(carrier_path)
         assert path.exists(), f"lane {_lane_id(lane)!r} names missing carrier path {carrier_path!r}"
+
+
+def _feature_arguments(command: str) -> set[str]:
+    return {
+        Path(argument).as_posix()
+        for argument in shlex.split(command)
+        if argument.startswith("features/") and argument.endswith(".feature")
+    }
 
 
 def _write_inventory(context: EnvironmentInventoryContext) -> None:
@@ -832,6 +842,39 @@ def live_formatter_acceptance_lanes_resolve_to_ci_and_carriers(consumer: Any) ->
         assert carrier.get("kind") == "pytest", carrier
         assert "--collect-only" in str(carrier.get("command", "")), carrier
         _assert_carrier_path_exists(context, lane)
+
+
+@then("every live formatter acceptance carrier should include every feature selected by tox")
+def live_formatter_acceptance_carriers_include_tox_features(consumer: Any) -> None:
+    context = _context(consumer)
+    tox_config = configparser.ConfigParser(interpolation=None)
+    tox_path = context.repository_root / "tox.ini"
+    assert tox_config.read(tox_path, encoding="utf-8"), f"could not read tox configuration: {tox_path}"
+    tox_section = "testenv:py313-live-formatters-acceptance-{lin,mac,win}"
+    assert tox_config.has_option(tox_section, "commands"), f"tox section {tox_section!r} has no command"
+    tox_feature_paths = _feature_arguments(tox_config.get(tox_section, "commands"))
+    assert tox_feature_paths, f"tox section {tox_section!r} selects no feature files"
+
+    lanes = [lane for lane in _lanes(context) if lane.get("capability") == "live-formatters-acceptance"]
+    expected_lane_ids = {
+        "live-formatters-acceptance-linux",
+        "live-formatters-acceptance-macos",
+        "live-formatters-acceptance-windows",
+    }
+    assert {_lane_id(lane) for lane in lanes} == expected_lane_ids, lanes
+    assert len(lanes) == len(expected_lane_ids), lanes
+    lanes_by_platform = {str(lane.get("platform", "")).casefold(): lane for lane in lanes}
+    assert set(lanes_by_platform) == {"linux", "macos", "windows"}, lanes
+
+    for platform_name, lane in lanes_by_platform.items():
+        carrier = _carrier(lane)
+        carrier_command = carrier.get("command")
+        assert isinstance(carrier_command, str) and carrier_command, (platform_name, carrier)
+        missing = tox_feature_paths - _feature_arguments(carrier_command)
+        assert not missing, (
+            f"live formatter acceptance carrier for {platform_name} omits tox-selected feature files: "
+            f"{sorted(missing)}"
+        )
 
 
 @then("the aggregate proof job should require and download live formatter acceptance evidence")
