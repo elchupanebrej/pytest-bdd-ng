@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import re
@@ -71,6 +72,7 @@ Feature: Cucumber JUnit report café
 
     @junit-outline-tag
     Scenario Outline: A profile row for <customer>
+      Outline description marker.
       Given junit row <customer> is started
       Then junit row <customer> passes
 
@@ -369,9 +371,7 @@ def _run_junit_pytest(consumer: Any, arguments: str) -> subprocess.CompletedProc
     finally:
         readonly_state = consumer._cucumber_junit_readonly_directory
         if readonly_state is not None:
-            directory, original_mode = readonly_state
-            directory.chmod(original_mode)
-            consumer._cucumber_junit_readonly_directory = None
+            _restore_cucumber_junit_parent_permissions(consumer, readonly_state)
     consumer.cucumber_junit_result = result
     consumer.pytest_result = result
     return result
@@ -514,6 +514,43 @@ def _write_deterministic_junit_messages(consumer: Any) -> Path:
 
 def _assert_junit_rich_report(consumer: Any, relative_path: str) -> None:
     root, cases = _read_junit(consumer, relative_path)
+    suite = root if root.tag == "testsuite" else root.find("testsuite")
+    assert suite is not None, ET.tostring(root, encoding="unicode")
+    properties = suite.find("properties")
+    assert properties is not None, ET.tostring(suite, encoding="unicode")
+    document_prefix = "cucumber.file%3Acucumber-junit-consumer.feature.document.0"
+    scenario_prefix = f"{document_prefix}.scenario.0.A%20described%20structured%20profile"
+    outline_prefix = f"{document_prefix}.outline.1.A%20profile%20row%20for%20%3Ccustomer%3E"
+    examples_prefix = f"{outline_prefix}.examples.0.Named%20customer%20rows"
+    expected_values = {
+        f"{document_prefix}.feature.uri": "file:cucumber-junit-consumer.feature",
+        f"{document_prefix}.feature.description": "Feature description marker café.",
+        f"{document_prefix}.feature.tags": ["@junit-feature-tag"],
+        f"{document_prefix}.rule.0.Customer%20profiles.description": "Rule description marker.",
+        f"{document_prefix}.rule.0.Customer%20profiles.tags": ["@junit-rule-tag"],
+        f"{scenario_prefix}.description": "Scenario description marker.",
+        f"{scenario_prefix}.tags": ["@junit-rule-tag", "@junit-scenario-tag"],
+        f"{scenario_prefix}.step.0.docString":
+            '{"customer": "Ada", "note": "document-body-marker café"}',
+        f"{scenario_prefix}.step.1.dataTable": [
+            ["field", "value"],
+            ["customer", "Ada"],
+            ["note", "table-body-marker"],
+        ],
+        f"{outline_prefix}.description": "Outline description marker.",
+        f"{outline_prefix}.tags": ["@junit-rule-tag", "@junit-outline-tag"],
+        f"{examples_prefix}.table": [["customer"], ["Ada"], ["Boris"]],
+    }
+    property_nodes = properties.findall("property")
+    values = {property_node.get("name"): property_node.get("value") for property_node in property_nodes}
+    assert len(property_nodes) == len(expected_values), (property_nodes, expected_values)
+    assert set(values) == set(expected_values), (values, expected_values)
+    for name, expected in expected_values.items():
+        actual = values.get(name)
+        if isinstance(expected, list):
+            assert actual is not None and json.loads(actual) == expected, (name, actual, expected, values)
+        else:
+            assert actual == expected, (name, actual, expected, values)
     assert len(cases) == 3, ET.tostring(root, encoding="unicode")
     assert root.get("tests", "3") == "3", root.attrib
     assert root.get("failures", "0") == "0", root.attrib
@@ -555,6 +592,26 @@ def _assert_junit_rich_report(consumer: Any, relative_path: str) -> None:
         output = row.findtext("system-out", default="")
         assert f"junit row {customer} is started" in output, output
         assert f"junit row {customer} passes" in output, output
+
+
+def _restore_cucumber_junit_parent_permissions(consumer: Any, state: tuple[Any, ...]) -> None:
+    directory, original_mode, sid = state
+    if sid is None:
+        directory.chmod(original_mode)
+    else:
+        icacls = shutil.which("icacls.exe") or shutil.which("icacls")
+        assert icacls is not None, "Windows icacls is required to restore the JUnit destination ACL"
+        restored = subprocess.run(
+            [icacls, str(directory), "/remove:d", f"*{sid}"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+        )
+        assert restored.returncode == 0, f"could not restore the JUnit destination ACL:\n{restored.stdout}\n{restored.stderr}"
+    consumer._cucumber_junit_readonly_directory = None
 
 
 def _set_junit_ini(consumer: Any, relative_path: str) -> None:
@@ -823,10 +880,50 @@ def duplicate_junit_destination_preflights(consumer: Any) -> None:
 
 @given("the Cucumber JUnit consumer output parent is read-only")
 def make_cucumber_junit_parent_read_only(consumer: Any) -> None:
-    if os.name == "nt":
-        pytest.skip("chmod does not make directories reliably unwritable on Windows")
     directory = consumer._cucumber_junit_workspace / "read-only"
     directory.mkdir(exist_ok=True)
+    if os.name == "nt":
+        icacls = shutil.which("icacls.exe") or shutil.which("icacls")
+        whoami = shutil.which("whoami.exe") or shutil.which("whoami")
+        assert icacls is not None, "Windows icacls is required to prove an unwritable JUnit destination"
+        assert whoami is not None, "Windows whoami is required to identify the current ACL principal"
+        identity = subprocess.run(
+            [whoami, "/user", "/fo", "csv", "/nh"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+        )
+        assert identity.returncode == 0, f"could not identify the current Windows user:\n{identity.stdout}\n{identity.stderr}"
+        rows = list(csv.reader(identity.stdout.splitlines()))
+        assert rows and len(rows[0]) >= 2, identity.stdout
+        sid = rows[0][-1].strip()
+        assert re.fullmatch(r"S-1(?:-\d+)+", sid), identity.stdout
+        denied = subprocess.run(
+            [icacls, str(directory), "/deny", f"*{sid}:(WD,AD)"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+        )
+        assert denied.returncode == 0, f"could not deny writes to the JUnit output parent:\n{denied.stdout}\n{denied.stderr}"
+        state = (directory, None, sid)
+        consumer._cucumber_junit_readonly_directory = state
+        try:
+            (directory / ".write-permission-probe").write_text("probe", encoding="utf-8")
+        except PermissionError:
+            return
+        except OSError as error:
+            _restore_cucumber_junit_parent_permissions(consumer, state)
+            raise AssertionError(f"the Windows ACL probe failed for an unexpected reason: {error}") from error
+        else:
+            _restore_cucumber_junit_parent_permissions(consumer, state)
+            raise AssertionError("the denied Windows JUnit output ACL still permits creating files")
+
     original_mode = stat.S_IMODE(directory.stat().st_mode)
     directory.chmod(original_mode & ~0o222)
     try:
@@ -838,7 +935,7 @@ def make_cucumber_junit_parent_read_only(consumer: Any) -> None:
         probe.unlink()
         directory.chmod(original_mode)
         pytest.skip("filesystem does not enforce read-only directory permissions")
-    consumer._cucumber_junit_readonly_directory = (directory, original_mode)
+    consumer._cucumber_junit_readonly_directory = (directory, original_mode, None)
 
 
 @then("the unwritable Cucumber JUnit destination should fail before the marker scenario runs")

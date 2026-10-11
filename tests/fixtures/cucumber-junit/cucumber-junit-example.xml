@@ -1,5 +1,18 @@
 <?xml version="1.0"?>
 <testsuite errors="0" failures="0" name="Cucumber" skipped="0" tests="2" time="10">
+  <properties>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.feature.uri" value="file:cucumber-junit-example.feature"></property>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.feature.description" value="This example records structured customer profiles in JUnit XML."></property>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.feature.tags" value="[&quot;@public-junit&quot;]"></property>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.rule.0.Customer%20profiles.description" value="Profiles keep their structured inputs available to the report."></property>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.rule.0.Customer%20profiles.tags" value="[&quot;@profile-rule&quot;]"></property>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.outline.0.Submit%20a%20profile%20for%20%3Ccustomer%3E.description" value="The report identifies the submitted customer."></property>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.outline.0.Submit%20a%20profile%20for%20%3Ccustomer%3E.tags" value="[&quot;@profile-rule&quot;,&quot;@customer-profile&quot;]"></property>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.outline.0.Submit%20a%20profile%20for%20%3Ccustomer%3E.step.0.docString" value="{&quot;customer&quot;: &quot;&lt;customer>&quot;, &quot;active&quot;: true}"></property>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.outline.0.Submit%20a%20profile%20for%20%3Ccustomer%3E.step.1.dataTable" value="[[&quot;field&quot;,&quot;value&quot;],[&quot;customer&quot;,&quot;&lt;customer>&quot;],[&quot;active&quot;,&quot;true&quot;]]"></property>
+    <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.outline.0.Submit%20a%20profile%20for%20%3Ccustomer%3E.examples.0.named%20profiles.table" value="[[&quot;customer&quot;],[&quot;Ada&quot;],[&quot;Boris&quot;]]"></property>
+  </properties>
+
   <testcase classname="Cucumber JUnit example café" name="Customer profiles - Submit a profile for &lt;customer> - named profiles - #1.1: Submit a profile for &lt;customer>[table_rows:[line: 30]]" time="2">
     <system-out>Given the Cucumber JUnit example prepares a profile.........................passed
 Given the Cucumber JUnit example confirms its profile setup.................passed
