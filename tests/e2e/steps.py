@@ -748,6 +748,8 @@ def run_consumer_pytest(arguments, consumer: ConsumerProject):
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     consumer.pytest_result = result
     return result
@@ -778,6 +780,8 @@ def run_consumer_pytest_from_consumer_directory(working_directory, arguments, co
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
     consumer.pytest_result = result
     return result
