@@ -10,6 +10,75 @@ Feature: Aggregate the full supported environment proof
     And the proof summary should preserve actual evidence for every environment
     And the proof summary should preserve Linux Windows and macOS runner evidence
 
+  Scenario: Live formatter acceptance outcomes appear in the aggregate proof
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And it should preserve passed live formatter acceptance outcomes for Linux macOS and Windows
+    And it should preserve actual Node npm npx Allure CLI and tox-local uv evidence for live formatters
+
+  Scenario: The aggregator rejects live formatter evidence without a required Node.js version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one live formatter environment omits its required Node.js version
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for missing live formatter system tool versions
+
+  Scenario: The aggregator rejects live formatter evidence without its tox-local uv version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one live formatter environment omits its required uv version
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for a missing live formatter uv version diagnostic
+
+  Scenario: The aggregator rejects live formatter evidence with uv outside its tox environment
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one live formatter environment records uv outside its tox environment
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for a uv command outside its tox environment diagnostic
+
+  Scenario: The aggregator rejects full-matrix coverage evidence without tox-local uv proof
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one full-matrix coverage environment omits its tox-local uv version and another omits its uv command
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with actionable full-matrix coverage uv diagnostics
+
+  Scenario: The live formatter runner captures versions through Windows command shims
+    When the live formatter runner captures required system tool versions
+    Then it should record Node npm npx Allure CLI and tox-local uv versions using resolved argv commands
+
+  Scenario: Native parser proof preserves Go and compiler versions and commands on every platform
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And it should preserve Go and native compiler versions and commands for Linux macOS and Windows
+
+  Scenario: The aggregator rejects native parser evidence without its Go version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one native parser environment omits its required Go version
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for a missing Go version diagnostic
+
+  Scenario: The aggregator rejects native parser evidence without its compiler version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one native parser environment omits its required compiler version
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for a missing native compiler version diagnostic
+
+  Scenario: The aggregator rejects native parser evidence without its Go version command
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one native parser environment omits its resolved Go version command
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for a missing Go version command diagnostic
+
+  Scenario: The aggregator rejects native parser evidence without its compiler version command
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one native parser environment omits its resolved compiler version command
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for a missing native compiler version command diagnostic
+
+  Scenario: The native parser runner records platform-specific compiler commands
+    When the native parser runner captures toolchain evidence for Linux macOS and Windows
+    Then it should record Go and native compiler versions and invocation commands
+
   Scenario: The aggregator accepts complete and interrupted runtime evidence from every remote transport
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
     When I run the full environment proof aggregator

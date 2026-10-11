@@ -54,6 +54,14 @@ Feature: Supported environment inventory and acceptance proof
     And the inventory should include socket via and SSH lanes with real report carriers
     And native and formatter lanes should name their test carriers and prerequisites
 
+  Scenario: Live formatter acceptance uses inventory selected lanes on every platform
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    Given the repository environment inventory is loaded
+    When I run the project environment inventory check in JSON mode
+    Then live formatter acceptance should have resolved required lanes for Linux macOS and Windows
+    And each live formatter acceptance lane should resolve to its selected CI cell and test carrier
+    And the aggregate proof job should require and download live formatter acceptance evidence
+
   Scenario: The doc-generation extra has a dedicated required lane
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     And the repository environment inventory is loaded

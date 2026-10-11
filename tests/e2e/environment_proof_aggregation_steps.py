@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import re
@@ -31,7 +32,9 @@ _OPTIONAL_VERSION_KEYS = (
 _PLAYWRIGHT_REPORT_ENV = "py314-pytestlatest-playwright-report"
 _PLAYWRIGHT_REPORT_PACKAGES = ("allure-pytest", "pytest-xdist", "gherkin-official", "playwright")
 _DOC_GENERATION_PACKAGES = ("pandoc", "panflute", "pycmarkgfm", "pypandoc")
-_SYSTEM_TOOL_VERSION_KEYS = ("pandoc",)
+_FORMATTER_SYSTEM_TOOL_VERSION_KEYS = ("node", "npm", "npx", "allure-cli", "uv")
+_NATIVE_SYSTEM_TOOL_VERSION_KEYS = ("go", "native-compiler")
+_SYSTEM_TOOL_VERSION_KEYS = (*_FORMATTER_SYSTEM_TOOL_VERSION_KEYS, "pandoc", *_NATIVE_SYSTEM_TOOL_VERSION_KEYS)
 _PLATFORM_NAMES = {"linux": "linux", "macos": "darwin", "windows": "win32"}
 _REMOTE_MODES = {"remote-socket": "socket", "remote-via": "via", "remote-ssh": "ssh"}
 _PROOF_SHA = "a" * 40
@@ -73,7 +76,7 @@ def _group_for(job: str, tox_environment: str) -> str:
         return "serial"
     if job == "full-matrix":
         return "parallel" if "xdist" in tox_environment else "serial"
-    if job in {"browser-report", "native-go-parser"}:
+    if job in {"browser-report", "live-formatters-acceptance", "native-go-parser"}:
         return "e2e"
     if job == "remote":
         return "external"
@@ -109,11 +112,74 @@ def _optional_versions(tox_environment: str) -> dict[str, str | None]:
     }
 
 
-def _system_tool_versions(tox_environment: str) -> dict[str, str | None]:
+def _system_tool_versions(tox_environment: str, platform_name: str | None = None) -> dict[str, str | None]:
     versions: dict[str, str | None] = dict.fromkeys(_SYSTEM_TOOL_VERSION_KEYS, None)
     if "doc-gen" in tox_environment:
         versions["pandoc"] = "3.6.4"
+    if "-coverage-" in tox_environment or "live-formatters-acceptance" in tox_environment:
+        versions["uv"] = "0.8.22"
+    if "live-formatters-acceptance" in tox_environment:
+        versions.update(
+            {
+                "node": "v22.20.0",
+                "npm": "10.9.3",
+                "npx": "10.9.3",
+                "allure-cli": "3.20.0",
+            }
+        )
+    if "native-go-parser" in tox_environment:
+        versions.update(
+            {
+                "go": "go1.24.2",
+                "native-compiler": "17.0.0" if platform_name == "macos" else "14.2.0",
+            }
+        )
     return versions
+
+
+def _system_tool_commands(tox_environment: str, platform_name: str) -> dict[str, dict[str, Any] | None]:
+    commands: dict[str, dict[str, Any] | None] = dict.fromkeys(_SYSTEM_TOOL_VERSION_KEYS, None)
+
+    def record(tool: str, executable: str, arguments: list[str]) -> None:
+        commands[tool] = {"executable": executable, "argv": [executable, *arguments]}
+
+    if "doc-gen" in tox_environment:
+        pandoc = (
+            r"C:\Program Files\Pandoc\pandoc.exe"
+            if platform_name == "windows"
+            else ("/opt/homebrew/bin/pandoc" if platform_name == "macos" else "/usr/bin/pandoc")
+        )
+        record("pandoc", pandoc, ["--version"])
+    if "live-formatters-acceptance" in tox_environment:
+        for tool, executable, arguments in (
+            ("node", "node", ["--version"]),
+            ("npm", "npm", ["--version"]),
+            ("npx", "npx", ["--version"]),
+            ("allure-cli", "npx", ["--yes", "allure@3.20.0", "--version"]),
+        ):
+            if platform_name == "windows":
+                suffix = ".exe" if executable == "node" else ".cmd"
+                resolved = rf"C:\Program Files\nodejs\{executable}{suffix}"
+            elif platform_name == "macos":
+                resolved = f"/opt/homebrew/bin/{executable}"
+            else:
+                resolved = f"/usr/bin/{executable}"
+            record(tool, resolved, arguments)
+    if "live-formatters-acceptance" in tox_environment or "-coverage-" in tox_environment:
+        if platform_name == "windows":
+            uv_executable = rf"C:\synthetic\project\.tox\{tox_environment}\Scripts\uv.exe"
+        else:
+            uv_executable = f"/synthetic/project/.tox/{tox_environment}/bin/uv"
+        record("uv", uv_executable, ["--version"])
+    if "native-go-parser" in tox_environment:
+        if platform_name == "windows":
+            record("go", r"C:\Go\bin\go.exe", ["version"])
+            record("native-compiler", r"C:\msys64\mingw64\bin\gcc.exe", ["--version"])
+        else:
+            record("go", "/usr/local/go/bin/go", ["version"])
+            compiler = "/usr/bin/cc"
+            record("native-compiler", compiler, ["--version"])
+    return commands
 
 
 def _remote_worker_runs(
@@ -222,7 +288,8 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
                 "selected_tests": 1 if group in _TEST_GROUPS else None,
                 "passed_tests": 1 if group in _TEST_GROUPS else None,
                 "optional_versions": optional_versions,
-                "system_tool_versions": _system_tool_versions(tox_environment),
+                "system_tool_versions": _system_tool_versions(tox_environment, expected_platform),
+                "system_tool_commands": _system_tool_commands(tox_environment, expected_platform),
                 "platform": f"synthetic-{expected_platform}",
                 "platform_name": platform_name,
                 "result_json": f"tox-results/{tox_environment}.json",
@@ -277,6 +344,22 @@ def _first_remote_artifact(context: ProofAggregationContext) -> EvidenceArtifact
     artifact = next((item for item in context.artifacts if item.job == "remote"), None)
     assert artifact is not None, "the inventory must contain a remote transport environment"
     return artifact
+
+
+def _first_native_parser_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
+    artifact = next((item for item in context.artifacts if item.job == "native-go-parser"), None)
+    assert artifact is not None, "the inventory must contain a native Go parser environment"
+    return artifact
+
+
+def _full_matrix_coverage_artifacts(context: ProofAggregationContext) -> list[EvidenceArtifact]:
+    artifacts = [
+        item
+        for item in context.artifacts
+        if item.job == "full-matrix" and "-coverage-" in item.tox_environment
+    ]
+    assert len(artifacts) >= 2, "the inventory must contain at least two full-matrix coverage environments"
+    return artifacts
 
 
 def _doc_generation_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
@@ -550,6 +633,121 @@ def remove_doc_generation_pandoc_cli_version(proof_aggregation: ProofAggregation
     _mutate_environment(artifact, mutate)
 
 
+@given("one live formatter environment omits its required Node.js version")
+def omit_live_formatter_node_version(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = next(
+        (item for item in proof_aggregation.artifacts if item.job == "live-formatters-acceptance"),
+        None,
+    )
+    assert artifact is not None, "the inventory must contain a live formatter acceptance environment"
+
+    def mutate(environment: dict[str, Any]) -> None:
+        versions = environment.get("system_tool_versions")
+        assert isinstance(versions, dict) and isinstance(versions.get("node"), str), environment
+        versions.pop("node")
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("one live formatter environment omits its required uv version")
+def omit_live_formatter_uv_version(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = next(
+        (item for item in proof_aggregation.artifacts if item.job == "live-formatters-acceptance"),
+        None,
+    )
+    assert artifact is not None, "the inventory must contain a live formatter acceptance environment"
+
+    def mutate(environment: dict[str, Any]) -> None:
+        versions = environment.get("system_tool_versions")
+        assert isinstance(versions, dict) and isinstance(versions.get("uv"), str), environment
+        versions["uv"] = None
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("one live formatter environment records uv outside its tox environment")
+def record_live_formatter_uv_outside_tox_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = next(
+        (item for item in proof_aggregation.artifacts if item.job == "live-formatters-acceptance"),
+        None,
+    )
+    assert artifact is not None, "the inventory must contain a live formatter acceptance environment"
+
+    def mutate(environment: dict[str, Any]) -> None:
+        commands = environment.get("system_tool_commands")
+        assert isinstance(commands, dict) and isinstance(commands.get("uv"), dict), environment
+        commands["uv"] = {"executable": "/usr/bin/uv", "argv": ["/usr/bin/uv", "--version"]}
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("one full-matrix coverage environment omits its tox-local uv version and another omits its uv command")
+def omit_full_matrix_coverage_uv_evidence(proof_aggregation: ProofAggregationContext) -> None:
+    version_artifact, command_artifact = _full_matrix_coverage_artifacts(proof_aggregation)[:2]
+    assert version_artifact != command_artifact
+
+    def omit_version(environment: dict[str, Any]) -> None:
+        versions = environment.get("system_tool_versions")
+        assert isinstance(versions, dict) and isinstance(versions.get("uv"), str), environment
+        versions["uv"] = None
+
+    def omit_command(environment: dict[str, Any]) -> None:
+        commands = environment.get("system_tool_commands")
+        assert isinstance(commands, dict) and isinstance(commands.get("uv"), dict), environment
+        commands["uv"] = None
+
+    _mutate_environment(version_artifact, omit_version)
+    _mutate_environment(command_artifact, omit_command)
+
+
+@given("one native parser environment omits its required Go version")
+def omit_native_parser_go_version(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_native_parser_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        versions = environment.get("system_tool_versions")
+        assert isinstance(versions, dict) and isinstance(versions.get("go"), str), environment
+        versions["go"] = None
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("one native parser environment omits its required compiler version")
+def omit_native_parser_compiler_version(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_native_parser_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        versions = environment.get("system_tool_versions")
+        assert isinstance(versions, dict) and isinstance(versions.get("native-compiler"), str), environment
+        versions["native-compiler"] = None
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("one native parser environment omits its resolved Go version command")
+def omit_native_parser_go_version_command(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_native_parser_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        commands = environment.get("system_tool_commands")
+        assert isinstance(commands, dict) and isinstance(commands.get("go"), dict), environment
+        commands.pop("go")
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("one native parser environment omits its resolved compiler version command")
+def omit_native_parser_compiler_version_command(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_native_parser_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        commands = environment.get("system_tool_commands")
+        assert isinstance(commands, dict) and isinstance(commands.get("native-compiler"), dict), environment
+        commands.pop("native-compiler")
+
+    _mutate_environment(artifact, mutate)
+
+
 @given("one tox test result has a zero return code but no command")
 def remove_command_from_successful_tox_test_result(proof_aggregation: ProofAggregationContext) -> None:
     artifact = _first_test_artifact(proof_aggregation)
@@ -659,6 +857,7 @@ def proof_summary_preserves_actual_environment_evidence(proof_aggregation: Proof
         "pytest",
         "optional_versions",
         "system_tool_versions",
+        "system_tool_commands",
         "command",
         "selected_tests",
         "passed_tests",
@@ -674,6 +873,9 @@ def proof_summary_preserves_actual_environment_evidence(proof_aggregation: Proof
         system_tool_versions = actual.get("system_tool_versions")
         assert isinstance(system_tool_versions, dict), (key, actual)
         assert set(system_tool_versions) == set(_SYSTEM_TOOL_VERSION_KEYS), (key, system_tool_versions)
+        system_tool_commands = actual.get("system_tool_commands")
+        assert isinstance(system_tool_commands, dict), (key, actual)
+        assert set(system_tool_commands) == set(_SYSTEM_TOOL_VERSION_KEYS), (key, system_tool_commands)
         if expected["group"] in _TEST_GROUPS:
             assert isinstance(actual.get("pytest"), str), (key, actual)
             assert actual.get("selected_tests", 0) > 0, (key, actual)
@@ -687,6 +889,336 @@ def proof_summary_preserves_supported_platform_runner_evidence(proof_aggregation
     platform_names = {environment.get("platform_name") for environment in environments if isinstance(environment, dict)}
     expected_platforms = {"linux", "win32", "darwin"}
     assert expected_platforms <= platform_names, (expected_platforms, platform_names)
+
+
+@then("it should preserve passed live formatter acceptance outcomes for Linux macOS and Windows")
+def proof_summary_preserves_live_formatter_acceptance_outcomes(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    records = [
+        environment
+        for environment in environments
+        if isinstance(environment, dict) and environment.get("job") == "live-formatters-acceptance"
+    ]
+    expected = {
+        ("live-formatters-linux", "py313-live-formatters-acceptance-lin", "linux"),
+        ("live-formatters-macos", "py313-live-formatters-acceptance-mac", "darwin"),
+        ("live-formatters-windows", "py313-live-formatters-acceptance-win", "win32"),
+    }
+    observed = {
+        (environment.get("cell"), environment.get("tox_environment"), environment.get("platform_name"))
+        for environment in records
+    }
+    assert observed == expected, (observed, expected)
+    assert all(environment.get("group") == "e2e" for environment in records), records
+    assert all(environment.get("outcome") == "passed" for environment in records), records
+    assert all(environment.get("selected_tests", 0) > 0 for environment in records), records
+    assert all(environment.get("passed_tests", 0) > 0 for environment in records), records
+
+
+@then("it should preserve actual Node npm npx Allure CLI and tox-local uv evidence for live formatters")
+def proof_summary_preserves_live_formatter_system_tool_versions(
+    proof_aggregation: ProofAggregationContext,
+) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    records = [
+        environment
+        for environment in environments
+        if isinstance(environment, dict) and environment.get("job") == "live-formatters-acceptance"
+    ]
+    assert len(records) == 3, records
+    for environment in records:
+        versions = environment.get("system_tool_versions")
+        assert isinstance(versions, dict), environment
+        for tool in _FORMATTER_SYSTEM_TOOL_VERSION_KEYS:
+            assert isinstance(versions.get(tool), str) and versions[tool], (tool, environment)
+        commands = environment.get("system_tool_commands")
+        assert isinstance(commands, dict), environment
+        uv_command = commands.get("uv")
+        assert isinstance(uv_command, dict), environment
+        uv_executable = uv_command.get("executable")
+        assert isinstance(uv_executable, str), environment
+        expected_suffix = (
+            f"/.tox/{environment['tox_environment']}/scripts/uv.exe"
+            if environment.get("platform_name") == "win32"
+            else f"/.tox/{environment['tox_environment']}/bin/uv"
+        )
+        assert uv_executable.replace("\\", "/").casefold().endswith(expected_suffix.casefold()), (
+            uv_executable,
+            expected_suffix,
+        )
+        assert uv_command.get("argv") == [uv_executable, "--version"], uv_command
+
+
+@then("the proof summary should fail for missing live formatter system tool versions")
+def proof_summary_fails_for_missing_live_formatter_system_tool_versions(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'node' with an actual version" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for a missing live formatter uv version diagnostic")
+def proof_summary_fails_for_missing_live_formatter_uv_version(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'uv' with an actual version" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for a uv command outside its tox environment diagnostic")
+def proof_summary_fails_for_live_formatter_uv_outside_tox_environment(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'uv' with its resolved version command" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with actionable full-matrix coverage uv diagnostics")
+def proof_summary_fails_for_missing_full_matrix_coverage_uv_evidence(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    version_artifact, command_artifact = _full_matrix_coverage_artifacts(proof_aggregation)[:2]
+    stderr = proof_aggregation_result.stderr
+    version_prefix = (
+        f"{version_artifact.job}/{version_artifact.cell}/{version_artifact.tox_environment} "
+        "requires system tool 'uv' with an actual version; ensure the tox environment installs uv>=0.8"
+    )
+    command_prefix = (
+        f"{command_artifact.job}/{command_artifact.cell}/{command_artifact.tox_environment} "
+        "requires system tool 'uv' with its resolved version command; "
+        f"record the resolved executable from .tox/{command_artifact.tox_environment}/"
+    )
+    assert version_prefix in stderr, stderr
+    assert command_prefix in stderr, stderr
+
+
+@then("the proof summary should fail for a missing Go version diagnostic")
+def proof_summary_fails_for_missing_native_go_version(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'go' with an actual version" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for a missing native compiler version diagnostic")
+def proof_summary_fails_for_missing_native_compiler_version(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'native-compiler' with an actual version" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for a missing Go version command diagnostic")
+def proof_summary_fails_for_missing_native_go_version_command(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'go' with its resolved version command" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for a missing native compiler version command diagnostic")
+def proof_summary_fails_for_missing_native_compiler_version_command(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'native-compiler' with its resolved version command" in proof_aggregation_result.stderr
+
+
+@then("it should preserve Go and native compiler versions and commands for Linux macOS and Windows")
+def proof_summary_preserves_native_parser_toolchain_evidence(
+    proof_aggregation: ProofAggregationContext,
+) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    records = {
+        (environment.get("cell"), environment.get("platform_name")): environment
+        for environment in environments
+        if isinstance(environment, dict) and environment.get("job") == "native-go-parser"
+    }
+    expected_platforms = {
+        ("native-linux", "linux"),
+        ("native-macos", "darwin"),
+        ("native-windows", "win32"),
+    }
+    assert set(records) == expected_platforms, set(records)
+    for key, environment in records.items():
+        versions = environment.get("system_tool_versions")
+        commands = environment.get("system_tool_commands")
+        assert isinstance(versions, dict) and isinstance(commands, dict), (key, environment)
+        for tool in _NATIVE_SYSTEM_TOOL_VERSION_KEYS:
+            assert isinstance(versions.get(tool), str) and versions[tool], (key, tool, versions)
+            command = commands.get(tool)
+            assert isinstance(command, dict), (key, tool, commands)
+            executable = command.get("executable")
+            argv = command.get("argv")
+            assert isinstance(executable, str) and executable, (key, tool, command)
+            assert isinstance(argv, list) and all(isinstance(part, str) and part for part in argv), (
+                key,
+                tool,
+                command,
+            )
+            assert argv[0] == executable, (key, tool, command)
+            assert argv[-1] == ("version" if tool == "go" else "--version"), (key, tool, command)
+        compiler = commands["native-compiler"]["executable"].replace("\\", "/").rsplit("/", maxsplit=1)[-1].casefold()
+        if key[1] == "win32":
+            assert compiler.removesuffix(".exe") == "gcc", (key, compiler)
+        else:
+            assert compiler == "cc", (key, compiler)
+
+
+@when("the live formatter runner captures required system tool versions", target_fixture="formatter_tool_capture")
+def capture_live_formatter_system_tool_versions(request: Any, tmp_path: Path, monkeypatch: Any) -> dict[str, Any]:
+    monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
+    runner = importlib.import_module("run_env_matrix_cell")
+    executable_paths = {
+        "node": r"C:\Program Files\nodejs\node.exe",
+        "npm": r"C:\Program Files\nodejs\npm.cmd",
+        "npx": r"C:\Program Files\nodejs\npx.cmd",
+    }
+    monkeypatch.setattr(runner.shutil, "which", executable_paths.get)
+    calls: list[tuple[list[str], dict[str, Any]]] = []
+    outputs = {
+        ("node", ("--version",)): "v22.20.0\n",
+        ("npm", ("--version",)): "10.9.3\n",
+        ("npx", ("--version",)): "10.9.3\n",
+        ("npx", ("--yes", "allure@3.20.0", "--version")): "3.20.0\n",
+        ("uv", ("--version",)): "uv 0.8.22 (x86_64-pc-windows-msvc)\n",
+    }
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append((command, kwargs))
+        executable = command[0].replace("\\", "/").rsplit("/", maxsplit=1)[-1].casefold()
+        executable = executable.removesuffix(".cmd").removesuffix(".exe")
+        output = outputs[(executable, tuple(command[1:]))]
+        return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    tox_environment = "py313-live-formatters-acceptance-win"
+    tox_uv = tmp_path / ".tox" / tox_environment / "Scripts" / "uv.exe"
+    tox_uv.parent.mkdir(parents=True)
+    tox_uv.write_text("synthetic uv executable", encoding="utf-8")
+    versions, commands = runner._system_tool_evidence(tox_environment, "win32", project_root=tmp_path)
+    return {"versions": versions, "commands": commands, "calls": calls, "tox_uv": tox_uv}
+
+
+@then("it should record Node npm npx Allure CLI and tox-local uv versions using resolved argv commands")
+def formatter_runner_records_required_versions_with_argv(formatter_tool_capture: dict[str, Any]) -> None:
+    versions = formatter_tool_capture["versions"]
+    assert versions == {
+        "node": "v22.20.0",
+        "npm": "10.9.3",
+        "npx": "10.9.3",
+        "allure-cli": "3.20.0",
+        "uv": "0.8.22",
+        "pandoc": None,
+        "go": None,
+        "native-compiler": None,
+    }
+    commands = formatter_tool_capture["commands"]
+    for tool, expected_executable in (
+        ("node", r"C:\Program Files\nodejs\node.exe"),
+        ("npm", r"C:\Program Files\nodejs\npm.cmd"),
+        ("npx", r"C:\Program Files\nodejs\npx.cmd"),
+        ("allure-cli", r"C:\Program Files\nodejs\npx.cmd"),
+        ("uv", str(formatter_tool_capture["tox_uv"])),
+    ):
+        assert commands[tool] == {
+            "executable": expected_executable,
+            "argv": [
+                expected_executable,
+                *(["--yes", "allure@3.20.0", "--version"] if tool == "allure-cli" else ["--version"]),
+            ],
+        }, (tool, commands)
+    calls = formatter_tool_capture["calls"]
+    invoked_commands = {
+        (
+            command[0].replace("\\", "/").rsplit("/", maxsplit=1)[-1].casefold(),
+            tuple(command[1:]),
+        )
+        for command, _kwargs in calls
+    }
+    assert ("node.exe", ("--version",)) in invoked_commands, invoked_commands
+    assert ("npm.cmd", ("--version",)) in invoked_commands, invoked_commands
+    assert ("npx.cmd", ("--version",)) in invoked_commands, invoked_commands
+    assert ("npx.cmd", ("--yes", "allure@3.20.0", "--version")) in invoked_commands, invoked_commands
+    assert (formatter_tool_capture["tox_uv"].name, ("--version",)) in invoked_commands, invoked_commands
+    assert commands["uv"]["executable"] == str(formatter_tool_capture["tox_uv"]), commands
+    assert all(kwargs.get("shell", False) is False for _command, kwargs in calls), calls
+
+
+@when(
+    "the native parser runner captures toolchain evidence for Linux macOS and Windows",
+    target_fixture="native_toolchain_capture",
+)
+def capture_native_parser_toolchain_evidence(request: Any, monkeypatch: Any) -> dict[str, Any]:
+    monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
+    runner = importlib.import_module("run_env_matrix_cell")
+    tool_paths = {
+        "linux": {"go": "/usr/local/go/bin/go", "cc": "/usr/bin/cc"},
+        "darwin": {"go": "/usr/local/go/bin/go", "cc": "/usr/bin/cc"},
+        "win32": {"go": r"C:\Go\bin\go.exe", "gcc": r"C:\msys64\mingw64\bin\gcc.exe"},
+    }
+    outputs = {
+        ("go", ("version",)): "go version go1.24.2 linux/amd64\n",
+        ("cc", ("--version",)): "cc (GCC) 14.2.0\n",
+        ("gcc", ("--version",)): "x86_64-w64-mingw32-gcc.exe (GCC) 14.2.0\n",
+    }
+    results: dict[str, Any] = {}
+
+    for platform_name, executables in tool_paths.items():
+        monkeypatch.setattr(runner.shutil, "which", executables.get)
+        calls: list[tuple[list[str], dict[str, Any]]] = []
+
+        def fake_run(
+            command: list[str], _calls: list[tuple[list[str], dict[str, Any]]] = calls, **kwargs: Any
+        ) -> subprocess.CompletedProcess[str]:
+            _calls.append((command, kwargs))
+            executable = command[0].replace("\\", "/").rsplit("/", maxsplit=1)[-1].casefold()
+            executable = executable.removesuffix(".exe")
+            output = outputs[(executable, tuple(command[1:]))]
+            return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
+
+        monkeypatch.setattr(runner.subprocess, "run", fake_run)
+        versions, commands = runner._system_tool_evidence("native-go-parser", platform_name)
+        results[platform_name] = {"versions": versions, "commands": commands, "calls": calls}
+
+    return results
+
+
+@then("it should record Go and native compiler versions and invocation commands")
+def native_runner_records_toolchain_versions_and_commands(native_toolchain_capture: dict[str, Any]) -> None:
+    for platform_name, evidence in native_toolchain_capture.items():
+        versions = evidence["versions"]
+        commands = evidence["commands"]
+        assert versions["go"] == "go1.24.2", (platform_name, versions)
+        assert versions["native-compiler"] == "14.2.0", (platform_name, versions)
+        assert commands["go"]["argv"][1:] == ["version"], (platform_name, commands)
+        assert commands["native-compiler"]["argv"][1:] == ["--version"], (platform_name, commands)
+        compiler_name = commands["native-compiler"]["executable"].replace("\\", "/").rsplit("/", maxsplit=1)[-1]
+        if platform_name == "win32":
+            assert compiler_name.casefold().removesuffix(".exe") == "gcc", commands
+        else:
+            assert compiler_name == "cc", commands
+        assert all(kwargs.get("shell", False) is False for _command, kwargs in evidence["calls"]), evidence
 
 
 @then("the proof summary should preserve two-worker socket via and ssh runtime evidence")

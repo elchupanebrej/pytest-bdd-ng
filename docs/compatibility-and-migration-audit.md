@@ -137,6 +137,24 @@ Python dependencies and Pandoc. Dedicated browser, native and remote jobs
 install or verify their own prerequisites. xdist proof is reported as
 `parallel`, separately from serial runtime proof.
 
+The runtime tox environments install `uv>=0.8` because collected feature
+acceptance uses it to build and install isolated consumer projects. Each
+coverage environment records the version and resolved executable from its own
+tox environment; the aggregate rejects ambient uv paths or missing evidence.
+
+Live formatter acceptance has dedicated Linux, macOS and Windows cells. The
+portable Linux invocation is:
+
+    tox run -e py313-live-formatters-acceptance-lin
+
+The lane requires Node.js 22 with npm/npx and `uv>=0.8`. The workflow provisions
+Node.js, installs uv, and verifies npx by running the Allure CLI. This Linux
+invocation provides Linux evidence only. Proof runs each formatter environment's
+local `.tox/<environment>/bin/uv` or `.tox/<environment>/Scripts/uv.exe`, records
+the actual `uv --version` output and resolved executable path, and rejects
+evidence that points to a uv outside that tox environment. The Windows and macOS CPython 3.12
+support lanes retain their existing manual evidence disposition.
+
 Install the development and inventory tools, inspect resolved tox environments,
 and validate the inventory from the repository root:
 
@@ -176,8 +194,13 @@ The remote xdist environments require a working Docker Engine and Compose;
 the SSH mode also requires `ssh-keygen`. The browser-report environment requires
 Node.js/npm/npx and Chromium with its system libraries. The native Go parser
 environment requires Go and a C compiler; the Windows workflow installs MinGW
-before running it. Missing prerequisites fail the selected lane with the
-required tool named in the diagnostic.
+before running it. Each Linux and macOS proof cell records the output of
+`go version` and `cc --version`. Each Windows cell records `go version` and
+MinGW `gcc --version`. The aggregate keeps each resolved executable path and
+full argv for both version commands and fails if either tool version or
+command evidence is missing.
+Missing prerequisites fail the selected lane with the required tool named in
+the diagnostic.
 
 The fast pull-request selector is only a Linux CPython 3.13 feedback run:
 
@@ -189,13 +212,18 @@ test with Pandoc on pull requests and full proof runs. Full runtime tox commands
 exclude `e2e`, `external`, `typecheck` and `doc_gen`; dedicated browser, native
 and remote jobs run their own contracts and prerequisites.
 On push and manual workflow dispatch, the full runtime matrix, browser report,
-native parser, remote xdist and quality jobs upload JSON evidence tied to the
-workflow's exact Git SHA. Each record contains the tox environment, resolved
-command, selected test count where applicable, actual Python/pytest, optional
-package and required system tool versions, remote worker versions, selected and
-passed test counts, and outcome. The `aggregate-proof` job requires every inventory environment,
-including the `serial`, `parallel`, `e2e`, `external` and `quality` groups, and publishes
-`full-supported-proof-<sha>`. Missing, duplicated, mismatched or failed cell
+live formatter acceptance, native parser, remote xdist and quality jobs upload
+JSON evidence tied to the workflow's exact Git SHA. Each live formatter cell
+uploads its own artifact, and the `aggregate-proof` job includes those outcomes.
+Each record contains the tox environment, resolved command, selected test count
+where applicable, actual Python/pytest, optional package and required system
+tool versions, resolved system-tool executable paths and version-command argv,
+including the formatter tox-local uv command, remote worker versions, selected
+and passed test counts, and outcome. The
+`aggregate-proof` job requires every
+inventory environment, including the `serial`, `parallel`, `e2e`, `external`
+and `quality` groups, and publishes `full-supported-proof-<sha>`. Missing,
+duplicated, mismatched or failed cell
 evidence, and test lanes with no selected tests, fail the aggregate. The
 separate native-parser workflow remains available for pull requests and manual
 dispatch; push proof is collected by the main workflow.

@@ -14,7 +14,7 @@ project:
     rationale: "Fast feedback only; it is not a full-matrix acceptance result."
   evidence:
     command: "tox run --result-json tox-result.json -e <environment>"
-    fields: [git_sha, tox_environment, runtime, python, pytest, optional_versions, system_tool_versions, remote_worker_runs, command, selected_tests, passed_tests, outcome]
+    fields: [git_sha, tox_environment, runtime, python, pytest, optional_versions, system_tool_versions, system_tool_commands, remote_worker_runs, command, selected_tests, passed_tests, outcome]
     aggregate_groups: [serial, parallel, e2e, external, quality]
 
 support_ledger:
@@ -132,6 +132,27 @@ support_ledger:
   - id: added-tox-native-go-parser
     lane_id: native-go-parser-linux
     tox_env: native-go-parser
+    origin: added
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py313-live-formatters-acceptance-lin
+    lane_id: live-formatters-acceptance-linux
+    tox_env: py313-live-formatters-acceptance-lin
+    origin: added
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py313-live-formatters-acceptance-mac
+    lane_id: live-formatters-acceptance-macos
+    tox_env: py313-live-formatters-acceptance-mac
+    origin: added
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py313-live-formatters-acceptance-win
+    lane_id: live-formatters-acceptance-windows
+    tox_env: py313-live-formatters-acceptance-win
     origin: added
     disposition: required
     source_evidence:
@@ -996,6 +1017,27 @@ workflow_cells:
     platform: linux
     runner: ubuntu-latest
     tox_envs: [py314-pytestlatest-playwright-report]
+  - id: live-formatters-linux
+    job: live-formatters-acceptance
+    runtime: CPython
+    python: "3.13"
+    platform: linux
+    runner: ubuntu-latest
+    tox_envs: [py313-live-formatters-acceptance-lin]
+  - id: live-formatters-macos
+    job: live-formatters-acceptance
+    runtime: CPython
+    python: "3.13"
+    platform: macos
+    runner: macos-latest
+    tox_envs: [py313-live-formatters-acceptance-mac]
+  - id: live-formatters-windows
+    job: live-formatters-acceptance
+    runtime: CPython
+    python: "3.13"
+    platform: windows
+    runner: windows-latest
+    tox_envs: [py313-live-formatters-acceptance-win]
   - id: native-linux
     job: native-go-parser
     workflow: .github/workflows/main.yml
@@ -1510,6 +1552,78 @@ lanes:
         name: uv
         remedy: "install uv so the isolated report consumer can install its pinned adapter"
     expected_carrier: {kind: browser, path: features/compatibility/browser-report.feature, command: "python -m pytest --cuke-autoload -p tests.e2e.browser_report_steps --collect-only -q -m e2e features/compatibility/browser-report.feature"}
+  - id: live-formatters-acceptance-linux
+    status: required
+    runtime: CPython
+    python: "3.13"
+    pytest: latest
+    platform: linux
+    capability: live-formatters-acceptance
+    tox_env: py313-live-formatters-acceptance-lin
+    workflow_selector: live-formatters-linux
+    command: "tox run -e py313-live-formatters-acceptance-lin"
+    prerequisites:
+      - type: command
+        name: node
+        remedy: "install Node.js 22 and make node available on PATH"
+      - type: command
+        name: npm
+        remedy: "install Node.js 22 with npm available on PATH"
+      - type: command
+        name: npx
+        remedy: "install Node.js 22 with npm and npx available on PATH"
+      - type: python-package
+        name: uv
+        remedy: "install uv>=0.8 for isolated consumer package setup"
+    expected_carrier: {kind: pytest, path: features/live-cucumber-progress-bar.feature, command: "python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e features/live-cucumber-progress-bar.feature"}
+  - id: live-formatters-acceptance-macos
+    status: required
+    runtime: CPython
+    python: "3.13"
+    pytest: latest
+    platform: macos
+    capability: live-formatters-acceptance
+    tox_env: py313-live-formatters-acceptance-mac
+    workflow_selector: live-formatters-macos
+    command: "tox run -e py313-live-formatters-acceptance-mac"
+    prerequisites:
+      - type: command
+        name: node
+        remedy: "install Node.js 22 and make node available on PATH"
+      - type: command
+        name: npm
+        remedy: "install Node.js 22 with npm available on PATH"
+      - type: command
+        name: npx
+        remedy: "install Node.js 22 with npm and npx available on PATH"
+      - type: python-package
+        name: uv
+        remedy: "install uv>=0.8 for isolated consumer package setup"
+    expected_carrier: {kind: pytest, path: features/live-cucumber-progress-bar.feature, command: "python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e features/live-cucumber-progress-bar.feature"}
+  - id: live-formatters-acceptance-windows
+    status: required
+    runtime: CPython
+    python: "3.13"
+    pytest: latest
+    platform: windows
+    capability: live-formatters-acceptance
+    tox_env: py313-live-formatters-acceptance-win
+    workflow_selector: live-formatters-windows
+    command: "tox run -e py313-live-formatters-acceptance-win"
+    prerequisites:
+      - type: command
+        name: node
+        remedy: "install Node.js 22 and make node available on PATH"
+      - type: command
+        name: npm
+        remedy: "install Node.js 22 with npm available on PATH"
+      - type: command
+        name: npx
+        remedy: "install Node.js 22 with npm and npx available on PATH"
+      - type: python-package
+        name: uv
+        remedy: "install uv>=0.8 for isolated consumer package setup"
+    expected_carrier: {kind: pytest, path: features/live-cucumber-progress-bar.feature, command: "python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e features/live-cucumber-progress-bar.feature"}
   - id: allure-report
     status: required
     runtime: CPython
