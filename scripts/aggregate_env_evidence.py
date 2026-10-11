@@ -6,7 +6,7 @@ import argparse
 import json
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import yaml
@@ -19,6 +19,7 @@ from environment_evidence import (
     evidence_group,
     required_optional_versions,
     required_system_tool_versions,
+    system_tool_version_command,
 )
 
 
@@ -168,6 +169,60 @@ def _tox_installed_versions(entry: dict[str, Any]) -> dict[str, str]:
 def _platform_matches(expected_platform: str, observed_platform: Any) -> bool:
     expected_value = {"linux": "linux", "macos": "darwin", "windows": "win32"}.get(expected_platform)
     return expected_value is not None and observed_platform == expected_value
+
+
+def _system_tool_command_matches(
+    tool: str,
+    command: Any,
+    platform_name: str,
+    tox_environment: str,
+) -> bool:
+    if not isinstance(command, dict):
+        return False
+    executable = command.get("executable")
+    argv = command.get("argv")
+    if (
+        not isinstance(executable, str)
+        or not executable
+        or not (Path(executable).is_absolute() or PureWindowsPath(executable).is_absolute())
+        or not isinstance(argv, list)
+        or not argv
+        or any(not isinstance(part, str) or not part for part in argv)
+        or argv[0] != executable
+    ):
+        return False
+    try:
+        expected_executable, expected_arguments = system_tool_version_command(tool, platform_name)
+    except ValueError:
+        return False
+    observed_name = executable.replace("\\", "/").rsplit("/", maxsplit=1)[-1].casefold()
+    observed_name = observed_name.removesuffix(".exe").removesuffix(".cmd")
+    matches = observed_name == expected_executable.casefold() and argv[1:] == list(expected_arguments)
+    if not matches:
+        return False
+    if tool != "uv":
+        return True
+
+    path_parts = tuple(part.casefold() for part in PurePosixPath(executable.replace("\\", "/")).parts)
+    if platform_name == "win32":
+        expected_suffix = (".tox", tox_environment.casefold(), "scripts", "uv.exe")
+    else:
+        expected_suffix = (".tox", tox_environment.casefold(), "bin", "uv")
+    return path_parts[-len(expected_suffix) :] == expected_suffix
+
+
+def _system_tool_installation_hint(tool: str, platform_name: str) -> str:
+    if tool == "uv":
+        return "ensure the tox environment installs uv>=0.8 and its local uv --version succeeds"
+    if tool == "pandoc":
+        return "install Pandoc before running the documentation tox environment"
+    if tool == "go":
+        return "install Go and ensure `go version` succeeds"
+    if tool == "native-compiler" and platform_name == "win32":
+        return "install MinGW-w64 and ensure `gcc --version` succeeds"
+    if tool == "native-compiler":
+        return "install the platform C toolchain and ensure `cc --version` succeeds"
+    return "install Node.js with npm/npx and ensure `npx --yes allure@3.20.0 --version` succeeds"
 
 
 def _remote_worker_evidence_errors(
@@ -386,11 +441,43 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
             errors.append(f"{job}/{cell}/{tox_environment} is missing actual system tool versions")
             invalid_groups.add(expected_group)
         recorded_system_tool_versions = system_tool_versions if isinstance(system_tool_versions, dict) else {}
+        system_tool_commands = record.get("system_tool_commands")
+        if (
+            not isinstance(system_tool_commands, dict)
+            or not set(SYSTEM_TOOL_VERSION_KEYS) <= set(system_tool_commands)
+            or any(value is not None and not isinstance(value, dict) for value in system_tool_commands.values())
+        ):
+            errors.append(f"{job}/{cell}/{tox_environment} is missing resolved system tool version commands")
+            invalid_groups.add(expected_group)
+        recorded_system_tool_commands = system_tool_commands if isinstance(system_tool_commands, dict) else {}
         for tool in required_system_tool_versions(tox_environment):
             if not isinstance(recorded_system_tool_versions.get(tool), str) or not recorded_system_tool_versions[tool]:
+                installation_hint = _system_tool_installation_hint(tool, record.get("platform_name", ""))
                 errors.append(
                     f"{job}/{cell}/{tox_environment} requires system tool {tool!r} with an actual version; "
-                    "install Pandoc before running the documentation tox environment"
+                    f"{installation_hint}"
+                )
+                invalid_groups.add(expected_group)
+            platform_name = record.get("platform_name", "")
+            if not _system_tool_command_matches(
+                tool,
+                recorded_system_tool_commands.get(tool),
+                platform_name,
+                tox_environment,
+            ):
+                expected_executable, expected_arguments = system_tool_version_command(tool, platform_name)
+                expected_argv = " ".join((expected_executable, *expected_arguments))
+                if tool == "uv":
+                    environment_scripts = "Scripts/uv.exe" if platform_name == "win32" else "bin/uv"
+                    command_hint = (
+                        f"record the resolved executable from .tox/{tox_environment}/{environment_scripts} "
+                        f"and argv for {expected_argv}"
+                    )
+                else:
+                    command_hint = f"record the selected executable path and argv for {expected_argv}"
+                errors.append(
+                    f"{job}/{cell}/{tox_environment} requires system tool {tool!r} with its resolved version command; "
+                    f"{command_hint}"
                 )
                 invalid_groups.add(expected_group)
         if tox_result_entry is not None:
@@ -494,6 +581,7 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                     "pytest",
                     "optional_versions",
                     "system_tool_versions",
+                    "system_tool_commands",
                     "platform",
                     "platform_name",
                     "command",

@@ -11,7 +11,7 @@ from operator import attrgetter, methodcaller
 from os.path import normcase
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 from unittest.mock import patch
 from warnings import catch_warnings, simplefilter
 
@@ -310,11 +310,13 @@ def add_bdd_ini(parser: Parser) -> None:
     parser.addini("cuke_features_dir", "Base features directory.", default="features", type="string")
     parser.addini("cuke_features_base_url", "Base features URL.", default="", type="string")
     parser.addini("cuke_parser", "Gherkin parser backend: python, auto, or go.", default="auto", type="string")
+    batch_threshold_ini_type: Literal["int", "string"] = "int" if pytest.version_tuple >= (8, 4) else "string"
+    batch_threshold_ini_default = None if batch_threshold_ini_type == "int" else ""
     parser.addini(
         "cuke_batch_threshold",
         "Feature count at which collection switches to spawn-based batch parsing.",
-        default=None,
-        type="int",
+        default=batch_threshold_ini_default,
+        type=batch_threshold_ini_type,
     )
     parser.addini(
         "cuke_strict", "Reject empty parsed Feature and Scenario titles during collection.", default=False, type="bool"

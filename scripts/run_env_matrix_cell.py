@@ -21,9 +21,12 @@ from environment_evidence import (
     evidence_group,
     required_optional_versions,
     required_system_tool_versions,
+    system_tool_version_command,
 )
 
 _OPTIONAL_PACKAGES = ("pytest", *OPTIONAL_VERSION_KEYS)
+_VERSION_PATTERN = re.compile(r"(?<![\w.])v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(?![\w.])")
+_GO_VERSION_PATTERN = re.compile(r"\bgo\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b")
 
 
 def _installed_versions(python: Path) -> dict[str, Any]:
@@ -39,7 +42,8 @@ def _installed_versions(python: Path) -> dict[str, Any]:
             "print(json.dumps(payload))",
         )
     )
-    result = subprocess.run(  # noqa: S603 - executable is the tox environment's Python path
+    # The executable is resolved from the selected tox environment.
+    result = subprocess.run(  # noqa: S603
         [str(python), "-c", query], capture_output=True, text=True, check=False
     )
     if result.returncode:
@@ -47,23 +51,60 @@ def _installed_versions(python: Path) -> dict[str, Any]:
     return json.loads(result.stdout)
 
 
-def _system_tool_versions(tox_environment: str) -> dict[str, str | None]:
+def _system_tool_evidence(
+    tox_environment: str,
+    platform_name: str = sys.platform,
+    *,
+    project_root: Path | None = None,
+) -> tuple[dict[str, str | None], dict[str, dict[str, Any] | None]]:
     versions: dict[str, str | None] = dict.fromkeys(SYSTEM_TOOL_VERSION_KEYS, None)
+    commands: dict[str, dict[str, Any] | None] = dict.fromkeys(SYSTEM_TOOL_VERSION_KEYS, None)
     for tool in required_system_tool_versions(tox_environment):
-        executable = shutil.which(tool)
+        executable_name, arguments = system_tool_version_command(tool, platform_name)
+        if tool == "uv":
+            executable = _tox_uv_executable(project_root or Path.cwd(), tox_environment, platform_name)
+        else:
+            executable = shutil.which(executable_name)
         if executable is None:
             continue
+        argv = [executable, *arguments]
+        commands[tool] = {"executable": executable, "argv": argv}
         try:
-            result = subprocess.run(  # noqa: S603 - tool is selected from the fixed evidence contract
-                [executable, "--version"], capture_output=True, text=True, check=False
+            # The tool and arguments come from the fixed evidence contract.
+            result = subprocess.run(  # noqa: S603
+                argv, capture_output=True, text=True, check=False, timeout=120
             )
-        except OSError:
+        except (OSError, subprocess.TimeoutExpired):
             continue
-        output = result.stdout or result.stderr
-        first_line = output.splitlines()[0].strip() if output.splitlines() else ""
-        match = re.match(rf"^{re.escape(tool)}\s+([^\s]+)", first_line, flags=re.IGNORECASE)
-        if result.returncode == 0 and match:
-            versions[tool] = match.group(1)
+        if result.returncode != 0:
+            continue
+        output = f"{result.stdout}\n{result.stderr}"
+        version_pattern = _GO_VERSION_PATTERN if tool == "go" else _VERSION_PATTERN
+        match = version_pattern.search(output)
+        if match:
+            versions[tool] = match.group()
+    return versions, commands
+
+
+def _tox_uv_executable(project_root: Path, tox_environment: str, platform_name: str) -> str | None:
+    """Resolve uv only from the formatter environment whose evidence is being recorded."""
+    environment_root = project_root / ".tox" / tox_environment
+    if platform_name in {"win32", "windows"}:
+        candidate = environment_root / "Scripts" / "uv.exe"
+    else:
+        candidate = environment_root / "bin" / "uv"
+    try:
+        resolved_environment = environment_root.resolve(strict=True)
+        resolved_candidate = candidate.resolve(strict=True)
+        resolved_candidate.relative_to(resolved_environment)
+    except (OSError, ValueError):
+        return None
+    return str(resolved_candidate)
+
+
+def _system_tool_versions(tox_environment: str) -> dict[str, str | None]:
+    """Return only captured versions for callers that do not need invocation details."""
+    versions, _commands = _system_tool_evidence(tox_environment)
     return versions
 
 
@@ -137,7 +178,8 @@ def main() -> int:
         if args.job == "native-go-parser":
             command_environment["PYTEST_CUKE_BUILD_GO"] = "off"
         print(f"Running {' '.join(command)}", flush=True)
-        run = subprocess.run(  # noqa: S603 - command is generated from the validated inventory's tox env name
+        # The command is built from the validated inventory's tox environment name.
+        run = subprocess.run(  # noqa: S603
             command,
             cwd=project_root,
             env=command_environment,
@@ -172,6 +214,7 @@ def main() -> int:
                     file=sys.stderr,
                 )
 
+        system_tool_versions, system_tool_commands = _system_tool_evidence(env_name, project_root=project_root)
         environment_record: dict[str, Any] = {
             "git_sha": args.sha,
             "job": args.job,
@@ -181,7 +224,8 @@ def main() -> int:
             "command": command,
             "selected_tests": selected_tests,
             "passed_tests": passed_tests,
-            "system_tool_versions": _system_tool_versions(env_name),
+            "system_tool_versions": system_tool_versions,
+            "system_tool_commands": system_tool_commands,
             "outcome": "passed" if run.returncode == 0 else "failed",
             "returncode": run.returncode,
             "platform": platform.platform(),
@@ -228,6 +272,20 @@ def main() -> int:
                 print(
                     f"run-env-matrix: {env_name} is missing a version for required system tool(s): "
                     f"{', '.join(missing_system_tools)}",
+                    file=sys.stderr,
+                )
+            missing_system_tool_commands = [
+                tool
+                for tool in required_system_tool_versions(env_name)
+                if not environment_record["system_tool_commands"].get(tool)
+            ]
+            if missing_system_tool_commands:
+                environment_record["outcome"] = "failed"
+                environment_record["missing_system_tool_commands"] = missing_system_tool_commands
+                overall_status = "failed"
+                print(
+                    f"run-env-matrix: {env_name} is missing a resolved version command for required system tool(s): "
+                    f"{', '.join(missing_system_tool_commands)}",
                     file=sys.stderr,
                 )
         except (OSError, RuntimeError, json.JSONDecodeError) as error:

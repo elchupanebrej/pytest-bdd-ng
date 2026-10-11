@@ -15,6 +15,7 @@ jobs:
       full_matrix: ${{ steps.full.outputs.cells }}
       remote: ${{ steps.remote.outputs.cells }}
       browser_report: ${{ steps.browser.outputs.cells }}
+      live_formatters: ${{ steps.live_formatters.outputs.cells }}
       native: ${{ steps.native.outputs.cells }}
       quality: ${{ steps.quality.outputs.cells }}
     steps:
@@ -33,6 +34,9 @@ jobs:
       - id: browser
         name: Select browser report cells from the inventory
         run: python scripts/env_matrix.py --job browser-report --github-output
+      - id: live_formatters
+        name: Select live formatter acceptance cells from the inventory
+        run: python scripts/env_matrix.py --job live-formatters-acceptance --github-output
       - id: native
         name: Select native parser cells from the inventory
         run: python scripts/env_matrix.py --job native-go-parser --github-output
@@ -68,33 +72,40 @@ jobs:
         run: python -m pytest features/compatibility/environment-inventory.feature -m e2e -q
 
   live-formatters-acceptance:
-    name: Live formatter acceptance (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: Live formatter acceptance (${{ matrix.cell.platform }})
+    needs: matrix-select
+    runs-on: ${{ matrix.cell.runner }}
     timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        cell: ${{ fromJSON(needs.matrix-select.outputs.live_formatters) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.cell.python }}
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Install pytest-cuke and consumer tools
-        run: python -m pip install -e ".[test,struct-bdd]" "uv>=0.8"
+      - name: Install tox and the inventory reader
+        run: python -m pip install "tox>=4.2" "PyYAML==6.0.3" "uv>=0.8"
       - name: Verify the Allure 3 renderer used by native reporting acceptance
         run: npx --yes allure@3.20.0 --version
-      - name: Run the live formatter and native Allure BDD acceptance
+      - name: Run and record the selected live formatter acceptance cell
+        shell: bash
         run: >-
-          python -m pytest features/live-cucumber-progress-bar.feature
-          features/live-cucumber-snippets.feature features/live-cucumber-summary.feature
-          features/live-cucumber-json.feature features/live-cucumber-junit-xml.feature
-          features/live-cucumber-usage.feature features/live-cucumber-usage-json.feature
-          features/native-allure-reporting.feature
-          -m e2e -q
+          python scripts/run_env_matrix_cell.py
+          --job live-formatters-acceptance
+          --cell "${{ matrix.cell.id }}"
+          --sha "${{ github.sha }}"
+          --output "artifacts/evidence-live-formatters-${{ matrix.cell.id }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: env-evidence-live-formatters-${{ matrix.cell.id }}
+          path: artifacts/evidence-live-formatters-${{ matrix.cell.id }}.json
+          if-no-files-found: warn
 
   full-matrix:
     if: github.event_name != 'pull_request'
@@ -287,7 +298,7 @@ jobs:
 
   aggregate-proof:
     if: always() && github.event_name != 'pull_request'
-    needs: [matrix-select, full-matrix, remote, browser-report, native-go-parser, quality]
+    needs: [matrix-select, full-matrix, remote, browser-report, live-formatters-acceptance, native-go-parser, quality]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

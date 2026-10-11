@@ -267,9 +267,9 @@ def _install_inventory_checker_tools(consumer: Any) -> None:
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, (
-        f"could not install environment checker dependencies:\n{result.stdout}\n{result.stderr}"
-    )
+    assert (
+        result.returncode == 0
+    ), f"could not install environment checker dependencies:\n{result.stdout}\n{result.stderr}"
 
 
 @given("the repository environment inventory is loaded")
@@ -795,6 +795,93 @@ def native_and_formatter_lanes_name_carriers(consumer: Any) -> None:
             _assert_carrier_path_exists(_context(consumer), lane)
 
 
+@then("live formatter acceptance should have resolved required lanes for Linux macOS and Windows")
+def live_formatter_acceptance_has_required_platform_lanes(consumer: Any) -> None:
+    context = _context(consumer)
+    lanes = [lane for lane in _lanes(context) if lane.get("capability") == "live-formatters-acceptance"]
+    assert len(lanes) == 3, f"expected one live formatter acceptance lane per platform, found {lanes!r}"
+    assert {_status(lane) for lane in lanes} == {"required"}, lanes
+    assert {str(lane.get("platform", "")).casefold() for lane in lanes} == {"linux", "macos", "windows"}, lanes
+    assert all(_lane_id(lane) in _proof_lanes(context) for lane in lanes), lanes
+
+
+@then("each live formatter acceptance lane should resolve to its selected CI cell and test carrier")
+def live_formatter_acceptance_lanes_resolve_to_ci_and_carriers(consumer: Any) -> None:
+    context = _context(consumer)
+    report = _report(context)
+    cells = report.get("inventory", {}).get("workflowCells")
+    assert isinstance(cells, list), cells
+    cells_by_id = {cell.get("id"): cell for cell in cells if isinstance(cell, dict)}
+    proof_lanes = _proof_lanes(context)
+
+    for lane in _lanes(context):
+        if lane.get("capability") != "live-formatters-acceptance":
+            continue
+        lane_id = _lane_id(lane)
+        selector = lane.get("workflow_selector")
+        cell = cells_by_id.get(selector)
+        assert isinstance(cell, dict), (lane_id, selector, cells)
+        assert cell.get("job") == "live-formatters-acceptance", (lane, cell)
+        assert lane.get("tox_env") in cell.get("tox_envs", []), (lane, cell)
+
+        proof = proof_lanes.get(lane_id)
+        assert proof is not None, lane
+        assert proof.get("tox", {}).get("resolved") is True, proof
+        assert proof.get("ci", {}).get("selected") is True, proof
+        carrier = _carrier(lane)
+        assert carrier.get("kind") == "pytest", carrier
+        assert "--collect-only" in str(carrier.get("command", "")), carrier
+        _assert_carrier_path_exists(context, lane)
+
+
+@then("the aggregate proof job should require and download live formatter acceptance evidence")
+def aggregate_proof_requires_live_formatter_acceptance_evidence(consumer: Any) -> None:
+    context = _context(consumer)
+    workflow_path = context.repository_root / str(context.document["project"]["workflow"])
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    assert isinstance(workflow, dict), workflow_path
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict), workflow_path
+
+    formatter_job = jobs.get("live-formatters-acceptance")
+    assert isinstance(formatter_job, dict), "workflow must define the live formatter acceptance job"
+    formatter_steps = formatter_job.get("steps")
+    assert isinstance(formatter_steps, list), formatter_job
+    upload_steps = [
+        step for step in formatter_steps if isinstance(step, dict) and step.get("uses") == "actions/upload-artifact@v4"
+    ]
+    assert any(
+        isinstance(step.get("with"), dict)
+        and str(step["with"].get("name", "")).startswith("env-evidence-live-formatters-")
+        and "artifacts/evidence-live-formatters-" in str(step["with"].get("path", ""))
+        for step in upload_steps
+    ), "live formatter acceptance must upload its environment evidence artifact"
+
+    aggregate_job = jobs.get("aggregate-proof")
+    assert isinstance(aggregate_job, dict), "workflow must define the aggregate proof job"
+    needs = aggregate_job.get("needs")
+    assert isinstance(needs, list) and "live-formatters-acceptance" in needs, needs
+    aggregate_steps = aggregate_job.get("steps")
+    assert isinstance(aggregate_steps, list), aggregate_job
+    download_steps = [
+        step
+        for step in aggregate_steps
+        if isinstance(step, dict) and step.get("uses") == "actions/download-artifact@v4"
+    ]
+    assert any(
+        isinstance(step.get("with"), dict) and step["with"].get("pattern") == "env-evidence-*"
+        for step in download_steps
+    ), "aggregate proof must download environment evidence artifacts"
+    proof_runs = [
+        str(step.get("run", ""))
+        for step in aggregate_steps
+        if isinstance(step, dict) and "aggregate_env_evidence.py" in str(step.get("run", ""))
+    ]
+    assert any(
+        "--inventory config/env-matrix.yaml" in run and "--sha" in run for run in proof_runs
+    ), "aggregate proof must validate downloaded outcomes against the inventory and commit SHA"
+
+
 @when("I check a temporary inventory with an unresolved tox workflow selector and command")
 def check_inventory_with_unresolved_selectors(consumer: Any) -> None:
     context = _context(consumer)
@@ -973,9 +1060,9 @@ def wire_workflow_job_to_different_matrix_output(
     content = workflow_path.read_text(encoding="utf-8")
     expected_expression = "fromJSON(needs.matrix-select.outputs.full_matrix)"
     wrong_expression = "fromJSON(needs.matrix-select.outputs.remote)"
-    assert content.count(expected_expression) == 1, (
-        f"expected exactly one full-matrix selector in {workflow_path}, found {content.count(expected_expression)}"
-    )
+    assert (
+        content.count(expected_expression) == 1
+    ), f"expected exactly one full-matrix selector in {workflow_path}, found {content.count(expected_expression)}"
     content = content.replace(expected_expression, wrong_expression, 1)
     assert "fromJSON(needs." in content and wrong_expression in content, content
     workflow_path.write_text(content, encoding="utf-8")
@@ -1028,9 +1115,7 @@ def remove_github_output_flag_from_selector_step(
         f"found {content.count(selected_command)}"
     )
     content = content.replace(selected_command, command_without_export, 1)
-    changed_step = next(
-        line for line in content.splitlines() if "scripts/env_matrix.py --job full-matrix" in line
-    )
+    changed_step = next(line for line in content.splitlines() if "scripts/env_matrix.py --job full-matrix" in line)
     assert changed_step.strip() == f"run: python {command_without_export}", changed_step
     assert "--github-output" not in changed_step, changed_step
     workflow_path.write_text(content, encoding="utf-8")
@@ -1135,9 +1220,7 @@ def conflicting_lane_statuses_fail_actionably(
     diagnostic = matching[0]
     message = str(diagnostic.get("message", "")).casefold()
     remedy = str(diagnostic.get("remedy", "")).casefold()
-    assert all(dimension in message for dimension in ("cpython", "3.12", "windows", "manual-tox-coverage")), (
-        diagnostic
-    )
+    assert all(dimension in message for dimension in ("cpython", "3.12", "windows", "manual-tox-coverage")), diagnostic
     assert "7.3" in message and "7.4" in message, diagnostic
     assert "optional" in message and "unsupported" in message, diagnostic
     assert remedy and any(action in remedy for action in ("align", "merge", "change", "remove")), diagnostic
