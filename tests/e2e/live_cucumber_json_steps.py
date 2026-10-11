@@ -12,7 +12,6 @@ import shutil
 import stat
 import subprocess
 import xml.etree.ElementTree as ET
-from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -62,11 +61,6 @@ Feature: Cucumber JSON contract café
         | alpha |
         | bravo |
 '''
-_REPLAY_FEATURE = """\
-Feature: Cucumber JSON replay
-  Scenario: Saved messages are self contained
-    Given cuke json replay scenario passes
-"""
 _OUTCOMES_FEATURE = """\
 Feature: Cucumber JSON outcomes
   Scenario: A step passes
@@ -92,24 +86,14 @@ Feature: Cucumber JSON hook lifecycle
   Scenario: The marker records that execution began
     Given cuke json marker scenario starts
 """
-_REPLAY_SUPPORT = """\
-from pathlib import Path
+_REPLAY_TRAPS = """\
 
-import pytest
-from pytest_cuke import given
-
-ROOT = Path(__file__).parent
 (ROOT / "support-imported.marker").write_text("imported", encoding="utf-8")
 
 
 @pytest.fixture(autouse=True)
 def trap_fixture():
     (ROOT / "fixture-executed.marker").write_text("executed", encoding="utf-8")
-
-
-@given("cuke json replay scenario passes")
-def cuke_json_replay_scenario_passes():
-    pass
 """
 _SUPPORT = """\
 from pathlib import Path
@@ -243,7 +227,7 @@ def _prepare(consumer: Any, feature: str, *, replay_traps: bool = False) -> Path
     )
     _write(root, "features/cucumber-json-consumer.feature", feature)
     if replay_traps:
-        _write(root, "cucumber_json_consumer_steps.py", _REPLAY_SUPPORT)
+        _write(root, "cucumber_json_consumer_steps.py", _SUPPORT + _REPLAY_TRAPS)
         _write(root, "conftest.py", _CONFTST_REPLAY)
     else:
         _write(root, "cucumber_json_consumer_steps.py", _SUPPORT)
@@ -415,7 +399,22 @@ def _assert_rich_report(consumer: Any, relative_path: str) -> None:
     }, described
     described_steps = described.get("steps", [])
     step_names = [step.get("name") for step in described_steps]
-    assert step_names[:2] == ["cuke json shared background", "cuke json rule background"], described_steps
+    assert step_names == [
+        "cuke json shared background",
+        "cuke json rule background",
+        "cuke json accepts a document",
+        "cuke json accepts a table",
+        "cuke json response succeeds",
+        "cuke json response attaches a text report",
+    ], described_steps
+    assert [step.get("keyword", "").strip() for step in described_steps] == [
+        "Given",
+        "Given",
+        "When",
+        "And",
+        "Then",
+        "And",
+    ], described_steps
     background_locations = [step.get("line") for step in described_steps[:2]]
     expected_background_locations = [
         _feature_line(_RICH_FEATURE, "Given cuke json shared background"),
@@ -453,17 +452,31 @@ def _assert_rich_report(consumer: Any, relative_path: str) -> None:
     assert len(set(outline_names)) == 2, outlines
     outline_source_lines = {int(outline_name.fullmatch(name)["line"]) for name in outline_names}
     assert len(outline_source_lines) == 2, outlines
-    assert Counter(
-        step.get("name")
-        for element in outlines
-        for step in element.get("steps", [])
-        if str(step.get("name", "")).startswith("cuke json outline row ")
-    ) == Counter({"cuke json outline row alpha": 1, "cuke json outline row bravo": 1}), outlines
+    expanded_steps = [element.get("steps", []) for element in outlines]
+    assert all(len(steps) == 3 for steps in expanded_steps), outlines
+    expected_outline_step_names = [
+        "cuke json outline row alpha",
+        "cuke json outline row bravo",
+    ]
+    assert [steps[-1].get("name") for steps in expanded_steps] == expected_outline_step_names, outlines
     outline_ids = [element.get("id") for element in outlines]
     assert all(isinstance(identifier, str) and "account-actions" in identifier for identifier in outline_ids), outlines
+    assert len(set(outline_ids)) == 2, outlines
     assert all({tag.get("name") for tag in element.get("tags", [])} == {"@rule-tag"} for element in outlines), outlines
-    for element in outlines:
-        assert [step.get("line") for step in element.get("steps", [])[:2]] == expected_background_locations, element
+    for element, steps, expected_step_name in zip(outlines, expanded_steps, expected_outline_step_names, strict=True):
+        assert [step.get("name") for step in steps] == [
+            "cuke json shared background",
+            "cuke json rule background",
+            expected_step_name,
+        ], element
+        assert [step.get("keyword", "").strip() for step in steps] == ["Given", "Given", "Given"], element
+        assert [step.get("line") for step in steps[:2]] == expected_background_locations, element
+        assert steps[-1].get("line") == _feature_line(_RICH_FEATURE, "Given cuke json outline row <value>"), element
+        for step in steps:
+            result = step.get("result", {})
+            assert result.get("status") == "passed", (element, step)
+            duration = result.get("duration")
+            assert isinstance(duration, (int, float)) and duration >= 0, (element, step)
 
 
 def _require_preflight_failure(consumer: Any, expected: str) -> str:
@@ -550,18 +563,15 @@ def bare_cucumber_json_uses_default_path(relative_path: str, consumer: Any) -> N
     _assert_rich_report(consumer, relative_path)
 
 
-@given("the Cucumber JSON consumer prepares a replay feature with source import and fixture traps")
+@given("the Cucumber JSON consumer prepares a rich replay feature with source import and fixture traps")
 def prepare_cucumber_json_replay_consumer(consumer: Any) -> None:
-    _prepare(consumer, _REPLAY_FEATURE, replay_traps=True)
+    _prepare(consumer, _RICH_FEATURE, replay_traps=True)
 
 
-@then("the live Cucumber JSON report and Messages stream should be complete")
+@then("the live rich Cucumber JSON report and Messages stream should be complete")
 def live_cucumber_json_and_messages_are_complete(consumer: Any) -> None:
     assert consumer.cucumber_json_result.returncode == 0, _combined_output(consumer)
-    report, _ = _read_json(consumer, "artifacts/live.json")
-    feature = _one_feature(report, "Cucumber JSON replay")
-    scenario = _scenario(feature, "Saved messages are self contained")
-    assert scenario["steps"][0]["result"]["status"] == "passed", scenario
+    _assert_rich_report(consumer, "artifacts/live.json")
     messages = [
         json.loads(line)
         for line in (consumer._cucumber_json_workspace / "messages.ndjson").read_text(encoding="utf-8").splitlines()

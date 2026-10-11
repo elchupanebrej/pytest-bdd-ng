@@ -19,10 +19,10 @@ Feature: Live message-driven Cucumber JSON formatter
 
   Scenario: Saved Messages replay after removing sources is semantically equivalent
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
-    And the Cucumber JSON consumer prepares a replay feature with source import and fixture traps
+    And the Cucumber JSON consumer prepares a rich replay feature with source import and fixture traps
     And the consumer installs the pinned official Cucumber JSON runtime
     When I run installed pytest in the Cucumber JSON workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-json=artifacts/live.json --cuke-messages-ndjson=messages.ndjson -q --color=no"
-    Then the live Cucumber JSON report and Messages stream should be complete
+    Then the live rich Cucumber JSON report and Messages stream should be complete
     When I remove the Cucumber JSON consumer test sources and clear their execution markers
     And I run command "cuke" in the Cucumber JSON workspace with arguments "replay messages.ndjson --formatter cucumber-json=artifacts/replayed.json"
     Then replay should succeed without importing removed sources or running pytest fixtures
