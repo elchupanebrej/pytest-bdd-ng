@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
@@ -12,9 +13,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pytest_cuke import given, then
+from pytest_cuke import given, parsers, then, when
 from pytest_cuke.model.message_stream_validation import validate_message_stream
 from pytest_cuke.model.message_types import message_from_dict
+from tests.support.testing_utils import mask_npm_package_from_node_resolution
 
 
 _PRODUCT_ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +43,7 @@ Feature: Cucumber Summary outcome projection
   Scenario: A skipped scenario is counted
     When the summary scenario deliberately skips
 """
+_SUMMARY_CAPTURE_SENTINEL = "summary tee-sys capture sentinel"
 _PASSING_FEATURE = """\
 Feature: Cucumber Summary default and configuration selection
   Scenario: A passing summary consumer scenario
@@ -415,10 +418,15 @@ def expose_node_without_npm_for_summary_consumer(consumer: Any) -> None:
 
     node_only_bin = consumer._summary_workspace / "node-only-bin"
     node_only_bin.mkdir()
-    try:
-        (node_only_bin / "node").symlink_to(Path(node).resolve())
-    except OSError as error:
-        pytest.skip(f"could not isolate Node.js from npm using a temporary PATH: {error}")
+    node_name = "node.exe" if os.name == "nt" else "node"
+    destination = node_only_bin / node_name
+    if os.name == "nt":
+        shutil.copy2(node, destination)
+    else:
+        try:
+            destination.symlink_to(Path(node).resolve())
+        except OSError as error:
+            pytest.skip(f"could not isolate Node.js from npm using a temporary PATH: {error}")
 
     consumer.env["PATH"] = os.pathsep.join((str(node_only_bin), str(Path(consumer.python).parent)))
     assert shutil.which("node", path=consumer.env["PATH"])
@@ -681,6 +689,98 @@ def verbose_tee_sys_forwards_summary_once(consumer: Any) -> None:
     assert "test_scenarios" in output, f"verbose pytest output was not forwarded:\n{output}"
 
 
+@given("the summary consumer prepares a passing sentinel feature")
+def prepare_summary_capture_consumer(consumer: Any) -> None:
+    _prepare_consumer(
+        consumer,
+        workspace="summary capture workspace",
+        feature=_PASSING_FEATURE,
+        feature_name="passing-sentinel.feature",
+    )
+
+
+@when(
+    parsers.re(
+        r'I run installed pytest from consumer directory "(?P<working_directory>[^"]+)" '
+        r'with shared arguments "(?P<shared_arguments>[^"]+)" and capture variants '
+        r'"(?P<fd_arguments>[^"]+)", "(?P<sys_arguments>[^"]+)", and "(?P<no_arguments>[^"]+)"'
+    )
+)
+def run_installed_pytest_with_summary_capture_variants(
+    consumer: Any,
+    working_directory: str,
+    shared_arguments: str,
+    fd_arguments: str,
+    sys_arguments: str,
+    no_arguments: str,
+) -> None:
+    cwd = _safe_workspace(consumer, working_directory)
+    results = {}
+    for mode, arguments in (
+        ("fd", fd_arguments),
+        ("sys", sys_arguments),
+        ("no", no_arguments),
+    ):
+        command = [str(consumer.pytest), *shlex.split(f"{shared_arguments} {arguments}")]
+        results[mode] = subprocess.run(
+            command,
+            cwd=cwd,
+            env=consumer.env,
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=90,
+        )
+    consumer.summary_capture_results = results
+
+
+def _assert_summary_capture_mode(
+    consumer: Any,
+    mode: str,
+    *,
+    passing_output_visible: bool,
+) -> None:
+    results = getattr(consumer, "summary_capture_results", {})
+    assert mode in results, f"the installed pytest {mode} summary capture variant did not run"
+    previous_result = getattr(consumer, "pytest_result", None)
+    consumer.pytest_result = results[mode]
+    try:
+        result = consumer.pytest_result
+        assert result is not None and result.returncode == 0, (
+            f"the {mode} capture summary consumer failed:\n"
+            f"{result.stdout if result else ''}\n{result.stderr if result else ''}"
+        )
+        _assert_summary_output_on_stdout(
+            consumer,
+            expected_scenario_summary="1 scenario (1 passed)",
+            expected_step_summary="1 step (1 passed)",
+        )
+        if passing_output_visible:
+            assert result.stdout.count(_SUMMARY_CAPTURE_SENTINEL) == 1, result.stdout
+        else:
+            assert _SUMMARY_CAPTURE_SENTINEL not in result.stdout, result.stdout
+        assert _SUMMARY_CAPTURE_SENTINEL not in result.stderr, result.stderr
+    finally:
+        consumer.pytest_result = previous_result
+
+
+@then("fd capture should print the official Summary once and hide the passing step sentinel")
+def fd_capture_prints_summary_and_hides_passing_step(consumer: Any) -> None:
+    _assert_summary_capture_mode(consumer, "fd", passing_output_visible=False)
+
+
+@then("sys capture should print the official Summary once and hide the passing step sentinel")
+def sys_capture_prints_summary_and_hides_passing_step(consumer: Any) -> None:
+    _assert_summary_capture_mode(consumer, "sys", passing_output_visible=False)
+
+
+@then("disabled capture should print the official Summary once and show the passing step sentinel")
+def disabled_capture_prints_summary_and_shows_passing_step(consumer: Any) -> None:
+    _assert_summary_capture_mode(consumer, "no", passing_output_visible=True)
+
+
 @given("the summary consumer prepares a terminal conflict marker scenario and a public terminal formatter")
 def prepare_summary_terminal_conflict_consumer(consumer: Any) -> None:
     _prepare_consumer(
@@ -771,7 +871,7 @@ def expose_node_without_summary_package(consumer: Any) -> None:
     _, _, environment = runtime
     consumer.env["PATH"] = environment["PATH"]
     consumer.env.pop("NODE_PATH", None)
-    assert not (consumer._summary_workspace / "node_modules/@cucumber/cucumber").exists()
+    mask_npm_package_from_node_resolution(consumer._summary_workspace, "@cucumber/cucumber")
 
 
 @then("the selected summary runtime failure should identify the missing Cucumber package before execution")
@@ -817,7 +917,7 @@ def prepare_summary_backend_failure_consumer(consumer: Any) -> None:
 def install_summary_backend_failure_preload(consumer: Any) -> None:
     root = consumer._summary_workspace
     preload = _write_file(root, "fail-summary-backend.cjs", _SUMMARY_BACKEND_PRELOAD)
-    consumer.env["NODE_OPTIONS"] = f"--require={preload.resolve()}"
+    consumer.env["NODE_OPTIONS"] = f'--require="{preload.as_posix()}"'
 
 
 @then("the official summary should count the final retry as passed and the earlier attempt as a warning")
