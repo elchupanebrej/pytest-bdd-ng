@@ -244,11 +244,12 @@ def _assert_carrier_path_exists(context: EnvironmentInventoryContext, lane: dict
 
 
 def _feature_arguments(command: str) -> set[str]:
-    return {
-        Path(argument).as_posix()
-        for argument in shlex.split(command)
-        if argument.startswith("features/") and argument.endswith(".feature")
-    }
+    feature_arguments: set[str] = set()
+    for argument in shlex.split(command, posix=False):
+        normalized_argument = argument.strip("\"'").replace("\\", "/")
+        if normalized_argument.endswith(".feature"):
+            feature_arguments.add(Path(normalized_argument).as_posix())
+    return feature_arguments
 
 
 def _write_inventory(context: EnvironmentInventoryContext) -> None:
@@ -846,6 +847,12 @@ def live_formatter_acceptance_lanes_resolve_to_ci_and_carriers(consumer: Any) ->
 
 @then("every live formatter acceptance carrier should select exactly the feature files selected by tox")
 def live_formatter_acceptance_carriers_match_tox_features(consumer: Any) -> None:
+    windows_feature = r"C:\workspace with spaces\extra.feature"
+    synthetic_command = f'python -m pytest "{windows_feature}"'
+    assert _feature_arguments(synthetic_command) == {
+        "C:/workspace with spaces/extra.feature"
+    }, synthetic_command
+
     context = _context(consumer)
     tox_config = configparser.ConfigParser(interpolation=None)
     tox_path = context.repository_root / "tox.ini"
