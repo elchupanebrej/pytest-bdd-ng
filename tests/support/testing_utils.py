@@ -1,3 +1,4 @@
+import json
 from functools import partial
 from itertools import islice
 from operator import attrgetter
@@ -5,6 +6,38 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from pytest_cuke.utils import compose
+
+
+def mask_npm_package_from_node_resolution(workspace: Path, package: str) -> Path:
+    """Mask an ancestor-installed npm package for a consumer preflight contract.
+
+    Node searches parent ``node_modules`` directories, so a fresh project under a
+    user's temp directory can still import packages installed in their profile.
+    A local package entry with a deliberately missing export target shadows that
+    ancestor package and makes the import preflight deterministic.
+    """
+    if not package or "\\" in package or ":" in package or "\x00" in package:
+        raise ValueError(f"invalid npm package name: {package!r}")
+
+    parts = package.split("/")
+    if any(part in {"", ".", ".."} for part in parts):
+        raise ValueError(f"invalid npm package name: {package!r}")
+
+    node_modules = (workspace / "node_modules").resolve()
+    package_dir = node_modules.joinpath(*parts)
+    try:
+        package_dir.resolve().relative_to(node_modules)
+    except ValueError:
+        raise ValueError(f"invalid npm package name: {package!r}") from None
+
+    package_dir.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "name": package,
+        "version": "0.0.0-pytest-cuke-unavailable",
+        "exports": {".": "./__pytest_cuke_unavailable__.js"},
+    }
+    (package_dir / "package.json").write_text(json.dumps(metadata) + "\n", encoding="utf-8")
+    return package_dir
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_cuke.model.message_types import DataTable  # type:ignore[attr-defined, import-untyped]
