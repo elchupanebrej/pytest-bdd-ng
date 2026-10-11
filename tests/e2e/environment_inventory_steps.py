@@ -612,13 +612,13 @@ def configured_precommit_python_matches_lane_interpreter(consumer: Any) -> None:
         if isinstance(hook, dict) and "language_version" in hook
     ]
     mismatches = [(hook_id, version) for hook_id, version in hook_overrides if version != expected_python]
-    assert not mismatches, (
-        f"Python hook overrides must match the selected lane interpreter {expected_python!r}: {mismatches!r}"
-    )
+    assert (
+        not mismatches
+    ), f"Python hook overrides must match the selected lane interpreter {expected_python!r}: {mismatches!r}"
 
 
-@then("the pre-commit tox environment should install the testtypes extra")
-def precommit_tox_environment_installs_testtypes(consumer: Any) -> None:
+@then("the pre-commit tox environment should install the testtypes and debug-mcp extras")
+def precommit_tox_environment_installs_typing_extras(consumer: Any) -> None:
     context = _context(consumer)
     lane = next((candidate for candidate in _lanes(context) if _lane_id(candidate) == "pre-commit"), None)
     assert lane is not None, "the inventory must declare the required pre-commit lane"
@@ -636,13 +636,78 @@ def precommit_tox_environment_installs_testtypes(consumer: Any) -> None:
     payload = json.loads(result.stdout)
     environment_config = payload.get("env", {}).get(environment_name, {})
     extras = environment_config.get("extras")
-    assert isinstance(extras, list) and "testtypes" in extras, (
-        f"{environment_name} must install the testtypes extra; resolved extras were {extras!r}"
+    expected_extras = {"testtypes", "debug-mcp"}
+    assert isinstance(extras, list) and expected_extras <= set(
+        extras
+    ), f"{environment_name} must install {sorted(expected_extras)!r}; resolved extras were {extras!r}"
+
+
+@then("Ruff pre-commit hooks should match the py314-ruff tox scope")
+def ruff_precommit_hooks_match_tox_scope(consumer: Any) -> None:
+    context = _context(consumer)
+    commands = _tox_configured_commands(consumer, "py314-ruff")
+    command_tokens = [token for command in commands for token in shlex.split(command)]
+    assert len(command_tokens) >= 3 and command_tokens[:2] == [
+        "ruff",
+        "check",
+    ], f"py314-ruff must resolve to an explicit Ruff check command, got {commands!r}"
+    carrier_paths = command_tokens[2:]
+    assert carrier_paths and all(
+        not path.startswith("-") for path in carrier_paths
+    ), f"py314-ruff must list its carrier paths explicitly, got {commands!r}"
+    normalized_carriers = [Path(path).as_posix() for path in carrier_paths]
+
+    legacy_path = "tests/e2e/steps.py"
+    assert (context.repository_root / legacy_path).is_file(), f"expected legacy file is missing: {legacy_path}"
+    assert (
+        legacy_path not in normalized_carriers
+    ), f"the legacy file used to guard the approved scope must remain outside py314-ruff: {legacy_path}"
+
+    config_path = context.repository_root / ".pre-commit-config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert isinstance(config, dict), f"pre-commit config must be a YAML mapping: {config_path}"
+    repositories = config.get("repos")
+    assert isinstance(repositories, list), f"pre-commit config must declare repos: {config}"
+    hooks = {
+        str(hook.get("id")): hook
+        for repository in repositories
+        if isinstance(repository, dict)
+        for hook in repository.get("hooks", [])
+        if isinstance(hook, dict) and hook.get("id")
+    }
+
+    missing_hooks = [hook_id for hook_id in ("ruff", "ruff-format") if hook_id not in hooks]
+    assert not missing_hooks, f"pre-commit config is missing scoped Ruff hooks: {missing_hooks!r}"
+    uncovered: dict[str, list[str]] = {}
+    selected_legacy: list[str] = []
+    for hook_id in ("ruff", "ruff-format"):
+        hook = hooks[hook_id]
+        files_pattern = hook.get("files", "")
+        exclude_pattern = hook.get("exclude", "")
+        if not isinstance(files_pattern, str) or not isinstance(exclude_pattern, str):
+            uncovered[hook_id] = normalized_carriers
+            continue
+
+        def selected(path: str) -> bool:
+            return re.search(files_pattern, path) is not None and (
+                not exclude_pattern or re.search(exclude_pattern, path) is None
+            )
+
+        uncovered[hook_id] = [path for path in normalized_carriers if not selected(path)]
+        if selected(legacy_path):
+            selected_legacy.append(hook_id)
+
+    assert not any(uncovered.values()), (
+        "both Ruff pre-commit hooks must include every carrier path selected by py314-ruff; "
+        f"uncovered paths: {uncovered!r}"
     )
+    assert (
+        not selected_legacy
+    ), f"the legacy file outside the approved py314-ruff scope must not be selected by Ruff hooks: {selected_legacy!r}"
 
 
-@then("pre-commit text fixers should exclude all upstream schema files")
-def precommit_text_fixers_exclude_upstream_schema_files(consumer: Any) -> None:
+@then("pre-commit text fixers should exclude upstream schemas and generated docs")
+def precommit_text_fixers_exclude_schemas_and_generated_docs(consumer: Any) -> None:
     context = _context(consumer)
     config_path = context.repository_root / ".pre-commit-config.yaml"
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -665,6 +730,11 @@ def precommit_text_fixers_exclude_upstream_schema_files(consumer: Any) -> None:
         )
     )
     assert schema_paths, "the repository should contain upstream message schema files"
+    generated_doc_paths = sorted(
+        path.relative_to(context.repository_root).as_posix()
+        for path in context.repository_root.glob("docs/features/*.rst")
+    )
+    assert generated_doc_paths, "the repository should contain generated docs/features/*.rst files"
     missing_hooks = [hook_id for hook_id in fixer_ids if hook_id not in hooks]
     assert not missing_hooks, f"pre-commit config is missing schema-mutating text fixers: {missing_hooks!r}"
 
@@ -680,6 +750,17 @@ def precommit_text_fixers_exclude_upstream_schema_files(consumer: Any) -> None:
     assert not uncovered, (
         "pre-commit text fixers must exclude every upstream schema path so their bytes remain unchanged; "
         f"uncovered paths: {uncovered!r}"
+    )
+
+    trailing_whitespace_exclusion = hooks["trailing-whitespace"].get("exclude")
+    unmatched_generated_docs = (
+        [path for path in generated_doc_paths if re.search(trailing_whitespace_exclusion, path) is None]
+        if isinstance(trailing_whitespace_exclusion, str)
+        else generated_doc_paths
+    )
+    assert not unmatched_generated_docs, (
+        "the trailing-whitespace hook must exclude generated documentation under docs/features; "
+        f"uncovered paths: {unmatched_generated_docs!r}"
     )
 
 
@@ -951,8 +1032,7 @@ def native_parser_tox_environment_installs_uv(consumer: Any) -> None:
     dependencies = environment_config.get("deps")
     assert isinstance(dependencies, list), environment_config
     dependency_names = {
-        re.split(r"[<>=!~;\s\[]", str(dependency).strip(), maxsplit=1)[0].casefold()
-        for dependency in dependencies
+        re.split(r"[<>=!~;\s\[]", str(dependency).strip(), maxsplit=1)[0].casefold() for dependency in dependencies
     }
     assert "uv" in dependency_names, (
         "the native-go-parser tox environment must install uv because its acceptance tests build and install "
@@ -972,9 +1052,7 @@ def messages_schema_tox_command_uses_installed_schema_fixture(request: pytest.Fi
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, (
-        f"tox config failed for messages-schema: {result.stdout}\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"tox config failed for messages-schema: {result.stdout}\n{result.stderr}"
 
     commands: list[str] = []
     in_commands = False
@@ -1011,9 +1089,9 @@ def messages_schema_tox_command_uses_installed_schema_fixture(request: pytest.Fi
     )
 
     envelope_schema = repository_root / source_directory / "jsonschema" / "Envelope.json"
-    assert envelope_schema.is_file(), (
-        f"messages-schema fixture for cucumber-messages {release} is missing {envelope_schema}"
-    )
+    assert (
+        envelope_schema.is_file()
+    ), f"messages-schema fixture for cucumber-messages {release} is missing {envelope_schema}"
 
 
 @then("installed package metadata should cap dependencies for PyPy 3.10 and remain open for newer runtimes")
@@ -1065,7 +1143,10 @@ def installed_metadata_caps_only_legacy_pypy_dependencies(consumer: Any) -> None
         ("PyPy", "3.11"),
     ):
         observed[f"{implementation} {python_version}"] = {
-            package: [str(requirement.specifier) for requirement in active_requirements(package, implementation, python_version)]
+            package: [
+                str(requirement.specifier)
+                for requirement in active_requirements(package, implementation, python_version)
+            ]
             for package in ("pydantic", "rpds-py")
         }
 
@@ -1110,14 +1191,14 @@ def compatibility_audit_documents_are_loaded(request: Any) -> CompatibilityAudit
 def compatibility_audit_guide_documents_full_proof(compatibility_audit_documents: CompatibilityAuditDocuments) -> None:
     guide = compatibility_audit_documents.audit_guide
     normalized_guide = guide.casefold()
-    assert "`tox run` executes the complete declared tox environment list." in guide, (
-        "the guide should identify tox run as the command for all declared environments"
-    )
+    assert (
+        "`tox run` executes the complete declared tox environment list." in guide
+    ), "the guide should identify tox run as the command for all declared environments"
     assert "workflow dispatch" in normalized_guide, "the guide should explain how to trigger full acceptance proof"
     assert "full-supported-proof-<sha>" in guide, "the guide should name the aggregate proof artifact"
 
     prerequisites = (
-        '.[test,struct-bdd,env-matrix]',
+        ".[test,struct-bdd,env-matrix]",
         "uv>=0.8",
         "node.js 22",
         "docker engine and compose",
@@ -1135,8 +1216,7 @@ def contributor_entry_links_to_compatibility_audit(compatibility_audit_documents
     contribution_section = compatibility_audit_documents.contributor_entry.partition("How to Contribute")[2]
     link_pattern = r"`[^`<>]*<docs/compatibility-and-migration-audit\.md>`_"
     assert re.search(link_pattern, contribution_section), (
-        "README.rst's How to Contribute section should link to "
-        "docs/compatibility-and-migration-audit.md"
+        "README.rst's How to Contribute section should link to " "docs/compatibility-and-migration-audit.md"
     )
 
 
@@ -1183,9 +1263,7 @@ def live_formatter_acceptance_lanes_resolve_to_ci_and_carriers(consumer: Any) ->
 def live_formatter_acceptance_carriers_match_tox_features(consumer: Any) -> None:
     windows_feature = r"C:\workspace with spaces\extra.feature"
     synthetic_command = f'python -m pytest "{windows_feature}"'
-    assert _feature_arguments(synthetic_command) == {
-        "C:/workspace with spaces/extra.feature"
-    }, synthetic_command
+    assert _feature_arguments(synthetic_command) == {"C:/workspace with spaces/extra.feature"}, synthetic_command
 
     context = _context(consumer)
     tox_config = configparser.ConfigParser(interpolation=None)
