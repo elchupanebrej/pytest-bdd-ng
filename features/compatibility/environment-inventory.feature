@@ -47,6 +47,12 @@ Feature: Supported environment inventory and acceptance proof
     Then the inventory check should fail with the lane package and install remedy
     And the missing prerequisite should not be reported as a skip
 
+  Scenario: Collection summaries count selected tests instead of the total
+    When I parse a partially deselected pytest collection summary
+    Then the selected count should be 2
+    When I parse a fully deselected pytest collection summary
+    Then the selected count should be 0
+
   Scenario: Browser and remote lanes name runnable carriers and prerequisites
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     Given the repository environment inventory is loaded
