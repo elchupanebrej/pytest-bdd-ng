@@ -226,3 +226,29 @@ Feature: Aggregate the full supported environment proof
     And one tox test result has a zero return code but no command
     When I run the full environment proof aggregator
     Then the proof summary should fail for a missing tox result command
+
+  Scenario: A duplicate step warning from an xdist worker deserializes in the installed package
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer requires pytest-xdist
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+
+      @given("the duplicate xdist warning step")
+      def first_duplicate_xdist_warning_step():
+          pass
+
+
+      @given("the duplicate xdist warning step")
+      def second_duplicate_xdist_warning_step():
+          pass
+      """
+    And consumer file "features/duplicate-xdist-warning.feature" contains:
+      """gherkin
+      Feature: Duplicate xdist warning
+        Scenario: The worker reports its duplicate step warning
+          Given the duplicate xdist warning step
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -n2 --dist=load --max-worker-restart=0 --color=no -q"
+    Then pytest output should show the duplicate step warning without an xdist internal error
