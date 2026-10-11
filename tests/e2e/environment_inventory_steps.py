@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
+from importlib.metadata import version as distribution_version
 from pathlib import Path
 from typing import Any
 
@@ -890,6 +891,62 @@ def native_parser_tox_environment_installs_uv(consumer: Any) -> None:
     assert "uv" in dependency_names, (
         "the native-go-parser tox environment must install uv because its acceptance tests build and install "
         f"isolated consumers; resolved dependencies were {dependencies!r}"
+    )
+
+
+@then("the messages schema tox command should use the fixture for the installed Cucumber Messages release")
+def messages_schema_tox_command_uses_installed_schema_fixture(request: pytest.FixtureRequest) -> None:
+    repository_root = Path(request.config.rootpath)
+    release = distribution_version("cucumber-messages")
+    source_directory = f"tests/fixtures/message-schemas-v{release.replace('.', '-')}"
+    result = subprocess.run(
+        ["tox", "config", "-e", "messages-schema"],
+        cwd=repository_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"tox config failed for messages-schema: {result.stdout}\n{result.stderr}"
+    )
+
+    commands: list[str] = []
+    in_commands = False
+    for line in result.stdout.splitlines():
+        if line.startswith("commands ="):
+            in_commands = True
+            command = line.partition("=")[2].strip()
+            if command:
+                commands.append(command)
+            continue
+        if in_commands:
+            if line.startswith("  "):
+                commands.append(line.strip())
+            else:
+                break
+
+    schema_commands = [
+        shlex.split(command)
+        for command in commands
+        if shlex.split(command)[:4] == ["cuke", "sync", "messages", "schemas"]
+    ]
+    assert schema_commands, f"messages-schema must run cuke sync messages schemas: {result.stdout}"
+
+    configured_source_directories: list[str] = []
+    for arguments in schema_commands:
+        for index, argument in enumerate(arguments):
+            if argument == "--source-dir" and index + 1 < len(arguments):
+                configured_source_directories.append(arguments[index + 1])
+            elif argument.startswith("--source-dir="):
+                configured_source_directories.append(argument.partition("=")[2])
+    assert configured_source_directories == [source_directory], (
+        f"messages-schema must use --source-dir {source_directory!r} for cucumber-messages {release}; "
+        f"configured={configured_source_directories!r}"
+    )
+
+    envelope_schema = repository_root / source_directory / "jsonschema" / "Envelope.json"
+    assert envelope_schema.is_file(), (
+        f"messages-schema fixture for cucumber-messages {release} is missing {envelope_schema}"
     )
 
 

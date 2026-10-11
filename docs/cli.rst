@@ -254,7 +254,7 @@ untouched.
    cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas
    cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas --check
    cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas \
-     --source-dir tests/fixtures/message-schemas-v24-0-1 --check
+     --source-dir tests/fixtures/message-schemas-v28-0-0 --check
 
 Schema assets are included in the wheel and available to runtime code through
 package resources. Package imports never start synchronization or access the
