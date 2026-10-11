@@ -139,7 +139,8 @@ class Module(PytestModule):
             )
         else:
             # Pytest before 7 accepts py.path.local as fspath.
-            collector = cls(parent=parent, fspath=py.path.local(file_path))
+            legacy_path: Any = py.path.local(file_path)
+            collector = cls(parent=parent, fspath=legacy_path)
         return collector
 
     def get_path(self) -> Path:

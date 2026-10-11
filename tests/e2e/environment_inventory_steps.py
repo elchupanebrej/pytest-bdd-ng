@@ -617,6 +617,72 @@ def configured_precommit_python_matches_lane_interpreter(consumer: Any) -> None:
     )
 
 
+@then("the pre-commit tox environment should install the testtypes extra")
+def precommit_tox_environment_installs_testtypes(consumer: Any) -> None:
+    context = _context(consumer)
+    lane = next((candidate for candidate in _lanes(context) if _lane_id(candidate) == "pre-commit"), None)
+    assert lane is not None, "the inventory must declare the required pre-commit lane"
+    environment_name = lane.get("tox_env")
+    assert environment_name == "py314-pre-commit-lin", lane
+    result = subprocess.run(
+        ["tox", "config", "-e", str(environment_name), "-k", "extras", "--format=json"],
+        cwd=consumer.path,
+        env=_inventory_command_environment(consumer),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"tox config failed for {environment_name}: {result.stdout}\n{result.stderr}"
+    payload = json.loads(result.stdout)
+    environment_config = payload.get("env", {}).get(environment_name, {})
+    extras = environment_config.get("extras")
+    assert isinstance(extras, list) and "testtypes" in extras, (
+        f"{environment_name} must install the testtypes extra; resolved extras were {extras!r}"
+    )
+
+
+@then("pre-commit text fixers should exclude all upstream schema files")
+def precommit_text_fixers_exclude_upstream_schema_files(consumer: Any) -> None:
+    context = _context(consumer)
+    config_path = context.repository_root / ".pre-commit-config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert isinstance(config, dict), f"pre-commit config must be a YAML mapping: {config_path}"
+    repositories = config.get("repos")
+    assert isinstance(repositories, list), f"pre-commit config must declare repos: {config}"
+    hooks = {
+        str(hook.get("id")): hook
+        for repository in repositories
+        if isinstance(repository, dict)
+        for hook in repository.get("hooks", [])
+        if isinstance(hook, dict) and hook.get("id")
+    }
+    fixer_ids = ("trailing-whitespace", "end-of-file-fixer")
+    schema_paths = sorted(
+        path.relative_to(context.repository_root).as_posix()
+        for path in (
+            *context.repository_root.glob("src/pytest_cuke/model/message_schemas/*.schema.json"),
+            *context.repository_root.glob("tests/fixtures/message-schemas-v*/jsonschema/*.json"),
+        )
+    )
+    assert schema_paths, "the repository should contain upstream message schema files"
+    missing_hooks = [hook_id for hook_id in fixer_ids if hook_id not in hooks]
+    assert not missing_hooks, f"pre-commit config is missing schema-mutating text fixers: {missing_hooks!r}"
+
+    uncovered: dict[str, list[str]] = {}
+    for hook_id in fixer_ids:
+        exclusion = hooks[hook_id].get("exclude")
+        if not isinstance(exclusion, str) or not exclusion:
+            uncovered[hook_id] = schema_paths
+            continue
+        unmatched = [path for path in schema_paths if re.search(exclusion, path) is None]
+        if unmatched:
+            uncovered[hook_id] = unmatched
+    assert not uncovered, (
+        "pre-commit text fixers must exclude every upstream schema path so their bytes remain unchanged; "
+        f"uncovered paths: {uncovered!r}"
+    )
+
+
 @then("Ruff and typecheck lanes should resolve to their real tools")
 def ruff_and_typecheck_lanes_resolve_to_real_tools(consumer: Any) -> None:
     lanes = {_lane_id(lane): lane for lane in _lanes(_context(consumer))}
