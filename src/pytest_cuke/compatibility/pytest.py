@@ -138,7 +138,8 @@ class Module(PytestModule):
                 parent, **(dict(path=Path(file_path)) if PYTEST7 else dict(fspath=py.path.local(file_path)))
             )
         else:
-            collector = cls(parent=parent, fspath=py.path.local(file_path))  # type: ignore[arg-type]  # Pytest before 7 accepts py.path.local as fspath.
+            # Pytest before 7 accepts py.path.local as fspath.
+            collector = cls(parent=parent, fspath=py.path.local(file_path))
         return collector
 
     def get_path(self) -> Path:
