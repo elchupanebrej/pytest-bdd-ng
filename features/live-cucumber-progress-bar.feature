@@ -80,3 +80,12 @@ Feature: Live Cucumber progress bar
     And the consumer installs pytest-rerunfailures in the installed consumer
     When I run installed pytest in a 32-column terminal until the first live progress update
     Then the terminal progress updates should be live, width-aware, and capped at the unique Pickle total
+
+  Scenario: Capture modes preserve live TTY progress and pytest output
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer prepares a retry, a skipped case, and a gated progress-bar scenario
+    And a POSIX pseudo-terminal with 32 columns is available
+    And the consumer installs pinned official Cucumber progress formatter packages
+    And the consumer installs pytest-rerunfailures in the installed consumer
+    When I run installed pytest in a 32-column TTY with default capture and "-q", plus "--capture=fd -q", "--capture=sys -v", and "--capture=no -vv"
+    Then TTY progress and pytest output should be restored for each capture mode
