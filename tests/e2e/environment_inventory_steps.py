@@ -18,7 +18,7 @@ from typing import Any
 import pytest
 import yaml
 from pytest_cuke import given, then, when
-from pytest_cuke.compatibility.environment_matrix import check_environment_inventory
+from pytest_cuke.compatibility.environment_matrix import _collected_count, check_environment_inventory
 from pytest_cuke.compatibility.runtime_compat import is_pair_compatible
 
 
@@ -643,6 +643,26 @@ def optional_carrier_probe_selects_tests_without_test_outcomes(consumer: Any) ->
     assert carrier.get("command"), (context.probed_optional_lane, carrier)
     assert carrier.get("passed") is None, carrier
     assert carrier.get("skipped") is None, carrier
+
+
+@when("I parse a partially deselected pytest collection summary")
+def parse_partially_deselected_collection_summary(request: pytest.FixtureRequest) -> None:
+    request.node._environment_inventory_selected_count = _collected_count("2/1341 tests collected (1339 deselected)")
+
+
+@then("the selected count should be 2")
+def partially_deselected_collection_has_two_selected_tests(request: pytest.FixtureRequest) -> None:
+    assert request.node._environment_inventory_selected_count == 2
+
+
+@when("I parse a fully deselected pytest collection summary")
+def parse_fully_deselected_collection_summary(request: pytest.FixtureRequest) -> None:
+    request.node._environment_inventory_selected_count = _collected_count("0/1341 tests collected (1341 deselected)")
+
+
+@then("the selected count should be 0")
+def fully_deselected_collection_has_no_selected_tests(request: pytest.FixtureRequest) -> None:
+    assert request.node._environment_inventory_selected_count == 0
 
 
 @when("I probe a temporary optional lane with a missing package prerequisite")

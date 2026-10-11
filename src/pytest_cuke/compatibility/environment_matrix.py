@@ -1220,6 +1220,11 @@ def _probe_lane(
 
 
 def _collected_count(output: str) -> int:
+    selected_matches = re.findall(
+        r"\b(\d+)\s*/\s*\d+\s+(?:items?|tests?)\s+collected\b", output, flags=re.IGNORECASE
+    )
+    if selected_matches:
+        return int(selected_matches[-1])
     matches = re.findall(r"\b(\d+)\s+(?:items?|tests?)\s+collected\b", output, flags=re.IGNORECASE)
     if matches:
         return int(matches[-1])
