@@ -563,8 +563,15 @@ def _assert_junit_rich_report(consumer: Any, relative_path: str) -> None:
     names = [case.get("name", "") for case in cases]
     assert len(set(names)) == 3, names
     assert any("described structured profile" in name for name in names), names
-    assert any("#1.1" in name for name in names), names
-    assert any("#1.2" in name for name in names), names
+    outline_cases = [
+        case for case in cases if any(row_id in case.get("name", "") for row_id in ("#1.1", "#1.2"))
+    ]
+    assert len(outline_cases) == 2, names
+    outline_markers = [
+        [row_id for row_id in ("#1.1", "#1.2") if row_id in case.get("name", "")]
+        for case in outline_cases
+    ]
+    assert outline_markers == [["#1.1"], ["#1.2"]], names
     assert all("Cucumber JUnit report café" in case.get("classname", "") for case in cases), cases
 
     for case in cases:
@@ -592,11 +599,16 @@ def _assert_junit_rich_report(consumer: Any, relative_path: str) -> None:
     assert all(position >= 0 for position in positions), output
     assert positions == sorted(positions), output
 
-    for row_id, customer in (("#1.1", "Ada"), ("#1.2", "Boris")):
-        row = next(case for case in cases if row_id in case.get("name", ""))
+    for row, (row_id, customer) in zip(
+        outline_cases,
+        (("#1.1", "Ada"), ("#1.2", "Boris")),
+        strict=True,
+    ):
+        assert row_id in row.get("name", ""), row.attrib
         output = row.findtext("system-out", default="")
-        assert f"junit row {customer} is started" in output, output
-        assert f"junit row {customer} passes" in output, output
+        started = output.find(f"junit row {customer} is started")
+        passed = output.find(f"junit row {customer} passes")
+        assert started >= 0 and passed > started, output
 
 
 def _restore_cucumber_junit_parent_permissions(consumer: Any, state: tuple[Any, ...]) -> None:
@@ -761,16 +773,20 @@ def cucumber_junit_outcomes_are_truthful(consumer: Any) -> None:
     failed = next(case for name, case in case_by_name.items() if "JUnit case fails" in name)
     skipped = next(case for name, case in case_by_name.items() if "JUnit case skips" in name)
     undefined = next(case for name, case in case_by_name.items() if "undefined step" in name)
-    assert all(passed.find(tag) is None for tag in ("failure", "error", "skipped")), ET.tostring(
-        passed, encoding="unicode"
-    )
-    assert failed.find("failure") is not None, ET.tostring(failed, encoding="unicode")
+    outcome_tags = {"failure", "error", "skipped"}
+
+    def outcomes(case: ET.Element) -> list[str]:
+        return [child.tag for child in case if child.tag in outcome_tags]
+
+    assert outcomes(passed) == [], ET.tostring(passed, encoding="unicode")
+    assert outcomes(failed) == ["failure"], ET.tostring(failed, encoding="unicode")
     assert "Cucumber JUnit failure sentinel" in ET.tostring(failed, encoding="unicode"), failed
-    assert skipped.find("skipped") is not None, ET.tostring(skipped, encoding="unicode")
-    assert undefined.find("failure") is not None, ET.tostring(undefined, encoding="unicode")
-    assert root.get("tests", "4") == "4", root.attrib
-    assert int(root.get("failures", "2")) >= 2, root.attrib
-    assert root.get("skipped", "1") == "1", root.attrib
+    assert outcomes(skipped) == ["skipped"], ET.tostring(skipped, encoding="unicode")
+    assert outcomes(undefined) == ["failure"], ET.tostring(undefined, encoding="unicode")
+    assert root.get("tests") == "4", root.attrib
+    assert root.get("failures") == "2", root.attrib
+    assert root.get("errors") == "0", root.attrib
+    assert root.get("skipped") == "1", root.attrib
 
 
 @given("the Cucumber JUnit consumer prepares a failing background scenario")
