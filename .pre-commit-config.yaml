@@ -12,7 +12,11 @@ repos:
     rev: v4.6.0
     hooks:
       - id: trailing-whitespace
+        # These vendored schemas must retain their exact upstream bytes.
+        exclude: ^(?:src/pytest_cuke/model/message_schemas/.*\.schema\.json|tests/fixtures/message-schemas-v\d+-\d+-\d+/jsonschema/.*\.json)$
       - id: end-of-file-fixer
+        # These vendored schemas must retain their exact upstream bytes.
+        exclude: ^(?:src/pytest_cuke/model/message_schemas/.*\.schema\.json|tests/fixtures/message-schemas-v\d+-\d+-\d+/jsonschema/.*\.json)$
       - id: check-yaml
       - id: check-added-large-files
       - id: check-toml
