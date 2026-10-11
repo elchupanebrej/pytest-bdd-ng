@@ -166,13 +166,13 @@ class WorkerMessageReceiver:
         if worker_id:
             self.expected_workers.add(worker_id)
 
-    def receive_batch(self, payload: Mapping[str, Any]) -> None:
+    def receive_batch(self, payload: Mapping[str, Any]) -> bool:
         self._ensure_open()
         try:
             batch = MessageBatch.from_payload(payload)
         except ValueError as error:
             self._record_malformed(payload.get("worker_id"), str(error))
-            return
+            return False
         state = self._workers.setdefault(batch.worker_id, _WorkerState())
         previous = state.batches.get(batch.sequence)
         if previous is not None:
@@ -183,8 +183,9 @@ class WorkerMessageReceiver:
                     worker_id=batch.worker_id,
                 )
             )
-            return
+            return False
         state.batches[batch.sequence] = batch
+        return True
 
     def record_manifest(
         self,

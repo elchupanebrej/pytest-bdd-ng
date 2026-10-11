@@ -405,6 +405,45 @@ def _write_run_hook_failure_feature(context: NativeAllureConsumer, phase: str, s
     )
 
 
+def _install_duplicate_worker_batch_replay(context: NativeAllureConsumer) -> None:
+    (context.project / "native_allure_duplicate_batch_probe.py").write_text(
+        "from copy import deepcopy\n"
+        "import json\n"
+        "from pathlib import Path\n"
+        "import pytest\n\n"
+        "_first_batch = None\n"
+        "_observed_batches = Path('native-allure-observed-worker-batches.jsonl')\n"
+        "_first_batch_path = Path('native-allure-first-worker-batch.json')\n\n\n"
+        "@pytest.hookimpl(tryfirst=True)\n"
+        "def pytest_cuke_message_batch(config, batch):\n"
+        "    del config\n"
+        "    global _first_batch\n"
+        "    observation = {'worker_id': batch.get('worker_id'), 'sequence': batch.get('sequence')}\n"
+        "    with _observed_batches.open('a', encoding='utf-8') as stream:\n"
+        "        stream.write(json.dumps(observation, sort_keys=True) + '\\n')\n"
+        "    if _first_batch is None:\n"
+        "        _first_batch = deepcopy(batch)\n"
+        "        _first_batch_path.write_text(json.dumps(_first_batch), encoding='utf-8')\n\n\n"
+        "@pytest.hookimpl(tryfirst=True)\n"
+        "def pytest_sessionfinish(session, exitstatus):\n"
+        "    del exitstatus\n"
+        "    if isinstance(getattr(session.config, 'workerinput', None), dict):\n"
+        "        return\n"
+        "    if _first_batch is None:\n"
+        "        raise RuntimeError('the xdist controller received no worker Messages batch to replay')\n"
+        "    message_plugin = session.config.pluginmanager.get_plugin('pytest_cuke_messages')\n"
+        "    replay = getattr(message_plugin, '_receive_worker_message_batch', None)\n"
+        "    if not callable(replay):\n"
+        "        raise RuntimeError('pytest-cuke has no worker Messages batch receiver to replay')\n"
+        "    replay(deepcopy(_first_batch))\n",
+        encoding="utf-8",
+    )
+    (context.project / "conftest.py").write_text(
+        'pytest_plugins = ["native_report_steps", "native_allure_duplicate_batch_probe"]\n',
+        encoding="utf-8",
+    )
+
+
 def _context(request: Any, tmp_path: Path) -> NativeAllureConsumer:
     artifacts = request.getfixturevalue("_pytest_cuke_artifacts")
     wheel = artifacts["paths"]["wheel"]
@@ -741,6 +780,11 @@ def install_pinned_pytest_xdist(native_allure_consumer: NativeAllureConsumer) ->
         env=native_allure_consumer.env,
         purpose="installing pytest-xdist",
     )
+
+
+@given("the consumer replays its first live worker batch at controller session finish")
+def consumer_replays_first_live_worker_batch(native_allure_consumer: NativeAllureConsumer) -> None:
+    _install_duplicate_worker_batch_replay(native_allure_consumer)
 
 
 @given("the consumer installs pytest-cuke with its Allure extra")
@@ -1129,6 +1173,7 @@ def native_allure_preserves_failed_run_hook_fixture(
     shared_containers = [container for container in containers if container.get("befores") or container.get("afters")]
     assert len(shared_containers) == 1, containers
     container = shared_containers[0]
+    assert container.get("name") == "Test session", container
 
     fixtures_key = "befores" if phase == "BEFORE_TEST_RUN" else "afters"
     fixture_name = "pytest session start" if phase == "BEFORE_TEST_RUN" else "pytest session finish"
@@ -1158,6 +1203,20 @@ def native_allure_preserves_failed_run_hook_fixture(
         assert results[0].get("status") == "passed", results[0]
         _assert_result_and_step_timestamps(results[0])
         assert results[0].get("uuid") in container.get("children", []), (results[0], container)
+
+
+@then(
+    parsers.re(
+        r"the controller-owned native Allure session container should preserve the failed "
+        r'"(?P<phase>BEFORE_TEST_RUN|AFTER_TEST_RUN)" fixture with sentinel "(?P<sentinel>[^"]+)"'
+    )
+)
+def controller_native_allure_preserves_failed_run_hook_fixture(
+    phase: str,
+    sentinel: str,
+    native_allure_consumer: NativeAllureConsumer,
+) -> None:
+    native_allure_preserves_failed_run_hook_fixture(phase, sentinel, native_allure_consumer)
 
 
 @then("the native Allure 3 renderer should generate an HTML report")
@@ -1487,6 +1546,39 @@ def native_allure_xdist_has_one_shared_container(native_allure_consumer: NativeA
     result_ids = {result_id for result_id in result_uuids if isinstance(result_id, str)}
     assert len(result_ids) == len(results), results
     _assert_session_container(native_allure_consumer, "allure-results", result_ids)
+
+
+@then("duplicate worker batches should be diagnosed without republishing to native Allure")
+def duplicate_worker_batches_are_rejected_before_allure_publication(
+    native_allure_consumer: NativeAllureConsumer,
+) -> None:
+    run_result = _run_result(native_allure_consumer)
+    combined_output = f"{run_result.stdout}\n{run_result.stderr}"
+    assert "duplicate_worker_batch" in combined_output, combined_output
+
+    first_batch_path = _consumer_path(native_allure_consumer, "native-allure-first-worker-batch.json")
+    first_batch = json.loads(first_batch_path.read_text(encoding="utf-8"))
+    worker_id = first_batch.get("worker_id")
+    sequence = first_batch.get("sequence")
+    assert isinstance(worker_id, str) and worker_id, first_batch
+    assert isinstance(sequence, int) and not isinstance(sequence, bool), first_batch
+
+    observed_path = _consumer_path(native_allure_consumer, "native-allure-observed-worker-batches.jsonl")
+    observations = [json.loads(line) for line in observed_path.read_text(encoding="utf-8").splitlines()]
+    matching_observations = [
+        observation
+        for observation in observations
+        if observation.get("worker_id") == worker_id and observation.get("sequence") == sequence
+    ]
+
+    result_directory = _consumer_path(native_allure_consumer, "allure-results")
+    result_files = sorted(result_directory.glob("*-result.json")) if result_directory.is_dir() else []
+    results = [_load_json(path) for path in result_files]
+    expected_names = set(_REPORT_SCENARIOS[1:])
+    actual_names = [result.get("name") for result in results]
+    assert len(matching_observations) == 1, observations
+    assert len(actual_names) == len(expected_names), results
+    assert set(actual_names) == expected_names, results
 
 
 @then("native and adapter Allure results should contain the exact BDD and ordinary pytest cases")
