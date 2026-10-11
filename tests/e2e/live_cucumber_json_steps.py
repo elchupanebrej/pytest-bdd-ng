@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 from pytest_cuke import given, parsers, then, when
+from tests.support.testing_utils import mask_npm_package_from_node_resolution
 
 
 _CUCUMBER_VERSION = "13.3.0"
@@ -261,7 +262,7 @@ def _node_paths(consumer: Any) -> tuple[str, str, str]:
 
 def _install_official_runtime(consumer: Any) -> None:
     node, npm, consumer_bin = _node_paths(consumer)
-    root = consumer._cucumber_json_workspace
+    root = getattr(consumer, "_cucumber_json_workspace", Path(consumer.path))
     package_json = {
         "name": "pytest-cuke-cucumber-json-consumer",
         "private": True,
@@ -283,9 +284,9 @@ def _install_official_runtime(consumer: Any) -> None:
         errors="replace",
         timeout=180,
     )
-    assert install.returncode == 0, (
-        f"could not install pinned @cucumber/cucumber@{_CUCUMBER_VERSION}:\n{install.stdout}\n{install.stderr}"
-    )
+    assert (
+        install.returncode == 0
+    ), f"could not install pinned @cucumber/cucumber@{_CUCUMBER_VERSION}:\n{install.stdout}\n{install.stderr}"
     metadata = root / "node_modules" / "@cucumber" / "cucumber" / "package.json"
     installed_version = json.loads(metadata.read_text(encoding="utf-8")).get("version")
     assert installed_version == _CUCUMBER_VERSION, installed_version
@@ -322,7 +323,7 @@ def _run_pytest(consumer: Any, arguments: str) -> subprocess.CompletedProcess[st
     root = consumer._cucumber_json_workspace
     try:
         result = subprocess.run(
-            [str(consumer.pytest), *shlex.split(arguments)],
+            [str(consumer.python), "-m", "pytest", *shlex.split(arguments)],
             cwd=root,
             env=consumer.env,
             check=False,
@@ -365,9 +366,9 @@ def _combined_output(consumer: Any, *, replay: bool = False) -> str:
 
 def _read_json(consumer: Any, relative_path: str) -> tuple[Any, str]:
     artifact = consumer._cucumber_json_workspace / relative_path
-    assert artifact.is_file(), (
-        f"Cucumber JSON artifact {relative_path!r} was not produced; {_combined_output(consumer)}"
-    )
+    assert (
+        artifact.is_file()
+    ), f"Cucumber JSON artifact {relative_path!r} was not produced; {_combined_output(consumer)}"
     raw = artifact.read_bytes()
     text = raw.decode("utf-8", errors="strict")
     assert not raw.startswith(b"\xef\xbb\xbf"), "Cucumber JSON must be UTF-8 without a BOM"
@@ -648,9 +649,9 @@ def public_cucumber_json_example_preserves_live_schema(consumer: Any) -> None:
         {"content": '{"message": "hello", "ready": true}', "line": _feature_line(feature_source, '"""application/json')}
     ], doc_step
     table_step = next(step for step in steps if step.get("name") == "the Cucumber JSON example receives a table")
-    assert table_step.get("arguments") == [{"rows": [{"cells": ["field", "value"]}, {"cells": ["café", "alpha"]}]}], (
-        table_step
-    )
+    assert table_step.get("arguments") == [
+        {"rows": [{"cells": ["field", "value"]}, {"cells": ["café", "alpha"]}]}
+    ], table_step
     attachment_step = next(step for step in steps if step.get("name") == "the Cucumber JSON example attaches a report")
     assert attachment_step.get("embeddings") == [
         {
@@ -995,6 +996,7 @@ def missing_npm_cucumber_json_preflights(consumer: Any) -> None:
 def expose_node_and_npm_without_cucumber(consumer: Any) -> None:
     node, npm, consumer_bin = _node_paths(consumer)
     consumer.env["PATH"] = os.pathsep.join(dict.fromkeys((str(Path(node).parent), str(Path(npm).parent), consumer_bin)))
+    mask_npm_package_from_node_resolution(consumer._cucumber_json_workspace, "@cucumber/cucumber")
 
 
 @then("missing Cucumber package diagnostics should stop the Cucumber JSON run before the marker scenario")
@@ -1010,7 +1012,7 @@ def install_cucumber_json_finalization_preload(consumer: Any) -> None:
         "fail-cucumber-json-finalization.cjs",
         _FINALIZATION_PRELOAD,
     )
-    consumer.env["NODE_OPTIONS"] = f'--require="{preload.resolve()}"'
+    consumer.env["NODE_OPTIONS"] = f'--require="{preload.as_posix()}"'
 
 
 @then("the Cucumber JSON backend failure should be visible and no partial report should be published")

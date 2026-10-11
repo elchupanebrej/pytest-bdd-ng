@@ -24,6 +24,7 @@ from pytest_cuke import given, parsers, then, when
 from pytest_cuke.model.message_stream_validation import validate_message_stream
 from pytest_cuke.model.message_types import message_from_dict
 from pytest_cuke.model.message_validation import validate_envelope
+from tests.support.testing_utils import mask_npm_package_from_node_resolution
 
 
 _PRODUCT_ROOT = Path(__file__).resolve().parents[2]
@@ -298,14 +299,14 @@ def _install_official_usage_runtime(consumer: Any) -> None:
         check=False,
         timeout=180,
     )
-    assert install.returncode == 0, (
-        f"could not install pinned official @cucumber/cucumber packages:\n{install.stdout}\n{install.stderr}"
-    )
+    assert (
+        install.returncode == 0
+    ), f"could not install pinned official @cucumber/cucumber packages:\n{install.stdout}\n{install.stderr}"
     package_metadata = root / "node_modules" / "@cucumber" / "cucumber" / "package.json"
     installed_version = json.loads(package_metadata.read_text(encoding="utf-8")).get("version")
-    assert installed_version == _OFFICIAL_CUCUMBER_PACKAGES["@cucumber/cucumber"], (
-        f"expected the pinned official @cucumber/cucumber version, got {installed_version!r}"
-    )
+    assert (
+        installed_version == _OFFICIAL_CUCUMBER_PACKAGES["@cucumber/cucumber"]
+    ), f"expected the pinned official @cucumber/cucumber version, got {installed_version!r}"
     node_version = subprocess.run(
         [node, "--version"],
         cwd=root,
@@ -347,7 +348,7 @@ def _restore_readonly_directory(consumer: Any) -> None:
 
 def _run_pytest(consumer: Any, arguments: str) -> subprocess.CompletedProcess[str]:
     root = getattr(consumer, "_usage_workspace", _consumer_root(consumer))
-    command = [str(consumer.pytest), *shlex.split(arguments)]
+    command = [str(consumer.python), "-m", "pytest", *shlex.split(arguments)]
     try:
         result = subprocess.run(
             command,
@@ -624,9 +625,9 @@ def _assert_pytest_failure(consumer: Any, *, expected_failures: int, expected_pa
     output = _output(consumer)
     assert result is not None and result.returncode != 0, f"the failing usage scenario should fail pytest:\n{output}"
     assert re.search(r"(?m)^=+ FAILURES =+$", output), f"pytest's normal failure section was lost:\n{output}"
-    assert re.search(r"(?im)^=+\s*short test summary info\s*=+\s*$", output), (
-        f"pytest's short test summary was lost:\n{output}"
-    )
+    assert re.search(
+        r"(?im)^=+\s*short test summary info\s*=+\s*$", output
+    ), f"pytest's short test summary was lost:\n{output}"
     result_lines = [
         line
         for line in output.splitlines()
@@ -669,25 +670,25 @@ def _assert_usage_matches_messages(consumer: Any) -> str:
         expected_definitions = 2 if source == "shared usage identity" else 1
         assert len(matches) == expected_definitions, f"Messages definition identities for {source!r}: {matches!r}"
         for definition_id, definition in matches:
-            assert counts[definition_id] == expected_count, (
-                f"Messages match count for {definition!r} should be {expected_count}, got {counts[definition_id]}"
-            )
+            assert (
+                counts[definition_id] == expected_count
+            ), f"Messages match count for {definition!r} should be {expected_count}, got {counts[definition_id]}"
 
     for definition_id, definition in definitions.items():
         is_used = counts[definition_id] > 0
         row = _assert_reported_definition(table_rows, definition, expected_duration=is_used)
-        assert (row[1] == "UNUSED") is (not is_used), (
-            f"UsageFormatter usage status disagreed with Messages match identity {definition_id}: {row!r}"
-        )
+        assert (row[1] == "UNUSED") is (
+            not is_used
+        ), f"UsageFormatter usage status disagreed with Messages match identity {definition_id}: {row!r}"
 
     shared_locations = {
         _source_line(definition)[1]
         for definition in definitions.values()
         if definition["pattern"]["source"] == "shared usage identity"
     }
-    assert len(shared_locations) == 2, (
-        f"identical text must retain distinct definition source locations: {shared_locations!r}"
-    )
+    assert (
+        len(shared_locations) == 2
+    ), f"identical text must retain distinct definition source locations: {shared_locations!r}"
     expected_examples = {
         "usage expression accepts {word}": {
             f"usage expression accepts {value}" for value in ("alpha", "bravo", "charlie", "delta", "echo", "foxtrot")
@@ -756,7 +757,7 @@ def install_pinned_usage_runtime(consumer: Any) -> None:
     _install_official_usage_runtime(consumer)
 
 
-@when(parsers.re(r'I run pytest with arguments "(?P<flags>[^"]*)"'))
+@when(parsers.re(r'I run pytest in the UsageFormatter consumer with arguments "(?P<flags>[^"]*)"'))
 def run_usage_consumer_pytest(flags: str, consumer: Any) -> None:
     messages_argument = next(
         (argument for argument in shlex.split(flags) if argument.startswith("--cuke-messages-ndjson=")),
@@ -817,9 +818,9 @@ def usage_output_lists_unused_definition(consumer: Any) -> None:
     definition_line = next(
         index for index, line in enumerate(plugin_lines, start=1) if line.startswith("def never_exercised")
     )
-    assert f"usage_consumer_steps.py:{definition_line - 1}" in added_unused_rows[0][2].replace("\\", "/"), (
-        added_unused_rows[0]
-    )
+    assert f"usage_consumer_steps.py:{definition_line - 1}" in added_unused_rows[0][2].replace(
+        "\\", "/"
+    ), added_unused_rows[0]
     assert "official usage pytest failure sentinel" in output
 
 
@@ -833,7 +834,7 @@ def install_usage_backend_failure_preload(consumer: Any) -> None:
     root = getattr(consumer, "_usage_workspace", _consumer_root(consumer))
     preload = root / "usage-backend-finalization-failure.cjs"
     preload.write_text(_USAGE_BACKEND_PRELOAD, encoding="utf-8")
-    consumer.env["NODE_OPTIONS"] = f"--require={preload.resolve()}"
+    consumer.env["NODE_OPTIONS"] = f'--require="{preload.as_posix()}"'
 
 
 @then("the Usage backend failure should remain visible beside the pytest failure")
@@ -983,9 +984,9 @@ def usage_file_coexists_with_independent_outputs(consumer: Any) -> None:
     assert usage_json_match["text"] == "usage consumer sample scenario passes", usage_json_match
     assert isinstance(usage_json_match.get("duration"), dict), usage_json_match
 
-    assert (root / "terminal-formatter-started.marker").is_file(), (
-        "a file-selected usage formatter must leave the terminal formatter slot available"
-    )
+    assert (
+        root / "terminal-formatter-started.marker"
+    ).is_file(), "a file-selected usage formatter must leave the terminal formatter slot available"
     assert output.count("USAGE_PUBLIC_TERMINAL_SENTINEL") == 1, output
     assert getattr(consumer, "_usage_cucumber_version", None) == "13.3.0"
 
@@ -1258,7 +1259,7 @@ def expose_node_and_npm_without_usage_package(consumer: Any) -> None:
         pytest.skip("the missing Cucumber package preflight lane requires Node.js and npm")
     _, _, environment = runtime
     root = getattr(consumer, "_usage_workspace", _consumer_root(consumer))
-    assert not (root / "node_modules" / "@cucumber" / "cucumber").exists()
+    mask_npm_package_from_node_resolution(root, "@cucumber/cucumber")
     consumer.env["PATH"] = environment["PATH"]
     consumer.env.pop("NODE_PATH", None)
 
@@ -1271,7 +1272,10 @@ def missing_usage_package_preflight(consumer: Any) -> None:
     ), output
     assert "npm install" in output.lower(), output
     root = getattr(consumer, "_usage_workspace", _consumer_root(consumer))
-    assert not (root / "node_modules" / "@cucumber" / "cucumber").exists()
+    package = root / "node_modules" / "@cucumber" / "cucumber"
+    package_metadata = json.loads((package / "package.json").read_text(encoding="utf-8"))
+    assert package_metadata["version"] == "0.0.0-pytest-cuke-unavailable", package_metadata
+    assert not (package / "__pytest_cuke_unavailable__.js").exists()
 
 
 @given("the usage consumer prepares an undefined feature without step definitions")
