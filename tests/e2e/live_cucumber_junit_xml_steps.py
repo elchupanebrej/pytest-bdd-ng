@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 import re
@@ -17,6 +16,11 @@ from typing import Any
 
 import pytest
 from pytest_cuke import given, parsers, then, when
+from tests.support.windows_acl import (
+    assert_windows_identity_lookup_command,
+    windows_acl_user_sid,
+    windows_identity_lookup_command,
+)
 
 
 _PRODUCT_ROOT = Path(__file__).resolve().parents[2]
@@ -908,29 +912,31 @@ def duplicate_junit_destination_preflights(consumer: Any) -> None:
     assert "cucumber-junit" in output and "--junitxml" in output, output
 
 
+@given(
+    "the Cucumber JUnit ACL identity lookup command is selected",
+    target_fixture="cucumber_junit_acl_identity_command",
+)
+def select_cucumber_junit_acl_identity_command() -> tuple[str, ...] | None:
+    return windows_identity_lookup_command()
+
+
+@then("the Cucumber JUnit ACL identity lookup should use System32 whoami on Windows")
+def verify_cucumber_junit_acl_identity_command(
+    cucumber_junit_acl_identity_command: tuple[str, ...] | None,
+) -> None:
+    assert_windows_identity_lookup_command(cucumber_junit_acl_identity_command)
+
+
 @given("the Cucumber JUnit consumer output parent is read-only")
 def make_cucumber_junit_parent_read_only(consumer: Any) -> None:
     directory = consumer._cucumber_junit_workspace / "read-only"
     directory.mkdir(exist_ok=True)
     if os.name == "nt":
         icacls = shutil.which("icacls.exe") or shutil.which("icacls")
-        whoami = shutil.which("whoami.exe") or shutil.which("whoami")
         assert icacls is not None, "Windows icacls is required to prove an unwritable JUnit destination"
-        assert whoami is not None, "Windows whoami is required to identify the current ACL principal"
-        identity = subprocess.run(
-            [whoami, "/user", "/fo", "csv", "/nh"],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=15,
-        )
-        assert identity.returncode == 0, f"could not identify the current Windows user:\n{identity.stdout}\n{identity.stderr}"
-        rows = list(csv.reader(identity.stdout.splitlines()))
-        assert rows and len(rows[0]) >= 2, identity.stdout
-        sid = rows[0][-1].strip()
-        assert re.fullmatch(r"S-1(?:-\d+)+", sid), identity.stdout
+        identity_command = windows_identity_lookup_command()
+        assert identity_command is not None, "Windows identity lookup is only available on Windows"
+        sid = windows_acl_user_sid(identity_command)
         denied = subprocess.run(
             [icacls, str(directory), "/deny", f"*{sid}:(WD,AD)"],
             check=False,

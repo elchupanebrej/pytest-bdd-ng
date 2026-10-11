@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import csv
 import json
 import os
 import re
@@ -26,6 +25,11 @@ from pytest_cuke.model.message_stream_validation import validate_message_stream
 from pytest_cuke.model.message_types import message_from_dict
 from pytest_cuke.model.message_validation import validate_envelope
 from tests.support.testing_utils import mask_npm_package_from_node_resolution
+from tests.support.windows_acl import (
+    assert_windows_identity_lookup_command,
+    windows_acl_user_sid,
+    windows_identity_lookup_command,
+)
 
 
 _PRODUCT_ROOT = Path(__file__).resolve().parents[2]
@@ -1210,6 +1214,21 @@ def usage_duplicate_canonical_destination_is_preflighted(consumer: Any) -> None:
     assert not (_consumer_root(consumer) / "package.json").exists()
 
 
+@given(
+    "the Usage ACL identity lookup command is selected",
+    target_fixture="usage_acl_identity_command",
+)
+def select_usage_acl_identity_command() -> tuple[str, ...] | None:
+    return windows_identity_lookup_command()
+
+
+@then("the Usage ACL identity lookup should use System32 whoami on Windows")
+def verify_usage_acl_identity_command(
+    usage_acl_identity_command: tuple[str, ...] | None,
+) -> None:
+    assert_windows_identity_lookup_command(usage_acl_identity_command)
+
+
 @given("the usage consumer prepares an unwritable output parent and a marker scenario")
 def prepare_usage_unwritable_destination(consumer: Any) -> None:
     root = _prepare_consumer(consumer, _MARKER_FEATURE, feature_name="unwritable-destination.feature")
@@ -1217,23 +1236,10 @@ def prepare_usage_unwritable_destination(consumer: Any) -> None:
     directory.mkdir()
     if os.name == "nt":
         icacls = shutil.which("icacls.exe") or shutil.which("icacls")
-        whoami = shutil.which("whoami.exe") or shutil.which("whoami")
         assert icacls is not None, "Windows icacls is required to prove an unwritable Usage destination"
-        assert whoami is not None, "Windows whoami is required to identify the current ACL principal"
-        identity = subprocess.run(
-            [whoami, "/user", "/fo", "csv", "/nh"],
-            check=False,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=15,
-        )
-        assert identity.returncode == 0, f"could not identify the current Windows user:\n{identity.stdout}\n{identity.stderr}"
-        rows = list(csv.reader(identity.stdout.splitlines()))
-        assert rows and len(rows[0]) >= 2, identity.stdout
-        sid = rows[0][-1].strip()
-        assert re.fullmatch(r"S-1(?:-\d+)+", sid), identity.stdout
+        identity_command = windows_identity_lookup_command()
+        assert identity_command is not None, "Windows identity lookup is only available on Windows"
+        sid = windows_acl_user_sid(identity_command)
         denied = subprocess.run(
             [icacls, str(directory), "/deny", f"*{sid}:(WD,AD)"],
             check=False,

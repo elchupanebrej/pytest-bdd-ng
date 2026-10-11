@@ -135,3 +135,7 @@ Feature: Live Cucumber Usage formatter
     And the usage consumer sets the terminal width to 48 columns for the next pytest run
     When I run pytest in the UsageFormatter consumer with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage -q --color=no"
     Then the narrow usage table should retain all columns and fit the terminal width
+
+  Scenario: The Usage ACL identity lookup uses System32 whoami on Windows
+    Given the Usage ACL identity lookup command is selected
+    Then the Usage ACL identity lookup should use System32 whoami on Windows

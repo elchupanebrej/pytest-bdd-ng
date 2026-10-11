@@ -91,3 +91,7 @@ Feature: Live message-driven Cucumber JUnit XML formatter
     And the consumer installs the pinned official Cucumber JUnit runtime
     When I run installed pytest in the Cucumber JUnit workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-junit=artifacts/duplicate-identities.xml -q --color=no"
     Then duplicate-named Cucumber JUnit cases should retain source URI and line
+
+  Scenario: The Cucumber JUnit ACL identity lookup uses System32 whoami on Windows
+    Given the Cucumber JUnit ACL identity lookup command is selected
+    Then the Cucumber JUnit ACL identity lookup should use System32 whoami on Windows
