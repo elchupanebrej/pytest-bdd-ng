@@ -26,6 +26,20 @@ class FormatterCatalogError(ValueError):
 
 
 _OUTPUT_PROBE_MAX_ATTEMPTS = 8
+_NODE_PACKAGE_PREFLIGHT_SCRIPT = """
+import { stat } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+
+const resolved = import.meta.resolve(process.argv[1]);
+if (!resolved.startsWith("file:")) {
+  throw new Error(`npm package resolved to a non-file URL: ${resolved}`);
+}
+
+const entry = await stat(fileURLToPath(resolved));
+if (!entry.isFile()) {
+  throw new Error(`npm package entry is not a file: ${resolved}`);
+}
+""".strip()
 
 
 def resolve_formatter_requests(config: Config) -> tuple[FormatterRequest, ...]:
@@ -358,8 +372,8 @@ def _check_request_runtime(request: FormatterRequest, *, mode: str) -> None:
 
     for package in request.required_npm_packages:
         try:
-            completed = subprocess.run(  # noqa: S603 -- the fixed Node snippet imports a package selected by the plugin.
-                [node, "--input-type=module", "-e", "await import(process.argv[1])", package],
+            completed = subprocess.run(  # noqa: S603 -- Node resolves a package selected by formatter metadata.
+                [node, "--input-type=module", "-e", _NODE_PACKAGE_PREFLIGHT_SCRIPT, package],
                 cwd=request.working_directory,
                 capture_output=True,
                 text=True,

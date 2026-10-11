@@ -17,6 +17,7 @@ from urllib.parse import unquote
 
 import pytest
 from pytest_cuke import given, parsers, then, when
+from tests.support.testing_utils import mask_npm_package_from_node_resolution
 
 
 _PRODUCT_ROOT = Path(__file__).resolve().parents[2]
@@ -871,12 +872,66 @@ def expose_node_and_npm_without_cucumber_for_usage_json(consumer: Any) -> None:
     entries = (str(Path(node).parent), str(Path(npm).parent), str(Path(consumer.python).parent), os.defpath)
     consumer.env["PATH"] = os.pathsep.join(dict.fromkeys(entries))
     consumer.env.pop("NODE_PATH", None)
+    mask_npm_package_from_node_resolution(consumer._usage_json_workspace, "@cucumber/cucumber")
 
 
 @then("missing Cucumber package diagnostics should stop the Usage JSON run before the marker scenario")
 def missing_cucumber_usage_json_preflights(consumer: Any) -> None:
     output = _require_diagnostic_failure(consumer, "@cucumber/cucumber")
     assert "npm install" in output.lower(), output
+
+
+@given("the usage-json consumer prepares a passing marker scenario for package resolution")
+def prepare_usage_json_package_resolution_consumer(consumer: Any) -> None:
+    _prepare(consumer, feature=_MARKER_FEATURE, feature_name="usage-json-package-resolution.feature")
+
+
+@given("the usage-json consumer exposes a resolvable Cucumber package with a failing entrypoint")
+def expose_failing_usage_json_package_entrypoint(consumer: Any) -> None:
+    runtime = _node_environment(consumer)
+    if runtime is None:
+        pytest.skip("the package resolution Usage JSON check requires host Node.js and npm executables")
+    _, _, environment = runtime
+    consumer.env["PATH"] = environment["PATH"]
+    consumer.env.pop("NODE_PATH", None)
+
+    package = _safe_workspace(consumer, "usage-json café workspace with spaces/node_modules/@cucumber/cucumber")
+    package.mkdir(parents=True, exist_ok=True)
+    (package / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "@cucumber/cucumber",
+                "type": "module",
+                "exports": {".": "./index.js"},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    (package / "index.js").write_text(
+        'import { writeFileSync } from "node:fs";\n'
+        'export const FormatterBuilder = {};\n'
+        'export const UsageJsonFormatter = {};\n'
+        'export const formatterHelpers = {};\n'
+        'export const supportCodeLibraryBuilder = {};\n'
+        'writeFileSync(new URL("./entrypoint-executed.marker", import.meta.url), "loaded\\n");\n'
+        'throw new Error("Usage JSON formatter sink package entrypoint sentinel");\n',
+        encoding="utf-8",
+    )
+
+
+@then("the formatter sink failure should remain visible after scenario execution")
+def usage_json_package_resolution_does_not_execute_entrypoint(consumer: Any) -> None:
+    result = consumer.pytest_result
+    output = _combined_output(consumer)
+    assert result is not None and result.returncode != 0, output
+    assert (consumer._usage_json_workspace / "scenario-started.marker").is_file(), output
+    package_marker = consumer._usage_json_workspace / "node_modules/@cucumber/cucumber/entrypoint-executed.marker"
+    assert package_marker.is_file(), output
+    assert "SINK_FAILURE" in output, output
+    assert "requires npm package '@cucumber/cucumber'" not in output.lower(), output
+    assert re.search(r"\b1 passed\b", output), output
+    assert re.search(r"\b1 failed\b", output) is None, output
 
 
 @given("the usage-json consumer prepares a passing scenario for backend finalization")
@@ -888,7 +943,7 @@ def prepare_usage_json_backend_failure_consumer(consumer: Any) -> None:
 def install_usage_json_backend_failure_preload(consumer: Any) -> None:
     root = consumer._usage_json_workspace
     preload = _write(root, "fail-usage-json-backend.cjs", _USAGE_JSON_BACKEND_PRELOAD)
-    consumer.env["NODE_OPTIONS"] = f'--require="{preload.resolve()}"'
+    consumer.env["NODE_OPTIONS"] = f'--require="{preload.as_posix()}"'
 
 
 @then("the Usage JSON backend failure should remain visible")

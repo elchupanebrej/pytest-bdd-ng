@@ -74,6 +74,13 @@ Feature: Live Cucumber Usage JSON formatter
     When I run installed pytest in the usage-json workspace with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage-json=artifacts/usage.json -q --color=no"
     Then missing Cucumber package diagnostics should stop the Usage JSON run before the marker scenario
 
+  Scenario: A resolved package entrypoint fails only after the scenario reaches the formatter sink
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the usage-json consumer prepares a passing marker scenario for package resolution
+    And the usage-json consumer exposes a resolvable Cucumber package with a failing entrypoint
+    When I run installed pytest in the usage-json workspace with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-usage-json=artifacts/usage.json -q --color=no"
+    Then the formatter sink failure should remain visible after scenario execution
+
   Scenario: Usage JSON backend finalization failures remain visible
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the usage-json consumer prepares a passing scenario for backend finalization
