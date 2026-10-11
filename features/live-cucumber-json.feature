@@ -93,3 +93,7 @@ Feature: Live message-driven Cucumber JSON formatter
     And the consumer installs the pinned official Cucumber JSON runtime
     When I run installed pytest in the Cucumber JSON workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-json=artifacts/hooks.json --cuke-messages-ndjson=artifacts/hooks.ndjson -q --color=no"
     Then the Cucumber JSON report should preserve the scenario while Messages records both test run hooks
+
+  Scenario: The Cucumber JSON ACL identity lookup uses System32 whoami on Windows
+    Given the Cucumber JSON ACL identity lookup command is selected
+    Then the Cucumber JSON ACL identity lookup should use System32 whoami on Windows
