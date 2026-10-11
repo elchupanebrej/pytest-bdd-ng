@@ -42,6 +42,15 @@ Feature: Live Cucumber Summary formatter
     Then the official Cucumber summary should report one passed scenario and one passed step with duration
     And verbose tee-sys output should forward the consumer step and the summary once
 
+  Scenario: Explicit capture modes keep the official Summary on stdout
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the summary consumer prepares a passing sentinel feature
+    And the consumer installs the pinned official Cucumber Summary runtime in its workspace
+    When I run installed pytest from consumer directory "summary capture workspace" with shared arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-summary --color=no" and capture variants "-q --capture=fd", "-v --capture=sys", and "-vv --capture=no"
+    Then fd capture should print the official Summary once and hide the passing step sentinel
+    And sys capture should print the official Summary once and hide the passing step sentinel
+    And disabled capture should print the official Summary once and show the passing step sentinel
+
   Scenario: Summary rejects a competing terminal formatter before either one starts
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the summary consumer prepares a terminal conflict marker scenario and a public terminal formatter
