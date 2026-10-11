@@ -29,6 +29,23 @@ _VERSION_PATTERN = re.compile(r"(?<![\w.])v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?
 _GO_VERSION_PATTERN = re.compile(r"\bgo\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b")
 
 
+def _write_console_text(
+    text: str,
+    *,
+    stream: Any | None = None,
+    end: str = "\n",
+    flush: bool = False,
+) -> None:
+    destination = stream if stream is not None else sys.stdout
+    encoding = getattr(destination, "encoding", None)
+    if encoding:
+        text = text.encode(encoding, errors="backslashreplace").decode(encoding)
+    destination.write(text)
+    destination.write(end)
+    if flush:
+        destination.flush()
+
+
 def _installed_versions(python: Path) -> dict[str, Any]:
     package_names = json.dumps(_OPTIONAL_PACKAGES)
     query = "\n".join(
@@ -140,24 +157,27 @@ def main() -> int:
     args = parser.parse_args()
 
     if not args.sha:
-        print("run-env-matrix: pass --sha or set GITHUB_SHA so evidence is tied to an exact commit", file=sys.stderr)
+        _write_console_text(
+            "run-env-matrix: pass --sha or set GITHUB_SHA so evidence is tied to an exact commit",
+            stream=sys.stderr,
+        )
         return 2
     tox = shutil.which("tox")
     if tox is None:
-        print(
+        _write_console_text(
             "run-env-matrix: tox is not installed; run `python -m pip install 'pytest-cuke[env-matrix]'`",
-            file=sys.stderr,
+            stream=sys.stderr,
         )
         return 2
 
     try:
         cells = load_cells(args.inventory, args.job)
     except RuntimeError as error:
-        print(f"run-env-matrix: {error}", file=sys.stderr)
+        _write_console_text(f"run-env-matrix: {error}", stream=sys.stderr)
         return 2
     selected = next((cell for cell in cells if cell.get("id") == args.cell), None)
     if selected is None:
-        print(f"run-env-matrix: cell {args.cell!r} is not part of job {args.job!r}", file=sys.stderr)
+        _write_console_text(f"run-env-matrix: cell {args.cell!r} is not part of job {args.job!r}", stream=sys.stderr)
         return 2
 
     project_root = args.inventory.resolve().parent.parent
@@ -178,7 +198,7 @@ def main() -> int:
             command_environment["PYTEST_CUKE_REMOTE_RUNTIME_EVIDENCE"] = str(remote_runtime_path)
         if args.job == "native-go-parser":
             command_environment["PYTEST_CUKE_BUILD_GO"] = "off"
-        print(f"Running {' '.join(command)}", flush=True)
+        _write_console_text(f"Running {' '.join(command)}", flush=True)
         # The command is built from the validated inventory's tox environment name.
         run = subprocess.run(  # noqa: S603
             command,
@@ -190,9 +210,14 @@ def main() -> int:
             check=False,
         )
         if run.stdout:
-            print(run.stdout, end="" if run.stdout.endswith("\n") else "\n", flush=True)
+            _write_console_text(run.stdout, end="" if run.stdout.endswith("\n") else "\n", flush=True)
         if run.stderr:
-            print(run.stderr, file=sys.stderr, end="" if run.stderr.endswith("\n") else "\n", flush=True)
+            _write_console_text(
+                run.stderr,
+                stream=sys.stderr,
+                end="" if run.stderr.endswith("\n") else "\n",
+                flush=True,
+            )
         if run.returncode:
             overall_status = "failed"
 
@@ -204,16 +229,16 @@ def main() -> int:
         if environment_group in TEST_EVIDENCE_GROUPS:
             if selected_tests is None or selected_tests < 1:
                 overall_status = "failed"
-                print(
+                _write_console_text(
                     f"run-env-matrix: {env_name} selected no tests; refusing to record an empty acceptance run",
-                    file=sys.stderr,
+                    stream=sys.stderr,
                 )
             elif passed_tests is None or passed_tests < 1:
                 overall_status = "failed"
-                print(
+                _write_console_text(
                     f"run-env-matrix: {env_name} selected no tests that passed; "
                     "all selected tests may have been skipped or expected to fail",
-                    file=sys.stderr,
+                    stream=sys.stderr,
                 )
 
         system_tool_versions, system_tool_commands = _system_tool_evidence(env_name, project_root=project_root)
@@ -257,10 +282,10 @@ def main() -> int:
                 environment_record["outcome"] = "failed"
                 environment_record["missing_optional_packages"] = missing_optional
                 overall_status = "failed"
-                print(
+                _write_console_text(
                     f"run-env-matrix: {env_name} is missing required optional package(s): "
                     f"{', '.join(missing_optional)}",
-                    file=sys.stderr,
+                    stream=sys.stderr,
                 )
             missing_system_tools = [
                 tool
@@ -271,10 +296,10 @@ def main() -> int:
                 environment_record["outcome"] = "failed"
                 environment_record["missing_system_tools"] = missing_system_tools
                 overall_status = "failed"
-                print(
+                _write_console_text(
                     f"run-env-matrix: {env_name} is missing a version for required system tool(s): "
                     f"{', '.join(missing_system_tools)}",
-                    file=sys.stderr,
+                    stream=sys.stderr,
                 )
             missing_system_tool_commands = [
                 tool
@@ -285,10 +310,10 @@ def main() -> int:
                 environment_record["outcome"] = "failed"
                 environment_record["missing_system_tool_commands"] = missing_system_tool_commands
                 overall_status = "failed"
-                print(
+                _write_console_text(
                     f"run-env-matrix: {env_name} is missing a resolved version command for required system tool(s): "
                     f"{', '.join(missing_system_tool_commands)}",
-                    file=sys.stderr,
+                    stream=sys.stderr,
                 )
         except (OSError, RuntimeError, json.JSONDecodeError) as error:
             environment_record["runtime_evidence_error"] = str(error)
@@ -316,7 +341,7 @@ def main() -> int:
         "environments": environment_records,
     }
     output_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    print(f"Environment evidence written to {output_path}")
+    _write_console_text(f"Environment evidence written to {output_path}")
     return 0 if overall_status == "passed" else 1
 
 
