@@ -35,6 +35,7 @@ Feature: Supported environment inventory and acceptance proof
     When I run the project environment inventory check in JSON mode
     Then the pre-commit lane should resolve to a tox command that runs pre-commit
     And Ruff and typecheck lanes should resolve to their real tools
+    And configured hook Python should match the pre-commit lane interpreter
 
   Scenario: Optional capability lanes select real tests and fail closed on missing prerequisites
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
@@ -59,6 +60,15 @@ Feature: Supported environment inventory and acceptance proof
     Then the inventory should include a Playwright browser lane with an HTML report carrier
     And the inventory should include socket via and SSH lanes with real report carriers
     And native and formatter lanes should name their test carriers and prerequisites
+
+  Scenario: The native parser tox environment provides uv for acceptance consumers
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    Given the repository environment inventory is loaded
+    Then the native parser tox environment should install uv
+
+  Scenario: Installed metadata caps PyPy 3.10 dependencies without limiting other runtimes
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    Then installed package metadata should cap dependencies for PyPy 3.10 and remain open for newer runtimes
 
   Scenario: Live formatter acceptance uses inventory selected lanes on every platform
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project

@@ -621,7 +621,7 @@ def configured_snippets_are_javascript_and_preserve_undefined(consumer: Any) -> 
 @when(
     parsers.re(
         r'I run installed pytest from consumer directory "(?P<working_directory>[^"]+)" '
-        r'with shared arguments "(?P<shared_arguments>[^"]+)" and capture variants '
+        r'with shared arguments "(?P<shared_arguments>[^"]+)" and Snippets capture variants '
         r'"(?P<fd_arguments>[^"]+)", "(?P<sys_arguments>[^"]+)", and "(?P<no_arguments>[^"]+)"'
     )
 )

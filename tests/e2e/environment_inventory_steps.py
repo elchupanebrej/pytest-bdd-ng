@@ -17,6 +17,8 @@ from typing import Any
 
 import pytest
 import yaml
+from packaging.markers import default_environment
+from packaging.requirements import Requirement
 from pytest_cuke import given, then, when
 from pytest_cuke.compatibility.environment_matrix import _collected_count, check_environment_inventory
 from pytest_cuke.compatibility.runtime_compat import is_pair_compatible
@@ -580,6 +582,40 @@ def precommit_lane_resolves_to_lint_command(consumer: Any) -> None:
         assert "pre-commit" in command, (lane, tox_proof)
 
 
+@then("configured hook Python should match the pre-commit lane interpreter")
+def configured_precommit_python_matches_lane_interpreter(consumer: Any) -> None:
+    context = _context(consumer)
+    lane = next((candidate for candidate in _lanes(context) if _lane_id(candidate) == "pre-commit"), None)
+    assert lane is not None, "the inventory must declare the required pre-commit lane"
+    assert str(lane.get("runtime", "")).casefold() == "cpython", lane
+    expected_python = f"python{lane.get('python')}"
+    config_path = context.repository_root / ".pre-commit-config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert isinstance(config, dict), f"pre-commit config must be a YAML mapping: {config_path}"
+
+    default_versions = config.get("default_language_version")
+    assert isinstance(default_versions, dict), f"pre-commit config must declare default_language_version: {config}"
+    default_python = default_versions.get("python")
+    assert default_python == expected_python, (
+        f"pre-commit's default Python {default_python!r} must match the selected lane interpreter "
+        f"{expected_python!r}"
+    )
+
+    repositories = config.get("repos")
+    assert isinstance(repositories, list), f"pre-commit config must declare repos: {config}"
+    hook_overrides = [
+        (hook.get("id", "<unnamed>"), hook["language_version"])
+        for repository in repositories
+        if isinstance(repository, dict)
+        for hook in repository.get("hooks", [])
+        if isinstance(hook, dict) and "language_version" in hook
+    ]
+    mismatches = [(hook_id, version) for hook_id, version in hook_overrides if version != expected_python]
+    assert not mismatches, (
+        f"Python hook overrides must match the selected lane interpreter {expected_python!r}: {mismatches!r}"
+    )
+
+
 @then("Ruff and typecheck lanes should resolve to their real tools")
 def ruff_and_typecheck_lanes_resolve_to_real_tools(consumer: Any) -> None:
     lanes = {_lane_id(lane): lane for lane in _lanes(_context(consumer))}
@@ -830,6 +866,105 @@ def native_and_formatter_lanes_name_carriers(consumer: Any) -> None:
             _carrier(lane)
             assert _prerequisite_entries(lane), lane
             _assert_carrier_path_exists(_context(consumer), lane)
+
+
+@then("the native parser tox environment should install uv")
+def native_parser_tox_environment_installs_uv(consumer: Any) -> None:
+    result = subprocess.run(
+        ["tox", "config", "-e", "native-go-parser", "-k", "deps", "--format=json"],
+        cwd=consumer.path,
+        env=_inventory_command_environment(consumer),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"tox config failed for native-go-parser: {result.stdout}\n{result.stderr}"
+    payload = json.loads(result.stdout)
+    environment_config = payload.get("env", {}).get("native-go-parser", {})
+    dependencies = environment_config.get("deps")
+    assert isinstance(dependencies, list), environment_config
+    dependency_names = {
+        re.split(r"[<>=!~;\s\[]", str(dependency).strip(), maxsplit=1)[0].casefold()
+        for dependency in dependencies
+    }
+    assert "uv" in dependency_names, (
+        "the native-go-parser tox environment must install uv because its acceptance tests build and install "
+        f"isolated consumers; resolved dependencies were {dependencies!r}"
+    )
+
+
+@then("installed package metadata should cap dependencies for PyPy 3.10 and remain open for newer runtimes")
+def installed_metadata_caps_only_legacy_pypy_dependencies(consumer: Any) -> None:
+    metadata_script = (
+        "import json; from importlib.metadata import distribution; "
+        "print(json.dumps(distribution('pytest-cuke').metadata.get_all('Requires-Dist') or []))"
+    )
+    result = subprocess.run(
+        [str(consumer.python), "-c", metadata_script],
+        cwd=consumer.path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"could not read installed pytest-cuke metadata: {result.stderr}"
+    requirement_lines = json.loads(result.stdout)
+    assert isinstance(requirement_lines, list), requirement_lines
+    requirements = [Requirement(line) for line in requirement_lines]
+
+    def active_requirements(package: str, implementation: str, python_version: str) -> list[Requirement]:
+        marker_environment = default_environment()
+        is_pypy = implementation == "PyPy"
+        marker_environment.update(
+            {
+                "implementation_name": "pypy" if is_pypy else "cpython",
+                "platform_python_implementation": implementation,
+                "python_version": python_version,
+                "python_full_version": f"{python_version}.0",
+                "extra": "",
+            }
+        )
+        normalized_name = re.sub(r"[-_.]+", "-", package).casefold()
+        return [
+            requirement
+            for requirement in requirements
+            if re.sub(r"[-_.]+", "-", requirement.name).casefold() == normalized_name
+            and (requirement.marker is None or requirement.marker.evaluate(marker_environment))
+        ]
+
+    def allows(selected: list[Requirement], version: str) -> bool:
+        return all(requirement.specifier.contains(version, prereleases=True) for requirement in selected)
+
+    observed: dict[str, dict[str, list[str]]] = {}
+    for implementation, python_version in (
+        ("PyPy", "3.10"),
+        ("CPython", "3.10"),
+        ("CPython", "3.14"),
+        ("PyPy", "3.11"),
+    ):
+        observed[f"{implementation} {python_version}"] = {
+            package: [str(requirement.specifier) for requirement in active_requirements(package, implementation, python_version)]
+            for package in ("pydantic", "rpds-py")
+        }
+
+    legacy_pydantic = active_requirements("pydantic", "PyPy", "3.10")
+    legacy_rpds = active_requirements("rpds-py", "PyPy", "3.10")
+    failures = []
+    if not legacy_pydantic or not allows(legacy_pydantic, "2.12.5") or allows(legacy_pydantic, "2.13.0"):
+        failures.append("PyPy 3.10 must allow pydantic 2.12.5 and exclude 2.13.0")
+    if not legacy_rpds or not allows(legacy_rpds, "0.27.0") or allows(legacy_rpds, "0.28.0"):
+        failures.append("PyPy 3.10 must allow rpds-py 0.27.0 and exclude 0.28.0")
+    for implementation, python_version in (
+        ("CPython", "3.10"),
+        ("CPython", "3.14"),
+        ("PyPy", "3.11"),
+    ):
+        pydantic = active_requirements("pydantic", implementation, python_version)
+        rpds = active_requirements("rpds-py", implementation, python_version)
+        if not pydantic or not allows(pydantic, "2.13.0"):
+            failures.append(f"{implementation} {python_version} must keep pydantic 2.13.0 available")
+        if not allows(rpds, "0.28.0"):
+            failures.append(f"{implementation} {python_version} must keep rpds-py 0.28.0 available")
+    assert not failures, f"; ".join(failures) + f"; installed metadata specifiers: {observed!r}"
 
 
 @given(
