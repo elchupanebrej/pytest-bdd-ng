@@ -844,8 +844,8 @@ def live_formatter_acceptance_lanes_resolve_to_ci_and_carriers(consumer: Any) ->
         _assert_carrier_path_exists(context, lane)
 
 
-@then("every live formatter acceptance carrier should include every feature selected by tox")
-def live_formatter_acceptance_carriers_include_tox_features(consumer: Any) -> None:
+@then("every live formatter acceptance carrier should select exactly the feature files selected by tox")
+def live_formatter_acceptance_carriers_match_tox_features(consumer: Any) -> None:
     context = _context(consumer)
     tox_config = configparser.ConfigParser(interpolation=None)
     tox_path = context.repository_root / "tox.ini"
@@ -870,10 +870,12 @@ def live_formatter_acceptance_carriers_include_tox_features(consumer: Any) -> No
         carrier = _carrier(lane)
         carrier_command = carrier.get("command")
         assert isinstance(carrier_command, str) and carrier_command, (platform_name, carrier)
-        missing = tox_feature_paths - _feature_arguments(carrier_command)
-        assert not missing, (
-            f"live formatter acceptance carrier for {platform_name} omits tox-selected feature files: "
-            f"{sorted(missing)}"
+        carrier_feature_paths = _feature_arguments(carrier_command)
+        missing = tox_feature_paths - carrier_feature_paths
+        extra = carrier_feature_paths - tox_feature_paths
+        assert not missing and not extra, (
+            f"live formatter acceptance carrier for {platform_name} does not match tox feature selection: "
+            f"missing={sorted(missing)}, extra={sorted(extra)}"
         )
 
 

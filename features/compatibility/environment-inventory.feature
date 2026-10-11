@@ -62,10 +62,10 @@ Feature: Supported environment inventory and acceptance proof
     And each live formatter acceptance lane should resolve to its selected CI cell and test carrier
     And the aggregate proof job should require and download live formatter acceptance evidence
 
-  Scenario: Live formatter carrier probes cover every feature selected by tox
+  Scenario: Live formatter carrier probes match tox feature selection exactly
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     And the repository environment inventory is loaded
-    Then every live formatter acceptance carrier should include every feature selected by tox
+    Then every live formatter acceptance carrier should select exactly the feature files selected by tox
 
   Scenario: The doc-generation extra has a dedicated required lane
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
