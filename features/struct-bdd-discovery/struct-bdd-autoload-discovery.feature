@@ -23,6 +23,11 @@ Feature: StructBDD autoload discovery
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer installs the optional StructBDD loaders
     And the consumer has semantically equal Gherkin and YAML StructBDD features
+    And pytest configuration:
+      """toml
+      [tool.pytest.ini_options]
+      cuke_json_backend = "native"
+      """
     When I compare their immutable feature models and scenario reports
     Then both formats should have matching normalized domains and Cucumber reports
 
