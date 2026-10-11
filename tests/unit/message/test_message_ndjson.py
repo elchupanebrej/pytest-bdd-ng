@@ -17,7 +17,7 @@ def test_reader_skips_blank_lines_and_reports_json_location(tmp_path: Path) -> N
 
     iterator = iter_validated_ndjson(source)
     assert next(iterator) == make_test_run_started(100.0)
-    with pytest.raises(ValueError, match=r"messages\.ndjson at line 4:.*Expecting property name"):
+    with pytest.raises(ValueError, match=r"invalid Messages JSON in .*messages\.ndjson at line 4:"):
         next(iterator)
 
 
