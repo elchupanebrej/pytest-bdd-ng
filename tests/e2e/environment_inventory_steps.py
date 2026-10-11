@@ -261,6 +261,16 @@ def _feature_arguments(command: str) -> set[str]:
     return feature_arguments
 
 
+def _precommit_hook_selects_path(hook: dict[str, Any], path: str) -> bool:
+    files_pattern = hook.get("files", "")
+    exclude_pattern = hook.get("exclude", "")
+    if not isinstance(files_pattern, str) or not isinstance(exclude_pattern, str):
+        return False
+    return re.search(files_pattern, path) is not None and (
+        not exclude_pattern or re.search(exclude_pattern, path) is None
+    )
+
+
 def _write_inventory(context: EnvironmentInventoryContext) -> None:
     path = context.consumer.path / "config" / "env-matrix.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -287,9 +297,9 @@ def _install_inventory_checker_tools(consumer: Any) -> None:
         capture_output=True,
         text=True,
     )
-    assert (
-        result.returncode == 0
-    ), f"could not install environment checker dependencies:\n{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, (
+        f"could not install environment checker dependencies:\n{result.stdout}\n{result.stderr}"
+    )
 
 
 @given("the repository environment inventory is loaded")
@@ -452,8 +462,7 @@ def install_doc_generation_package_prerequisites(consumer: Any) -> None:
         timeout=180,
     )
     assert result.returncode == 0, (
-        f"could not install doc-generation package prerequisites {package_names!r}:\n"
-        f"{result.stdout}\n{result.stderr}"
+        f"could not install doc-generation package prerequisites {package_names!r}:\n{result.stdout}\n{result.stderr}"
     )
 
 
@@ -598,8 +607,7 @@ def configured_precommit_python_matches_lane_interpreter(consumer: Any) -> None:
     assert isinstance(default_versions, dict), f"pre-commit config must declare default_language_version: {config}"
     default_python = default_versions.get("python")
     assert default_python == expected_python, (
-        f"pre-commit's default Python {default_python!r} must match the selected lane interpreter "
-        f"{expected_python!r}"
+        f"pre-commit's default Python {default_python!r} must match the selected lane interpreter {expected_python!r}"
     )
 
     repositories = config.get("repos")
@@ -612,9 +620,9 @@ def configured_precommit_python_matches_lane_interpreter(consumer: Any) -> None:
         if isinstance(hook, dict) and "language_version" in hook
     ]
     mismatches = [(hook_id, version) for hook_id, version in hook_overrides if version != expected_python]
-    assert (
-        not mismatches
-    ), f"Python hook overrides must match the selected lane interpreter {expected_python!r}: {mismatches!r}"
+    assert not mismatches, (
+        f"Python hook overrides must match the selected lane interpreter {expected_python!r}: {mismatches!r}"
+    )
 
 
 @then("the pre-commit tox environment should install the testtypes and debug-mcp extras")
@@ -637,12 +645,12 @@ def precommit_tox_environment_installs_typing_extras(consumer: Any) -> None:
     environment_config = payload.get("env", {}).get(environment_name, {})
     extras = environment_config.get("extras")
     expected_extras = {"testtypes", "debug-mcp"}
-    assert isinstance(extras, list) and expected_extras <= set(
-        extras
-    ), f"{environment_name} must install {sorted(expected_extras)!r}; resolved extras were {extras!r}"
+    assert isinstance(extras, list) and expected_extras <= set(extras), (
+        f"{environment_name} must install {sorted(expected_extras)!r}; resolved extras were {extras!r}"
+    )
 
 
-@then("Ruff pre-commit hooks should match the py314-ruff tox scope")
+@then("Ruff pre-commit hooks should match the py314-ruff tox scope and pinned version")
 def ruff_precommit_hooks_match_tox_scope(consumer: Any) -> None:
     context = _context(consumer)
     commands = _tox_configured_commands(consumer, "py314-ruff")
@@ -652,16 +660,16 @@ def ruff_precommit_hooks_match_tox_scope(consumer: Any) -> None:
         "check",
     ], f"py314-ruff must resolve to an explicit Ruff check command, got {commands!r}"
     carrier_paths = command_tokens[2:]
-    assert carrier_paths and all(
-        not path.startswith("-") for path in carrier_paths
-    ), f"py314-ruff must list its carrier paths explicitly, got {commands!r}"
+    assert carrier_paths and all(not path.startswith("-") for path in carrier_paths), (
+        f"py314-ruff must list its carrier paths explicitly, got {commands!r}"
+    )
     normalized_carriers = [Path(path).as_posix() for path in carrier_paths]
 
     legacy_path = "tests/e2e/steps.py"
     assert (context.repository_root / legacy_path).is_file(), f"expected legacy file is missing: {legacy_path}"
-    assert (
-        legacy_path not in normalized_carriers
-    ), f"the legacy file used to guard the approved scope must remain outside py314-ruff: {legacy_path}"
+    assert legacy_path not in normalized_carriers, (
+        f"the legacy file used to guard the approved scope must remain outside py314-ruff: {legacy_path}"
+    )
 
     config_path = context.repository_root / ".pre-commit-config.yaml"
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -676,11 +684,42 @@ def ruff_precommit_hooks_match_tox_scope(consumer: Any) -> None:
         if isinstance(hook, dict) and hook.get("id")
     }
 
-    missing_hooks = [hook_id for hook_id in ("ruff", "ruff-format") if hook_id not in hooks]
+    ruff_repository = next(
+        (
+            repository
+            for repository in repositories
+            if isinstance(repository, dict) and repository.get("repo") == "https://github.com/astral-sh/ruff-pre-commit"
+        ),
+        None,
+    )
+    assert ruff_repository is not None, "pre-commit config must declare the official Ruff hooks repository"
+    expected_revision = "v0.17.0"
+    revision = ruff_repository.get("rev")
+    assert revision == expected_revision, (
+        f"the Ruff pre-commit repository must be pinned to {expected_revision!r}, got {revision!r}"
+    )
+
+    tox_config = configparser.ConfigParser(interpolation=None)
+    tox_config_path = context.repository_root / "tox.ini"
+    assert tox_config.read(tox_config_path, encoding="utf-8"), f"could not read {tox_config_path}"
+    tox_section = "testenv:py314-ruff"
+    assert tox_config.has_section(tox_section), f"tox.ini must declare [{tox_section}]"
+    tox_ruff_dependencies = [
+        dependency.strip()
+        for dependency in tox_config[tox_section].get("deps", "").splitlines()
+        if dependency.strip().casefold().startswith("ruff")
+    ]
+    expected_dependency = f"ruff=={expected_revision.removeprefix('v')}"
+    assert tox_ruff_dependencies == [expected_dependency], (
+        f"[{tox_section}] must pin {expected_dependency!r} to match the Ruff hook revision; "
+        f"resolved Ruff dependencies were {tox_ruff_dependencies!r}"
+    )
+
+    missing_hooks = [hook_id for hook_id in ("ruff-check", "ruff-format") if hook_id not in hooks]
     assert not missing_hooks, f"pre-commit config is missing scoped Ruff hooks: {missing_hooks!r}"
     uncovered: dict[str, list[str]] = {}
     selected_legacy: list[str] = []
-    for hook_id in ("ruff", "ruff-format"):
+    for hook_id in ("ruff-check", "ruff-format"):
         hook = hooks[hook_id]
         files_pattern = hook.get("files", "")
         exclude_pattern = hook.get("exclude", "")
@@ -688,22 +727,17 @@ def ruff_precommit_hooks_match_tox_scope(consumer: Any) -> None:
             uncovered[hook_id] = normalized_carriers
             continue
 
-        def selected(path: str) -> bool:
-            return re.search(files_pattern, path) is not None and (
-                not exclude_pattern or re.search(exclude_pattern, path) is None
-            )
-
-        uncovered[hook_id] = [path for path in normalized_carriers if not selected(path)]
-        if selected(legacy_path):
+        uncovered[hook_id] = [path for path in normalized_carriers if not _precommit_hook_selects_path(hook, path)]
+        if _precommit_hook_selects_path(hook, legacy_path):
             selected_legacy.append(hook_id)
 
     assert not any(uncovered.values()), (
         "both Ruff pre-commit hooks must include every carrier path selected by py314-ruff; "
         f"uncovered paths: {uncovered!r}"
     )
-    assert (
-        not selected_legacy
-    ), f"the legacy file outside the approved py314-ruff scope must not be selected by Ruff hooks: {selected_legacy!r}"
+    assert not selected_legacy, (
+        f"the legacy file outside the approved py314-ruff scope must not be selected by Ruff hooks: {selected_legacy!r}"
+    )
 
 
 @then("pre-commit text fixers should exclude upstream schemas and generated docs")
@@ -1089,9 +1123,9 @@ def messages_schema_tox_command_uses_installed_schema_fixture(request: pytest.Fi
     )
 
     envelope_schema = repository_root / source_directory / "jsonschema" / "Envelope.json"
-    assert (
-        envelope_schema.is_file()
-    ), f"messages-schema fixture for cucumber-messages {release} is missing {envelope_schema}"
+    assert envelope_schema.is_file(), (
+        f"messages-schema fixture for cucumber-messages {release} is missing {envelope_schema}"
+    )
 
 
 @then("installed package metadata should cap dependencies for PyPy 3.10 and remain open for newer runtimes")
@@ -1191,9 +1225,9 @@ def compatibility_audit_documents_are_loaded(request: Any) -> CompatibilityAudit
 def compatibility_audit_guide_documents_full_proof(compatibility_audit_documents: CompatibilityAuditDocuments) -> None:
     guide = compatibility_audit_documents.audit_guide
     normalized_guide = guide.casefold()
-    assert (
-        "`tox run` executes the complete declared tox environment list." in guide
-    ), "the guide should identify tox run as the command for all declared environments"
+    assert "`tox run` executes the complete declared tox environment list." in guide, (
+        "the guide should identify tox run as the command for all declared environments"
+    )
     assert "workflow dispatch" in normalized_guide, "the guide should explain how to trigger full acceptance proof"
     assert "full-supported-proof-<sha>" in guide, "the guide should name the aggregate proof artifact"
 
@@ -1216,7 +1250,7 @@ def contributor_entry_links_to_compatibility_audit(compatibility_audit_documents
     contribution_section = compatibility_audit_documents.contributor_entry.partition("How to Contribute")[2]
     link_pattern = r"`[^`<>]*<docs/compatibility-and-migration-audit\.md>`_"
     assert re.search(link_pattern, contribution_section), (
-        "README.rst's How to Contribute section should link to " "docs/compatibility-and-migration-audit.md"
+        "README.rst's How to Contribute section should link to docs/compatibility-and-migration-audit.md"
     )
 
 
@@ -1341,9 +1375,9 @@ def aggregate_proof_requires_live_formatter_acceptance_evidence(consumer: Any) -
         for step in aggregate_steps
         if isinstance(step, dict) and "aggregate_env_evidence.py" in str(step.get("run", ""))
     ]
-    assert any(
-        "--inventory config/env-matrix.yaml" in run and "--sha" in run for run in proof_runs
-    ), "aggregate proof must validate downloaded outcomes against the inventory and commit SHA"
+    assert any("--inventory config/env-matrix.yaml" in run and "--sha" in run for run in proof_runs), (
+        "aggregate proof must validate downloaded outcomes against the inventory and commit SHA"
+    )
 
 
 @when("I check a temporary inventory with an unresolved tox workflow selector and command")
@@ -1524,9 +1558,9 @@ def wire_workflow_job_to_different_matrix_output(
     content = workflow_path.read_text(encoding="utf-8")
     expected_expression = "fromJSON(needs.matrix-select.outputs.full_matrix)"
     wrong_expression = "fromJSON(needs.matrix-select.outputs.remote)"
-    assert (
-        content.count(expected_expression) == 1
-    ), f"expected exactly one full-matrix selector in {workflow_path}, found {content.count(expected_expression)}"
+    assert content.count(expected_expression) == 1, (
+        f"expected exactly one full-matrix selector in {workflow_path}, found {content.count(expected_expression)}"
+    )
     content = content.replace(expected_expression, wrong_expression, 1)
     assert "fromJSON(needs." in content and wrong_expression in content, content
     workflow_path.write_text(content, encoding="utf-8")

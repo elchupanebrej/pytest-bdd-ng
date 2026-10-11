@@ -405,9 +405,9 @@ def historical_incompatible_tox_environments_are_excluded(
     expected = context.baseline.get("historical_exclusions", [])
     expected_keys = {_tuple_key(row, ("runtime", "python", "pytest", "platform")) for row in expected}
     actual_keys = {_tuple_key(row, ("runtime", "python", "pytest", "platform")) for row in source_backed}
-    assert (
-        expected_keys <= actual_keys
-    ), f"historical exclusions lack source-backed live entries: {sorted(expected_keys - actual_keys)}"
+    assert expected_keys <= actual_keys, (
+        f"historical exclusions lack source-backed live entries: {sorted(expected_keys - actual_keys)}"
+    )
 
 
 @when("I remove one viable historical lane from the isolated ledger inventory and tox config")
@@ -481,6 +481,6 @@ def independent_baseline_reports_missing_historical_lane(
     source = _evidence_text(row["source_evidence"])
     matching = [gap for gap in gaps if row["id"] in gap and row["tox_env"] in gap]
     assert matching, f"the independent baseline did not detect removed lane {row['id']} ({row['tox_env']}): {gaps!r}"
-    assert any(
-        source_part in "\n".join(matching) for source_part in source.split(", ")
-    ), f"the missing-lane diagnostic omitted pinned source evidence {source!r}: {matching!r}"
+    assert any(source_part in "\n".join(matching) for source_part in source.split(", ")), (
+        f"the missing-lane diagnostic omitted pinned source evidence {source!r}: {matching!r}"
+    )

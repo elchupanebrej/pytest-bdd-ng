@@ -539,8 +539,7 @@ def _validate_support_ledger(
                 _diagnostic(
                     provenance_id,
                     "lane-provenance-lane-unresolved",
-                    f"provenance references lane {lane_id!r} without active tox environment "
-                    f"{provenance_environment!r}",
+                    f"provenance references lane {lane_id!r} without active tox environment {provenance_environment!r}",
                     "Point the provenance row at an active inventory lane containing this exact tox environment.",
                 )
             )
