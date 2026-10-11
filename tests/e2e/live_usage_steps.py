@@ -347,13 +347,18 @@ def _restore_readonly_directory(consumer: Any) -> None:
     consumer._usage_readonly_directory = None
 
 
-def _run_pytest(consumer: Any, arguments: str) -> subprocess.CompletedProcess[str]:
+def _run_pytest(
+    consumer: Any,
+    arguments: str,
+    *,
+    cwd: Path | None = None,
+) -> subprocess.CompletedProcess[str]:
     root = getattr(consumer, "_usage_workspace", _consumer_root(consumer))
     command = [str(consumer.python), "-m", "pytest", *shlex.split(arguments)]
     try:
         result = subprocess.run(
             command,
-            cwd=root,
+            cwd=cwd or root,
             env=consumer.env,
             check=False,
             capture_output=True,
@@ -760,6 +765,10 @@ def install_pinned_usage_runtime(consumer: Any) -> None:
 
 @when(parsers.re(r'I run pytest in the UsageFormatter consumer with arguments "(?P<flags>[^"]*)"'))
 def run_usage_consumer_pytest(flags: str, consumer: Any) -> None:
+    _run_usage_consumer_pytest(consumer, flags)
+
+
+def _run_usage_consumer_pytest(consumer: Any, flags: str, *, cwd: Path | None = None) -> None:
     messages_argument = next(
         (argument for argument in shlex.split(flags) if argument.startswith("--cuke-messages-ndjson=")),
         None,
@@ -767,9 +776,23 @@ def run_usage_consumer_pytest(flags: str, consumer: Any) -> None:
     if messages_argument is not None:
         consumer._usage_messages_relative_path = messages_argument.split("=", 1)[1]
     if getattr(consumer, "_usage_pty_width", None) is None:
-        _run_pytest(consumer, flags)
+        _run_pytest(consumer, flags, cwd=cwd)
     else:
+        assert cwd is None, "the usage pseudo-terminal runner does not support an alternate working directory"
         _run_pytest_in_pty(consumer, flags, width=consumer._usage_pty_width)
+
+
+@when(
+    parsers.re(
+        r'I run pytest from a nested directory in the UsageFormatter consumer with arguments "(?P<flags>[^"]*)"'
+    )
+)
+def run_usage_consumer_pytest_from_nested_directory(flags: str, consumer: Any) -> None:
+    nested_directory = getattr(consumer, "_usage_nested_directory", None)
+    assert isinstance(nested_directory, Path) and nested_directory.is_dir(), (
+        "the UsageFormatter consumer nested invocation directory has not been prepared"
+    )
+    _run_usage_consumer_pytest(consumer, flags, cwd=nested_directory)
 
 
 @then("the official usage table should match Messages definition identities and preserve pytest failure")
@@ -873,6 +896,14 @@ def prepare_path_configured_usage_consumer(consumer: Any) -> None:
     )
 
 
+@given("the usage consumer prepares a passing feature for a nested invocation directory")
+def prepare_nested_usage_path_consumer(consumer: Any) -> None:
+    root = _prepare_consumer(consumer, _PASSING_FEATURE, feature_name="nested-usage-path.feature")
+    nested_directory = root / "nested"
+    (nested_directory / "artifacts").mkdir(parents=True)
+    consumer._usage_nested_directory = nested_directory
+
+
 @then("configured usage should write the report path without terminal output")
 def configured_usage_writes_path(consumer: Any) -> None:
     root = getattr(consumer, "_usage_workspace", _consumer_root(consumer))
@@ -885,6 +916,42 @@ def configured_usage_writes_path(consumer: Any) -> None:
     assert "Pattern / Text" in report and "usage consumer sample scenario passes" in report, report
     assert "Pattern / Text" not in output, f"configured file output also claimed stdout:\n{output}"
     _assert_single_passing_usage_definition(consumer, report)
+
+
+@then("the CLI Usage report path should resolve from pytest root")
+def cli_usage_path_resolves_from_pytest_root(consumer: Any) -> None:
+    root = getattr(consumer, "_usage_workspace", _consumer_root(consumer))
+    nested_directory = getattr(consumer, "_usage_nested_directory", None)
+    assert isinstance(nested_directory, Path), "the nested UsageFormatter invocation directory was not prepared"
+    result = consumer.pytest_result
+    output = _output(consumer)
+    assert result is not None and result.returncode == 0, output
+    assert re.search(r"\b1 passed\b", output), output
+
+    root_report = root / "artifacts" / "nested-usage.txt"
+    nested_report = nested_directory / "artifacts" / "nested-usage.txt"
+    assert root_report.is_file(), f"the CLI Usage report is missing under pytest root: {root_report}\n{output}"
+    assert not nested_report.exists(), (
+        "the CLI Usage report was incorrectly written relative to invocation cwd: "
+        f"{nested_report}"
+    )
+    report = root_report.read_text(encoding="utf-8")
+    assert all(header in report for header in ("Pattern / Text", "Duration", "Location")), report
+    assert "usage consumer sample scenario passes" in report, report
+    assert "Pattern / Text" not in output, f"file-selected UsageFormatter also wrote to stdout:\n{output}"
+    rows = _table_rows(report)
+    definition_rows = [
+        row
+        for row in rows
+        if row[0].strip() == "usage consumer sample scenario passes"
+        and re.search(r"usage_consumer_steps\.py:\d+$", row[2].replace("\\", "/"))
+    ]
+    assert len(definition_rows) == 1, (
+        f"expected one used Usage definition row from usage_consumer_steps.py, got {definition_rows!r}\n{report}"
+    )
+    used_row = definition_rows[0]
+    assert used_row[0] == "usage consumer sample scenario passes", used_row
+    assert re.fullmatch(r"\d+(?:\.\d+)?ms", used_row[1]), used_row
 
 
 @given("the usage consumer prepares a passing feature with default configuration")

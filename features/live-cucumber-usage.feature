@@ -36,6 +36,13 @@ Feature: Live Cucumber Usage formatter
     When I run pytest in the UsageFormatter consumer with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=artifacts/messages.ndjson -q --color=no"
     Then configured usage should write the report path without terminal output
 
+  Scenario: A CLI Usage report path resolves from pytest root when invoked below it
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the usage consumer prepares a passing feature for a nested invocation directory
+    And the consumer installs the pinned official Cucumber UsageFormatter runtime
+    When I run pytest from a nested directory in the UsageFormatter consumer with arguments "--rootdir=.. .. --cuke-autoload --cuke-features-dir=features --cuke-usage=artifacts/nested-usage.txt -q --color=no"
+    Then the CLI Usage report path should resolve from pytest root
+
   Scenario: Usage stays inactive by default without Node.js or npm
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the usage consumer prepares a passing feature with default configuration
