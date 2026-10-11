@@ -13,10 +13,19 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from pytest_cuke import given, step, then
+from pytest_cuke import given, parsers, step, then, when
+from tests.support.testing_utils import mask_npm_package_from_node_resolution
 
 
 _OFFICIAL_CUCUMBER_PACKAGES = {"@cucumber/cucumber": "13.3.0"}
+_MIXED_SNIPPET_EXPRESSIONS = (
+    ("Given", "a customer named {string} is registered"),
+    ("When", "the customer waits {int} seconds"),
+    ("When", "the customer waits {float} seconds"),
+    ("Then", "the customer receives {int} results"),
+    ("Then", "the customer receives {float} results"),
+    ("Given", "the selected shade is {shade}"),
+)
 _USAGE_JSON_PLUGIN = """\
 import json
 import sys
@@ -116,6 +125,7 @@ def unused_shade_probe(shade):
 @given("a snippet control step that records normal execution")
 def snippet_control_step_records_normal_execution():
     (ROOT / "control-step-ran.marker").write_text("ran", encoding="utf-8")
+    print("snippets passing-step stdout sentinel", flush=True)
 
 
 @given("a snippets preflight scenario records that it started")
@@ -377,14 +387,7 @@ def _assert_selected_snippets_and_messages(consumer: Any) -> None:
     _assert_official_js_snippets(
         consumer,
         expected_count=6,
-        expected_keyword_expressions=(
-            ("Given", "a customer named {string} is registered"),
-            ("When", "the customer waits {int} seconds"),
-            ("When", "the customer waits {float} seconds"),
-            ("Then", "the customer receives {int} results"),
-            ("Then", "the customer receives {float} results"),
-            ("Given", "the selected shade is {shade}"),
-        ),
+        expected_keyword_expressions=_MIXED_SNIPPET_EXPRESSIONS,
     )
     assert (root / "control-step-ran.marker").is_file(), "the defined control step should run normally"
     assert not (root / "custom-shade-transformer-ran.marker").exists(), (
@@ -615,6 +618,72 @@ def configured_snippets_are_javascript_and_preserve_undefined(consumer: Any) -> 
     _assert_selected_snippets_and_messages(consumer)
 
 
+@when(
+    parsers.re(
+        r'I run installed pytest from consumer directory "(?P<working_directory>[^"]+)" '
+        r'with shared arguments "(?P<shared_arguments>[^"]+)" and capture variants '
+        r'"(?P<fd_arguments>[^"]+)", "(?P<sys_arguments>[^"]+)", and "(?P<no_arguments>[^"]+)"'
+    )
+)
+def run_installed_pytest_with_snippets_capture_variants(
+    consumer: Any,
+    working_directory: str,
+    shared_arguments: str,
+    fd_arguments: str,
+    sys_arguments: str,
+    no_arguments: str,
+) -> None:
+    cwd = _safe_workspace(consumer, working_directory)
+    results = {}
+    for mode, arguments in (
+        ("fd", fd_arguments),
+        ("sys", sys_arguments),
+        ("no", no_arguments),
+    ):
+        results[mode] = _run_pytest(consumer, f"{shared_arguments} {arguments}", cwd=cwd)
+    consumer.snippets_capture_results = results
+
+
+def _assert_snippets_capture_mode(consumer: Any, mode: str, *, passing_output_visible: bool) -> None:
+    results = getattr(consumer, "snippets_capture_results", {})
+    assert mode in results, f"the installed pytest {mode} capture variant did not run"
+    previous_result = getattr(consumer, "pytest_result", None)
+    consumer.pytest_result = results[mode]
+    try:
+        _assert_official_js_snippets(
+            consumer,
+            expected_count=6,
+            expected_failure_count=4,
+            expected_pass_count=1,
+            expected_keyword_expressions=_MIXED_SNIPPET_EXPRESSIONS,
+        )
+        result = consumer.pytest_result
+        assert result is not None
+        sentinel = "snippets passing-step stdout sentinel"
+        if passing_output_visible:
+            assert result.stdout.count(sentinel) == 1, result.stdout
+        else:
+            assert sentinel not in result.stdout, result.stdout
+        assert sentinel not in result.stderr, result.stderr
+    finally:
+        consumer.pytest_result = previous_result
+
+
+@then("fd capture should preserve JavaScript snippets and undefined-step failures while hiding passing step output")
+def fd_capture_preserves_snippets_and_failures(consumer: Any) -> None:
+    _assert_snippets_capture_mode(consumer, "fd", passing_output_visible=False)
+
+
+@then("sys capture should preserve JavaScript snippets and undefined-step failures while hiding passing step output")
+def sys_capture_preserves_snippets_and_failures(consumer: Any) -> None:
+    _assert_snippets_capture_mode(consumer, "sys", passing_output_visible=False)
+
+
+@then("disabled capture should preserve JavaScript snippets and undefined-step failures while showing passing step output")
+def disabled_capture_preserves_snippets_and_failures(consumer: Any) -> None:
+    _assert_snippets_capture_mode(consumer, "no", passing_output_visible=True)
+
+
 @given("the public Cucumber snippets example is copied to the installed consumer")
 def copy_public_cucumber_snippets_example(consumer: Any) -> None:
     source = Path(__file__).resolve().parents[2] / "examples" / "cucumber-snippets"
@@ -691,8 +760,7 @@ def node_and_npm_are_available_without_cucumber_snippets(consumer: Any) -> None:
         pytest.skip("the missing Cucumber package preflight lane requires Node.js and npm")
     _, _, environment = runtime
     root = getattr(consumer, "_snippets_workspace", _consumer_root(consumer))
-    package = root / "node_modules" / "@cucumber" / "cucumber"
-    assert not package.exists(), f"fresh consumer unexpectedly contains {package}"
+    mask_npm_package_from_node_resolution(root, "@cucumber/cucumber")
     consumer.env.update(environment)
 
 
