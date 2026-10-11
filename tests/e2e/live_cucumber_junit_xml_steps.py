@@ -112,6 +112,11 @@ Feature: Cucumber JUnit scenario hook failures
   Scenario: The case records an after hook failure
     Given junit after-hook failure scenario starts
 """
+_JUNIT_DUPLICATE_IDENTITY_FEATURE = """\
+Feature: Duplicate JUnit identity
+  Scenario: Same scenario identity
+    Given junit outcome passes
+"""
 _JUNIT_HISTORICAL_FEATURE = """\
 Feature: formatter_suite
   Scenario: passing scenario
@@ -645,6 +650,15 @@ def prepare_cucumber_junit_rich_consumer(consumer: Any) -> None:
     _prepare_junit_consumer(consumer, _JUNIT_RICH_FEATURE)
 
 
+@given("the Cucumber JUnit consumer prepares two same-named feature files without metadata")
+def prepare_cucumber_junit_duplicate_identity_consumer(consumer: Any) -> None:
+    root = _prepare_junit_consumer(consumer, _JUNIT_DUPLICATE_IDENTITY_FEATURE)
+    feature_directory = root / "features"
+    (feature_directory / "cucumber-junit-consumer.feature").unlink()
+    for filename in ("alpha.feature", "bravo.feature"):
+        (feature_directory / filename).write_text(_JUNIT_DUPLICATE_IDENTITY_FEATURE, encoding="utf-8")
+
+
 @given("the consumer installs the pinned official Cucumber JUnit runtime")
 def install_official_cucumber_junit_runtime(consumer: Any) -> None:
     _install_official_junit_runtime(consumer)
@@ -1000,6 +1014,16 @@ def public_cucumber_junit_example_preserves_contract(consumer: Any) -> None:
         expected_customer = "Ada" if "#1.1" in case.get("name", "") else "Boris"
         assert f'Cucumber JUnit example accepts "{expected_customer}"' in output, output
     _assert_junit_durations_match_messages(consumer, "report.xml", "artifacts/messages.ndjson")
+
+
+@then("duplicate-named Cucumber JUnit cases should retain source URI and line")
+def duplicate_cucumber_junit_cases_retain_source_identity(consumer: Any) -> None:
+    root, cases = _read_junit(consumer, "artifacts/duplicate-identities.xml")
+    assert len(cases) == 2, ET.tostring(root, encoding="unicode")
+    assert {case.get("classname") for case in cases} == {"Duplicate JUnit identity"}, cases
+    assert {case.get("name") for case in cases} == {"Same scenario identity"}, cases
+    source_locations = {(case.get("file"), case.get("line")) for case in cases}
+    assert source_locations == {("file:alpha.feature", "2"), ("file:bravo.feature", "2")}, cases
 
 
 @when("the consumer creates deterministic Cucumber JUnit Messages for golden comparison")
