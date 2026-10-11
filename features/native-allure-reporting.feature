@@ -75,6 +75,16 @@ Feature: Live native Allure reporting
     And native Allure results should preserve each xdist case nested steps and attachments exactly once
     And the native Allure results should contain one shared session container for both scenarios
 
+  Scenario: Duplicate worker batches are rejected before native Allure publication
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains two native Allure scenarios with distinct nested steps and attachments
+    And the consumer installs pytest-cuke with its Allure extra
+    And the consumer installs pinned pytest-xdist
+    And the consumer replays its first live worker batch at controller session finish
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-parser=python --cuke-allure=allure-results -n 2 --dist=load -q"
+    Then the native Allure consumer should exit nonzero
+    And duplicate worker batches should be diagnosed without republishing to native Allure
+
   Scenario: Native reporting coexists with the optional allure-pytest adapter
     Given a fresh isolated pytest-cuke consumer is ready
     And the consumer contains one native Allure scenario and one ordinary pytest test
@@ -157,3 +167,12 @@ Feature: Live native Allure reporting
     When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-parser=python --cuke-allure=allure-results -q"
     Then the native Allure consumer should exit nonzero
     And the native Allure container should preserve the failed "AFTER_TEST_RUN" fixture with sentinel "native after-run hook failure sentinel"
+
+  Scenario: xdist keeps an external tryfirst session-finish failure in the controller Allure container
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains a scenario and a failing native run hook "AFTER_TEST_RUN" with sentinel "xdist external tryfirst session-finish failure sentinel"
+    And the consumer installs pytest-cuke with its Allure extra
+    And the consumer installs pinned pytest-xdist
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-parser=python --cuke-allure=allure-results -n 2 --dist=load -q"
+    Then the native Allure consumer should exit nonzero
+    And the controller-owned native Allure session container should preserve the failed "AFTER_TEST_RUN" fixture with sentinel "xdist external tryfirst session-finish failure sentinel"
