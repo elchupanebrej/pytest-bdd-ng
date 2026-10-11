@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -1564,6 +1565,61 @@ def proof_summary_fails_for_missing_required_pytest_xdist(
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "requires installed optional package 'pytest-xdist'" in proof_aggregation_result.stderr
+
+
+@then("pytest output should show the duplicate step warning without an xdist internal error")
+def duplicate_step_warning_deserializes_without_xdist_error(consumer: Any) -> None:
+    result = consumer.pytest_result
+    assert result is not None, "the duplicate step warning consumer run has not completed"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode == 0, f"xdist failed while serializing the duplicate step warning:\n{output}"
+    assert re.search(r"\b1 passed\b", output), f"the xdist scenario did not pass:\n{output}"
+    assert "Alternative step definitions are found" in output, f"the duplicate step warning was not reported:\n{output}"
+    assert "INTERNALERROR" not in output, f"xdist reported an internal error:\n{output}"
+    assert "PytestBDDStepDefinitionWarning'" not in output, f"xdist could not deserialize the warning class:\n{output}"
+
+
+@given("the installed consumer requires pytest-xdist")
+def install_required_consumer_pytest_xdist(consumer: Any) -> None:
+    probe = subprocess.run(
+        [str(consumer.python), "-c", "import xdist"],
+        cwd=consumer.path,
+        env=consumer.env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode == 0:
+        return
+
+    uv_executable = shutil.which("uv")
+    assert uv_executable is not None, "the xdist warning acceptance requires uv to install pytest-xdist"
+    install = subprocess.run(
+        [
+            uv_executable,
+            "pip",
+            "install",
+            "--python",
+            str(consumer.python),
+            "pytest-xdist==3.8.0",
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=120,
+    )
+    assert install.returncode == 0, f"could not install required pytest-xdist:\n{install.stdout}\n{install.stderr}"
+    probe = subprocess.run(
+        [str(consumer.python), "-c", "import xdist"],
+        cwd=consumer.path,
+        env=consumer.env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert probe.returncode == 0, f"pytest-xdist remains unavailable in the consumer:\n{probe.stdout}\n{probe.stderr}"
 
 
 @then("the proof summary should fail with a successful tox result entry diagnostic")
