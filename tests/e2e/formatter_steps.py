@@ -514,6 +514,19 @@ def _messages_artifact(relative_path: str, consumer: Any) -> tuple[Path, list[di
     return path, rows
 
 
+@then("consumer Messages artifact \"messages.ndjson\" should include all three built-in trace definitions")
+def messages_artifact_includes_builtin_trace_definitions(consumer: Any) -> None:
+    path, rows = _messages_artifact("messages.ndjson", consumer)
+    trace_definitions = [
+        row["stepDefinition"]["pattern"]["source"]
+        for row in rows
+        if "stepDefinition" in row and row["stepDefinition"]["pattern"]["source"] == "trace"
+    ]
+    assert len(trace_definitions) == 3, (
+        f"expected three built-in trace definitions in {path.name}, got {trace_definitions!r}"
+    )
+
+
 def _assert_one_successful_messages_stream(relative_path: str, consumer: Any) -> tuple[Path, list[dict[str, Any]]]:
     path, rows = _messages_artifact(relative_path, consumer)
     run_starts = [row["testRunStarted"] for row in rows if "testRunStarted" in row]
