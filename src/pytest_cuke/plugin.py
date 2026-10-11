@@ -1060,6 +1060,20 @@ def _pytest_collect_file(parent: Collector, file_path: Any = None) -> FeatureFil
 
     feature_root = resolve_feature_sources(config).features_base_dir
     if not feature_root.is_dir():
+        ini_config = getattr(config, "_inicfg", None)
+        if ini_config is None:
+            ini_config = getattr(config, "inicfg", {})
+        override_ini = config.getoption("override_ini", default=()) or ()
+        feature_root_was_overridden = any(
+            setting.partition("=")[0].strip() == "cuke_features_dir" for setting in override_ini
+        )
+        feature_root_was_selected = (
+            config.getoption("cuke_features_dir") is not None
+            or "cuke_features_dir" in ini_config
+            or feature_root_was_overridden
+        )
+        if not feature_root_was_selected:
+            return None
         raise pytest.UsageError(
             f"Feature root {str(feature_root)!r}, selected by --cuke-features-dir or cuke_features_dir, does not exist."
         )

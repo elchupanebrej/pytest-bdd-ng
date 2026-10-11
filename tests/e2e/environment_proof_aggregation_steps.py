@@ -41,6 +41,7 @@ _PLATFORM_NAMES = {"linux": "linux", "macos": "darwin", "windows": "win32"}
 _REMOTE_MODES = {"remote-socket": "socket", "remote-via": "via", "remote-ssh": "ssh"}
 _PROOF_SHA = "a" * 40
 _OTHER_SHA = "b" * 40
+_PRODUCT_ROOT = Path(__file__).resolve().parents[2]
 
 
 @dataclass
@@ -1687,3 +1688,98 @@ def proof_summary_fails_for_missing_tox_result_command(
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "command evidence" in proof_aggregation_result.stderr
+
+
+@given("an isolated child project has one passing plain pytest test", target_fixture="plain_pytest_child")
+def create_plain_pytest_child(tmp_path: Path) -> tuple[Path, Path]:
+    child_root = tmp_path / "child-project"
+    child_root.mkdir()
+    (child_root / "test_plain.py").write_text(
+        "def test_plain_pytest_session_passes():\n    assert True\n",
+        encoding="utf-8",
+    )
+    pytest_config = child_root / "pytest.ini"
+    pytest_config.write_text("[pytest]\n", encoding="utf-8")
+    return child_root, pytest_config
+
+
+@when(
+    "I run pytest in the isolated child project with its default feature root",
+    target_fixture="plain_pytest_child_result",
+)
+def run_child_pytest_with_default_feature_root(
+    plain_pytest_child: tuple[Path, Path],
+) -> subprocess.CompletedProcess[str]:
+    child_root, pytest_config = plain_pytest_child
+    return _run_plain_pytest_child(child_root, pytest_config)
+
+
+@when(
+    "I run pytest in the isolated child project with a missing feature root in pytest.ini",
+    target_fixture="plain_pytest_child_result",
+)
+def run_child_pytest_with_missing_ini_feature_root(
+    plain_pytest_child: tuple[Path, Path],
+) -> subprocess.CompletedProcess[str]:
+    child_root, pytest_config = plain_pytest_child
+    pytest_config.write_text("[pytest]\ncuke_features_dir = missing-features\n", encoding="utf-8")
+    return _run_plain_pytest_child(child_root, pytest_config)
+
+
+@when(
+    "I run pytest in the isolated child project with a missing feature root from override-ini",
+    target_fixture="plain_pytest_child_result",
+)
+def run_child_pytest_with_override_ini_feature_root(
+    plain_pytest_child: tuple[Path, Path],
+) -> subprocess.CompletedProcess[str]:
+    child_root, pytest_config = plain_pytest_child
+    return _run_plain_pytest_child(child_root, pytest_config, "-o", "cuke_features_dir=missing-features")
+
+
+def _run_plain_pytest_child(
+    child_root: Path,
+    pytest_config: Path,
+    *extra_arguments: str,
+) -> subprocess.CompletedProcess[str]:
+    environment = os.environ.copy()
+    for name in ("PYTEST_ADDOPTS", "PYTEST_PLUGINS", "PYTEST_DISABLE_PLUGIN_AUTOLOAD"):
+        environment.pop(name, None)
+    environment["PYTHONPATH"] = str(_PRODUCT_ROOT / "src")
+    return subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--config-file",
+            str(pytest_config),
+            "--rootdir",
+            str(child_root),
+            "--cuke-autoload",
+            *extra_arguments,
+            "-q",
+        ],
+        cwd=child_root,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=60,
+    )
+
+
+@then("the isolated child pytest session should pass its plain test")
+def assert_plain_pytest_child_passed(plain_pytest_child_result: subprocess.CompletedProcess[str]) -> None:
+    output = f"{plain_pytest_child_result.stdout}\n{plain_pytest_child_result.stderr}"
+    assert plain_pytest_child_result.returncode == 0, output
+    assert "1 passed" in output, output
+
+
+@then("the isolated child pytest session should report the missing feature root")
+def assert_plain_pytest_child_reports_missing_feature_root(
+    plain_pytest_child_result: subprocess.CompletedProcess[str],
+) -> None:
+    output = f"{plain_pytest_child_result.stdout}\n{plain_pytest_child_result.stderr}"
+    assert plain_pytest_child_result.returncode != 0, output
+    assert "missing-features" in output, output
+    assert "does not exist" in output, output
