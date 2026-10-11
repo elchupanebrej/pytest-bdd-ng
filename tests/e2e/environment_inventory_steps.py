@@ -50,6 +50,12 @@ class TemporaryEnvironmentInventoryContext:
     missing_matrix_export_lane_id: str | None = None
 
 
+@dataclass(frozen=True)
+class CompatibilityAuditDocuments:
+    contributor_entry: str
+    audit_guide: str
+
+
 def _context(consumer: Any) -> EnvironmentInventoryContext:
     context = getattr(consumer, "_environment_inventory_context", None)
     assert context is not None, "the installed consumer's environment inventory has not been loaded"
@@ -824,6 +830,56 @@ def native_and_formatter_lanes_name_carriers(consumer: Any) -> None:
             _carrier(lane)
             assert _prerequisite_entries(lane), lane
             _assert_carrier_path_exists(_context(consumer), lane)
+
+
+@given(
+    "the contributor entry point and compatibility audit guide are loaded",
+    target_fixture="compatibility_audit_documents",
+)
+def compatibility_audit_documents_are_loaded(request: Any) -> CompatibilityAuditDocuments:
+    repository_root = Path(request.config.rootpath)
+    contributor_entry_path = repository_root / "README.rst"
+    audit_guide_path = repository_root / "docs" / "compatibility-and-migration-audit.md"
+    assert contributor_entry_path.is_file(), f"contributor entry point is missing: {contributor_entry_path}"
+    assert audit_guide_path.is_file(), f"compatibility and migration audit guide is missing: {audit_guide_path}"
+    return CompatibilityAuditDocuments(
+        contributor_entry=contributor_entry_path.read_text(encoding="utf-8"),
+        audit_guide=audit_guide_path.read_text(encoding="utf-8"),
+    )
+
+
+@then("the guide should expose the full-proof command artifact and prerequisites")
+def compatibility_audit_guide_documents_full_proof(compatibility_audit_documents: CompatibilityAuditDocuments) -> None:
+    guide = compatibility_audit_documents.audit_guide
+    normalized_guide = guide.casefold()
+    assert "`tox run` executes the complete declared tox environment list." in guide, (
+        "the guide should identify tox run as the command for all declared environments"
+    )
+    assert "workflow dispatch" in normalized_guide, "the guide should explain how to trigger full acceptance proof"
+    assert "full-supported-proof-<sha>" in guide, "the guide should name the aggregate proof artifact"
+
+    prerequisites = (
+        '.[test,struct-bdd,env-matrix]',
+        "uv>=0.8",
+        "node.js 22",
+        "docker engine and compose",
+        "ssh-keygen",
+        "chromium",
+        "go and a c compiler",
+        "pandoc",
+    )
+    missing_prerequisites = [item for item in prerequisites if item.casefold() not in normalized_guide]
+    assert not missing_prerequisites, f"the guide omits full-proof prerequisites: {missing_prerequisites!r}"
+
+
+@then("the contributor entry point should link to the compatibility audit guide")
+def contributor_entry_links_to_compatibility_audit(compatibility_audit_documents: CompatibilityAuditDocuments) -> None:
+    contribution_section = compatibility_audit_documents.contributor_entry.partition("How to Contribute")[2]
+    link_pattern = r"`[^`<>]*<docs/compatibility-and-migration-audit\.md>`_"
+    assert re.search(link_pattern, contribution_section), (
+        "README.rst's How to Contribute section should link to "
+        "docs/compatibility-and-migration-audit.md"
+    )
 
 
 @then("live formatter acceptance should have resolved required lanes for Linux macOS and Windows")

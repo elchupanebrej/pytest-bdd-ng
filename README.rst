@@ -228,3 +228,5 @@ How to Contribute
 -----------------
 
 The project is now open to contributions. Please open an issue for more details.
+See the `compatibility matrix and migration audit <docs/compatibility-and-migration-audit.md>`_ for supported environments, prerequisites, and full acceptance proof
+instructions.
