@@ -63,6 +63,18 @@ Feature: Live native Allure reporting
     And native Allure results should preserve each xdist case nested steps and attachments exactly once
     And the native Allure results should contain one shared session container for both scenarios
 
+  Scenario: xdist resolves native Allure structure when worker-local Messages IDs collide
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains two native Allure scenarios with colliding worker-local Messages IDs
+    And the consumer installs pytest-cuke with its Allure extra
+    And the consumer installs pinned pytest-xdist
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results -n 2 --dist=load -q"
+    Then the native Allure consumer should exit with code 0
+    And the two xdist workers should reuse a local Messages TestCase ID for different pickles
+    And native Allure results should contain both controller scenarios exactly once
+    And native Allure results should preserve each xdist case nested steps and attachments exactly once
+    And the native Allure results should contain one shared session container for both scenarios
+
   Scenario: Native reporting coexists with the optional allure-pytest adapter
     Given a fresh isolated pytest-cuke consumer is ready
     And the consumer contains one native Allure scenario and one ordinary pytest test
