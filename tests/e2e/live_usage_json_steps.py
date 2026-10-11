@@ -971,7 +971,11 @@ def public_usage_json_example_preserves_definition_semantics(consumer: Any) -> N
     _assert_usage_json_success(consumer)
     report, _ = _read_usage_json(consumer, "artifacts/usage.json")
     assert consumer._usage_json_cucumber_version == "13.3.0"
-    assert len(report) == 4, report
+    assert len(report) == 5, report
+    trace = _definition(report, "trace")
+    assert trace["pattern"] == "trace", trace
+    assert trace["matches"] == [], trace
+    assert trace["uri"].replace("\\", "/").endswith("/pytest_cuke/plugin.py"), trace
 
     workspace = consumer._usage_json_workspace
     feature_source = (workspace / "features/cucumber-usage-json-example.feature").read_text(encoding="utf-8")
@@ -1065,6 +1069,12 @@ def newly_added_usage_json_definition_is_present(consumer: Any) -> None:
 def real_pinned_usage_json_matches_semantic_golden(consumer: Any) -> None:
     report, _ = _read_usage_json(consumer, "artifacts/usage.json")
     actual = _normalized_usage_json_report(report, consumer._usage_json_workspace)
+    trace_definitions = [definition for definition in actual if definition.get("pattern") == "trace"]
+    assert len(trace_definitions) == 1, trace_definitions
+    assert trace_definitions[0]["matches"] == [], trace_definitions[0]
+    assert trace_definitions[0]["uri"].replace("\\", "/").endswith("/pytest_cuke/plugin.py"), trace_definitions[0]
+    # Compare the example's stable semantic output after explicitly checking the pytest-cuke built-in.
+    actual = [definition for definition in actual if definition.get("pattern") != "trace"]
     golden_path = _PRODUCT_ROOT / "tests/fixtures/cucumber-usage-json/cucumber-usage-json-example.golden.json"
     assert golden_path.is_file(), f"the pinned Usage JSON semantic golden is missing: {golden_path}"
     expected = json.loads(golden_path.read_text(encoding="utf-8"))

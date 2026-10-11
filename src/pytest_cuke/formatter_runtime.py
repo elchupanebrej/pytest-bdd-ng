@@ -78,7 +78,22 @@ class _TerminalOutputRelay:
         global_capture = getattr(capture_manager, "_global_capturing", None)
         captured_stream = getattr(global_capture, "err" if stderr else "out", None)
         writer = getattr(captured_stream, "writeorg", None)
-        return writer if callable(writer) else None
+        if callable(writer):
+            return writer
+        tee_stream = getattr(captured_stream, "_other", None)
+        writer = getattr(tee_stream, "write", None)
+        if not callable(writer):
+            return None
+        flush = getattr(tee_stream, "flush", None)
+        if not callable(flush):
+            return writer
+
+        def write_and_flush(text: str) -> Any:
+            result = writer(text)
+            flush()
+            return result
+
+        return write_and_flush
 
     def _capture_is_active(self) -> bool:
         if self.config is None:

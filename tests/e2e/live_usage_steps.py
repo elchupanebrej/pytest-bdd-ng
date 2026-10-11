@@ -1099,10 +1099,35 @@ def public_usage_example_preserves_real_matches_and_unused(consumer: Any) -> Non
         "the Usage example records {word}": 2,
         "the Usage example documents an unused definition": 0,
     }
-    assert len(definitions) == len(expected_patterns), definitions
+    trace_definitions = [
+        (definition_id, definition)
+        for definition_id, definition in definitions.items()
+        if definition["pattern"]["source"] == "trace"
+    ]
+    assert len(trace_definitions) == 3, trace_definitions
+    for definition_id, definition in trace_definitions:
+        assert _source_line(definition)[0] == "plugin.py", definition
+        assert counts[definition_id] == 0, (definition, counts)
+    example_definitions = {
+        definition_id: definition
+        for definition_id, definition in definitions.items()
+        if definition["pattern"]["source"] != "trace"
+    }
+    assert len(example_definitions) == len(expected_patterns), definitions
     table_rows = _table_rows(report)
+    trace_locations = {
+        f"{_source_line(definition)[0]}:{_source_line(definition)[1]}" for _, definition in trace_definitions
+    }
+    assert len(trace_locations) == 1, trace_locations
+    trace_rows = [
+        row for row in table_rows if any(row[2].replace("\\", "/").endswith(location) for location in trace_locations)
+    ]
+    assert len(trace_rows) == 1, trace_rows
+    assert trace_rows[0][0] == "trace" and trace_rows[0][1] == "UNUSED", trace_rows
     for pattern, expected_count in expected_patterns.items():
-        found = [definition for definition in definitions.values() if definition["pattern"]["source"] == pattern]
+        found = [
+            definition for definition in example_definitions.values() if definition["pattern"]["source"] == pattern
+        ]
         assert len(found) == 1, (pattern, found)
         definition = found[0]
         assert _source_line(definition)[0] == "cucumber_usage_example_steps.py", definition
@@ -1155,7 +1180,7 @@ def added_unused_public_usage_definition_changes_report(consumer: Any) -> None:
     assert counts[definition["id"]] == 0, (definition, counts)
     row = _assert_reported_definition(table_rows, definition, expected_duration=False)
     assert row[1] == "UNUSED", row
-    assert sum(row[1] == "UNUSED" for row in table_rows) == 2, table_rows
+    assert sum(row[1] == "UNUSED" for row in table_rows) == 3, table_rows
     plugin_lines = (
         (consumer._usage_workspace / "cucumber_usage_example_steps.py").read_text(encoding="utf-8").splitlines()
     )
@@ -1397,8 +1422,12 @@ def empty_usage_definitions_preserve_undefined_failure(consumer: Any) -> None:
     result = consumer.pytest_result
     output = _output(consumer)
     assert result is not None and result.returncode != 0, output
-    assert "No step definitions" in output, output
-    assert "Pattern / Text" not in output, output
+    assert "No step definitions" not in output, output
+    assert "Pattern / Text" in output, output
+    trace_rows = [row for row in _table_rows(output) if row[0] == "trace"]
+    assert len(trace_rows) == 1, trace_rows
+    assert trace_rows[0][1] == "UNUSED", trace_rows
+    assert re.search(r"(?:^|/)plugin\.py:\d+$", trace_rows[0][2].replace("\\", "/")), trace_rows
     assert "StepDefinitionNotFoundError" in output or "step definition is not found" in output.lower(), output
     assert re.search(r"(?m)^=+ FAILURES =+$", output), output
     assert re.search(r"(?im)^=+\s*short test summary info\s*=+\s*$", output), output
