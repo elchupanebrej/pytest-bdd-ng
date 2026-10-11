@@ -1137,7 +1137,7 @@ def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
             then_step_values.append(value)
         """
     )
-    result = testdir.runpytest("-W", "ignore::pytest_cuke.PytestBDDStepDefinitionWarning")
+    result = testdir.runpytest("-W", "ignore::pytest_cuke.warning_types.PytestBDDStepDefinitionWarning")
     result.assert_outcomes(passed=1, failed=0)
 
 

@@ -271,5 +271,5 @@ def test_local_both_target_fixture_and_target_fixtures(testdir, tmp_path):
             """
         )
     )
-    result = testdir.runpytest_subprocess("-W", "ignore::pytest_cuke.PytestBDDStepDefinitionWarning")
+    result = testdir.runpytest_subprocess("-W", "ignore::pytest_cuke.warning_types.PytestBDDStepDefinitionWarning")
     result.assert_outcomes(passed=1)
