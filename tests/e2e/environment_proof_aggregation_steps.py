@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import io
 import json
 import os
 import re
@@ -1224,15 +1225,13 @@ def unset_utf8_mode_for_matrix_runner(monkeypatch: Any) -> None:
     monkeypatch.delenv("PYTHONUTF8", raising=False)
 
 
-@when(
-    "I run the environment matrix runner with a non-ASCII evidence path",
-    target_fixture="matrix_runner_utf8_capture",
-)
-def run_matrix_runner_with_non_ascii_evidence_path(
+def _capture_matrix_runner_with_non_ascii_evidence_path(
     request: Any,
     tmp_path: Path,
     monkeypatch: Any,
-    capsys: Any,
+    *,
+    tox_returncode: int,
+    tox_stdout: str,
 ) -> dict[str, Any]:
     monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
     runner = importlib.import_module("run_env_matrix_cell")
@@ -1240,7 +1239,7 @@ def run_matrix_runner_with_non_ascii_evidence_path(
     inventory_path = project_root / "config" / "env-matrix.yaml"
     inventory_path.parent.mkdir(parents=True)
     inventory_path.write_text("{}\n", encoding="utf-8")
-    output_path = tmp_path / "доказательства" / "environment-evidence.json"
+    output_path = tmp_path / "environment-evidence-доказательства.json"
 
     monkeypatch.setattr(runner.shutil, "which", lambda _executable: "tox")
     monkeypatch.setattr(
@@ -1265,14 +1264,17 @@ def run_matrix_runner_with_non_ascii_evidence_path(
     monkeypatch.setattr(runner, "_python_in_tox_environment", lambda *_args: tmp_path / "python")
     monkeypatch.setattr(runner, "_system_tool_evidence", lambda *_args, **_kwargs: ({}, {}))
     monkeypatch.setattr(runner.platform, "platform", lambda: "synthetic-platform")
+    parent_stdout_bytes = io.BytesIO()
+    parent_stdout = io.TextIOWrapper(parent_stdout_bytes, encoding="cp1252", errors="strict")
+    monkeypatch.setattr(runner.sys, "stdout", parent_stdout)
     tox_calls: list[dict[str, Any]] = []
 
     def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        tox_calls.append({"command": command, **kwargs})
+        tox_calls.append({"command": command, "returncode": tox_returncode, **kwargs})
         result_json = Path(command[command.index("--result-json") + 1])
         result_json.parent.mkdir(parents=True, exist_ok=True)
         result_json.write_text('{"testenvs": {}}\n', encoding="utf-8")
-        return subprocess.CompletedProcess(command, 0, stdout="1 passed in 0.01s\nUnicode smoke: café, Ж\n", stderr="")
+        return subprocess.CompletedProcess(command, tox_returncode, stdout=tox_stdout, stderr="")
 
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
     monkeypatch.setattr(
@@ -1294,28 +1296,94 @@ def run_matrix_runner_with_non_ascii_evidence_path(
     )
 
     result = runner.main()
+    parent_stdout.flush()
     return {
         "returncode": result,
         "tox_calls": tox_calls,
         "output_path": output_path,
-        "stdout": capsys.readouterr().out,
+        "stdout": parent_stdout_bytes.getvalue().decode("cp1252"),
     }
 
 
-@then("its tox subprocess should use strict UTF-8 output decoding")
-def matrix_runner_uses_utf8_without_lossy_decoding(matrix_runner_utf8_capture: dict[str, Any]) -> None:
-    assert matrix_runner_utf8_capture["returncode"] == 0
-    output_path = matrix_runner_utf8_capture["output_path"]
+@when(
+    "I run the environment matrix runner with a non-ASCII evidence path and cp1252 parent stdout",
+    target_fixture="matrix_runner_cp1252_capture",
+)
+def run_matrix_runner_with_non_ascii_evidence_path(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> dict[str, Any]:
+    return _capture_matrix_runner_with_non_ascii_evidence_path(
+        request,
+        tmp_path,
+        monkeypatch,
+        tox_returncode=0,
+        tox_stdout="1 passed in 0.01s\nUnicode smoke: café, Ж\n",
+    )
+
+
+@when(
+    "I run the environment matrix runner with a non-ASCII evidence path and cp1252 parent stdout when tox exits 23",
+    target_fixture="matrix_runner_cp1252_capture",
+)
+def run_matrix_runner_with_nonzero_tox_status(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> dict[str, Any]:
+    return _capture_matrix_runner_with_non_ascii_evidence_path(
+        request,
+        tmp_path,
+        monkeypatch,
+        tox_returncode=23,
+        tox_stdout="1 failed in 0.01s\nUnicode smoke: café, Ж\n",
+    )
+
+
+@then("it should return tox status write evidence and escape unrepresentable log characters")
+def matrix_runner_preserves_evidence_when_parent_stdout_is_cp1252(
+    matrix_runner_cp1252_capture: dict[str, Any],
+) -> None:
+    assert matrix_runner_cp1252_capture["returncode"] == 0
+    output_path = matrix_runner_cp1252_capture["output_path"]
     assert "доказательства" in str(output_path)
     assert output_path.is_file()
-    assert "Unicode smoke: café, Ж" in matrix_runner_utf8_capture["stdout"]
-    tox_calls = matrix_runner_utf8_capture["tox_calls"]
+    evidence = json.loads(output_path.read_text(encoding="utf-8"))
+    assert evidence["outcome"] == "passed", evidence
+    assert evidence["environments"][0]["returncode"] == 0, evidence
+    assert "Unicode smoke: café, \\u0416" in matrix_runner_cp1252_capture["stdout"]
+    assert "доказательства" not in matrix_runner_cp1252_capture["stdout"]
+    assert (
+        "\\u0434\\u043e\\u043a\\u0430\\u0437\\u0430\\u0442\\u0435\\u043b\\u044c\\u0441\\u0442\\u0432\\u0430"
+        in (matrix_runner_cp1252_capture["stdout"])
+    )
+    tox_calls = matrix_runner_cp1252_capture["tox_calls"]
     assert len(tox_calls) == 1, tox_calls
     tox_call = tox_calls[0]
     assert tox_call["command"][:2] == ["tox", "run"], tox_call
     assert tox_call["env"].get("PYTHONUTF8") == "1", tox_call["env"]
     assert tox_call.get("encoding") == "utf-8", tox_call
     assert tox_call.get("errors", "strict") == "strict", tox_call
+
+
+@then("it should return failure and record tox exit 23 in evidence")
+def matrix_runner_records_failed_tox_status_under_cp1252_stdout(
+    matrix_runner_cp1252_capture: dict[str, Any],
+) -> None:
+    assert matrix_runner_cp1252_capture["returncode"] == 1
+    output_path = matrix_runner_cp1252_capture["output_path"]
+    assert "доказательства" in str(output_path)
+    assert output_path.is_file()
+    evidence = json.loads(output_path.read_text(encoding="utf-8"))
+    assert evidence["outcome"] == "failed", evidence
+    record = evidence["environments"][0]
+    assert record["outcome"] == "failed", record
+    tox_calls = matrix_runner_cp1252_capture["tox_calls"]
+    assert len(tox_calls) == 1, tox_calls
+    assert tox_calls[0]["returncode"] == 23, tox_calls
+    assert record["returncode"] == tox_calls[0]["returncode"], record
+    assert "Unicode smoke: café, \\u0416" in matrix_runner_cp1252_capture["stdout"]
 
 
 @then("the proof summary should preserve two-worker socket via and ssh runtime evidence")
