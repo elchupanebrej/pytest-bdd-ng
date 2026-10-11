@@ -363,7 +363,7 @@ def _run_junit_pytest(consumer: Any, arguments: str) -> subprocess.CompletedProc
     root = consumer._cucumber_junit_workspace
     try:
         result = subprocess.run(
-            [str(consumer.pytest), *shlex.split(arguments)],
+            [str(consumer.python), "-m", "pytest", *shlex.split(arguments)],
             cwd=root,
             env=consumer.env,
             check=False,
@@ -981,7 +981,7 @@ def install_cucumber_junit_finalization_preload(consumer: Any) -> None:
         "fail-cucumber-junit-finalization.cjs",
         _JUNIT_FINALIZATION_PRELOAD,
     )
-    consumer.env["NODE_OPTIONS"] = f'--require="{preload.resolve()}"'
+    consumer.env["NODE_OPTIONS"] = f'--require="{preload.as_posix()}"'
 
 
 @then("the Cucumber JUnit backend failure should be visible without publishing a partial report")

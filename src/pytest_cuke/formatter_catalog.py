@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import uuid
 from collections.abc import Iterable
+from contextlib import suppress
 from importlib.metadata import entry_points
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -21,6 +23,9 @@ if TYPE_CHECKING:
 
 class FormatterCatalogError(ValueError):
     """A selected formatter cannot be resolved or run in the current environment."""
+
+
+_OUTPUT_PROBE_MAX_ATTEMPTS = 8
 
 
 def resolve_formatter_requests(config: Config) -> tuple[FormatterRequest, ...]:
@@ -129,6 +134,7 @@ def resolve_formatter_catalog(
     names: set[str] = set()
     destinations: dict[str, FormatterRequest] = {}
     reserved_destinations: dict[str, tuple[str, Path]] = {}
+    normalized_reserved_outputs: list[tuple[str, Path]] = []
     terminal_requests: list[FormatterRequest] = []
 
     for name, path in reserved_output_paths:
@@ -143,6 +149,7 @@ def resolve_formatter_catalog(
                 f"{resolved_output_path}. Choose a distinct path for each report."
             )
         reserved_destinations[destination_key] = (name, resolved_output_path)
+        normalized_reserved_outputs.append((name, resolved_output_path))
 
     for request in sorted(requests, key=lambda item: item.name):
         if request.name in names:
@@ -200,6 +207,21 @@ def resolve_formatter_catalog(
             f"Only one {mode.lower()} formatter may write to the terminal; selected: {names_text}."
         )
 
+    for name, output_path in normalized_reserved_outputs:
+        _check_output_destination_writable(
+            output_path,
+            name=f"output {name}",
+            mode=mode,
+            directory_output=name == "--cuke-allure",
+        )
+    for request in normalized:
+        if request.output_path is not None:
+            _check_output_destination_writable(
+                request.output_path,
+                name=f"formatter {_display_formatter_name(request.name)} output",
+                mode=mode,
+            )
+
     for request in normalized:
         _check_request_runtime(request, mode=mode)
 
@@ -250,6 +272,70 @@ def _canonical_output_path(output: str, *, expand: bool) -> Path:
     if expand:
         output = os.path.expanduser(os.path.expandvars(output))
     return Path(output).resolve(strict=False)
+
+
+def _check_output_destination_writable(
+    output_path: Path,
+    *,
+    name: str,
+    mode: str,
+    directory_output: bool = False,
+) -> None:
+    """Probe output permissions without changing an existing report."""
+    if directory_output and output_path.exists() and not output_path.is_dir():
+        raise FormatterCatalogError(
+            f"cannot initialize native Allure reporting: {name} path {output_path} already exists as a file"
+        )
+    if not directory_output and output_path.is_dir():
+        raise FormatterCatalogError(f"{mode} {name} path is a directory: {output_path}")
+    output_directory = output_path if directory_output and output_path.is_dir() else output_path.parent
+    if not output_directory.is_dir():
+        raise FormatterCatalogError(
+            f"{mode} {name} parent directory does not exist: {output_directory}"
+        )
+    file_descriptor: int | None = None
+    probe_path: Path | None = None
+    try:
+        probe_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+        for _ in range(_OUTPUT_PROBE_MAX_ATTEMPTS):
+            probe_path = output_directory / f".pytest-cuke-output-probe-{uuid.uuid4().hex}"
+            try:
+                file_descriptor = os.open(probe_path, probe_flags, 0o600)
+            except FileExistsError:
+                probe_path = None
+                continue
+            break
+        if file_descriptor is None or probe_path is None:
+            raise FileExistsError("could not reserve a unique output writability probe file")
+        os.close(file_descriptor)
+        file_descriptor = None
+        probe_path.unlink()
+        probe_path = None
+    except OSError as error:
+        if file_descriptor is not None:
+            with suppress(OSError):
+                os.close(file_descriptor)
+        if probe_path is not None:
+            with suppress(OSError):
+                probe_path.unlink(missing_ok=True)
+        raise FormatterCatalogError(
+            f"{mode} {name} directory is not writable: {output_directory} "
+            f"({type(error).__name__}: {error})"
+        ) from error
+
+    if not directory_output and output_path.is_file():
+        file_descriptor: int | None = None
+        try:
+            file_descriptor = os.open(output_path, os.O_WRONLY | getattr(os, "O_BINARY", 0))
+            os.close(file_descriptor)
+            file_descriptor = None
+        except OSError as error:
+            if file_descriptor is not None:
+                with suppress(OSError):
+                    os.close(file_descriptor)
+            raise FormatterCatalogError(
+                f"{mode} {name} file is not writable: {output_path} ({type(error).__name__}: {error})"
+            ) from error
 
 
 def _check_request_runtime(request: FormatterRequest, *, mode: str) -> None:
