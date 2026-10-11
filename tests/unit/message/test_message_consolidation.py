@@ -847,6 +847,24 @@ def test_worker_receiver_retains_batches_and_reports_missing_completion_manifest
     }
 
 
+def test_worker_receiver_rejects_duplicate_batch_sequences() -> None:
+    event = {"attachment": {"body": "first"}}
+    batch = MessageBatcher("gw0").make_batch((event,))
+    receiver = WorkerMessageReceiver(expected_workers=("gw0",))
+
+    assert receiver.receive_batch(batch.to_payload())
+    assert not receiver.receive_batch(batch.to_payload())
+
+    result = receiver.finalize()
+
+    assert result.fragments[0].envelopes == (event,)
+    assert [diagnostic.code for diagnostic in result.diagnostics] == [
+        "duplicate_worker_batch",
+        "missing_worker_manifest",
+        "partial_stream",
+    ]
+
+
 def test_worker_receiver_reports_sequence_gaps_and_preserves_received_batches() -> None:
     first_event = {"attachment": {"body": "first"}}
     lost_event = {"attachment": {"body": "lost"}}

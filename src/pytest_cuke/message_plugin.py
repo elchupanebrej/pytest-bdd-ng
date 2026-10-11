@@ -724,8 +724,8 @@ class MessagePlugin:
         except ValueError:
             self.worker_message_receiver.receive_batch(payload)
             return
-        self.worker_message_receiver.receive_batch(batch.to_payload())
-        self._publish_worker_message_batch(batch)
+        if self.worker_message_receiver.receive_batch(batch.to_payload()):
+            self._publish_worker_message_batch(batch)
 
     def _publish_worker_message_batch(self, batch: MessageBatch) -> None:
         live_batch = {
@@ -982,13 +982,7 @@ class MessagePlugin:
             if isinstance(transport_output, dict):
                 tail_batch = transport_output.get("tail_batch")
                 if isinstance(tail_batch, dict):
-                    self.worker_message_receiver.receive_batch(tail_batch)
-                    try:
-                        parsed_tail_batch = MessageBatch.from_payload(tail_batch)
-                    except ValueError:
-                        pass
-                    else:
-                        self._publish_worker_message_batch(parsed_tail_batch)
+                    self._receive_worker_message_batch(tail_batch)
                 manifest = transport_output.get("manifest")
                 if isinstance(manifest, dict):
                     self.worker_message_receiver.record_manifest(manifest, expected_worker_id=worker_id)
