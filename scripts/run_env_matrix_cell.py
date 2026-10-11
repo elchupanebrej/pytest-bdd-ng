@@ -172,6 +172,7 @@ def main() -> int:
         remote_runtime_path = tox_results_dir / f"{env_name}.remote-workers.json"
         command = [tox, "run", "--result-json", str(result_json), "-e", env_name]
         command_environment = os.environ.copy()
+        command_environment["PYTHONUTF8"] = "1"
         if args.job == "remote":
             remote_runtime_path.unlink(missing_ok=True)
             command_environment["PYTEST_CUKE_REMOTE_RUNTIME_EVIDENCE"] = str(remote_runtime_path)
@@ -185,6 +186,7 @@ def main() -> int:
             env=command_environment,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=False,
         )
         if run.stdout:

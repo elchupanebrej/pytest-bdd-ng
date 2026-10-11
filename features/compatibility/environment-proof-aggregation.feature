@@ -79,6 +79,11 @@ Feature: Aggregate the full supported environment proof
     When the native parser runner captures toolchain evidence for Linux macOS and Windows
     Then it should record Go and native compiler versions and invocation commands
 
+  Scenario: The matrix runner invokes tox in UTF-8 mode for non-ASCII evidence paths
+    Given PYTHONUTF8 is unset in the runner environment
+    When I run the environment matrix runner with a non-ASCII evidence path
+    Then its tox subprocess should use strict UTF-8 output decoding
+
   Scenario: The aggregator accepts complete and interrupted runtime evidence from every remote transport
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
     When I run the full environment proof aggregator

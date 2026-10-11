@@ -1221,6 +1221,105 @@ def native_runner_records_toolchain_versions_and_commands(native_toolchain_captu
         assert all(kwargs.get("shell", False) is False for _command, kwargs in evidence["calls"]), evidence
 
 
+@given("PYTHONUTF8 is unset in the runner environment")
+def unset_utf8_mode_for_matrix_runner(monkeypatch: Any) -> None:
+    monkeypatch.delenv("PYTHONUTF8", raising=False)
+
+
+@when(
+    "I run the environment matrix runner with a non-ASCII evidence path",
+    target_fixture="matrix_runner_utf8_capture",
+)
+def run_matrix_runner_with_non_ascii_evidence_path(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+    capsys: Any,
+) -> dict[str, Any]:
+    monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
+    runner = importlib.import_module("run_env_matrix_cell")
+    project_root = tmp_path / "project"
+    inventory_path = project_root / "config" / "env-matrix.yaml"
+    inventory_path.parent.mkdir(parents=True)
+    inventory_path.write_text("{}\n", encoding="utf-8")
+    output_path = tmp_path / "доказательства" / "environment-evidence.json"
+
+    monkeypatch.setattr(runner.shutil, "which", lambda _executable: "tox")
+    monkeypatch.setattr(
+        runner,
+        "load_cells",
+        lambda _inventory, _job: [
+            {
+                "id": "utf8-test-cell",
+                "tox_envs": ["py313-utf8-evidence"],
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        runner,
+        "_installed_versions",
+        lambda _python: {
+            "python": "3.13.0",
+            "runtime": "CPython",
+            "packages": {"pytest": "9.0.1"},
+        },
+    )
+    monkeypatch.setattr(runner, "_python_in_tox_environment", lambda *_args: tmp_path / "python")
+    monkeypatch.setattr(runner, "_system_tool_evidence", lambda *_args, **_kwargs: ({}, {}))
+    monkeypatch.setattr(runner.platform, "platform", lambda: "synthetic-platform")
+    tox_calls: list[dict[str, Any]] = []
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        tox_calls.append({"command": command, **kwargs})
+        result_json = Path(command[command.index("--result-json") + 1])
+        result_json.parent.mkdir(parents=True, exist_ok=True)
+        result_json.write_text('{"testenvs": {}}\n', encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="1 passed in 0.01s\nUnicode smoke: café, Ж\n", stderr="")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_env_matrix_cell.py",
+            "--job",
+            "full-matrix",
+            "--cell",
+            "utf8-test-cell",
+            "--inventory",
+            str(inventory_path),
+            "--output",
+            str(output_path),
+            "--sha",
+            _PROOF_SHA,
+        ],
+    )
+
+    result = runner.main()
+    return {
+        "returncode": result,
+        "tox_calls": tox_calls,
+        "output_path": output_path,
+        "stdout": capsys.readouterr().out,
+    }
+
+
+@then("its tox subprocess should use strict UTF-8 output decoding")
+def matrix_runner_uses_utf8_without_lossy_decoding(matrix_runner_utf8_capture: dict[str, Any]) -> None:
+    assert matrix_runner_utf8_capture["returncode"] == 0
+    output_path = matrix_runner_utf8_capture["output_path"]
+    assert "доказательства" in str(output_path)
+    assert output_path.is_file()
+    assert "Unicode smoke: café, Ж" in matrix_runner_utf8_capture["stdout"]
+    tox_calls = matrix_runner_utf8_capture["tox_calls"]
+    assert len(tox_calls) == 1, tox_calls
+    tox_call = tox_calls[0]
+    assert tox_call["command"][:2] == ["tox", "run"], tox_call
+    assert tox_call["env"].get("PYTHONUTF8") == "1", tox_call["env"]
+    assert tox_call.get("encoding") == "utf-8", tox_call
+    assert tox_call.get("errors", "strict") == "strict", tox_call
+
+
 @then("the proof summary should preserve two-worker socket via and ssh runtime evidence")
 def proof_summary_preserves_remote_worker_runtime_evidence(proof_aggregation: ProofAggregationContext) -> None:
     environments = _summary(proof_aggregation).get("environments")
