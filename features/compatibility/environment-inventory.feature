@@ -113,3 +113,8 @@ Feature: Supported environment inventory and acceptance proof
     Given the repository environment inventory is copied to a temporary project
     When I add an unsupported Windows lane overlapping the optional Windows lane
     Then the inventory check should fail with an actionable runtime lane conflict diagnostic
+
+  Scenario: Contributors can find the full supported proof guidance
+    Given the contributor entry point and compatibility audit guide are loaded
+    Then the guide should expose the full-proof command artifact and prerequisites
+    And the contributor entry point should link to the compatibility audit guide
