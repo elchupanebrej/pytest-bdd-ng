@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import csv
 import json
 import os
 import re
@@ -295,6 +296,28 @@ def _install_official_runtime(consumer: Any) -> None:
     consumer._cucumber_json_consumer_bin = consumer_bin
 
 
+def _restore_cucumber_json_parent_permissions(consumer: Any, state: tuple[Any, ...]) -> None:
+    directory, original_mode, sid = state
+    if sid is None:
+        directory.chmod(original_mode)
+    else:
+        icacls = shutil.which("icacls.exe") or shutil.which("icacls")
+        assert icacls is not None, "Windows icacls is required to restore the Cucumber JSON destination ACL"
+        restored = subprocess.run(
+            [icacls, str(directory), "/remove:d", f"*{sid}"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+        )
+        assert restored.returncode == 0, (
+            f"could not restore the Cucumber JSON destination ACL:\n{restored.stdout}\n{restored.stderr}"
+        )
+    consumer._cucumber_json_readonly_directory = None
+
+
 def _run_pytest(consumer: Any, arguments: str) -> subprocess.CompletedProcess[str]:
     root = consumer._cucumber_json_workspace
     try:
@@ -312,9 +335,7 @@ def _run_pytest(consumer: Any, arguments: str) -> subprocess.CompletedProcess[st
     finally:
         readonly_state = getattr(consumer, "_cucumber_json_readonly_directory", None)
         if readonly_state is not None:
-            directory, original_mode = readonly_state
-            directory.chmod(original_mode)
-            del consumer._cucumber_json_readonly_directory
+            _restore_cucumber_json_parent_permissions(consumer, readonly_state)
     consumer.cucumber_json_result = result
     consumer.pytest_result = result
     return result
@@ -829,13 +850,62 @@ def duplicate_cucumber_json_destination_preflights(consumer: Any) -> None:
 def make_cucumber_json_parent_read_only(consumer: Any) -> None:
     directory = consumer._cucumber_json_workspace / "read-only"
     directory.mkdir(exist_ok=True)
+    if os.name == "nt":
+        icacls = shutil.which("icacls.exe") or shutil.which("icacls")
+        whoami = shutil.which("whoami.exe") or shutil.which("whoami")
+        assert icacls is not None, "Windows icacls is required to prove an unwritable Cucumber JSON destination"
+        assert whoami is not None, "Windows whoami is required to identify the current ACL principal"
+        identity = subprocess.run(
+            [whoami, "/user", "/fo", "csv", "/nh"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+        )
+        assert identity.returncode == 0, (
+            f"could not identify the current Windows user:\n{identity.stdout}\n{identity.stderr}"
+        )
+        rows = list(csv.reader(identity.stdout.splitlines()))
+        assert rows and len(rows[0]) >= 2, identity.stdout
+        sid = rows[0][-1].strip()
+        assert re.fullmatch(r"S-1(?:-\d+)+", sid), identity.stdout
+        denied = subprocess.run(
+            [icacls, str(directory), "/deny", f"*{sid}:(WD,AD)"],
+            check=False,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=15,
+        )
+        assert denied.returncode == 0, (
+            f"could not deny writes to the Cucumber JSON output parent:\n{denied.stdout}\n{denied.stderr}"
+        )
+        state = (directory, None, sid)
+        consumer._cucumber_json_readonly_directory = state
+        try:
+            (directory / ".write-permission-probe").write_text("probe", encoding="utf-8")
+        except PermissionError:
+            return
+        except OSError as error:
+            _restore_cucumber_json_parent_permissions(consumer, state)
+            raise AssertionError(f"the Windows Cucumber JSON ACL probe failed unexpectedly: {error}") from error
+        else:
+            _restore_cucumber_json_parent_permissions(consumer, state)
+            raise AssertionError("the denied Windows Cucumber JSON ACL still permits creating files")
+
     original_mode = stat.S_IMODE(directory.stat().st_mode)
     directory.chmod(original_mode & ~0o222)
     probe = directory / "write-probe"
     try:
         probe.write_text("probe", encoding="utf-8")
-    except OSError:
-        consumer._cucumber_json_readonly_directory = (directory, original_mode)
+    except PermissionError:
+        consumer._cucumber_json_readonly_directory = (directory, original_mode, None)
+    except OSError as error:
+        directory.chmod(original_mode)
+        raise AssertionError(f"the Cucumber JSON read-only probe failed unexpectedly: {error}") from error
     else:
         probe.unlink(missing_ok=True)
         directory.chmod(original_mode)
