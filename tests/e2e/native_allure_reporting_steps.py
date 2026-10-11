@@ -71,6 +71,7 @@ def _write_feature(
     with_allure_api: bool = True,
     with_live_observer: bool = False,
     with_xdist_evidence: bool = False,
+    with_colliding_worker_message_ids: bool = False,
 ) -> None:
     feature_dir = context.project / "features"
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -137,9 +138,29 @@ def _write_feature(
         if with_xdist_evidence
         else ""
     )
+    worker_message_observer = (
+        "@pytest.hookimpl(trylast=True)\n"
+        "def pytest_sessionstart(session):\n"
+        "    if not isinstance(getattr(session.config, 'workerinput', None), dict):\n"
+        "        return\n"
+        "    session.config.pytest_cuke_id_generator.set_namespace('native-allure-shared-worker-local-id')\n\n\n"
+        "def pytest_cuke_message(config, message):\n"
+        "    del config\n"
+        "    worker_id = os.environ.get('PYTEST_XDIST_WORKER')\n"
+        "    if not worker_id:\n"
+        "        return\n"
+        "    path = Path(f'.native-allure-local-messages-{worker_id}.jsonl')\n"
+        "    with path.open('a', encoding='utf-8') as stream:\n"
+        "        stream.write(json.dumps(message_to_dict(message), sort_keys=True) + '\\n')\n\n\n"
+        if with_colliding_worker_message_ids
+        else ""
+    )
     (context.project / "native_report_steps.py").write_text(
         "import json\n"
-        "from pathlib import Path\n\n"
+        "import os\n"
+        "import pytest\n"
+        "from pathlib import Path\n"
+        "from pytest_cuke.model.message_types import message_to_dict\n\n"
         "from pytest_cuke import given, parsers, then, when\n\n\n"
         "@given('the native report scenario starts')\n"
         "def native_report_scenario_starts():\n"
@@ -173,6 +194,7 @@ def _write_feature(
         "    attach('native Allure text attachment', media_type='text/plain', file_name='native-evidence.txt')\n"
         "    attach(b'\\x00\\x7f\\xffnative', media_type='application/octet-stream', file_name='native-evidence.bin')\n"
         + file_attachment_code
+        + worker_message_observer
         + xdist_step_code,
         encoding="utf-8",
     )
@@ -659,6 +681,17 @@ def consumer_has_two_reportable_scenarios(native_allure_consumer: NativeAllureCo
         _REPORT_SCENARIOS[1:],
         with_attachments=False,
         with_xdist_evidence=True,
+    )
+
+
+@given("the consumer contains two native Allure scenarios with colliding worker-local Messages IDs")
+def consumer_has_two_reportable_scenarios_with_colliding_ids(native_allure_consumer: NativeAllureConsumer) -> None:
+    _write_feature(
+        native_allure_consumer,
+        _REPORT_SCENARIOS[1:],
+        with_attachments=False,
+        with_xdist_evidence=True,
+        with_colliding_worker_message_ids=True,
     )
 
 
@@ -1405,6 +1438,45 @@ def native_allure_preserves_xdist_nested_reporting(native_allure_consumer: Nativ
         attachment_path.relative_to(output_root)
         assert attachment_path.is_file(), attachment
         assert attachment_path.read_bytes() == contract["content"], attachment
+
+
+@then("the two xdist workers should reuse a local Messages TestCase ID for different pickles")
+def xdist_workers_reuse_local_test_case_ids_for_different_pickles(native_allure_consumer: NativeAllureConsumer) -> None:
+    message_files = sorted(native_allure_consumer.project.glob(".native-allure-local-messages-gw*.jsonl"))
+    assert len(message_files) == 2, message_files
+
+    structures_by_worker: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
+    for path in message_files:
+        worker_id = path.name.removeprefix(".native-allure-local-messages-").removesuffix(".jsonl")
+        starts: list[dict[str, Any]] = []
+        test_cases: list[dict[str, Any]] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            envelope = json.loads(line)
+            if not isinstance(envelope, dict):
+                continue
+            if isinstance(envelope.get("testCaseStarted"), dict):
+                starts.append(envelope["testCaseStarted"])
+            if isinstance(envelope.get("testCase"), dict):
+                test_cases.append(envelope["testCase"])
+        assert len(starts) == 1, (worker_id, starts)
+        assert len(test_cases) == 1, (worker_id, test_cases)
+        structures_by_worker[worker_id] = (starts[0], test_cases[0])
+
+    assert set(structures_by_worker) == {"gw0", "gw1"}, structures_by_worker
+    first_start, first_case = structures_by_worker["gw0"]
+    second_start, second_case = structures_by_worker["gw1"]
+    assert first_start.get("testCaseId") == first_case.get("id"), (first_start, first_case)
+    assert second_start.get("testCaseId") == second_case.get("id"), (second_start, second_case)
+    assert first_case.get("id") == second_case.get("id"), (first_case, second_case)
+
+    pickle_ids = [first_case.get("pickleId"), second_case.get("pickleId")]
+    assert all(isinstance(pickle_id, str) for pickle_id in pickle_ids), (first_case, second_case)
+    assert pickle_ids[0] != pickle_ids[1], (first_case, second_case)
+    for scenario_name in _REPORT_SCENARIOS[1:]:
+        assert sum(scenario_name in pickle_id for pickle_id in pickle_ids if isinstance(pickle_id, str)) == 1, (
+            scenario_name,
+            pickle_ids,
+        )
 
 
 @then("the native Allure results should contain one shared session container for both scenarios")
