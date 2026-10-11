@@ -74,6 +74,7 @@ def final_progress_bar_scenario_waits_for_release():
     while time.monotonic() < deadline and not release.is_file():
         time.sleep(0.01)
     assert release.is_file(), "the live progress-bar observer did not release the final scenario"
+    print("progress-bar captured scenario stdout sentinel", flush=True)
     (ROOT / "gated-finished.marker").write_text("finished", encoding="utf-8")
 
 
@@ -737,7 +738,36 @@ def run_progress_bar_in_pty_until_live_update(consumer: Any) -> None:
     consumer.pytest_result = subprocess.CompletedProcess(command, return_code, output, "")
 
 
-def _run_progress_bar_geometry_replay(consumer: Any, *, columns: int | None) -> str:
+@when(
+    'I run installed pytest in a 32-column TTY with default capture and "-q", plus "--capture=fd -q", '
+    '"--capture=sys -v", and "--capture=no -vv"'
+)
+def run_progress_bar_across_capture_and_verbosity_modes(consumer: Any) -> None:
+    outputs: dict[str, str] = {}
+    for output_name, capture_mode, verbosity in (
+        ("default", None, ("-q",)),
+        ("fd", "fd", ("-q",)),
+        ("sys", "sys", ("-v",)),
+        ("no", "no", ("-vv",)),
+    ):
+        outputs[output_name] = _run_progress_bar_geometry_replay(
+            consumer,
+            columns=32,
+            capture_mode=capture_mode,
+            verbosity=verbosity,
+            messages_path=f"artifacts/messages-{output_name}.ndjson",
+        )
+    consumer._progress_bar_capture_mode_outputs = outputs
+
+
+def _run_progress_bar_geometry_replay(
+    consumer: Any,
+    *,
+    columns: int | None,
+    capture_mode: str | None = "tee-sys",
+    verbosity: tuple[str, ...] = ("-v",),
+    messages_path: str | None = None,
+) -> str:
     import fcntl
     import pty
     import termios
@@ -761,6 +791,7 @@ def _run_progress_bar_geometry_replay(consumer: Any, *, columns: int | None) -> 
     environment = dict(consumer.env)
     environment.pop("COLUMNS", None)
     assert "COLUMNS" not in environment
+    capture_options = [] if capture_mode is None else [f"--capture={capture_mode}"]
     command = [
         str(consumer.pytest),
         "--rootdir=.",
@@ -768,11 +799,13 @@ def _run_progress_bar_geometry_replay(consumer: Any, *, columns: int | None) -> 
         "--cuke-features-dir=features",
         "--cuke-progress-bar",
         "--reruns=1",
-        "--capture=tee-sys",
-        "-v",
+        *capture_options,
+        *verbosity,
         "--tb=no",
         "--color=no",
     ]
+    if messages_path is not None:
+        command.append(f"--cuke-messages-ndjson={messages_path}")
     try:
         process = subprocess.Popen(
             command,
@@ -821,6 +854,7 @@ def terminal_progress_updates_fit_width_and_cap_counts(consumer: Any) -> None:
     assert result is not None and result.returncode == 0, _output(consumer)
     assert getattr(consumer, "_progress_bar_live_update_observed", False), _output(consumer)
     output = _output(consumer)
+    assert "progress-bar captured scenario stdout sentinel" in output, output
     assert "\r" in output and "\x1b[0K" in output, (
         f"TTY progress should redraw and clear the current line in place:\n{output!r}"
     )
@@ -859,3 +893,47 @@ def terminal_progress_updates_fit_width_and_cap_counts(consumer: Any) -> None:
 
     fallback_rows = _progress_rows(_run_progress_bar_geometry_replay(consumer, columns=None))
     assert fallback_rows and max(len(line) for line in fallback_rows) == 80, fallback_rows
+
+    narrow_output = _run_progress_bar_geometry_replay(consumer, columns=5, capture_mode="fd", verbosity=("-q",))
+    narrow_ratios = _ratio_updates(narrow_output)
+    assert narrow_ratios and narrow_ratios[-1] == (3, 3), (
+        f"the final unique-Pickle completion update was absent at five columns; raw PTY output: {narrow_output!r}"
+    )
+    narrow_rows = re.findall(
+        r"(?m)^(\d+/\d+ [A-Z?.-])",
+        _ANSI.sub("", narrow_output).replace("\r", "\n"),
+    )
+    assert len(narrow_rows) == len(expected_markers), (narrow_rows, narrow_output)
+    assert all(len(line) <= 5 for line in narrow_rows), narrow_rows
+    assert [line[-1] for line in narrow_rows] == expected_markers, (narrow_rows, expected_markers)
+
+
+@then("TTY progress and pytest output should be restored for each capture mode")
+def progress_bar_restores_pytest_output_across_capture_modes(consumer: Any) -> None:
+    outputs = getattr(consumer, "_progress_bar_capture_mode_outputs", None)
+    assert outputs is not None, "the progress-bar capture-mode CLI variants did not run"
+    for capture_mode, output in outputs.items():
+        messages_path = f"artifacts/messages-{capture_mode}.ndjson"
+        attempts = _attempts(_message_rows(consumer, messages_path))
+        assert len(attempts) == 4, (capture_mode, attempts)
+        assert len({attempt["pickle_id"] for attempt in attempts}) == 3, (capture_mode, attempts)
+        expected_markers = [_MARKERS[attempt["status"]] for attempt in attempts]
+        progress_rows = _progress_rows(output)
+        actual_markers = [line.rsplit(" ", 1)[-1] for line in progress_rows]
+        assert actual_markers == expected_markers, (capture_mode, actual_markers, expected_markers, output)
+        ratios = _ratio_updates(output)
+        assert ratios and ratios[-1] == (3, 3), (capture_mode, ratios, output)
+        assert all(total == 3 and 0 <= completed <= total for completed, total in ratios), (
+            capture_mode,
+            ratios,
+        )
+        assert re.search(r"\b\d+ passed\b.*\bin \d+(?:\.\d+)?s\b", output), (
+            f"pytest's ordinary duration summary was not restored for --capture={capture_mode}:\n{output}"
+        )
+        assert "skipped" in output.lower(), (capture_mode, output)
+        if capture_mode == "no":
+            assert "progress-bar captured scenario stdout sentinel" in output, output
+        else:
+            assert "progress-bar captured scenario stdout sentinel" not in output, output
+        if capture_mode in {"sys", "no"}:
+            assert "features/progress-bar-retries.feature::test_scenarios" in output, (capture_mode, output)
