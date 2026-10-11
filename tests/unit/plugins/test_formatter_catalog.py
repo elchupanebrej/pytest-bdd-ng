@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+from pytest_cuke import formatter_catalog
 from pytest_cuke.formatter_api import FormatterRequest, FormatterSelection
 from pytest_cuke.formatter_catalog import (
     FormatterCatalogError,
@@ -85,6 +87,260 @@ def test_catalog_rejects_duplicate_reserved_outputs_through_symlink_alias(tmp_pa
         match=r"--cuke-json and --cuke-messages-ndjson resolve to the same output path",
     ):
         resolve_formatter_requests(config)
+
+
+def test_catalog_rejects_unwritable_output_before_formatter_runtime_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "read-only").mkdir()
+    request = FormatterRequest(
+        name="cucumber-json",
+        command=("node", "--input-type=module"),
+        output_path=Path("read-only/report.json"),
+        required_executables=("node", "npm"),
+        required_npm_packages=("@cucumber/cucumber",),
+    )
+
+    original_open = os.open
+
+    def deny_probe(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        if Path(path).parent == tmp_path / "read-only":
+            raise PermissionError("write denied")
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog.os.open", deny_probe)
+
+    def fail_if_checked(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        pytest.fail("runtime or npm lookup ran before output writability preflight")
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog._check_request_runtime", fail_if_checked)
+
+    with pytest.raises(pytest.UsageError, match=r"not writable.*read-only"):
+        resolve_formatter_requests(_config(tmp_path, (request,)))
+
+
+def test_catalog_uses_exclusive_write_probe_for_windows_acl_denials_before_runtime_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    read_only = tmp_path / "read-only"
+    read_only.mkdir()
+    request = FormatterRequest(
+        name="cucumber-json",
+        command=("node", "--input-type=module"),
+        output_path=Path("read-only/report.json"),
+        required_executables=("node", "npm"),
+        required_npm_packages=("@cucumber/cucumber",),
+    )
+    original_open = os.open
+    denied_attempts: list[tuple[Path, int]] = []
+
+    def deny_output_probe(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        candidate = Path(path)
+        if candidate.parent == read_only:
+            denied_attempts.append((candidate, flags))
+            raise PermissionError("write denied by Windows ACL")
+        return original_open(path, flags, *args, **kwargs)
+
+    def fail_if_access_checked(*args: object, **kwargs: object) -> bool:
+        del args, kwargs
+        pytest.fail("directory access checks can misreport Windows ACL-denied destinations")
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog.os.open", deny_output_probe)
+    monkeypatch.setattr("pytest_cuke.formatter_catalog.os.access", fail_if_access_checked)
+
+    def fail_if_checked(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        pytest.fail("runtime or npm lookup ran before output writability preflight")
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog._check_request_runtime", fail_if_checked)
+
+    with pytest.raises(pytest.UsageError, match=r"not writable.*read-only"):
+        resolve_formatter_requests(_config(tmp_path, (request,)))
+
+    assert len(denied_attempts) == 1
+    _, flags = denied_attempts[0]
+    assert flags & os.O_CREAT
+    assert flags & os.O_EXCL
+    assert flags & os.O_WRONLY
+    assert not flags & os.O_TRUNC
+
+
+def test_catalog_bounds_exclusive_probe_name_collisions_before_runtime_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_directory = tmp_path / "artifacts"
+    output_directory.mkdir()
+    request = FormatterRequest(name="probe", command=(sys.executable,), output_path=Path("artifacts/report.ndjson"))
+    attempted_flags: list[int] = []
+
+    def collide_with_existing_name(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        del args, kwargs
+        assert Path(path).parent == output_directory
+        attempted_flags.append(flags)
+        raise FileExistsError("probe path already exists")
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog.os.open", collide_with_existing_name)
+
+    def fail_if_checked(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        pytest.fail("runtime or npm lookup ran before output writability preflight")
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog._check_request_runtime", fail_if_checked)
+
+    with pytest.raises(pytest.UsageError, match=r"not writable.*artifacts"):
+        resolve_formatter_requests(_config(tmp_path, (request,)))
+
+    assert len(attempted_flags) == formatter_catalog._OUTPUT_PROBE_MAX_ATTEMPTS
+    assert all(flags & os.O_EXCL and flags & os.O_CREAT and flags & os.O_WRONLY for flags in attempted_flags)
+
+
+def test_catalog_checks_configured_reserved_sink_writability(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "read-only").mkdir()
+    config = _config(
+        tmp_path,
+        (),
+        options={
+            "cuke_json": str(tmp_path / "read-only" / "report.json"),
+            "cuke_json_backend": "native",
+        },
+    )
+
+    original_open = os.open
+
+    def deny_probe(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        if Path(path).parent == tmp_path / "read-only":
+            raise PermissionError("write denied")
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog.os.open", deny_probe)
+
+    with pytest.raises(pytest.UsageError, match=r"not writable.*read-only"):
+        resolve_formatter_requests(config)
+
+
+@pytest.mark.parametrize("output_directory_exists", (True, False))
+def test_catalog_probes_existing_or_parent_directory_for_reserved_allure_output(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    output_directory_exists: bool,
+) -> None:
+    output_directory = tmp_path / "allure-results"
+    if output_directory_exists:
+        output_directory.mkdir()
+    config = _config(tmp_path, (), options={"cuke_allure": str(output_directory)})
+    attempted_directories: list[Path] = []
+
+    def deny_probe(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        del flags
+        candidate = Path(path)
+        attempted_directories.append(candidate.parent)
+        raise PermissionError("write denied")
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog.os.open", deny_probe)
+
+    with pytest.raises(pytest.UsageError, match="not writable"):
+        resolve_formatter_requests(config)
+
+    expected_directory = output_directory if output_directory_exists else tmp_path
+    assert attempted_directories == [expected_directory]
+
+
+def test_catalog_reports_missing_parent_for_reserved_allure_output(tmp_path: Path) -> None:
+    config = _config(tmp_path, (), options={"cuke_allure": str(tmp_path / "missing-parent" / "allure-results")})
+
+    with pytest.raises(pytest.UsageError, match=r"parent directory does not exist: .*missing-parent"):
+        resolve_formatter_requests(config)
+
+
+def test_catalog_keeps_native_allure_file_blocker_diagnostic_during_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    blocked_output = tmp_path / "native-allure-output-file"
+    blocked_output.write_text("keep this file", encoding="utf-8")
+    artifact_directory = tmp_path / "artifacts"
+    artifact_directory.mkdir()
+    request = FormatterRequest(
+        name="selected",
+        command=("node", "--input-type=module"),
+        output_path=Path("artifacts/report.ndjson"),
+        required_executables=("node",),
+    )
+    config = _config(tmp_path, (request,), options={"cuke_allure": str(blocked_output)})
+
+    def fail_if_checked(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        pytest.fail("formatter runtime lookup ran before the native Allure output preflight")
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog._check_request_runtime", fail_if_checked)
+
+    with pytest.raises(
+        pytest.UsageError,
+        match=r"cannot initialize native Allure reporting.*native-allure-output-file.*already exists",
+    ):
+        resolve_formatter_requests(config)
+
+    assert blocked_output.read_text(encoding="utf-8") == "keep this file"
+
+
+def test_catalog_writability_probe_removes_its_temporary_file(tmp_path: Path) -> None:
+    output_directory = tmp_path / "artifacts"
+    output_directory.mkdir()
+    request = FormatterRequest(name="probe", command=(sys.executable,), output_path=Path("artifacts/report.ndjson"))
+
+    resolve_formatter_requests(_config(tmp_path, (request,)))
+
+    assert list(output_directory.iterdir()) == []
+
+
+def test_catalog_rejects_unwritable_existing_output_before_runtime_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_path = tmp_path / "report.json"
+    output_path.write_text("keep this report", encoding="utf-8")
+    request = FormatterRequest(
+        name="cucumber-json",
+        command=("node", "--input-type=module"),
+        output_path=output_path,
+        required_executables=("node", "npm"),
+        required_npm_packages=("@cucumber/cucumber",),
+    )
+    original_open = os.open
+
+    def deny_selected_file(path: object, flags: int, *args: object, **kwargs: object) -> int:
+        if Path(path) == output_path:
+            assert flags & os.O_WRONLY
+            assert not flags & (os.O_TRUNC | os.O_CREAT)
+            raise PermissionError("selected output is read-only")
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog.os.open", deny_selected_file)
+
+    def fail_if_checked(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        pytest.fail("runtime or npm lookup ran before output writability preflight")
+
+    monkeypatch.setattr("pytest_cuke.formatter_catalog._check_request_runtime", fail_if_checked)
+
+    with pytest.raises(pytest.UsageError, match=r"not writable.*report\.json"):
+        resolve_formatter_requests(_config(tmp_path, (request,)))
+
+    assert output_path.read_text(encoding="utf-8") == "keep this report"
+
+
+def test_catalog_preflight_does_not_truncate_existing_output_file(tmp_path: Path) -> None:
+    output_path = tmp_path / "report.json"
+    output_path.write_text("keep this report", encoding="utf-8")
+    request = FormatterRequest(name="probe", command=(sys.executable,), output_path=output_path)
+
+    resolve_formatter_requests(_config(tmp_path, (request,)))
+
+    assert output_path.read_text(encoding="utf-8") == "keep this report"
 
 
 def test_catalog_rejects_reserved_output_conflict_before_formatter_runtime_check(
