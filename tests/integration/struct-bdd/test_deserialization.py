@@ -684,7 +684,10 @@ def test_tags_steps_examples_joined_by_value_load():
 
     assert len(routes) == 1
 
-    assert len(routes[0].example_table.values) == 2
+    assert routes[0].example_table.values == [
+        ["A1", "B1", "C1"],
+        ["A2", "B2", "C2"],
+    ]
 
 
 def test_load_nested_steps():
