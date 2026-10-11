@@ -3,9 +3,9 @@ default_language_version:
   python: python3.14
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.4
+    rev: v0.17.0
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
         files: &ruff_scope >-
             (?x)^(?:src/pytest_cuke/compatibility/(?:runtime_compat|environment_matrix|pytest)\.py

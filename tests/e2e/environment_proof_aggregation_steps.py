@@ -371,7 +371,7 @@ def _doc_generation_artifact(context: ProofAggregationContext) -> EvidenceArtifa
     assert isinstance(tox_environment, str) and tox_environment, matches[0]
     artifact = next((item for item in context.artifacts if item.tox_environment == tox_environment), None)
     assert artifact is not None, (
-        "the inventory has no proof artifact for doc-generation environment " f"{tox_environment!r}"
+        f"the inventory has no proof artifact for doc-generation environment {tox_environment!r}"
     )
     return artifact
 
@@ -623,9 +623,9 @@ def remove_doc_generation_pandoc_cli_version(proof_aggregation: ProofAggregation
             assert isinstance(optional_versions.get(package), str) and optional_versions[package], optional_versions
         system_tool_versions = environment.get("system_tool_versions")
         assert isinstance(system_tool_versions, dict), environment
-        assert (
-            isinstance(system_tool_versions.get("pandoc"), str) and system_tool_versions["pandoc"]
-        ), system_tool_versions
+        assert isinstance(system_tool_versions.get("pandoc"), str) and system_tool_versions["pandoc"], (
+            system_tool_versions
+        )
         system_tool_versions.pop("pandoc")
 
     _mutate_environment(artifact, mutate)
@@ -812,9 +812,9 @@ def proof_summary_passes_with_every_inventory_environment(
 ) -> None:
     summary = _summary(proof_aggregation)
     expected_count = len(proof_aggregation.artifacts)
-    assert (
-        proof_aggregation_result.returncode == 0
-    ), f"full inventory proof should pass:\n{proof_aggregation_result.stdout}\n{proof_aggregation_result.stderr}"
+    assert proof_aggregation_result.returncode == 0, (
+        f"full inventory proof should pass:\n{proof_aggregation_result.stdout}\n{proof_aggregation_result.stderr}"
+    )
     assert summary.get("outcome") == "passed", summary
     assert summary.get("git_sha") == proof_aggregation.git_sha, summary
     assert summary.get("environment_count") == expected_count, summary
@@ -1550,9 +1550,9 @@ def proof_summary_fails_for_missing_pandoc_cli_version(
     diagnostic = proof_aggregation_result.stderr.casefold()
     assert "system tool 'pandoc'" in diagnostic, proof_aggregation_result.stderr
     assert "version" in diagnostic, proof_aggregation_result.stderr
-    assert (
-        "install pandoc before running the documentation tox environment" in diagnostic
-    ), proof_aggregation_result.stderr
+    assert "install pandoc before running the documentation tox environment" in diagnostic, (
+        proof_aggregation_result.stderr
+    )
 
 
 @then("the proof summary should fail for a missing tox result command")
