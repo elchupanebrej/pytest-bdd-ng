@@ -222,9 +222,9 @@ def test_remote_xdist_report_preserves_worker_contract(
 
     try:
         started = _run_compose(project_name, env, "up", "--detach", "--build", timeout=1200)
-        assert (
-            started.returncode == 0
-        ), f"could not start the remote xdist Compose cluster:\n{started.stdout}\n{started.stderr}"
+        assert started.returncode == 0, (
+            f"could not start the remote xdist Compose cluster:\n{started.stdout}\n{started.stderr}"
+        )
         runner = _run_compose(
             project_name,
             env,
@@ -279,9 +279,9 @@ def test_remote_xdist_report_preserves_worker_contract(
             controller = _run_compose(project_name, env, "exec", "-T", "controller", "hostname")
             assert controller.returncode == 0, controller.stdout + controller.stderr
             assert controller.stdout.strip() == "controller"
-            assert (
-                controller.stdout.strip() not in observed_hosts
-            ), "SSH workers must run in separate containers from the controller"
+            assert controller.stdout.strip() not in observed_hosts, (
+                "SSH workers must run in separate containers from the controller"
+            )
 
         run_finished = next(message["testRunFinished"] for message in messages if "testRunFinished" in message)
         assert run_finished.get("success") is (not partial), run_finished
