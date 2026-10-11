@@ -163,18 +163,20 @@ class Join(BaseModel):
                     for tables_values in product(*map(rowed_values, filled_tables))
                 ):
                     if all(
-                        starmap(
-                            eq,
-                            product(
-                                [
-                                    value
-                                    for _parameter, value in zip(
-                                        filled_tables_parameters, filled_tables_values, strict=False
-                                    )
-                                    if parameter == _parameter
-                                ],
-                                repeat=2,
-                            ),
+                        all(
+                            starmap(
+                                eq,
+                                product(
+                                    [
+                                        value
+                                        for _parameter, value in zip(
+                                            filled_tables_parameters, filled_tables_values, strict=False
+                                        )
+                                        if parameter == _parameter
+                                    ],
+                                    repeat=2,
+                                ),
+                            )
                         )
                         for parameter in self.parameters
                     ):
