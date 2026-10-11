@@ -21,6 +21,10 @@ import junitXmlFormatter from "@cucumber/junit-xml-formatter";
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
 const messageHandlers = [];
 const gherkinDocuments = [];
+const picklesById = new Map();
+const testCasesById = new Map();
+const testCaseStarted = [];
+const testCaseFinishedByStartedId = new Map();
 let report = "";
 
 function xmlAttribute(value) {
@@ -134,6 +138,118 @@ function addDocumentProperties(xml) {
   return `${xml.slice(0, suiteStartEnd + 1)}\n${propertyBlock}${xml.slice(suiteStartEnd + 1)}`;
 }
 
+function collectAstNodeLocations(node, locations) {
+  if (Array.isArray(node)) {
+    for (const child of node) collectAstNodeLocations(child, locations);
+    return;
+  }
+  if (node === null || typeof node !== "object") return;
+  if (typeof node.id === "string" && Number.isInteger(node.location?.line)) {
+    locations.set(node.id, node.location);
+  }
+  for (const child of Object.values(node)) collectAstNodeLocations(child, locations);
+}
+
+function sourceLocationFor(pickle, locationsByUri) {
+  const sourceUri = pickle.uri;
+  if (typeof sourceUri !== "string") return undefined;
+  const astNodeId = pickle.astNodeIds?.at(-1);
+  const astLocation = locationsByUri.get(sourceUri)?.get(astNodeId);
+  const line = pickle.location?.line ?? astLocation?.line;
+  if (!Number.isInteger(line)) return undefined;
+  return { uri: sourceUri, line };
+}
+
+function compareText(left, right) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
+function orderedTestCaseSources() {
+  const locationsByUri = new Map();
+  for (const document of gherkinDocuments) {
+    if (typeof document.uri !== "string") continue;
+    let locations = locationsByUri.get(document.uri);
+    if (!locations) {
+      locations = new Map();
+      locationsByUri.set(document.uri, locations);
+    }
+    collectAstNodeLocations(document, locations);
+  }
+
+  const started = testCaseStarted
+    .filter((item) => !testCaseFinishedByStartedId.get(item.id)?.willBeRetried)
+    .sort((left, right) => {
+      const leftTime = left.timestamp.seconds * 1000 + left.timestamp.nanos / 1e6;
+      const rightTime = right.timestamp.seconds * 1000 + right.timestamp.nanos / 1e6;
+      return leftTime - rightTime || compareText(left.id, right.id);
+    });
+
+  const cases = started.map((item) => {
+    const testCase = testCasesById.get(item.testCaseId);
+    const pickle = picklesById.get(testCase?.pickleId);
+    if (!pickle) return undefined;
+    return { pickle, source: sourceLocationFor(pickle, locationsByUri) };
+  });
+  if (cases.some((item) => !item?.source)) return undefined;
+
+  return cases
+    .sort((left, right) => {
+      const leftPickle = left.pickle;
+      const rightPickle = right.pickle;
+      if (leftPickle.uri !== rightPickle.uri) return leftPickle.uri.localeCompare(rightPickle.uri);
+      if (!leftPickle.location) return rightPickle.location ? -1 : 0;
+      if (!rightPickle.location) return 1;
+      return leftPickle.location.line - rightPickle.location.line;
+    })
+    .map((item) => item.source);
+}
+
+function testcaseAttributes(tag) {
+  return Object.fromEntries(
+    [...tag.matchAll(/([A-Za-z_:][A-Za-z0-9_.:-]*)="([^"]*)"/g)]
+      .map((match) => [match[1], match[2]]),
+  );
+}
+
+function addDuplicateTestCaseSources(xml) {
+  const tokenPattern = /<!\[CDATA\[[\s\S]*?\]\]>|<!--[\s\S]*?-->|<(?:[^>"']|"[^"]*"|'[^']*')*>/g;
+  const tokens = [...xml.matchAll(tokenPattern)];
+  const testcases = tokens.filter(({ 0: token }) => /^<testcase(?:\s|>)/.test(token));
+  const identityCounts = new Map();
+  for (const { 0: tag } of testcases) {
+    const attributes = testcaseAttributes(tag);
+    const identity = JSON.stringify([attributes.classname, attributes.name]);
+    identityCounts.set(identity, (identityCounts.get(identity) ?? 0) + 1);
+  }
+  if (![...identityCounts.values()].some((count) => count > 1)) return xml;
+
+  const sources = orderedTestCaseSources();
+  if (!sources || sources.length !== testcases.length) {
+    throw new Error("Cannot correlate duplicate Cucumber JUnit cases with source locations");
+  }
+
+  let testcaseIndex = 0;
+  const replacements = new Map();
+  for (const { 0: tag, index } of testcases) {
+    const attributes = testcaseAttributes(tag);
+    const identity = JSON.stringify([attributes.classname, attributes.name]);
+    const source = sources[testcaseIndex++];
+    if (identityCounts.get(identity) === 1) continue;
+    const additions = [];
+    if (attributes.file === undefined) additions.push(`file="${xmlAttribute(source.uri)}"`);
+    if (attributes.line === undefined) additions.push(`line="${xmlAttribute(source.line)}"`);
+    if (!additions.length) continue;
+    const ending = tag.endsWith("/>") ? 2 : 1;
+    replacements.set(index, `${tag.slice(0, -ending)} ${additions.join(" ")}${tag.slice(-ending)}`);
+  }
+
+  return xml.replace(tokenPattern, (tag, offset) => (
+    replacements.get(offset) ?? tag
+  ));
+}
+
 junitXmlFormatter.formatter({
   options: {},
   on: (type, handler) => {
@@ -149,10 +265,16 @@ for await (const line of input) {
   if (!line.trim()) continue;
   const envelope = JSON.parse(line);
   if (envelope.gherkinDocument) gherkinDocuments.push(envelope.gherkinDocument);
+  if (envelope.pickle) picklesById.set(envelope.pickle.id, envelope.pickle);
+  if (envelope.testCase) testCasesById.set(envelope.testCase.id, envelope.testCase);
+  if (envelope.testCaseStarted) testCaseStarted.push(envelope.testCaseStarted);
+  if (envelope.testCaseFinished) {
+    testCaseFinishedByStartedId.set(envelope.testCaseFinished.testCaseStartedId, envelope.testCaseFinished);
+  }
   for (const handler of messageHandlers) handler(envelope);
 }
 
-process.stdout.write(addDocumentProperties(report));
+process.stdout.write(addDuplicateTestCaseSources(addDocumentProperties(report)));
 """.strip()
 
 

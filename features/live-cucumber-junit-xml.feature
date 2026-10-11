@@ -84,3 +84,10 @@ Feature: Live message-driven Cucumber JUnit XML formatter
     When the consumer creates deterministic Cucumber JUnit Messages for golden comparison
     And I replay deterministic Cucumber JUnit Messages to "report-replayed.xml"
     Then deterministic Cucumber JUnit replay should match the pinned example golden including numeric durations
+
+  Scenario: Duplicate testcase names retain their source identities
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the Cucumber JUnit consumer prepares two same-named feature files without metadata
+    And the consumer installs the pinned official Cucumber JUnit runtime
+    When I run installed pytest in the Cucumber JUnit workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-junit=artifacts/duplicate-identities.xml -q --color=no"
+    Then duplicate-named Cucumber JUnit cases should retain source URI and line
