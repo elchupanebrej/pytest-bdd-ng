@@ -67,7 +67,10 @@ dependencies = [
   "parse_type>=0.6.0",
   "pathvalidate",
   "py",
-  "pydantic>=2.0.3",
+  # PyO3 0.27 dropped PyPy 3.10; keep native-dependency versions with published pp310 wheels.
+  "pydantic>=2.0.3,<2.13; platform_python_implementation == 'PyPy' and python_version < '3.11'",
+  "pydantic>=2.0.3; platform_python_implementation != 'PyPy' or python_version >= '3.11'",
+  "rpds-py<0.28; platform_python_implementation == 'PyPy' and python_version < '3.11'",
   "referencing>=0.30",
   "tomli;python_version<'3.11.0'",
   "pytest>=7.0",

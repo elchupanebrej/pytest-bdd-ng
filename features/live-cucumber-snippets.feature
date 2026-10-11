@@ -37,7 +37,7 @@ Feature: Cucumber undefined-step snippets
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer prepares mixed undefined-step snippets in a Unicode workspace with spaces
     And the consumer installs the pinned official Cucumber snippets runtime in that workspace
-    When I run installed pytest from consumer directory "snippet workspace 東京 café" with shared arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets --color=no" and capture variants "-q --capture=fd", "-v --capture=sys", and "-vv --capture=no"
+    When I run installed pytest from consumer directory "snippet workspace 東京 café" with shared arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-snippets --color=no" and Snippets capture variants "-q --capture=fd", "-v --capture=sys", and "-vv --capture=no"
     Then fd capture should preserve JavaScript snippets and undefined-step failures while hiding passing step output
     And sys capture should preserve JavaScript snippets and undefined-step failures while hiding passing step output
     And disabled capture should preserve JavaScript snippets and undefined-step failures while showing passing step output

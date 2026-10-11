@@ -243,6 +243,21 @@ def test_remote_xdist_report_preserves_worker_contract(
         assert "REMOTE_XDIST_GATEWAYS=" in output, output
         if partial:
             assert runner.returncode != 0, f"the worker crash must make the pytest lane fail:\n{output}"
+            assert "not relative to an rsync root" not in output, output
+            diagnostic_lines = [
+                line.split("=", maxsplit=1)[1]
+                for line in output.splitlines()
+                if line.startswith("PYTEST_CUKE_MESSAGE_DIAGNOSTIC=")
+            ]
+            diagnostics = [json.loads(line) for line in diagnostic_lines]
+            assert any(
+                diagnostic.get("code") == "interrupted_worker_transfer"
+                and crash_worker in diagnostic.get("offending_ids", [])
+                for diagnostic in diagnostics
+            ), (
+                f"expected Cucumber Messages to report the abrupt exit of xdist worker {crash_worker!r}; "
+                f"got diagnostics {diagnostics!r}\n{output}"
+            )
         else:
             assert runner.returncode == 0, output
 
@@ -272,12 +287,6 @@ def test_remote_xdist_report_preserves_worker_contract(
         assert run_finished.get("success") is (not partial), run_finished
         if partial:
             assert crash_worker in worker_ids, worker_ids
-            diagnostic_lines = [
-                line.split("=", maxsplit=1)[1]
-                for line in output.splitlines()
-                if line.startswith("PYTEST_CUKE_MESSAGE_DIAGNOSTIC=")
-            ]
-            diagnostics = [json.loads(line) for line in diagnostic_lines]
             codes_for_crashed_worker = {
                 diagnostic.get("code")
                 for diagnostic in diagnostics
