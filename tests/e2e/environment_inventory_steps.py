@@ -1128,6 +1128,39 @@ def messages_schema_tox_command_uses_installed_schema_fixture(request: pytest.Fi
     )
 
 
+@then("the messages schema inventory carrier should use the fixture for the installed Cucumber Messages release")
+def messages_schema_inventory_uses_installed_schema_fixture(request: pytest.FixtureRequest) -> None:
+    repository_root = Path(request.config.rootpath)
+    release = distribution_version("cucumber-messages")
+    source_directory = f"tests/fixtures/message-schemas-v{release.replace('.', '-')}"
+    inventory_path = repository_root / "config" / "env-matrix.yaml"
+    inventory = yaml.safe_load(inventory_path.read_text(encoding="utf-8"))
+    assert isinstance(inventory, dict), inventory
+    lanes = inventory.get("lanes")
+    assert isinstance(lanes, list), inventory
+    matching_lanes = [lane for lane in lanes if isinstance(lane, dict) and lane.get("id") == "messages-schema"]
+    assert len(matching_lanes) == 1, f"expected one messages-schema lane in {inventory_path}, got {matching_lanes!r}"
+    carrier = matching_lanes[0].get("expected_carrier")
+    assert isinstance(carrier, dict), matching_lanes[0]
+    command = carrier.get("command")
+    assert isinstance(command, str), carrier
+    arguments = shlex.split(command)
+    configured_source_directories = [
+        argument.partition("=")[2]
+        for argument in arguments
+        if argument.startswith("--source-dir=")
+    ]
+    configured_source_directories.extend(
+        arguments[index + 1]
+        for index, argument in enumerate(arguments[:-1])
+        if argument == "--source-dir"
+    )
+    assert configured_source_directories == [source_directory], (
+        f"messages-schema inventory must use --source-dir {source_directory!r} for cucumber-messages {release}; "
+        f"configured={configured_source_directories!r}"
+    )
+
+
 @then("installed package metadata should cap dependencies for PyPy 3.10 and remain open for newer runtimes")
 def installed_metadata_caps_only_legacy_pypy_dependencies(consumer: Any) -> None:
     metadata_script = (

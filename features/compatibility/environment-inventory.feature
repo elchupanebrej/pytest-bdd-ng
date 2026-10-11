@@ -75,6 +75,7 @@ Feature: Supported environment inventory and acceptance proof
 
   Scenario: The messages schema tox environment uses the current Cucumber Messages fixture
     Then the messages schema tox command should use the fixture for the installed Cucumber Messages release
+    And the messages schema inventory carrier should use the fixture for the installed Cucumber Messages release
 
   Scenario: Installed metadata caps PyPy 3.10 dependencies without limiting other runtimes
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project

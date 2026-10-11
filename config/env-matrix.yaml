@@ -1737,7 +1737,7 @@ lanes:
     workflow_selector: typecheck
     command: "tox run -e messages-schema"
     prerequisites: [{type: command, name: cuke, remedy: "install pytest-cuke in the messages-schema tox environment"}]
-    expected_carrier: {kind: tool, path: src/pytest_cuke/model/message_schemas, command: "cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas --source-dir tests/fixtures/message-schemas-v24-0-1 --check"}
+    expected_carrier: {kind: tool, path: src/pytest_cuke/model/message_schemas, command: "cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas --source-dir tests/fixtures/message-schemas-v28-0-0 --check"}
   - id: py39-unsupported
     status: unsupported
     runtime: CPython
