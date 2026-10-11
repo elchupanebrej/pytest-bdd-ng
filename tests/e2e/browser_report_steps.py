@@ -119,9 +119,9 @@ def consumer_run_contains_one_passed_allure_result(
     allure_browser_context: AllureBrowserContext,
     pytest_run_result: subprocess.CompletedProcess[str],
 ) -> None:
-    assert pytest_run_result.returncode == 0, (
-        f"the real pytest-cuke report-producing run failed:\n{pytest_run_result.stdout}\n{pytest_run_result.stderr}"
-    )
+    assert (
+        pytest_run_result.returncode == 0
+    ), f"the real pytest-cuke report-producing run failed:\n{pytest_run_result.stdout}\n{pytest_run_result.stderr}"
     context = allure_browser_context
     result_directory = _consumer_path(context.consumer, "allure-results")
     results = sorted(result_directory.glob("*-result.json"))
@@ -180,9 +180,9 @@ def _open_browser_report(report_directory: Path, scenario_name: str) -> BrowserR
             try:
                 page = browser.new_page()
                 response = page.goto(report_url, wait_until="networkidle", timeout=60_000)
-                assert response is not None and response.ok, (
-                    f"Playwright could not open the generated Allure report at {report_url}: {response}"
-                )
+                assert (
+                    response is not None and response.ok
+                ), f"Playwright could not open the generated Allure report at {report_url}: {response}"
                 page.locator("body").wait_for(state="visible", timeout=30_000)
                 page.wait_for_function(
                     "document.body !== null && document.body.innerText.trim().length > 0",

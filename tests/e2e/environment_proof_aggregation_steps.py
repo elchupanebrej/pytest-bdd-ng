@@ -354,9 +354,7 @@ def _first_native_parser_artifact(context: ProofAggregationContext) -> EvidenceA
 
 def _full_matrix_coverage_artifacts(context: ProofAggregationContext) -> list[EvidenceArtifact]:
     artifacts = [
-        item
-        for item in context.artifacts
-        if item.job == "full-matrix" and "-coverage-" in item.tox_environment
+        item for item in context.artifacts if item.job == "full-matrix" and "-coverage-" in item.tox_environment
     ]
     assert len(artifacts) >= 2, "the inventory must contain at least two full-matrix coverage environments"
     return artifacts

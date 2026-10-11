@@ -37,11 +37,12 @@ Feature: Supported environment inventory and acceptance proof
     And Ruff and typecheck lanes should resolve to their real tools
     And configured hook Python should match the pre-commit lane interpreter
 
-  Scenario: The pre-commit lane installs typing extras and preserves upstream schemas
+  Scenario: The pre-commit lane installs typing extras and respects the approved format scope
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     Given the repository environment inventory is loaded
-    Then the pre-commit tox environment should install the testtypes extra
-    And pre-commit text fixers should exclude all upstream schema files
+    Then the pre-commit tox environment should install the testtypes and debug-mcp extras
+    And Ruff pre-commit hooks should match the py314-ruff tox scope
+    And pre-commit text fixers should exclude upstream schemas and generated docs
 
   Scenario: Optional capability lanes select real tests and fail closed on missing prerequisites
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project

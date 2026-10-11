@@ -124,9 +124,7 @@ def _tox_environment_names(consumer: Any) -> set[str]:
     )
     assert result.returncode == 0, f"real tox list failed: {result.stdout}\n{result.stderr}"
     return {
-        line.strip()
-        for line in result.stdout.splitlines()
-        if line.strip() and not line.startswith("All environments:")
+        line.strip() for line in result.stdout.splitlines() if line.strip() and not line.startswith("All environments:")
     }
 
 
@@ -184,7 +182,9 @@ def _baseline_gaps(
         matches = actual_cell_map.get(key, [])
         source = _evidence_text(expected.get("source_evidence", []))
         if len(matches) != 1:
-            gaps.append(f"historical workflow cell {expected.get('id', key)!r} is missing or duplicated; source={source}")
+            gaps.append(
+                f"historical workflow cell {expected.get('id', key)!r} is missing or duplicated; source={source}"
+            )
             continue
         actual = matches[0]
         if actual.get("disposition") != expected.get("disposition"):
@@ -208,7 +208,9 @@ def _baseline_gaps(
         gaps.append("workflow_cells is missing or is not a list")
     for key, expected in expected_cell_map.items():
         if len(workflow_cell_map.get(key, [])) != 1:
-            gaps.append(f"workflow selector inventory does not preserve historical cell {key!r}; source={_evidence_text(expected.get('source_evidence', []))}")
+            gaps.append(
+                f"workflow selector inventory does not preserve historical cell {key!r}; source={_evidence_text(expected.get('source_evidence', []))}"
+            )
 
     lanes = document.get("lanes")
     if not isinstance(lanes, list):
@@ -221,7 +223,9 @@ def _baseline_gaps(
         if isinstance(lane, dict) and lane.get("id")
         for tox_env in _lane_tox_environments(lane)
     }
-    workflow_tox_names = _workflow_tox_environments(document) if isinstance(document.get("workflow_cells"), list) else set()
+    workflow_tox_names = (
+        _workflow_tox_environments(document) if isinstance(document.get("workflow_cells"), list) else set()
+    )
     provenance = ledger.get("lane_provenance")
     if not isinstance(provenance, list):
         gaps.append("support_ledger.lane_provenance is missing or is not a list")
@@ -242,18 +246,26 @@ def _baseline_gaps(
             if tox_env in tox_names:
                 gaps.append(f"excluded historical tox environment is active: {row_id} ({tox_env}); source={source}")
             if matches:
-                gaps.append(f"excluded historical tox environment has lane provenance: {row_id} ({tox_env}); source={source}")
+                gaps.append(
+                    f"excluded historical tox environment has lane provenance: {row_id} ({tox_env}); source={source}"
+                )
             if tox_env in workflow_tox_names:
-                gaps.append(f"excluded historical tox environment is selected by workflow: {row_id} ({tox_env}); source={source}")
+                gaps.append(
+                    f"excluded historical tox environment is selected by workflow: {row_id} ({tox_env}); source={source}"
+                )
             continue
         if tox_env not in tox_names:
-            gaps.append(f"historical tox environment is missing from resolved tox: {row_id} ({tox_env}); source={source}")
+            gaps.append(
+                f"historical tox environment is missing from resolved tox: {row_id} ({tox_env}); source={source}"
+            )
         if len(matches) != 1:
             gaps.append(f"historical lane provenance is missing or duplicated: {row_id} ({tox_env}); source={source}")
             continue
         actual = matches[0]
         if actual.get("id") != row_id:
-            gaps.append(f"historical lane provenance ID differs for {tox_env}: expected {row_id}, got {actual.get('id')!r}; source={source}")
+            gaps.append(
+                f"historical lane provenance ID differs for {tox_env}: expected {row_id}, got {actual.get('id')!r}; source={source}"
+            )
         if actual.get("disposition") != disposition:
             gaps.append(f"historical lane provenance disposition differs for {row_id} ({tox_env}); source={source}")
         if actual.get("origin") not in {"historical", "restored"}:
@@ -264,9 +276,13 @@ def _baseline_gaps(
         if not _contains_url(actual.get("source_evidence")):
             gaps.append(f"historical lane provenance has no source URL for {row_id} ({tox_env}); source={source}")
         if disposition == "required" and tox_env not in workflow_tox_names:
-            gaps.append(f"required historical tox environment has no workflow selector: {row_id} ({tox_env}); source={source}")
+            gaps.append(
+                f"required historical tox environment has no workflow selector: {row_id} ({tox_env}); source={source}"
+            )
         if disposition == "manual" and tox_env in workflow_tox_names:
-            gaps.append(f"manual historical tox environment is selected by workflow: {row_id} ({tox_env}); source={source}")
+            gaps.append(
+                f"manual historical tox environment is selected by workflow: {row_id} ({tox_env}); source={source}"
+            )
 
     expected_exclusions = baseline.get("historical_exclusions")
     actual_exclusions = ledger.get("exclusions")
@@ -276,9 +292,7 @@ def _baseline_gaps(
         actual_exclusions = actual_exclusions if isinstance(actual_exclusions, list) else []
     exclusion_fields = ("runtime", "python", "pytest", "platform")
     expected_exclusion_map = {
-        _tuple_key(entry, exclusion_fields): entry
-        for entry in expected_exclusions
-        if isinstance(entry, dict)
+        _tuple_key(entry, exclusion_fields): entry for entry in expected_exclusions if isinstance(entry, dict)
     }
     actual_exclusion_map: dict[tuple[str, ...], list[dict[str, Any]]] = {}
     for entry in actual_exclusions:
@@ -383,12 +397,17 @@ def historical_incompatible_tox_environments_are_excluded(
     source_backed = [
         row
         for row in actual
-        if isinstance(row, dict) and row.get("basis") and row.get("reason") and _contains_url(row.get("source_evidence"))
+        if isinstance(row, dict)
+        and row.get("basis")
+        and row.get("reason")
+        and _contains_url(row.get("source_evidence"))
     ]
     expected = context.baseline.get("historical_exclusions", [])
     expected_keys = {_tuple_key(row, ("runtime", "python", "pytest", "platform")) for row in expected}
     actual_keys = {_tuple_key(row, ("runtime", "python", "pytest", "platform")) for row in source_backed}
-    assert expected_keys <= actual_keys, f"historical exclusions lack source-backed live entries: {sorted(expected_keys - actual_keys)}"
+    assert (
+        expected_keys <= actual_keys
+    ), f"historical exclusions lack source-backed live entries: {sorted(expected_keys - actual_keys)}"
 
 
 @when("I remove one viable historical lane from the isolated ledger inventory and tox config")
@@ -396,11 +415,7 @@ def remove_viable_historical_lane_from_isolated_inputs(
     historical_environment_baseline: HistoricalEnvironmentBaselineContext,
 ) -> None:
     context = historical_environment_baseline
-    expected = next(
-        row
-        for row in _historical_rows(context.baseline)
-        if row["tox_env"] == _MUTATION_TOX_ENV
-    )
+    expected = next(row for row in _historical_rows(context.baseline) if row["tox_env"] == _MUTATION_TOX_ENV)
     assert expected["disposition"] == "required", expected
     document = _live_inventory(context)
     ledger = _support_ledger(document)
@@ -466,6 +481,6 @@ def independent_baseline_reports_missing_historical_lane(
     source = _evidence_text(row["source_evidence"])
     matching = [gap for gap in gaps if row["id"] in gap and row["tox_env"] in gap]
     assert matching, f"the independent baseline did not detect removed lane {row['id']} ({row['tox_env']}): {gaps!r}"
-    assert any(source_part in "\n".join(matching) for source_part in source.split(", ")), (
-        f"the missing-lane diagnostic omitted pinned source evidence {source!r}: {matching!r}"
-    )
+    assert any(
+        source_part in "\n".join(matching) for source_part in source.split(", ")
+    ), f"the missing-lane diagnostic omitted pinned source evidence {source!r}: {matching!r}"
