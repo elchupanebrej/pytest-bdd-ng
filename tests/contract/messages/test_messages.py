@@ -5,8 +5,6 @@ from pathlib import Path
 from pprint import pformat
 from typing import TYPE_CHECKING, cast
 
-import pytest
-
 from pytest_cuke.model.message_types import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]
     Attachment,
     ContentEncoding,
@@ -32,9 +30,6 @@ from pytest_cuke.utils import flip
 
 if TYPE_CHECKING:  # pragma: nocover
     from pytest_cuke.compatibility.pytest import Testdir
-
-samples_path = Path(__file__).parent.parent.parent.parent / "compatibility-kit/devkit/samples"
-
 
 def run_messages_pytest(testdir: "Testdir", *arguments: str):
     project_root = Path(str(testdir.tmpdir))
@@ -96,15 +91,15 @@ def parse_and_unflold_messages(lines):
     return list(map(unfold_message, parsed_messages))
 
 
-@pytest.mark.skipif(
-    not (samples_path / "minimal" / "minimal.feature").exists(),
-    reason="compatibility-kit devkit samples not present",
-)
 def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     testdir.makefile(
         ".feature",
         # language=gherkin
-        minimal=(samples_path / "minimal" / "minimal.feature").read_text(),
+        minimal="""\
+        Feature: Minimal scenario messages
+          Scenario: A step emits its definition
+            Given I have 1 cukes in my belly
+        """,
     )
 
     testdir.makeconftest(
@@ -152,6 +147,8 @@ def test_minimal_scenario_messages(testdir: "Testdir", tmp_path):
     assert (
         len(step_definition_messages) == step_definitions_defined_by_pytest_cuke_ng + step_definitions_defined_by_test
     ), f"Messages: {pformat(messages)}"
+    trace_definitions = [message for message in step_definition_messages if message.pattern.source == "trace"]
+    assert len(trace_definitions) == 3, f"Expected all three built-in trace definitions: {pformat(trace_definitions)}"
 
     test_run_started_messages = messages = list_filter_by_type(_TestRunStarted, unfold_messages)
     assert len(test_run_started_messages) == 1, f"Messages: {pformat(messages)}"

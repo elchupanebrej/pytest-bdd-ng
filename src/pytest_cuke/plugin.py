@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from argparse import ArgumentTypeError
 from collections import deque
 from contextlib import suppress
@@ -137,7 +138,8 @@ def trace() -> None:
     pytest.set_trace()
 
 
-__registry = Registry()
+__registry = Registry(namespace=cast("StepRegistryProtocol", sys.modules[__name__]))
+__pytest_cuke_step_registry__ = __registry
 
 
 @pytest.fixture

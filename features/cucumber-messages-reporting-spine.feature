@@ -2,6 +2,27 @@ Feature: Cucumber Messages reporting spine
   Real autoload runs validate each envelope before delivering the same ordered stream
   to configured output and consumer extension sinks.
 
+  Scenario: Messages include all built-in trace definitions
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+
+      @given("the reporting spine probe passes")
+      def reporting_spine_probe_passes():
+          pass
+      """
+    And consumer file "features/trace-definitions.feature" contains:
+      """gherkin
+      Feature: Trace definitions
+        Scenario: A passing step has its definitions reported
+          Given the reporting spine probe passes
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
+    Then pytest should exit with code 0
+    And consumer Messages artifact "messages.ndjson" should include all three built-in trace definitions
+
   Scenario: A runtime stream fans out truthful outcomes and a terminal event
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer installs reporting-spine probe "runtime-outcomes"
