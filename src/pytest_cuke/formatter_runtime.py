@@ -445,7 +445,7 @@ class _FormatterProcess:
             self._record_failure(
                 FormatterRuntimeError(
                     f"Could not remove staged output for {self.label} "
-                    f"{self.request.name!r} at {str(temporary_path)!r}: {error}"
+                    f"{self.request.name!r} at {temporary_path}: {error}"
                 )
             )
 
@@ -713,7 +713,7 @@ class FormatterSession:
                 detail += f"; preserved previous output backup(s): {preserved}"
             if backup_cleanup_errors:
                 cleanup_details = ", ".join(
-                    f"{str(path)!r} ({type(cleanup_error).__name__}: {cleanup_error})"
+                    f"{path} ({type(cleanup_error).__name__}: {cleanup_error})"
                     for path, cleanup_error in backup_cleanup_errors
                 )
                 detail += f"; could not remove temporary output backup(s): {cleanup_details}"
@@ -731,7 +731,7 @@ class FormatterSession:
             cleanup_path, cleanup_exception = cleanup_errors[0]
             raise FormatterRuntimeError(
                 f"Could not remove {self._label} output backup "
-                f"{str(cleanup_path)!r}: {type(cleanup_exception).__name__}: {cleanup_exception}"
+                f"{cleanup_path}: {type(cleanup_exception).__name__}: {cleanup_exception}"
             ) from cleanup_exception
 
     def _raise_failure(self) -> None:

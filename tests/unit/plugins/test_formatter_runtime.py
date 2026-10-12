@@ -234,6 +234,28 @@ def test_formatter_asset_staging_failure_removes_temporary_directory(
     assert not created_directories[0].exists()
 
 
+def test_formatter_cleanup_diagnostic_preserves_windows_path_spelling() -> None:
+    class WindowsLookingPath:
+        def __str__(self) -> str:
+            return r"C:\agent\_temp\.report.ndjson.123.pytest-cuke-tmp"
+
+        def unlink(self, *, missing_ok: bool) -> None:
+            del missing_ok
+            raise OSError("simulated cleanup failure")
+
+    formatter = formatter_runtime._FormatterProcess(
+        _request(Path("."), "pass"), config=_config(), label="live formatter"
+    )
+    formatter._temporary_output_path = WindowsLookingPath()  # type: ignore[assignment]
+
+    formatter._discard_staged_output()
+
+    failure = formatter.failure
+    assert failure is not None
+    assert r"C:\agent\_temp\.report.ndjson.123.pytest-cuke-tmp" in str(failure)
+    assert r"C:\\agent\\_temp" not in str(failure)
+
+
 def test_formatter_timeout_kills_child_and_removes_staged_output(tmp_path: Path) -> None:
     output = tmp_path / "formatter-output.txt"
     code = "import sys, time; sys.stdin.read(); time.sleep(10)"
