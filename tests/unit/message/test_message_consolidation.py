@@ -169,6 +169,15 @@ def test_live_adapter_rejects_worker_messages_before_controller_run_start() -> N
         adapter.worker_envelope(worker_start, worker_id="gw0")
 
 
+def test_live_adapter_accepts_controller_run_start_without_optional_id() -> None:
+    adapter = LiveMessageAdapter()
+    controller_start = {
+        "testRunStarted": {"timestamp": {"seconds": 100, "nanos": 0}},
+    }
+
+    assert adapter.controller_envelope(controller_start) == controller_start
+
+
 def test_live_adapter_rewrites_controller_retry_references_after_deduplicating_test_case() -> None:
     adapter = LiveMessageAdapter()
     first_test_case = {

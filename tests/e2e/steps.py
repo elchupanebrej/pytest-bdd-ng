@@ -76,9 +76,10 @@ def _consumer_path(binary_dir: Path, *, include_node: bool = False) -> str:
 
 
 def _consumer_environment() -> dict[str, str]:
-    """Copy the host environment without carrying its outer xdist worker identity."""
+    """Copy the host environment without carrying outer tox or xdist state."""
     environment = os.environ.copy()
     for name in (
+        "TOX_ENV_DIR",
         "PYTEST_XDIST_WORKER",
         "PYTEST_XDIST_WORKER_COUNT",
         "PYTEST_XDIST_TESTRUNUID",
