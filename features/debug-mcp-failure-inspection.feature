@@ -2,6 +2,11 @@ Feature: Debug MCP failure inspection
   An installed consumer can leave ordinary failures alone by default and opt in to a
   real MCP inspection session that retains BDD context until an external client releases it.
 
+  Scenario: The Debug MCP extra installs with PyPy 3.10 compatible cryptography
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the installed consumer has the optional debug MCP extra installed
+    Then the installed debug MCP extra should be importable and PyPy 3.10 compatible
+
   Scenario: MCP stays inert when failure inspection is not selected
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer exposes a debugger failure BDD probe

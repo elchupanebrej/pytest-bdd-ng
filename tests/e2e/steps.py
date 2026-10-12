@@ -22,6 +22,7 @@ from textwrap import dedent, indent
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
+from packaging.version import Version
 from pytest import fixture
 
 try:
@@ -10850,6 +10851,43 @@ def install_debug_mcp_extra(consumer: ConsumerProject) -> None:
         "could not install the optional debug-mcp consumer extra:\n"
         f"{install.stdout}\n{install.stderr}"
     )
+
+
+@then("the installed debug MCP extra should be importable and PyPy 3.10 compatible")
+def installed_debug_mcp_extra_is_compatible(consumer: ConsumerProject) -> None:
+    probe = (
+        "import importlib, json, platform, sys\n"
+        "for module in ('cryptography', 'mcp', 'mcp_pdb.main', 'uvicorn'):\n"
+        "    importlib.import_module(module)\n"
+        "import cryptography\n"
+        "print(json.dumps({\n"
+        "    'implementation': platform.python_implementation(),\n"
+        "    'python': list(sys.version_info[:2]),\n"
+        "    'cryptography': cryptography.__version__,\n"
+        "}))\n"
+    )
+    result = subprocess.run(
+        [str(consumer.python), "-c", probe],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, (
+        "the installed debug-mcp dependencies could not be imported:\n"
+        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+    resolved = json.loads(result.stdout)
+    assert isinstance(resolved, dict), f"invalid runtime probe output: {result.stdout!r}"
+    assert isinstance(resolved.get("cryptography"), str), f"missing cryptography version: {resolved!r}"
+    if resolved.get("implementation") == "PyPy" and resolved.get("python") == [3, 10]:
+        version = Version(resolved["cryptography"])
+        assert version < Version("46"), (
+            f"PyPy 3.10 requires a cryptography version with published wheels below 46, "
+            f"but resolved {version}:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
 
 
 @when(re.compile(r'I start installed pytest for MCP inspection with arguments "(?P<arguments>[^"]*)"'))
