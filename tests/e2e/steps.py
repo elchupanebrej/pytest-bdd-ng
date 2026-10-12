@@ -57,6 +57,19 @@ def _consumer_executable(binary_dir: Path, name: str) -> Path:
     return binary_dir / (f"{name}.exe" if os.name == "nt" else name)
 
 
+def _consumer_path(binary_dir: Path, *, include_node: bool = False) -> str:
+    path_entries = [str(binary_dir)]
+    if include_node:
+        node = shutil.which("node")
+        if node is not None:
+            path_entries.append(str(Path(node).parent))
+            npm = shutil.which("npm")
+            if npm is not None:
+                path_entries.append(str(Path(npm).parent))
+    path_entries.extend(os.defpath.split(os.pathsep))
+    return os.pathsep.join(dict.fromkeys(path_entries))
+
+
 @dataclass
 class ConsumerProject:
     """An isolated installed-package consumer used by bootstrap contracts."""
@@ -270,7 +283,7 @@ def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, _pytes
     environment.update(
         {
             "HOME": str(consumer_home),
-            "PATH": f"{binary_dir}{os.pathsep}{os.defpath}",
+            "PATH": _consumer_path(binary_dir, include_node=True),
             "PYTHONNOUSERSITE": "1",
         }
     )
@@ -327,7 +340,7 @@ def install_pytest_cuke_allure_extra_in_isolated_environment(consumer: ConsumerP
     consumer.python = python_path
     consumer.pytest = _consumer_executable(binary_dir, "pytest")
     consumer.cuke = _consumer_executable(binary_dir, "cuke")
-    consumer.env["PATH"] = f"{binary_dir}{os.pathsep}{os.defpath}"
+    consumer.env["PATH"] = _consumer_path(binary_dir, include_node=False)
 
 
 @given(
@@ -10717,17 +10730,17 @@ def install_mcp_startup_guard(consumer: ConsumerProject) -> None:
             builtins.__import__ = observed_import
             original_popen = subprocess.Popen
 
-            def observed_popen(*args, **kwargs):
-                command = args[0] if args else kwargs.get("args", "unknown")
-                command_text = repr(command).lower()
-                if "mcp-pdb" in command_text or "mcp_pdb" in command_text or "pytest_cuke.debug_mcp.backend" in command_text:
-                    process = original_popen(*args, **kwargs)
-                    record(f"child:{process.pid}:{repr(command)}")
-                    atexit.register(lambda child=process: record(f"child-status:{child.pid}:{child.poll()}"))
-                    return process
-                return original_popen(*args, **kwargs)
+            class ObservedPopen(original_popen):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    command = args[0] if args else kwargs.get("args", "unknown")
+                    command_text = repr(command).lower()
+                    observed_commands = ("mcp-pdb", "mcp_pdb", "pytest_cuke.debug_mcp.backend")
+                    if any(command_name in command_text for command_name in observed_commands):
+                        record(f"child:{self.pid}:{repr(command)}")
+                        atexit.register(lambda child=self: record(f"child-status:{child.pid}:{child.poll()}"))
 
-            subprocess.Popen = observed_popen
+            subprocess.Popen = ObservedPopen
             '''
         ),
         encoding="utf-8",

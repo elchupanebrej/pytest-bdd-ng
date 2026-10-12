@@ -94,6 +94,7 @@ Feature: Cucumber Messages reporting for Background execution
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "messages-only.ndjson" should preserve the two-row feature Background step identities
+    Given the consumer installs the pinned official Cucumber JSON runtime
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/basic --cuke-json=json-only.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
@@ -232,6 +233,7 @@ Feature: Cucumber Messages reporting for Background execution
         Scenario: A failed Background fixture closes the scenario lifecycle
           When the scenario step after a setup failure must not run
       """
+    Given the consumer installs the pinned official Cucumber JSON runtime
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features/failure --cuke-messages-ndjson=failure.ndjson --cuke-json=failure.json -q"
     Then pytest should exit with a non-zero code
     And consumer artifact "failure.ndjson" should close the Background lifecycle with statuses "failed, skipped, skipped, skipped" and an unsuccessful run
