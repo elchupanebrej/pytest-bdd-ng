@@ -125,7 +125,8 @@ testtypes = [
 ]
 test = [
   "pytest>=7.0.0",
-  "attrs>=22.2.0"
+  "attrs>=22.2.0",
+  "pytest-httpserver>=1.1.5"
 ]
 env-matrix = [
   "PyYAML==6.0.3",
