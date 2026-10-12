@@ -93,7 +93,8 @@ def test_parse_struct_bdd_file(tmp_path: Path) -> None:
     parser = StructBDDParser(kind="yaml")
     feature = parser.parse(yaml_file)
     assert feature.name == "File YAML Feature"
-    assert feature.filename == str(yaml_file.as_posix())
+    assert feature.filename is not None
+    assert Path(feature.filename).resolve() == yaml_file.resolve()
     assert feature.source_content == yaml_file.read_text(encoding="utf-8")
     assert feature.source_media_type == "application/x.struct_bdd+yaml"
 

@@ -438,7 +438,7 @@ Feature: Installed pytest-cuke product bootstrap
     And pytest help should not mention the legacy option "generate"
     And pytest help should not mention the legacy option "generate-missing"
     And pytest help should not mention the legacy option "feature"
-    When I run installed pytest with arguments "--rootdir=. test_legacy_import.py -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload test_legacy_import.py -q"
     Then pytest should exit with code 0
 
   Scenario Outline: Both installed command names report the package version

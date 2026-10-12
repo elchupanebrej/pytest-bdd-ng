@@ -50,13 +50,13 @@ def test_generation_add_options() -> None:
     parser.getgroup.return_value = group
 
     add_options(parser)
-    parser.getgroup.assert_called_once_with("bdd", "Generation")
+    parser.getgroup.assert_called_once_with("cuke", "Generation")
     assert group._addoption.call_count == 3
 
 
 def test_cmdline_main_none() -> None:
     config = MagicMock()
-    config.option.generate_missing = False
-    config.option.generate = False
+    config.option.cuke_generate_missing = False
+    config.option.cuke_generate = False
 
     assert cmdline_main(config) is None
