@@ -247,7 +247,7 @@ def test_steps(testdir, kind, file_content, tmp_path):
         """
     )
 
-    testdir.makepyfile(
+    generated_test = (
         # language=python
         """\
         from textwrap import dedent
@@ -290,6 +290,7 @@ def test_steps(testdir, kind, file_content, tmp_path):
             assert results == [1, 2, 3]
         """.format(kind=kind)
     )
+    testdir.makepyfile(test_struct_bdd_steps=generated_test)
     result = run_pytester_isolated(testdir)
     result.assert_outcomes(passed=1, failed=0)
 

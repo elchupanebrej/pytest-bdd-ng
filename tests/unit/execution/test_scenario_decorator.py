@@ -30,7 +30,7 @@ def test_python_name_generator() -> None:
 def test_add_options() -> None:
     mock_parser = MagicMock()
     add_options(mock_parser)
-    mock_parser.getgroup.assert_called_once_with("bdd", "Scenario")
+    mock_parser.getgroup.assert_called_once_with("cuke", "Scenario collection")
 
 
 def test_scenario_decorator_validation() -> None:
