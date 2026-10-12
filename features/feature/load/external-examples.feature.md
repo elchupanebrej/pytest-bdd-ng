@@ -64,6 +64,21 @@
 
           Examples: | table: users.csv |
     ```
+* And consumer file "features/inline-users.feature" contains:
+    ```gherkin
+    Feature: Inline users
+      Background:
+        Given the user lookup service is ready
+
+      Scenario Outline: Look up an inline user
+        Given user row <name> has tier <tier>
+        Then looked up user <name> has tier <tier>
+
+        Examples:
+          | name  | tier   |
+          | Ada   | gold   |
+          | Grace | silver |
+    ```
 * And consumer file "features/markdown-users.tab" contains UTF-8 BOM and CRLF:
     ```tsv
     name\ttier
@@ -119,7 +134,7 @@
     ```
 * When I run installed pytest with arguments "--rootdir=. --cuke-autoload"
 * Then pytest should exit with a non-zero code
-* And pytest output should identify the invalid external Examples source
+* And pytest output should identify the invalid external Examples row and both paths
 
 ## Scenario: Explicit bindings and subsequent sessions read current source rows
 * Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

@@ -17,6 +17,7 @@ from pytest_cuke import given, then, when
 from pytest_cuke.model.message_stream_validation import validate_message_stream
 from pytest_cuke.model.message_validation import validate_envelope
 from pytest_cuke.model.message_types import message_from_dict
+from tests.support.testing_utils import mask_npm_package_from_node_resolution
 
 
 _SUPPORT_PLUGIN = '''\
@@ -273,16 +274,16 @@ def remove_node_and_npm_from_consumer_path(consumer: Any) -> None:
     assert shutil.which("npm", path=consumer.env["PATH"]) is None
 
 
-@given("Node and npm are available but the official progress package is absent")
-def node_npm_available_without_progress_package(consumer: Any) -> None:
+@given("Node and npm are available but the official progress package is unavailable to the consumer")
+def mask_progress_package_from_consumer(consumer: Any) -> None:
     runtime = _runtime_paths(consumer)
     if runtime is None:
         pytest.skip("the missing progress package preflight lane requires Node.js and npm")
     _, _, environment = runtime
     root = _consumer_root(consumer)
-    package = root / "node_modules" / "@cucumber" / "pretty-formatter"
-    assert not package.exists(), f"fresh consumer unexpectedly contains {package}"
     environment["npm_config_prefix"] = str(root / ".isolated-global-npm")
+    environment.pop("NODE_PATH", None)
+    mask_npm_package_from_node_resolution(root, "@cucumber/pretty-formatter")
     consumer.env.update(environment)
 
 

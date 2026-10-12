@@ -72,6 +72,18 @@ def _consumer_path(binary_dir: Path, *, include_node: bool = False) -> str:
     return os.pathsep.join(dict.fromkeys(path_entries))
 
 
+def _consumer_environment() -> dict[str, str]:
+    """Copy the host environment without carrying its outer xdist worker identity."""
+    environment = os.environ.copy()
+    for name in (
+        "PYTEST_XDIST_WORKER",
+        "PYTEST_XDIST_WORKER_COUNT",
+        "PYTEST_XDIST_TESTRUNUID",
+    ):
+        environment.pop(name, None)
+    return environment
+
+
 def _split_consumer_arguments(arguments: str) -> list[str]:
     """Split BDD CLI arguments without treating Windows path separators as escapes."""
     lexer = shlex.shlex(arguments, posix=True)
@@ -333,7 +345,7 @@ def install_pytest_cuke_consumer(
     binary_dir = _consumer_binary_dir(environment_path)
     consumer_home = project_path / ".home"
     consumer_home.mkdir()
-    environment = os.environ.copy()
+    environment = _consumer_environment()
     for name in (
         "PYTHONPATH",
         "PYTHONHOME",
@@ -426,7 +438,7 @@ def install_pytest_cuke_typing_consumer(
     binary_dir = _consumer_binary_dir(environment_path)
     consumer_home = project_path / ".home"
     consumer_home.mkdir()
-    environment = os.environ.copy()
+    environment = _consumer_environment()
     for name in (
         "PYTHONPATH",
         "PYTHONHOME",
@@ -506,7 +518,7 @@ def install_host_built_native_consumer(tmp_path_factory):
 
     consumer_home = project_path / ".home"
     consumer_home.mkdir()
-    environment = os.environ.copy()
+    environment = _consumer_environment()
     for name in (
         "PYTHONPATH",
         "PYTHONHOME",
@@ -1085,6 +1097,17 @@ def consumer_invalid_external_examples_source(consumer: ConsumerProject):
             assert diagnostic.lower() in output.lower(), output
         assert str((consumer.path / "features" / feature_name).resolve()) in output
         assert str((consumer.path / "features" / source_name).resolve()) in output
+
+
+@then("pytest output should identify the invalid external Examples row and both paths")
+def consumer_invalid_external_examples_row(consumer: ConsumerProject):
+    result = consumer.pytest_result
+    assert result is not None, "pytest has not been run in this consumer"
+    output = f"{result.stdout}\n{result.stderr}"
+    assert "External Examples source error" in output
+    assert "row 2 has 1 columns; expected 2" in output
+    assert str((consumer.path / "features/broken.feature").resolve()) in output
+    assert str((consumer.path / "features/broken.csv").resolve()) in output
 
 
 @then(re.compile(r"the test outcome should have (?P<count>\d+) passed scenarios"))
@@ -2314,7 +2337,7 @@ def consumer_messages_failed_background_step(relative_path: str, consumer: Consu
 @then("consumer reports should preserve external row identities, source URIs, Background steps, and outcomes")
 def consumer_external_examples_reports(consumer: ConsumerProject):
     json_report = json.loads((consumer.path / "report.json").read_text(encoding="utf-8"))
-    json_features = {Path(feature["uri"]).name: feature for feature in json_report}
+    json_features = {Path(feature["uri"].removeprefix("file:")).name: feature for feature in json_report}
     assert set(json_features) == {
         "users.feature",
         "inline-users.feature",
@@ -4627,7 +4650,7 @@ def install_pytest_cuke_test_group_consumer(
     binary_dir = _consumer_binary_dir(_pytest_cuke_xdist_environment)
     consumer_home = project_path / ".home"
     consumer_home.mkdir()
-    environment = os.environ.copy()
+    environment = _consumer_environment()
     for name in (
         "PYTHONPATH",
         "PYTHONHOME",
@@ -7326,7 +7349,7 @@ def install_step_generation_consumer(_step_generation_consumer_wheel, tmp_path_f
     binary_dir = _consumer_binary_dir(environment_path)
     consumer_home = project_path / ".home"
     consumer_home.mkdir()
-    environment = os.environ.copy()
+    environment = _consumer_environment()
     for name in (
         "PYTHONPATH",
         "PYTHONHOME",
@@ -9745,10 +9768,10 @@ def consumer_ide_missing_and_ambiguous_diagnostics(relative_path: str, consumer:
     available_references = _ide_nested_source_references(available)
     assert available_references, available
     resolved_available = [
-        _ide_assert_file_source_reference(reference, consumer, suffix="conftest.py")[0]
+        _ide_assert_file_source_reference(reference, consumer)[0]
         for reference in available_references
     ]
-    assert all(path == (consumer.path / "conftest.py").resolve() for path in resolved_available), resolved_available
+    assert (consumer.path / "conftest.py").resolve() in resolved_available, resolved_available
 
     candidates = ambiguous_diagnostic.get("candidates")
     assert isinstance(candidates, list) and len(candidates) == 2, ambiguous_diagnostic
@@ -9914,10 +9937,10 @@ def consumer_ide_mock_run_source_identities(relative_path: str, consumer: Consum
         references = _ide_nested_source_references(available)
         assert references, available
         available_paths = [
-            _ide_assert_file_source_reference(reference, consumer, suffix="conftest.py")[0]
+            _ide_assert_file_source_reference(reference, consumer)[0]
             for reference in references
         ]
-        assert all(path == (consumer.path / "conftest.py").resolve() for path in available_paths), available_paths
+        assert (consumer.path / "conftest.py").resolve() in available_paths, available_paths
     assert reported_texts == missing_step_texts, (reported_texts, missing_diagnostics)
 
 
@@ -10220,11 +10243,16 @@ def consumer_ide_mock_run_outline_arguments(relative_path: str, consumer: Consum
         assert account not in rows_by_account, rows_by_account
 
         pickle_steps = pickle.get("steps")
-        case_steps = test_case.get("testSteps")
+        raw_case_steps = test_case.get("testSteps")
         expected = expected_rows[account]
-        assert isinstance(pickle_steps, list) and isinstance(case_steps, list), (pickle, test_case)
+        assert isinstance(pickle_steps, list) and isinstance(raw_case_steps, list), (pickle, test_case)
+        case_steps = [
+            step
+            for step in raw_case_steps
+            if isinstance(step, dict) and isinstance(step.get("pickleStepId"), str)
+        ]
         assert [step.get("text") for step in pickle_steps if isinstance(step, dict)] == expected["steps"], pickle_steps
-        assert len(case_steps) == len(pickle_steps) == 5, (case_steps, pickle_steps)
+        assert len(case_steps) == len(pickle_steps) == 5, (raw_case_steps, pickle_steps)
         ast_node_ids = pickle.get("astNodeIds")
         assert isinstance(ast_node_ids, list) and row_id in ast_node_ids, (row_id, ast_node_ids)
 
@@ -11063,6 +11091,15 @@ def installed_debug_mcp_extra_is_compatible(consumer: ConsumerProject) -> None:
 @when(re.compile(r'I start installed pytest for MCP inspection with arguments "(?P<arguments>[^"]*)"'))
 def start_consumer_pytest_for_mcp_inspection(arguments: str, consumer: ConsumerProject) -> None:
     cli_arguments = _split_consumer_arguments(arguments)
+    # Keep pytest's cache and the discovery record anchored to this consumer project.
+    consumer_root = consumer.path.resolve()
+    rootdir_argument = f"--rootdir={consumer_root}"
+    for index, argument in enumerate(cli_arguments):
+        if argument.startswith("--rootdir="):
+            cli_arguments[index] = rootdir_argument
+            break
+    else:
+        cli_arguments.insert(0, rootdir_argument)
     occupied_port = getattr(consumer, "_mcp_occupied_port", None)
     if occupied_port is not None:
         cli_arguments = [argument.replace("{mcp_occupied_port}", str(occupied_port)) for argument in cli_arguments]

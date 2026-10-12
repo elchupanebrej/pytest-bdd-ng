@@ -78,7 +78,7 @@ Scenario: Feature autoload could be disabled via pytest.ini
    ::
 
       [pytest]
-      disable_feature_autoload=true
+      cuke_autoload=false
 
 -  When run pytest
 

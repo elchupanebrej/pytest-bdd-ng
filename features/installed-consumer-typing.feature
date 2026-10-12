@@ -89,6 +89,7 @@ Feature: Installed pytest-cuke typing contract
       | wheel        |
       | sdist        |
 
+  @typecheck
   Scenario Outline: Wheel and sdist provide types checked by pinned Mypy
     Given the pytest-cuke <distribution> built from this checkout is installed with pinned Mypy in a fresh consumer project
     And consumer file "typed_consumer.py" contains:

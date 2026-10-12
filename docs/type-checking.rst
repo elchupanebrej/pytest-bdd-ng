@@ -35,6 +35,10 @@ corresponding extra. The installed-consumer contract checks wheel and sdist
 installations without a checkout path or local stubs, and requires no
 ``type: ignore`` for the public example above. If a downstream integration
 needs a suppression, scope it to the specific checker error and explain why.
+The pinned-Mypy consumer scenarios run in the CPython 3.14
+``py314-pytestlatest-mypy`` lane, where the checker toolchain is supported;
+base-install facade and PEP 561 metadata checks remain part of the runtime
+matrix, including PyPy.
 
 Install the pinned checker and required typing support with the ``testtypes``
 extra, then run the canonical local command:

@@ -50,7 +50,7 @@
 * Given Set pytest.ini content to:
     ```ini
     [pytest]
-    disable_feature_autoload=true
+    cuke_autoload=false
     ```
 * When run pytest
 * Then pytest outcome must contain tests with statuses:
