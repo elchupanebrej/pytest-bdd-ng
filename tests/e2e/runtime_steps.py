@@ -1303,7 +1303,8 @@ def consumer_teardown_interrupt_overrides_terminal_skip(
             skipped_result = scenario_steps[-1].get("result", {})
             if skipped_result.get("status") != "skipped":
                 problems.append(f"terminal JSON scenario step status={skipped_result.get('status')!r}, expected 'skipped'")
-        after_hook = _json_hook_steps(json_steps)[0] if _json_hook_steps(json_steps) else {}
+        after_hooks = _json_hook_steps(json_steps)
+        after_hook = after_hooks[0] if after_hooks else {}
         if after_hook.get("result", {}).get("error_message") is not None:
             problems.append(
                 "JSON After hook should omit error_message, got "
