@@ -392,7 +392,12 @@ def _item_fixture_definitions(item: Any, name: str) -> Any:
     get_fixture_definitions = getattr(fixture_manager, "getfixturedefs", None)
     if get_fixture_definitions is None:
         return ()
-    return get_fixture_definitions(name, item) or ()
+    try:
+        uses_legacy_nodeid = "nodeid" in signature(get_fixture_definitions).parameters
+    except (TypeError, ValueError):
+        uses_legacy_nodeid = False
+    node = item.nodeid if uses_legacy_nodeid else item
+    return get_fixture_definitions(name, node) or ()
 
 
 def _collection_step_registry(item: Any) -> Registry:

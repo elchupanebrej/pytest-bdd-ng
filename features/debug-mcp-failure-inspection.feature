@@ -5,7 +5,7 @@ Feature: Debug MCP failure inspection
   Scenario: The Debug MCP extra installs with PyPy 3.10 compatible cryptography
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer has the optional debug MCP extra installed
-    Then the installed debug MCP extra should be importable and PyPy 3.10 compatible
+    Then the installed debug MCP extra should be importable, PyPy 3.10 compatible, and resolve a supported MCP SDK version
 
   Scenario: MCP stays inert when failure inspection is not selected
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

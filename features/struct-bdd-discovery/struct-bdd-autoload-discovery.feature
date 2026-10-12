@@ -14,6 +14,7 @@ Feature: StructBDD autoload discovery
 
   Scenario: Overlapping directory and explicit file locators collect one scenario
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer installs the optional StructBDD loaders
     And the consumer has one structured feature selected through overlapping locators
     When I run installed pytest with arguments "--rootdir=. -vv --color=no test_overlap.py"
     Then pytest should exit with code 0

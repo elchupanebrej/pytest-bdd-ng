@@ -53,7 +53,8 @@ def test_seam6_features_base_dir_configuration_contract() -> None:
     locators = list(_build_scenario_locators_from_mark(mark, config))
     file_locators = [loc for loc in locators if isinstance(loc, FileScenarioLocator)]
     assert len(file_locators) == 1
-    assert Path(str(file_locators[0].features_base_dir)).as_posix() == "/custom/features/dir"
+    expected_base_dir = Path(config.rootpath.anchor) / "custom" / "features" / "dir"
+    assert Path(file_locators[0].features_base_dir) == expected_base_dir
 
 
 def test_seam6_plugin_lifecycle_and_stash_contract() -> None:

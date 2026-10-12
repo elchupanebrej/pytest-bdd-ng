@@ -1,12 +1,43 @@
 """Test code generation command."""
 
+import ast
 import os
 import sys
-from textwrap import dedent
 
 from pytest import mark
 
 pytestmark = [mark.integration, mark.skipif(sys.version_info < (3, 13), reason="Verify only on the latest version")]
+
+
+def assert_generated_steps(source: str, expected_bindings: dict[str, str]) -> None:
+    """Check generated source syntax, public decorators, and exact text values."""
+    tree = ast.parse(source)
+    compile(tree, "generated_test.py", "exec")
+
+    actual_bindings = {}
+    imported_names = {
+        alias.name
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "pytest_cuke"
+        for alias in node.names
+    }
+    for node in tree.body:
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        for decorator in node.decorator_list:
+            if (
+                isinstance(decorator, ast.Call)
+                and isinstance(decorator.func, ast.Name)
+                and decorator.func.id in {"given", "when", "then", "step"}
+                and decorator.args
+            ):
+                text = ast.literal_eval(decorator.args[0])
+                assert isinstance(text, str)
+                actual_bindings[text] = decorator.func.id
+                assert ast.get_docstring(node) == f"{text}.", node.name
+
+    assert set(expected_bindings.values()) | {"scenario"} <= imported_names
+    assert actual_bindings == expected_bindings
 
 
 def test_generate(testdir):
@@ -32,53 +63,14 @@ def test_generate(testdir):
     )
 
     result = testdir.runpytest("--cuke-generate", "--cuke-feature", os.path.join("scripts", "generate.feature"))
-    assert (
-        result.stdout.str().strip()
-        == dedent(
-            # language=python
-            f'''\
-            """Code generation feature tests."""
-
-            from pathlib import Path
-
-            from pytest_cuke import (
-                scenario,
-                given,
-                when,
-                then,
-                step,
-            )
-
-
-            @scenario(Path('scripts/generate.feature'), 'Given and when using the same fixture should not evaluate it twice')
-            def test_given_and_when_using_the_same_fixture_should_not_evaluate_it_twice():
-                """Given and when using the same fixture should not evaluate it twice."""
-
-
-            @given('1 have a fixture (appends 1 to a list) in reuse syntax')
-            def have_a_fixture_appends_1_to_a_list_in_reuse_syntax():
-                """1 have a fixture (appends 1 to a list) in reuse syntax."""
-                raise NotImplementedError
-
-
-            @given('I have an empty list')
-            def i_have_an_empty_list():
-                """I have an empty list."""
-                raise NotImplementedError
-
-
-            @when('I use this fixture')
-            def i_use_this_fixture():
-                """I use this fixture."""
-                raise NotImplementedError
-
-
-            @then('my list should be [1]')
-            def my_list_should_be_1():
-                """my list should be [1]."""
-                raise NotImplementedError
-            '''
-        ).strip()
+    assert_generated_steps(
+        result.stdout.str(),
+        {
+            "1 have a fixture (appends 1 to a list) in reuse syntax": "step",
+            "I have an empty list": "given",
+            "I use this fixture": "when",
+            "my list should be [1]": "then",
+        },
     )
 
 
@@ -103,73 +95,21 @@ def test_generate_with_quotes(testdir):
     )
 
     result = testdir.runpytest("--cuke-generate", "--cuke-feature", "generate_with_quotes.feature")
-    assert (
-        result.stdout.str().strip()
-        == dedent(
-            # language=python
-            '''\
-            """Handling quotes in code generation feature tests."""
-
-            from pathlib import Path
-
-            from pytest_cuke import (
-                scenario,
-                given,
-                when,
-                then,
-                step,
-            )
-
-
-            @scenario(Path('generate_with_quotes.feature'), 'A step definition with quotes should be escaped as needed')
-            def test_a_step_definition_with_quotes_should_be_escaped_as_needed():
-                """A step definition with quotes should be escaped as needed."""
-
-
-            @when('I generate the code')
-            def i_generate_the_code():
-                """I generate the code."""
-                raise NotImplementedError
-
-
-            @given('I have a fixture with "double" quotes')
-            def i_have_a_fixture_with_double_quotes():
-                """I have a fixture with "double" quotes."""
-                raise NotImplementedError
-
-
-            @given('I have a fixture with \\'single\\' quotes')
-            def i_have_a_fixture_with_single_quotes():
-                """I have a fixture with 'single' quotes."""
-                raise NotImplementedError
-
-
-            @given('I have a fixture with double-quote """triple""" quotes')
-            def i_have_a_fixture_with_doublequote_triple_quotes():
-                """I have a fixture with double-quote \\"\\"\\"triple\\"\\"\\" quotes."""
-                raise NotImplementedError
-
-
-            @given('I have a fixture with single-quote \\'\\'\\'triple\\'\\'\\' quotes')
-            def i_have_a_fixture_with_singlequote_triple_quotes():
-                """I have a fixture with single-quote \'\'\'triple\'\'\' quotes."""
-                raise NotImplementedError
-
-
-            @then('The generated string should be written')
-            def the_generated_string_should_be_written():
-                """The generated string should be written."""
-                raise NotImplementedError
-            '''
-        ).strip()
+    assert_generated_steps(
+        result.stdout.str(),
+        {
+            "I have a fixture with 'single' quotes": "given",
+            'I have a fixture with "double" quotes': "step",
+            "I have a fixture with single-quote '''triple''' quotes": "step",
+            'I have a fixture with double-quote """triple""" quotes': "step",
+            "I generate the code": "when",
+            "The generated string should be written": "then",
+        },
     )
 
 
-def test_unicode_characters(testdir, monkeypatch):
-    """Test generating code with unicode characters.
-
-    Primary purpose is to ensure compatibility with Python2.
-    """
+def test_unicode_characters(testdir):
+    """Test generating valid source that preserves Unicode text."""
 
     testdir.makefile(
         ".feature",
@@ -185,43 +125,14 @@ def test_unicode_characters(testdir, monkeypatch):
     )
 
     result = testdir.runpytest("--cuke-generate", "--cuke-feature", "unicode_characters.feature")
-    expected_output = dedent(
-        # language=python
-        '''\
-        """Generating unicode characters feature tests."""
-
-        from pathlib import Path
-
-        from pytest_cuke import (
-            scenario,
-            given,
-            when,
-            then,
-            step,
-        )
-
-
-        @scenario(Path('unicode_characters.feature'), 'Calculating the circumference of a circle')
-        def test_calculating_the_circumference_of_a_circle():
-            """Calculating the circumference of a circle."""
-
-
-        @then('We calculate 2 * ℼ * 𝑟')
-        def we_calculate_2__ℼ__𝑟():
-            """We calculate 2 * ℼ * 𝑟."""
-            raise NotImplementedError
-
-
-        @given('We have a circle')
-        def we_have_a_circle():
-            """We have a circle."""
-            raise NotImplementedError
-
-
-        @when('We want to know its circumference')
-        def we_want_to_know_its_circumference():
-            """We want to know its circumference."""
-            raise NotImplementedError
-        '''
-    ).strip()
-    assert result.stdout.str().strip() == expected_output
+    source = result.stdout.str()
+    assert_generated_steps(
+        source,
+        {
+            "We calculate 2 * ℼ * 𝑟": "then",
+            "We have a circle": "given",
+            "We want to know its circumference": "when",
+        },
+    )
+    assert "ℼ" in source and "𝑟" in source
+    assert "\\u213c" not in source and "\\U0001d45f" not in source

@@ -248,15 +248,17 @@ def _node_paths(consumer: Any) -> tuple[str, str, str]:
     return node, npm, str(Path(consumer.pytest).parent)
 
 
-def _install_official_runtime(consumer: Any) -> None:
+def _install_official_runtime(consumer: Any, root: Path | None = None) -> None:
     node, npm, consumer_bin = _node_paths(consumer)
-    root = getattr(consumer, "_cucumber_json_workspace", Path(consumer.path))
-    package_json = {
-        "name": "pytest-cuke-cucumber-json-consumer",
-        "private": True,
-        "type": "module",
-        "dependencies": _CUCUMBER_DEPENDENCY,
-    }
+    root = root or getattr(consumer, "_cucumber_json_workspace", Path(consumer.path))
+    package_json_path = root / "package.json"
+    package_json = json.loads(package_json_path.read_text(encoding="utf-8")) if package_json_path.is_file() else {}
+    dependencies = package_json.setdefault("dependencies", {})
+    assert isinstance(dependencies, dict), f"npm dependencies must be an object in {package_json_path}"
+    dependencies.update(_CUCUMBER_DEPENDENCY)
+    package_json.setdefault("name", "pytest-cuke-cucumber-json-consumer")
+    package_json.setdefault("private", True)
+    package_json.setdefault("type", "module")
     _write(root, "package.json", json.dumps(package_json, ensure_ascii=False, indent=2) + "\n")
     environment = dict(consumer.env)
     environment["PATH"] = os.pathsep.join(dict.fromkeys((str(Path(node).parent), str(Path(npm).parent), consumer_bin)))
@@ -507,6 +509,20 @@ def prepare_rich_cucumber_json_consumer(consumer: Any) -> None:
 @given("the consumer installs the pinned official Cucumber JSON runtime")
 def install_official_cucumber_json_runtime(consumer: Any) -> None:
     _install_official_runtime(consumer)
+
+
+@given(
+    parsers.re(
+        r'the consumer installs the pinned official Cucumber JSON runtime in consumer directory "(?P<directory>[^"]+)"'
+    )
+)
+def install_official_cucumber_json_runtime_in_directory(directory: str, consumer: Any) -> None:
+    relative_path = Path(directory)
+    assert not relative_path.is_absolute() and ".." not in relative_path.parts, directory
+    consumer_root = Path(consumer.path).resolve()
+    workspace = (consumer_root / relative_path).resolve()
+    assert workspace == consumer_root or consumer_root in workspace.parents, workspace
+    _install_official_runtime(consumer, workspace)
 
 
 @when(parsers.re(r'I run installed pytest in the Cucumber JSON workspace with arguments "(?P<arguments>[^"]*)"'))
