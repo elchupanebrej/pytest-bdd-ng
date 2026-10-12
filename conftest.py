@@ -4,8 +4,11 @@ from importlib.util import find_spec
 
 pytest_plugins = [
     "pytester",
+    "tests.support.pytester_local_config",
     "tests.e2e.steps",
+    "tests.e2e.pytester_local_config_steps",
     "tests.e2e.runtime_steps",
+    "tests.e2e.windows_file_uri_steps",
     "tests.e2e.formatter_steps",
     "tests.e2e.offline_formatter_steps",
     "tests.e2e.live_pretty_formatter_steps",
