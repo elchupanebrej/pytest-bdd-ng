@@ -7,7 +7,7 @@
   in order to override the path for specific tests.
 
 ## Background:
-* Given Localserver endpoint "/features/Passing.feature" responding content:
+* Given Localserver endpoint "/features/Passing" responding content:
     ```gherkin
     Feature: Passing feature
       Scenario: Passing scenario
@@ -30,9 +30,9 @@
     ```
 * And File "test_feature.py" with content:
     ```python
-    from pytest_cuke import scenarios,FeaturePathType
+    from pytest_cuke import scenarios
 
-    test = scenarios('Passing.feature', features_path_type=FeaturePathType.URL)
+    test = scenarios('Passing', features_path_type='url')
     ```
 
 ## Scenario:

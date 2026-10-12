@@ -9,7 +9,14 @@ from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.webloc import write as webloc_write
 
-pytest_httpserver = pytest.importorskip("pytest_httpserver")
+try:
+    import pytest_httpserver
+except ImportError as error:
+    raise RuntimeError(
+        "HTTP integration tests require pytest-httpserver. Install pytest-cuke[test] "
+        "or run `python -m pip install -e '.[test]'` from the checkout."
+    ) from error
+
 HTTPServer = pytest_httpserver.HTTPServer
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -51,8 +58,7 @@ def test_feature_load_by_http(testdir: "Testdir", httpserver: HTTPServer):
     testdir.makepyfile(
         # language=python
         test_http=f"""\
-            from pytest_cuke import given, scenarios, FeaturePathType
-            from pytest_cuke.mimetypes import Mimetype
+            from pytest_cuke import given, scenarios
 
             @given("I have {{cuckes_count}} cukes in my belly")
             def results(cuckes_count):
@@ -60,8 +66,7 @@ def test_feature_load_by_http(testdir: "Testdir", httpserver: HTTPServer):
 
             test_cuckes = scenarios(
                 f"http://localhost:{httpserver.port}/feature",
-                features_mimetype=Mimetype.gherkin_plain,
-                features_path_type=FeaturePathType.URL
+                features_path_type="url"
             )
         """
     )
@@ -153,7 +158,7 @@ def test_struct_bdd_feature_load_by_http(testdir, httpserver: HTTPServer):
     testdir.makepyfile(
         # language=python
         test_http=f"""\
-            from pytest_cuke import given, scenarios, FeaturePathType
+            from pytest_cuke import given, scenarios
 
             @given("I have {{cuckes_count}} cukes in my belly")
             def results(cuckes_count):
@@ -161,7 +166,7 @@ def test_struct_bdd_feature_load_by_http(testdir, httpserver: HTTPServer):
 
             test_cuckes = scenarios(
                 f"http://localhost:{httpserver.port}/feature",
-                features_path_type=FeaturePathType.URL
+                features_path_type="url"
             )
         """
     )
@@ -178,7 +183,6 @@ def test_feature_load_by_http_with_base_url(testdir, httpserver: HTTPServer):
         # language=python
         test_http=f"""\
             from pytest_cuke import given, scenarios
-            from pytest_cuke.mimetypes import Mimetype
 
             @given("I have {{cuckes_count}} cukes in my belly")
             def results(cuckes_count):
@@ -186,7 +190,6 @@ def test_feature_load_by_http_with_base_url(testdir, httpserver: HTTPServer):
 
             test_cuckes = scenarios(
                 f"/feature",
-                features_mimetype=Mimetype.gherkin_plain,
                 features_base_url="http://localhost:{httpserver.port}",
             )
         """
@@ -212,7 +215,7 @@ def test_feature_load_by_http_with_base_url_from_ini(testdir, httpserver: HTTPSe
     testdir.makepyfile(
         # language=python
         test_http="""\
-            from pytest_cuke import given, scenarios, FeaturePathType
+            from pytest_cuke import given, scenarios
 
             @given("I have {cuckes_count} cukes in my belly")
             def results(cuckes_count):
@@ -220,7 +223,7 @@ def test_feature_load_by_http_with_base_url_from_ini(testdir, httpserver: HTTPSe
 
             test_cuckes = scenarios(
                 f"/feature",
-                features_path_type=FeaturePathType.URL
+                features_path_type="url"
             )
         """
     )
