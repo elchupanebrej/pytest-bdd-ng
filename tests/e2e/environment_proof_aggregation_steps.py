@@ -1688,5 +1688,3 @@ def proof_summary_fails_for_missing_tox_result_command(
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "command evidence" in proof_aggregation_result.stderr
-
-

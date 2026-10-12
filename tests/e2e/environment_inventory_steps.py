@@ -1146,14 +1146,10 @@ def messages_schema_inventory_uses_installed_schema_fixture(request: pytest.Fixt
     assert isinstance(command, str), carrier
     arguments = shlex.split(command)
     configured_source_directories = [
-        argument.partition("=")[2]
-        for argument in arguments
-        if argument.startswith("--source-dir=")
+        argument.partition("=")[2] for argument in arguments if argument.startswith("--source-dir=")
     ]
     configured_source_directories.extend(
-        arguments[index + 1]
-        for index, argument in enumerate(arguments[:-1])
-        if argument == "--source-dir"
+        arguments[index + 1] for index, argument in enumerate(arguments[:-1]) if argument == "--source-dir"
     )
     assert configured_source_directories == [source_directory], (
         f"messages-schema inventory must use --source-dir {source_directory!r} for cucumber-messages {release}; "
