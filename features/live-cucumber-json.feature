@@ -97,3 +97,12 @@ Feature: Live message-driven Cucumber JSON formatter
   Scenario: The Cucumber JSON ACL identity lookup uses System32 whoami on Windows
     Given the Cucumber JSON ACL identity lookup command is selected
     Then the Cucumber JSON ACL identity lookup should use System32 whoami on Windows
+
+  Scenario: A missing-package consumer does not hide the shared runtime from its sibling
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the Cucumber JSON consumer prepares a marker scenario for runtime preflight
+    And the Cucumber JSON consumer exposes Node.js and npm without installing Cucumber
+    When I run installed pytest in the Cucumber JSON workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-json=artifacts/report.json -q --color=no"
+    Then missing Cucumber package diagnostics should stop the Cucumber JSON run before the marker scenario
+    When I check shared Cucumber runtime resolution from a sibling consumer directory
+    Then the sibling consumer should resolve the shared Cucumber runtime from the temporary root

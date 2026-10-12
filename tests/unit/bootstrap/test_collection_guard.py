@@ -8,7 +8,12 @@ from ordered_set import OrderedSet
 
 from pytest_cuke.model import Feature, Scenario, Step, StepType
 from pytest_cuke.model.message_extension import StepDefinitionPatternType
-from pytest_cuke.plugin import _allow_empty_scenarios_enabled, _collection_step_registry, _scenario_has_matching_step
+from pytest_cuke.plugin import (
+    _allow_empty_scenarios_enabled,
+    _collection_step_registry,
+    _item_fixture_definitions,
+    _scenario_has_matching_step,
+)
 from pytest_cuke.steps.definition import Definition
 from pytest_cuke.steps.registry import Registry
 
@@ -66,6 +71,39 @@ def test_allow_empty_scenarios_cli_value_overrides_ini() -> None:
     )
 
     assert _allow_empty_scenarios_enabled(config) is False
+
+
+def test_item_fixture_definitions_supports_legacy_nodeid_signature() -> None:
+    expected_nodeid = "tests/test_example.py::test_example"
+    definitions = (object(),)
+
+    def getfixturedefs(name: str, nodeid: str) -> tuple[object, ...]:
+        assert name == "example_fixture"
+        assert nodeid == expected_nodeid
+        return definitions
+
+    item = SimpleNamespace(
+        nodeid=expected_nodeid,
+        session=SimpleNamespace(_fixturemanager=SimpleNamespace(getfixturedefs=getfixturedefs)),
+    )
+
+    assert _item_fixture_definitions(item, "example_fixture") == definitions
+
+
+def test_item_fixture_definitions_supports_modern_node_signature() -> None:
+    definitions = (object(),)
+
+    def getfixturedefs(name: str, node: Any) -> tuple[object, ...]:
+        assert name == "example_fixture"
+        assert node is item
+        return definitions
+
+    item = SimpleNamespace(
+        nodeid="tests/test_example.py::test_example",
+        session=SimpleNamespace(_fixturemanager=SimpleNamespace(getfixturedefs=getfixturedefs)),
+    )
+
+    assert _item_fixture_definitions(item, "example_fixture") == definitions
 
 
 def test_collection_registry_uses_applicable_registries_without_running_fixtures() -> None:

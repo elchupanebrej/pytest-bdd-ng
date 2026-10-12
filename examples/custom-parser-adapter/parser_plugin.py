@@ -56,12 +56,12 @@ class LegacyFeatureParser:
             }
         )
 
-        from messages import GherkinDocument  # noqa: PLC0415  -- Generated messages load only when parsing.
+        from pytest_cuke.model.message_types import GherkinDocument, message_from_dict  # noqa: PLC0415
 
         document_data = Parser(AstBuilder(id_generator=self.id_generator)).parse(source)
         document_data["uri"] = uri
         return ParsedFeature(
-            gherkin_document=GherkinDocument.model_validate(document_data),
+            gherkin_document=message_from_dict(document_data, GherkinDocument),
             filename=str(path.as_posix()),
             raw_data=source,
         )

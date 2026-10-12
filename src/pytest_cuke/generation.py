@@ -52,6 +52,20 @@ STEP_TYPE_TO_STEP_METHOD_NAME = {
 }
 
 
+def make_step_method_name(step_type: str | StepType | None) -> str:
+    """Return the public decorator for a Gherkin step type.
+
+    Gherkin conjunctions such as ``And`` do not carry the semantic category of
+    the preceding step in newer protocol versions. Use the generic ``step``
+    decorator whenever that category is unavailable.
+    """
+    try:
+        normalized_step_type = StepType(step_type)
+    except (TypeError, ValueError):
+        return STEP_TYPE_TO_STEP_METHOD_NAME[StepType.unknown]
+    return STEP_TYPE_TO_STEP_METHOD_NAME[normalized_step_type]
+
+
 @dataclass(frozen=True)
 class StepDefinitionMatch:
     """Result of matching one scenario step against registered definitions."""
@@ -193,7 +207,7 @@ def generate_code(
         make_python_name=make_python_name,
         make_python_docstring=make_python_docstring,
         make_string_literal=make_string_literal,
-        step_type_to_method_name=STEP_TYPE_TO_STEP_METHOD_NAME,
+        make_step_method_name=make_step_method_name,
     )
 
 
@@ -377,9 +391,9 @@ def print_missing_code(
 
 def make_python_docstring(string: str) -> str:
     """Make a python docstring literal out of a given string."""
-    return ascii(f"{string}.")
+    return repr(f"{string}.")
 
 
 def make_string_literal(string: str) -> str:
     """Make python string literal out of a given string."""
-    return ascii(string)
+    return repr(string)

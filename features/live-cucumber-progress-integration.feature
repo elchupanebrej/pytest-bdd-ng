@@ -23,6 +23,7 @@ Feature: Cucumber progress selection and terminal integration
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer prepares two passing scenarios in a Unicode workspace with spaces
     And the consumer installs pinned official Cucumber progress packages in that workspace
+    And the consumer installs the pinned official Cucumber JSON runtime in consumer directory "progress workspace café"
     When I run installed pytest from consumer directory "progress workspace café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-progress --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/report.json --capture=tee-sys -v --color=no"
     Then pytest should exit with code 0
     And progress output should contain two passing markers from "artifacts/messages.ndjson"

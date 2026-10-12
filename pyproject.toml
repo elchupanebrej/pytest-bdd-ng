@@ -143,7 +143,7 @@ allure = [
 ]
 debug-mcp = [
   "mcp-pdb>=0.6,<0.7",
-  "mcp>=1.9,<2",
+  "mcp>=1.24,<2",
   "cryptography>=45,<46; implementation_name == 'pypy' and python_version < '3.11'",
   "uvicorn>=0.34"
 ]

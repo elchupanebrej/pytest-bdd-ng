@@ -71,6 +71,12 @@ def test_feature_binding_indexes_source_tree_and_outline_row(tmp_path: Path) -> 
         step.name = "mutated"
 
 
+def test_feature_binding_normalizes_windows_drive_paths_as_file_uris() -> None:
+    feature = Feature(name="Windows path", uri=r"C:\workspace\feature file.feature")
+
+    assert normalize_feature_uri(feature) == "file:///C:/workspace/feature%20file.feature"
+
+
 def test_run_context_exposes_only_the_scoped_step_and_previous_step() -> None:
     first_step = Step(name="first", keyword="Given ", id="step-1")
     second_step = Step(name="second", keyword="When ", id="step-2")

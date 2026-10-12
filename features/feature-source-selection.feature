@@ -31,10 +31,10 @@ Feature: Invocation-level feature source selection
         Scenario: The selected invocation feature root is executing
           Given the selected invocation feature root is executing
       """
-    When I run installed pytest from consumer directory "tools" with arguments "--rootdir='{consumer_path}' '{consumer_path}' --cuke-autoload --cuke-parser=python --cuke-features-dir=selected-features --cuke-json=../invocation-source.json -q"
+    When I run installed pytest from consumer directory "tools" with arguments "--rootdir='{consumer_path}' '{consumer_path}' --cuke-autoload --cuke-parser=python --cuke-features-dir=selected-features --cuke-json=invocation-source.json -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
-    And consumer artifact "invocation-source.json" should report feature URI "invocation.feature"
+    And consumer artifact "invocation-source.json" should report feature URI "file:invocation.feature"
 
   Scenario: The command line overrides INI and an explicit binding keeps its own feature directory
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

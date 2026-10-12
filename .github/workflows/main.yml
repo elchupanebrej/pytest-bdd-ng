@@ -62,7 +62,7 @@ jobs:
       - name: Install project and inventory dependencies
         run: python -m pip install -e ".[test,struct-bdd,env-matrix]" "uv>=0.8"
       - name: Install JavaScript formatters used by the test suite
-        run: npm install --no-save --no-package-lock "@cucumber/gherkin" "@cucumber/html-formatter" cucumber-html-reporter
+        run: npm install --no-save --no-package-lock "@cucumber/cucumber@13.3.0" "@cucumber/gherkin" "@cucumber/html-formatter" cucumber-html-reporter
       - name: Verify tox and CI selectors against the inventory
         run: cuke compatibility --check-environments --inventory config/env-matrix.yaml --json
       - name: Verify the optional dependency probe selects tests
@@ -76,7 +76,7 @@ jobs:
     name: Live formatter acceptance (${{ matrix.cell.platform }})
     needs: matrix-select
     runs-on: ${{ matrix.cell.runner }}
-    timeout-minutes: 35
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -112,7 +112,7 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: matrix-select
     runs-on: ${{ matrix.cell.runner }}
-    timeout-minutes: 240
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
@@ -131,7 +131,7 @@ jobs:
       - name: Install tox and the inventory reader
         run: python -m pip install "tox>=4.2" "PyYAML==6.0.3"
       - name: Install JavaScript formatters used by the test suite
-        run: npm install --no-save --no-package-lock "@cucumber/gherkin" "@cucumber/html-formatter" cucumber-html-reporter
+        run: npm install --no-save --no-package-lock "@cucumber/cucumber@13.3.0" "@cucumber/gherkin" "@cucumber/html-formatter" cucumber-html-reporter
       - name: Record JavaScript and Pandoc tool versions
         shell: bash
         run: |
