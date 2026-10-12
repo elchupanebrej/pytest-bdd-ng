@@ -58,7 +58,7 @@ Feature: Live Cucumber Pretty formatter
 
   Scenario: A selected PrettyPrinter with a missing npm package fails before the scenario starts
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
-    And Node and npm are available but the official PrettyPrinter package is absent
+    And Node and npm are available but the official PrettyPrinter package is unavailable to the consumer
     And the consumer prepares a scenario marker for pretty package preflight
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-pretty -q"
     Then missing PrettyPrinter package preflight should fail before the scenario starts

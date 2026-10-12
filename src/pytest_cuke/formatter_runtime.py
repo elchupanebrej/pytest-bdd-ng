@@ -514,16 +514,16 @@ class FormatterSession:
 
     def pytest_cuke_message_validated(self, config: Config, message: Message) -> None:
         del config
+        self.write_message(message)
+
+    def write_message(self, message: Message) -> None:
+        """Send one controller message through the live/replay normalization path."""
         try:
             envelope = self._message_adapter.controller_envelope(message_to_dict(message))
         except (TypeError, ValueError) as error:
             raise FormatterRuntimeError(f"Could not adapt controller Cucumber Messages: {error}") from error
         if envelope is not None:
             self._write_envelope(envelope)
-
-    def write_message(self, message: Message) -> None:
-        """Send one already parsed Messages envelope through the common validator/runtime."""
-        self._write_envelope(message_to_dict(message))
 
     def pytest_cuke_message_batch(self, config: Config, batch: dict[str, Any]) -> None:
         del config

@@ -803,7 +803,12 @@ def ruff_and_typecheck_lanes_resolve_to_real_tools(consumer: Any) -> None:
     lanes = {_lane_id(lane): lane for lane in _lanes(_context(consumer))}
     expected_commands = {
         "ruff": ("ruff",),
-        "typecheck": ("scripts/check_types.py", "mypy", "mypy-runtime-gate.feature"),
+        "typecheck": (
+            "scripts/check_types.py",
+            "mypy",
+            "mypy-runtime-gate.feature",
+            "installed-consumer-typing.feature",
+        ),
     }
     for lane_id, expected_fragments in expected_commands.items():
         lane = lanes.get(lane_id)

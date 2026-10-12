@@ -261,6 +261,7 @@ def _missing_steps(features: Sequence[Feature], module: ModuleType, target: Path
                                 "-q",
                                 "--disable-warnings",
                                 "--cuke-no-autoload",
+                                "--cuke-allow-empty-scenarios",
                                 "-p",
                                 "no:cacheprovider",
                                 "-c",

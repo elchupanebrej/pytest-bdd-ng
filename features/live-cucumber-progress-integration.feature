@@ -47,7 +47,7 @@ Feature: Cucumber progress selection and terminal integration
   Scenario: Selecting progress without its npm package fails before a scenario starts
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer prepares a progress preflight marker scenario
-    And Node and npm are available but the official progress package is absent
+    And Node and npm are available but the official progress package is unavailable to the consumer
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-progress -q --color=no"
     Then missing progress package preflight should fail before the scenario starts
 

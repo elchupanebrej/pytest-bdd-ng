@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 from pytest_cuke import given, then, when
+from tests.support.testing_utils import mask_npm_package_from_node_resolution
 
 
 _SUPPORT_PLUGIN = """\
@@ -654,18 +655,21 @@ def normal_consumer_run_ignores_pretty_dependencies(consumer: Any) -> None:
     assert not (_consumer_root(consumer) / "node_modules").exists()
 
 
-@given("Node and npm are available but the official PrettyPrinter package is absent")
-def require_node_without_pretty_package(consumer: Any) -> None:
+@given("Node and npm are available but the official PrettyPrinter package is unavailable to the consumer")
+def mask_pretty_package_from_consumer(consumer: Any) -> None:
     node = shutil.which("node")
     npm = shutil.which("npm")
     if node is None or npm is None:
         pytest.skip("the missing-package preflight case requires both Node.js and npm on PATH")
     root = _consumer_root(consumer)
-    package = root / "node_modules" / "@cucumber" / "pretty-formatter"
-    assert not package.exists(), f"fresh consumer unexpectedly contains {package}"
-    consumer.env["PATH"] = os.pathsep.join(
+    environment = dict(consumer.env)
+    environment["PATH"] = os.pathsep.join(
         dict.fromkeys((str(Path(node).parent), str(Path(npm).parent), str(Path(consumer.python).parent), os.defpath))
     )
+    environment["npm_config_prefix"] = str(root / ".isolated-global-npm")
+    environment.pop("NODE_PATH", None)
+    mask_npm_package_from_node_resolution(root, "@cucumber/pretty-formatter")
+    consumer.env.update(environment)
 
 
 @given("the consumer prepares a scenario marker for pretty package preflight")

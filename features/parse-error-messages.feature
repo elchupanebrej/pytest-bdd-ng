@@ -80,12 +80,14 @@ Feature: Parse failures emit Cucumber ParseError messages
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And consumer file "conftest.py" contains:
       """python
+      import json
       from pathlib import Path
+      from pytest_cuke.model.message_types import message_to_dict
 
 
       def pytest_cuke_message(config, message):
           with Path("hook-messages.ndjson").open("a", encoding="utf-8") as stream:
-              stream.write(message.model_dump_json(exclude_none=True, by_alias=True))
+              stream.write(json.dumps(message_to_dict(message)))
               stream.write("\n")
       """
     And consumer file "features/broken.feature" contains:
