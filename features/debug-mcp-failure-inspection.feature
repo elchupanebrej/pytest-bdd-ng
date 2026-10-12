@@ -57,6 +57,7 @@ Feature: Debug MCP failure inspection
     When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-mcp-on-fail --cuke-mcp-timeout=30s --cuke-mcp-lease=10s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto -q"
     And an external MCP client inspects and releases the held plain pytest failure
     Then pytest should exit with a non-zero code
+    And pytest output should not include "IncompleteFieldDefinitionWarning"
     And the plain pytest MCP observation should show a "<phase>" failure with null BDD context
     And the MCP discovery record should no longer advertise a live endpoint
 
