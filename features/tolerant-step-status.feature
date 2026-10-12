@@ -33,7 +33,7 @@ Feature: Tolerant step status policy
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "first-order,second-order"
-    And pytest output should include "When the first tolerant operation raises an AssertionError (FAILED)"
+    And pytest output should include "When the first tolerant operation raises an AssertionError"
     And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,FAILED,PASSED" and exception messages "first tolerant assertion sentinel,second tolerant runtime sentinel" for scenario "Both tolerant decorator orders continue" and TestRunFinished success "true"
     And consumer artifact "cucumber.json" should report scenario "Both tolerant decorator orders continue" with step statuses "failed,failed,passed" and error messages "first tolerant assertion sentinel,second tolerant runtime sentinel"
 

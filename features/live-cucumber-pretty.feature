@@ -21,6 +21,7 @@ Feature: Live Cucumber Pretty formatter
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And a portable workspace café enables cuke_pretty and contains one Unicode feature
     And the consumer installs the pinned official PrettyPrinter packages in its portable workspace
+    And the consumer installs the pinned official Cucumber JSON runtime in consumer directory "portable workspace café"
     When I run installed pytest from consumer directory "portable workspace café" with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=artifacts/messages.ndjson --cuke-json=artifacts/report.json --junitxml=artifacts/junit.xml --capture=tee-sys -v --color=no"
     Then pytest should exit with code 0
     And pretty, Messages, JSON, and JUnit outputs should coexist in the portable consumer workspace

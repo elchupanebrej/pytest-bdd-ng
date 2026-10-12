@@ -8,7 +8,9 @@ from yaml import FullLoader
 from yaml import load as load_yaml
 
 from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
-from pytest_cuke.utils import IdGenerator, doesnt_raise
+from pytest_cuke.model.message_converter import feature_to_gherkin_document
+from pytest_cuke.model.message_types import message_to_dict
+from pytest_cuke.utils import doesnt_raise
 
 if STRUCT_BDD_INSTALLED:  # pragma: no cover
     from pytest_cuke.struct_bdd.model import (
@@ -509,11 +511,27 @@ def test_tags_steps_examples_load():
     )
     assert len(route.example_table.values) == 4
 
-    document_ast = GherkinDocumentBuilder(step).build(id_generator=IdGenerator())
-    document_ast.uri = "uri"
-
-    pickles = Compiler().compile(document_ast.dict(by_alias=True, exclude_none=True))
-    assert len(pickles) == 4
+    feature = GherkinDocumentBuilder(step).build_feature(uri="uri")
+    document = feature_to_gherkin_document(feature)
+    assert document.feature is not None
+    assert len(document.feature.children) == 1
+    scenario = document.feature.children[0].scenario
+    assert scenario is not None
+    assert len(scenario.examples) == 1
+    assert len(scenario.examples[0].table_body) == 4
+    compiler_document = message_to_dict(document)
+    compiler_scenario = compiler_document["feature"]["children"][0]["scenario"]
+    keyword_types = {
+        Keyword.Given.value: KeywordType.context.value,
+        Keyword.When.value: KeywordType.action.value,
+        Keyword.Then.value: KeywordType.outcome.value,
+        Keyword.And.value: KeywordType.conjunction.value,
+        Keyword.But.value: KeywordType.conjunction.value,
+        Keyword.Star.value: KeywordType.unknown.value,
+    }
+    for compiler_step in compiler_scenario["steps"]:
+        compiler_step["keywordType"] = keyword_types[compiler_step["keyword"].strip()]
+    assert len(Compiler().compile(compiler_document)) == 4
 
 
 def test_tags_steps_examples_load_complex():

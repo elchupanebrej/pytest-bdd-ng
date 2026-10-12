@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -47,7 +48,7 @@ from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model.message_types import Envelope, message_from_dict
 from pytest_cuke.model.message_validation import validate_envelope
 from pytest_cuke.utils import compose
-from tests.support.testing_utils import data_table_to_dicts
+from tests.support.testing_utils import data_table_to_dicts, mask_npm_package_from_node_resolution
 
 
 def _consumer_binary_dir(environment_path: Path) -> Path:
@@ -69,6 +70,20 @@ def _consumer_path(binary_dir: Path, *, include_node: bool = False) -> str:
                 path_entries.append(str(Path(npm).parent))
     path_entries.extend(os.defpath.split(os.pathsep))
     return os.pathsep.join(dict.fromkeys(path_entries))
+
+
+def _split_consumer_arguments(arguments: str) -> list[str]:
+    """Split BDD CLI arguments without treating Windows path separators as escapes."""
+    lexer = shlex.shlex(arguments, posix=True)
+    lexer.whitespace_split = True
+    if os.name == "nt":
+        lexer.escape = ""
+    return list(lexer)
+
+
+def _normalized_path_text(value: str) -> str:
+    """Normalize host-specific separators before comparing diagnostic paths."""
+    return value.replace("\\", "/")
 
 
 @dataclass
@@ -105,6 +120,49 @@ class ConsumerProject:
     socket_gateway_remote_roots: list[Path] | None = None
     socket_gateway_log_paths: list[Path] | None = None
     socket_gateway_filesystem_isolated: bool = False
+
+
+@fixture(scope="session")
+def _pytest_cuke_cucumber_json_runtime(tmp_path_factory):
+    """Install the pinned Node formatter runtime above all isolated consumers."""
+    node = shutil.which("node")
+    npm = shutil.which("npm")
+    if node is None or npm is None:
+        return None
+
+    runtime_root = tmp_path_factory.getbasetemp()
+    package_json = {
+        "name": "pytest-cuke-e2e-consumer-runtime",
+        "private": True,
+        "type": "module",
+        "dependencies": {"@cucumber/cucumber": "13.3.0"},
+    }
+    (runtime_root / "package.json").write_text(json.dumps(package_json, indent=2) + "\n", encoding="utf-8")
+
+    environment = os.environ.copy()
+    environment["PATH"] = os.pathsep.join(
+        dict.fromkeys((str(Path(node).parent), str(Path(npm).parent), *os.defpath.split(os.pathsep)))
+    )
+    environment.pop("NODE_PATH", None)
+    install = subprocess.run(
+        [npm, "install", "--no-audit", "--no-fund"],
+        cwd=runtime_root,
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=180,
+    )
+    assert install.returncode == 0, (
+        f"could not install pinned @cucumber/cucumber@13.3.0 for installed consumers:\n"
+        f"{install.stdout}\n{install.stderr}"
+    )
+    metadata = runtime_root / "node_modules" / "@cucumber" / "cucumber" / "package.json"
+    installed_version = json.loads(metadata.read_text(encoding="utf-8")).get("version")
+    assert installed_version == "13.3.0", installed_version
+    return runtime_root
 
 
 def _validate_messages_envelope_compatibly(payload: Any) -> Envelope:
@@ -259,7 +317,13 @@ def _pytest_cuke_typing_environments(_pytest_cuke_artifacts, tmp_path_factory):
     ),
     target_fixture="consumer",
 )
-def install_pytest_cuke_consumer(distribution, _pytest_cuke_environments, _pytest_cuke_artifacts, tmp_path_factory):
+def install_pytest_cuke_consumer(
+    distribution,
+    _pytest_cuke_environments,
+    _pytest_cuke_artifacts,
+    _pytest_cuke_cucumber_json_runtime,
+    tmp_path_factory,
+):
     project_path = tmp_path_factory.mktemp("pytest-cuke-consumer")
     (project_path / "pyproject.toml").write_text(
         "[tool.pytest.ini_options]\ncuke_features_dir = 'features'\ncuke_autoload = true\n",
@@ -756,7 +820,7 @@ def run_consumer_pytest(arguments, consumer: ConsumerProject):
         "{mcp_nonlocal_host}", str(getattr(consumer, "_mcp_nonlocal_host", "{mcp_nonlocal_host}"))
     )
     result = subprocess.run(
-        [str(consumer.pytest), *shlex.split(arguments)],
+        [str(consumer.pytest), *_split_consumer_arguments(arguments)],
         cwd=consumer.path,
         env=consumer.env,
         check=False,
@@ -785,7 +849,7 @@ def run_consumer_pytest_from_consumer_directory(working_directory, arguments, co
         raise ValueError(f"consumer working directory does not exist: {cwd}")
     command = [
         str(consumer.pytest),
-        *shlex.split(arguments.replace("{consumer_path}", str(consumer.path))),
+        *_split_consumer_arguments(arguments.replace("{consumer_path}", str(consumer.path))),
     ]
     result = subprocess.run(
         command,
@@ -801,6 +865,48 @@ def run_consumer_pytest_from_consumer_directory(working_directory, arguments, co
     return result
 
 
+@when("I check shared Cucumber runtime resolution from a sibling consumer directory")
+def check_shared_cucumber_runtime_resolution_from_sibling(consumer: ConsumerProject) -> None:
+    node = shutil.which("node", path=consumer.env.get("PATH"))
+    if node is None:
+        import pytest
+
+        pytest.skip("the shared Cucumber runtime resolution contract requires Node.js")
+
+    sibling_path = consumer.path.parent / "pytest-cuke-cucumber-runtime-sibling"
+    sibling_path.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(
+        [
+            node,
+            "--input-type=module",
+            "-e",
+            "console.log(import.meta.resolve(process.argv[1]))",
+            "@cucumber/cucumber",
+        ],
+        cwd=sibling_path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=10,
+    )
+    consumer._cucumber_runtime_sibling_result = result
+    consumer._cucumber_runtime_sibling_path = sibling_path
+
+
+@then("the sibling consumer should resolve the shared Cucumber runtime from the temporary root")
+def sibling_consumer_resolves_shared_cucumber_runtime(consumer: ConsumerProject) -> None:
+    result = getattr(consumer, "_cucumber_runtime_sibling_result", None)
+    assert isinstance(result, subprocess.CompletedProcess), "the sibling consumer resolution check has not run"
+    assert result.returncode == 0, f"Node could not resolve @cucumber/cucumber from a sibling consumer:\n{result.stderr}"
+    resolved_url = unquote(result.stdout.strip()).replace("\\", "/")
+    expected_package_root = str((consumer.path.parent / "node_modules" / "@cucumber" / "cucumber").resolve())
+    expected_package_root = expected_package_root.replace("\\", "/")
+    assert expected_package_root in resolved_url, (expected_package_root, resolved_url)
+
+
 @when(
     re.compile(
         r'I run installed pytest in two independent sessions with arguments "(?P<first_arguments>[^\"]*)" '
@@ -812,7 +918,7 @@ def run_consumer_pytest_in_two_independent_sessions(first_arguments, second_argu
     results = []
     for arguments in (first_arguments, second_arguments):
         result = subprocess.run(
-            [str(consumer.pytest), *shlex.split(arguments)],
+            [str(consumer.pytest), *_split_consumer_arguments(arguments)],
             cwd=consumer.path,
             env=consumer.env,
             check=False,
@@ -842,7 +948,7 @@ def run_consumer_pytest_in_two_independent_url_base_sessions(
     for arguments in (first_arguments, second_arguments):
         command = [
             str(consumer.pytest),
-            *shlex.split(arguments.replace("{local_http_base_url}", local_feature_http_server.base_url)),
+            *_split_consumer_arguments(arguments.replace("{local_http_base_url}", local_feature_http_server.base_url)),
         ]
         result = subprocess.run(
             command,
@@ -872,7 +978,7 @@ def run_consumer_pytest_with_local_http_fixture_url_base(
     environment["PYTEST_CUKE_TEST_HTTP_BASE_URL"] = http_base_url
     command = [
         str(consumer.pytest),
-        *shlex.split(arguments.replace("{local_http_base_url}", http_base_url)),
+        *_split_consumer_arguments(arguments.replace("{local_http_base_url}", http_base_url)),
     ]
     result = subprocess.run(
         command,
@@ -897,7 +1003,7 @@ def run_local_pytest_with_arguments(arguments, request, testdir, step):
     source_dir = str(Path(root) / "src")
     current_path = os.environ.get("PYTHONPATH", "")
     testdir.monkeypatch.setenv("PYTHONPATH", os.pathsep.join(filter(None, (source_dir, current_path))))
-    cli_args = shlex.split(arguments)
+    cli_args = _split_consumer_arguments(arguments)
     in_subprocess = "in a subprocess" in step.text
     runner = testdir.runpytest_subprocess if in_subprocess else testdir.runpytest_inprocess
     return runner(*cli_args)
@@ -1636,7 +1742,7 @@ def _start_execnet_socket_gateways(
 def run_installed_pytest_through_localhost_socket_gateways(arguments: str, consumer: ConsumerProject):
     addresses = consumer.socket_gateway_addresses
     assert addresses and len(addresses) == 2, "two test-managed localhost socket gateways have not started"
-    pytest_arguments = shlex.split(arguments)
+    pytest_arguments = _split_consumer_arguments(arguments)
     rewritten_arguments: list[str] = []
     for argument in pytest_arguments:
         if argument == "--rootdir=.":
@@ -2418,7 +2524,7 @@ def consumer_help_rejects_legacy_options(option, consumer: ConsumerProject):
 def run_consumer_command(command, arguments, consumer: ConsumerProject):
     executable = consumer.cuke if command == "cuke" else consumer.python.parent / command
     result = subprocess.run(
-        [str(executable), *shlex.split(arguments)],
+        [str(executable), *_split_consumer_arguments(arguments)],
         cwd=consumer.path,
         env=consumer.env,
         check=False,
@@ -4132,7 +4238,12 @@ def consumer_file_existence(relative_path: str, state: str, consumer: ConsumerPr
     destination = Path(relative_path)
     if destination.is_absolute() or ".." in destination.parts:
         raise ValueError("consumer file paths must stay inside the consumer project")
-    exists = (consumer.path / destination).exists()
+    try:
+        exists = (consumer.path / destination).exists()
+    except OSError as error:
+        if error.errno != errno.ENAMETOOLONG and getattr(error, "winerror", None) != 206:
+            raise
+        exists = False
     assert exists is (state == "exist"), f"consumer file {relative_path!r} exists={exists}"
 
 
@@ -5333,7 +5444,7 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
     target_fixture="pytest_result",
 )
 def run_consumer_pytest_with_watchdog(watchdog_seconds, arguments, consumer: ConsumerProject):
-    command = [str(consumer.pytest), *shlex.split(arguments)]
+    command = [str(consumer.pytest), *_split_consumer_arguments(arguments)]
     try:
         result = subprocess.run(
             command,
@@ -5584,16 +5695,58 @@ def _read_consumer_test_group_events(consumer: ConsumerProject) -> list[dict[str
 def _normalized_cucumber_messages(consumer: ConsumerProject, relative_path: str) -> list[object]:
     report_path = consumer.path / relative_path
     assert report_path.is_file(), f"pytest did not create the Messages report: {report_path}"
+    envelopes = [json.loads(line) for line in report_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    run_started = next(
+        (envelope["testRunStarted"] for envelope in envelopes if isinstance(envelope.get("testRunStarted"), dict)),
+        None,
+    )
+    run_started_id = run_started.get("id") if isinstance(run_started, dict) else None
+    run_namespace, separator, counter = (
+        run_started_id.rpartition("-") if isinstance(run_started_id, str) else ("", "", "")
+    )
+    if not separator or not counter.isdecimal():
+        run_namespace = ""
 
-    def normalize(value: object) -> object:
+    def normalize(value: object, field_name: str | None = None) -> object:
         if isinstance(value, dict):
-            return {key: normalize(item) for key, item in value.items() if key not in {"timestamp", "duration"}}
+            media_type = value.get("mediaType")
+            normalized: dict[str, object] = {}
+            for key, item in value.items():
+                if key in {"timestamp", "duration"}:
+                    continue
+                if (
+                    key == "body"
+                    and isinstance(media_type, str)
+                    and media_type.endswith("+json")
+                    and isinstance(item, str)
+                ):
+                    try:
+                        attachment_payload = json.loads(item)
+                    except json.JSONDecodeError:
+                        normalized[key] = item
+                    else:
+                        normalized[key] = json.dumps(
+                            normalize(attachment_payload),
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            separators=(",", ":"),
+                        )
+                else:
+                    normalized[key] = normalize(item, key)
+            return normalized
         if isinstance(value, list):
-            return [normalize(item) for item in value]
+            return [normalize(item, field_name) for item in value]
+        if (
+            isinstance(value, str)
+            and run_namespace
+            and field_name is not None
+            and (field_name == "id" or field_name.endswith("Id") or field_name.endswith("Ids"))
+            and value.startswith(f"{run_namespace}-")
+        ):
+            return f"<run>{value[len(run_namespace):]}"
         return value
 
-    lines = report_path.read_text(encoding="utf-8").splitlines()
-    return [normalize(json.loads(line)) for line in lines if line.strip()]
+    return [normalize(envelope) for envelope in envelopes]
 
 
 @given(re.compile(r"I create (?P<count>\d+) simple consumer feature files?"))
@@ -7734,7 +7887,7 @@ def tox_expansion_is_deterministic_and_complete(consumer: ConsumerProject) -> No
 def run_compatibility_from_outside_consumer(config: str, arguments: str, consumer: ConsumerProject) -> None:
     config_path = consumer.path / config
     result = subprocess.run(
-        [str(consumer.cuke), "compatibility", *shlex.split(arguments), "--config", str(config_path)],
+        [str(consumer.cuke), "compatibility", *_split_consumer_arguments(arguments), "--config", str(config_path)],
         cwd=consumer.path.parent,
         env=consumer.env,
         check=False,
@@ -9202,9 +9355,9 @@ def run_consumer_pytest_twice_in_one_process(
         [
             str(consumer.python),
             str(runner),
-            *shlex.split(first_arguments),
+            *_split_consumer_arguments(first_arguments),
             "--pytest-cuke-next-session",
-            *shlex.split(second_arguments),
+            *_split_consumer_arguments(second_arguments),
         ],
         cwd=consumer.path,
         env=consumer.env,
@@ -10358,8 +10511,10 @@ def consumer_all_unmatched_collection_usage_error(
     result = consumer.pytest_result
     assert result is not None, "pytest has not been run in this consumer"
     output = f"{result.stdout}\n{result.stderr}"
+    normalized_output = _normalized_path_text(output)
     expected_source = _consumer_artifact_path(feature_path, consumer)
-    source_references = (str(expected_source), feature_path, f"file:{expected_source.name}", expected_source.name)
+    normalized_source = expected_source.as_posix()
+    source_references = (normalized_source, feature_path, f"file:{expected_source.name}", expected_source.name)
     feature_lines = expected_source.read_text(encoding="utf-8").splitlines()
     scenario_lines = [
         line_number
@@ -10375,14 +10530,18 @@ def consumer_all_unmatched_collection_usage_error(
             break
         if re.match(r"^(?:Given|When|Then|And|But|\*)\s+", stripped):
             step_line_numbers.append(line_number)
-    expected_line_references = [f"{expected_source}:{line_number}:" for line_number in (scenario_line, *step_line_numbers)]
+    expected_line_references = [
+        f"{normalized_source}:{line_number}:" for line_number in (scenario_line, *step_line_numbers)
+    ]
     checks = {
         f"pytest UsageError exit code 4; got {result.returncode}": result.returncode == 4,
         "pytest emitted its UsageError summary": bool(re.search(r"(?im)^ERROR:", output))
         or "UsageError" in output,
-        f"output identifies source {feature_path!r}": any(source_reference in output for source_reference in source_references),
+        f"output identifies source {feature_path!r}": any(
+            source_reference in normalized_output for source_reference in source_references
+        ),
         f"output identifies exact scenario and step lines {expected_line_references!r}": all(
-            reference in output for reference in expected_line_references
+            reference in normalized_output for reference in expected_line_references
         ),
         f"output identifies scenario {scenario_name!r}": scenario_name in output,
         f"output identifies unmatched step {step_text!r}": step_text in output,
@@ -10406,6 +10565,7 @@ def consumer_all_unmatched_skip_has_reason(
     result = consumer.pytest_result
     assert result is not None, "pytest has not been run in this consumer"
     output = f"{result.stdout}\n{result.stderr}"
+    normalized_output = _normalized_path_text(output)
     has_skip = bool(re.search(r"\bskip(?:ped|s)?\b", output, re.IGNORECASE))
     has_meaningful_reason = bool(
         re.search(r"unmatch|no (?:matching |bound )?steps?|step definitions?|empty scenario", output, re.IGNORECASE)
@@ -10418,15 +10578,17 @@ def consumer_all_unmatched_skip_has_reason(
         if line.strip() == f"Scenario: {scenario_name}"
     ]
     assert len(scenario_lines) == 1, (scenario_name, scenario_lines, feature_lines)
-    scenario_location = f"{feature_source}:{scenario_lines[0]}"
+    normalized_feature_source = feature_source.as_posix()
+    scenario_location = f"{normalized_feature_source}:{scenario_lines[0]}"
     checks = {
         f"pytest exited successfully; got {result.returncode}": result.returncode == 0,
         "pytest reports the selected scenario as skipped": has_skip,
         "pytest includes an informative no-binding reason": has_meaningful_reason,
-        f"pytest skip reason identifies source location {scenario_location!r}": scenario_location in output,
+        f"pytest skip reason identifies source location {scenario_location!r}": scenario_location in normalized_output,
         f"pytest output identifies scenario {scenario_name!r}": scenario_name in output,
         f"pytest output identifies feature source {feature_path!r}": any(
-            source in output for source in (str(feature_source), feature_path, feature_source.name)
+            _normalized_path_text(source) in normalized_output
+            for source in (normalized_feature_source, feature_path, feature_source.name)
         ),
         f"runtime hook file {hook_path!r} was not created": not _consumer_artifact_path(hook_path, consumer).exists(),
         f"test body file {body_path!r} was not created": not _consumer_artifact_path(body_path, consumer).exists(),
@@ -10853,10 +11015,11 @@ def install_debug_mcp_extra(consumer: ConsumerProject) -> None:
     )
 
 
-@then("the installed debug MCP extra should be importable and PyPy 3.10 compatible")
+@then("the installed debug MCP extra should be importable, PyPy 3.10 compatible, and resolve a supported MCP SDK version")
 def installed_debug_mcp_extra_is_compatible(consumer: ConsumerProject) -> None:
     probe = (
         "import importlib, json, platform, sys\n"
+        "from importlib.metadata import version\n"
         "for module in ('cryptography', 'mcp', 'mcp_pdb.main', 'uvicorn'):\n"
         "    importlib.import_module(module)\n"
         "import cryptography\n"
@@ -10864,6 +11027,7 @@ def installed_debug_mcp_extra_is_compatible(consumer: ConsumerProject) -> None:
         "    'implementation': platform.python_implementation(),\n"
         "    'python': list(sys.version_info[:2]),\n"
         "    'cryptography': cryptography.__version__,\n"
+        "    'mcp': version('mcp'),\n"
         "}))\n"
     )
     result = subprocess.run(
@@ -10882,6 +11046,12 @@ def installed_debug_mcp_extra_is_compatible(consumer: ConsumerProject) -> None:
     resolved = json.loads(result.stdout)
     assert isinstance(resolved, dict), f"invalid runtime probe output: {result.stdout!r}"
     assert isinstance(resolved.get("cryptography"), str), f"missing cryptography version: {resolved!r}"
+    assert isinstance(resolved.get("mcp"), str), f"missing mcp version: {resolved!r}"
+    mcp_version = Version(resolved["mcp"])
+    assert Version("1.24") <= mcp_version < Version("2"), (
+        f"the Debug MCP SDK requires mcp>=1.24,<2, but resolved {mcp_version}:\n"
+        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
     if resolved.get("implementation") == "PyPy" and resolved.get("python") == [3, 10]:
         version = Version(resolved["cryptography"])
         assert version < Version("46"), (
@@ -10892,7 +11062,7 @@ def installed_debug_mcp_extra_is_compatible(consumer: ConsumerProject) -> None:
 
 @when(re.compile(r'I start installed pytest for MCP inspection with arguments "(?P<arguments>[^"]*)"'))
 def start_consumer_pytest_for_mcp_inspection(arguments: str, consumer: ConsumerProject) -> None:
-    cli_arguments = shlex.split(arguments)
+    cli_arguments = _split_consumer_arguments(arguments)
     occupied_port = getattr(consumer, "_mcp_occupied_port", None)
     if occupied_port is not None:
         cli_arguments = [argument.replace("{mcp_occupied_port}", str(occupied_port)) for argument in cli_arguments]

@@ -5,6 +5,7 @@ Feature: Historical custom feature parsers use an explicit adapter
   Scenario: An installed extension parses its legacy feature during autoload
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer has the runnable custom parser example
+    And the consumer installs the pinned official Cucumber JSON runtime
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-json=legacy-report.json --color=no"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
@@ -13,6 +14,7 @@ Feature: Historical custom feature parsers use an explicit adapter
   Scenario: Explicit-file, directory, and autoload collection use the same legacy adapter
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer has the runnable custom parser example
+    And the consumer installs the pinned official Cucumber JSON runtime
     When I compare custom parser collection through explicit file, directory, and autoload selection
     Then all three custom parser collection runs should pass the same scenario once
     And all three custom parser reports should identify the same normalized source

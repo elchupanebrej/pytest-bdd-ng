@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import os
+from pathlib import Path, PureWindowsPath
 from typing import Any
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
@@ -15,6 +16,12 @@ def normalize_feature_uri(feature: Feature) -> str:
     """Return a stable URI key for a parsed feature source."""
     uri = feature.uri.strip()
     if uri:
+        windows_path = PureWindowsPath(uri)
+        if windows_path.drive and windows_path.is_absolute():
+            if os.name == "nt":
+                return Path(uri).resolve().as_uri()
+            return windows_path.as_uri()
+
         parsed = urlsplit(uri)
         if parsed.scheme == "file":
             path = parsed.path

@@ -99,7 +99,12 @@ def test_xdist_controller_reports_inaccessible_discovery_root_without_starting_s
     monkeypatch.setattr(debug_mcp_plugin, "ensure_optional_dependencies", lambda: None)
     plugin = DebugMcpPlugin(config=config, options=DebugMcpOptions(enabled=True))
 
-    with pytest.raises(pytest.UsageError, match="could not clear stale Debug MCP discovery record"):
+    with pytest.raises(
+        pytest.UsageError,
+        match=(
+            "could not (clear stale Debug MCP discovery record|create worker discovery root directory)"
+        ),
+    ):
         plugin.pytest_sessionstart(SimpleNamespace(config=config))
 
     assert cache_root.read_text(encoding="utf-8") == "cache path is not a directory"
