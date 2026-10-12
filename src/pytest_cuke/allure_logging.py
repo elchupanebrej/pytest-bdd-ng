@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import os
+import posixpath
 from typing import TYPE_CHECKING, Any, ParamSpec, Protocol, TypeVar, cast
 from unittest.mock import patch
 
@@ -302,5 +302,5 @@ class AllurePytestBDD:
 
     @staticmethod
     def get_full_name(feature: Feature, scenario: Scenario) -> str:
-        feature_path = os.path.normpath(feature.rel_filename)
+        feature_path = posixpath.normpath(feature.rel_filename.replace("\\", "/"))
         return f"{feature_path}:{scenario.name}"

@@ -33,6 +33,14 @@ Feature: Live native Allure reporting
     And native Allure results should preserve the full Gherkin field contract
     And native Allure timestamps should match the live Messages timestamps
 
+  Scenario: Nested feature paths use POSIX separators in native Allure fullName
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains one native Allure scenario in a nested feature directory
+    And the consumer installs pytest-cuke with its Allure extra
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results -q"
+    Then the native Allure consumer should exit with code 0
+    And native Allure fullName should preserve POSIX separators for scenario "Nested native feature path scenario"
+
   Scenario: Native reporting activates from cuke_allure ini configuration alone
     Given a fresh isolated pytest-cuke consumer is ready
     And the consumer contains one native Allure scenario with attachments
