@@ -50,7 +50,10 @@ Feature: Debug MCP failure inspection
     And the plain pytest MCP observation should show a "call" failure with null BDD context
     And the MCP discovery record should no longer advertise a live endpoint
 
-  Scenario Outline: Setup and teardown failures remain held for external inspection
+  Scenario Outline: Setup and teardown failures use the consumer cache under an outer tox environment
+    The test runner may have TOX_ENV_DIR set for its own tox environment. A child
+    pytest process must publish setup-failure discovery in the installed consumer's
+    .pytest_cache so MCP inspection can find it without reading the outer tox cache.
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer has the optional debug MCP extra installed
     And the installed consumer exposes a plain pytest failure during "<phase>"
