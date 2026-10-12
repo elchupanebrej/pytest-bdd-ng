@@ -72,6 +72,7 @@ def _write_feature(
     with_live_observer: bool = False,
     with_xdist_evidence: bool = False,
     with_colliding_worker_message_ids: bool = False,
+    feature_relative_path: str = "native-allure-samples.feature",
 ) -> None:
     feature_dir = context.project / "features"
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -115,9 +116,9 @@ def _write_feature(
         if with_attachments and with_allure_api
         else ""
     )
-    (feature_dir / "native-allure-samples.feature").write_text(
-        "Feature: Native Allure hierarchy\n\n" + "\n".join(scenario_blocks), encoding="utf-8"
-    )
+    feature_path = feature_dir / feature_relative_path
+    feature_path.parent.mkdir(parents=True, exist_ok=True)
+    feature_path.write_text("Feature: Native Allure hierarchy\n\n" + "\n".join(scenario_blocks), encoding="utf-8")
     (context.project / "pyproject.toml").write_text(
         "[tool.pytest.ini_options]\ncuke_autoload = true\ncuke_features_dir = 'features'\n",
         encoding="utf-8",
@@ -711,6 +712,17 @@ def consumer_has_native_scenario_and_run_marker(native_allure_consumer: NativeAl
 @given("the consumer contains a described native Allure outline with structured arguments")
 def consumer_has_described_outline_with_arguments(native_allure_consumer: NativeAllureConsumer) -> None:
     _write_field_contract_feature(native_allure_consumer)
+
+
+@given("the consumer contains one native Allure scenario in a nested feature directory")
+def consumer_has_native_scenario_in_nested_feature_directory(native_allure_consumer: NativeAllureConsumer) -> None:
+    _write_feature(
+        native_allure_consumer,
+        ("Nested native feature path scenario",),
+        with_attachments=False,
+        with_allure_api=False,
+        feature_relative_path="nested/native-allure-samples.feature",
+    )
 
 
 @given("the consumer contains two native Allure scenarios with distinct nested steps and attachments")
@@ -1338,6 +1350,19 @@ def native_allure_preserves_gherkin_field_contract(native_allure_consumer: Nativ
     # Feature tags are valid Gherkin metadata even though Cucumber Pickle.tags
     # only carries the rule and scenario tags for this outline.
     assert ("tag", "@feature-native-tag") in label_pairs, labels
+
+
+@then(parsers.re(r'native Allure fullName should preserve POSIX separators for scenario "(?P<scenario_name>[^"]+)"'))
+def native_allure_full_name_preserves_posix_separators(
+    scenario_name: str, native_allure_consumer: NativeAllureConsumer
+) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "allure-results")]
+    selected = [result for result in results if result.get("name") == scenario_name]
+    assert len(selected) == 1, results
+    expected_full_name = f"file:nested/native-allure-samples.feature:{scenario_name}"
+    full_name = selected[0].get("fullName")
+    assert full_name == expected_full_name, selected[0]
+    assert "\\" not in full_name, selected[0]
 
 
 @then("native Allure timestamps should match the live Messages timestamps")
