@@ -199,11 +199,15 @@ class InspectionMcpServer:
         try:
             import uvicorn  # noqa: PLC0415  # Import the optional server stack only when selected.
             from mcp.server.fastmcp import FastMCP  # noqa: PLC0415
+            from mcp.server.fastmcp.server import Settings as FastMCPSettings  # noqa: PLC0415
         except ImportError as error:
             raise DebugMcpDependencyError(
                 f"Debug MCP inspection needs pytest-cuke[debug-mcp]: {error}"
             ) from error
 
+        # FastMCP's generic lifespan field can remain unresolved on PyPy/Windows.
+        # Rebuild after FastMCP is defined so pydantic-settings can inspect its fields.
+        FastMCPSettings.model_rebuild()
         mcp = FastMCP("pytest-cuke-debug-inspection", host=self.host, port=self.port)
         failure_queue = self.queue
 
