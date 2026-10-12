@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlsplit, urlunsplit
+from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 from attrs import define, field, fields, has
 
@@ -17,6 +17,18 @@ def normalize_feature_uri(feature: Feature) -> str:
     if uri:
         parsed = urlsplit(uri)
         if parsed.scheme == "file":
+            path = parsed.path
+            is_local_file_uri = parsed.netloc.lower() in {"", "localhost"}
+            has_windows_drive_root = (
+                len(path) >= 4
+                and path[0] == "/"
+                and path[1] in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+                and path[2:4] == ":/"
+            )
+            if is_local_file_uri and has_windows_drive_root:
+                normalized_path = quote(unquote(path), safe="/:")
+                return urlunsplit(("file", "", normalized_path, "", ""))
+
             file_path = Path(unquote(parsed.path))
             if not file_path.is_absolute() and not parsed.netloc and feature.filename:
                 file_path = Path(feature.filename)
@@ -26,9 +38,8 @@ def normalize_feature_uri(feature: Feature) -> str:
             return urlunsplit(
                 (parsed.scheme.lower(), parsed.netloc.lower(), parsed.path, parsed.query, parsed.fragment)
             )
-        if feature.filename:
-            return Path(feature.filename).resolve().as_uri()
-        return Path(uri).resolve().as_uri()
+        if not feature.filename:
+            return Path(uri).resolve().as_uri()
     if feature.filename:
         return Path(feature.filename).resolve().as_uri()
     return f"memory://{feature.name}"
