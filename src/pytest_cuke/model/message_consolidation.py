@@ -459,7 +459,7 @@ class LiveMessageAdapter:
         payload_kind = _payload_kind(normalized)
         if payload_kind == "test_run_started":
             run_id = _payload(normalized, payload_kind).get("id")
-            if not isinstance(run_id, str):
+            if run_id is not None and not isinstance(run_id, str):
                 raise ValueError("Controller TestRunStarted has no string ID.")
             self._controller_run_id = run_id
         elif payload_kind == "hook":
