@@ -4,6 +4,8 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import pytest
+
 import pytest_cuke.allure_logging as allure_mod
 from pytest_cuke.allure_logging import AllurePytestBDD
 from pytest_cuke.model.feature import Feature
@@ -38,6 +40,19 @@ def test_allure_pytest_cuke_helpers() -> None:
     params = AllurePytestBDD.get_params(node_with_params)
     assert params is not None
     assert len(params) == 2
+
+
+@pytest.mark.parametrize(
+    "feature_path",
+    ["features/foo.feature", r"features\foo.feature", "features/./nested/../foo.feature"],
+)
+def test_allure_full_name_normalizes_feature_path_to_posix(feature_path: str) -> None:
+    feature = MagicMock()
+    feature.rel_filename = feature_path
+    scenario = MagicMock()
+    scenario.name = "Bar Scenario"
+
+    assert AllurePytestBDD.get_full_name(feature, scenario) == "features/foo.feature:Bar Scenario"
 
 
 def test_allure_pytest_cuke_lifecycle_hooks(monkeypatch: pytest.MonkeyPatch) -> None:
