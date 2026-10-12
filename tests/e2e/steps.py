@@ -30,7 +30,6 @@ try:
     import pytest_httpserver
 
     HTTPServer = pytest_httpserver.HTTPServer
-    pytest_plugins = ["pytest_httpserver.pytest_plugin"]
 except ImportError:
     import pytest
 
@@ -39,7 +38,11 @@ except ImportError:
 
     @fixture
     def httpserver():
-        pytest.skip("pytest_httpserver is not installed")
+        pytest.fail(
+            "HTTP BDD acceptance requires pytest-httpserver. Install pytest-cuke[test] "
+            "or run `python -m pip install -e '.[test]'` from the checkout.",
+            pytrace=False,
+        )
 
 
 from pytest_cuke import given, step, then, when
