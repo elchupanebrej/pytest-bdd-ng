@@ -21,8 +21,8 @@
 
 * When I run pytest in a subprocess with arguments "--cuke-messages-ndjson out.ndjson"
 
-* Then File "out.ndjson" is not empty
 * Then Report "out.ndjson" parsable into messages
+* Then Messages report file "out.ndjson" contains one complete successful run with one scenario and one passed step
 
 ## Scenario: HTML report could be produced on the feature run
     Dummy reporter based on [@cucumber/html-formatter](https://github.com/cucumber/html-formatter)

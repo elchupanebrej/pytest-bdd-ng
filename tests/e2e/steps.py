@@ -4451,6 +4451,90 @@ def _(file_path: Path):
             raise AssertionError from e
 
 
+@then(
+    re.compile(
+        r'Messages report file "(?P<file_path>[^"]+)" contains one complete successful run with one scenario and one passed step'
+    ),
+    converters={"file_path": Path},
+)
+def _(file_path: Path, testdir) -> None:
+    from pytest_cuke.model.message_types import GherkinDocument, Meta, Pickle, Source
+    from pytest_cuke.model.message_types import TestCase, TestCaseFinished, TestCaseStarted, TestRunFinished
+    from pytest_cuke.model.message_types import TestRunStarted, TestStepFinished, TestStepStarted
+
+    artifact_path = Path(str(testdir.tmpdir)) / file_path
+    assert artifact_path.is_file(), f"Messages report was not written: {artifact_path}"
+
+    payload_types = (
+        ("meta", Meta),
+        ("source", Source),
+        ("gherkin_document", GherkinDocument),
+        ("pickle", Pickle),
+        ("test_case", TestCase),
+        ("test_run_started", TestRunStarted),
+        ("test_run_finished", TestRunFinished),
+        ("test_case_started", TestCaseStarted),
+        ("test_case_finished", TestCaseFinished),
+        ("test_step_started", TestStepStarted),
+        ("test_step_finished", TestStepFinished),
+    )
+    payloads = {name: [] for name, _ in payload_types}
+    positions = {name: [] for name, _ in payload_types}
+    line_count = 0
+
+    with artifact_path.open(mode="r", encoding="utf-8") as report:
+        for position, raw_line in enumerate(report):
+            line_count = position + 1
+            assert raw_line.strip(), f"Messages report has a blank line at {position + 1}"
+            envelope = _validate_messages_envelope_compatibly(json.loads(raw_line))
+            for name, _ in payload_types:
+                payload = getattr(envelope, name)
+                if payload is not None:
+                    payloads[name].append(payload)
+                    positions[name].append(position)
+
+    for name, payload_type in payload_types:
+        assert len(payloads[name]) == 1, f"expected one {name} envelope, got {len(payloads[name])}"
+        assert isinstance(payloads[name][0], payload_type), payloads[name][0]
+
+    meta = payloads["meta"][0]
+    source = payloads["source"][0]
+    gherkin_document = payloads["gherkin_document"][0]
+    pickle = payloads["pickle"][0]
+    test_case = payloads["test_case"][0]
+    run_finished = payloads["test_run_finished"][0]
+    case_started = payloads["test_case_started"][0]
+    case_finished = payloads["test_case_finished"][0]
+    step_started = payloads["test_step_started"][0]
+    step_finished = payloads["test_step_finished"][0]
+
+    assert meta.protocol_version and source.uri
+    assert gherkin_document.feature is not None
+    assert len(pickle.steps) == 1, pickle.steps
+    assert len(test_case.test_steps) == 1, test_case.test_steps
+    test_step = test_case.test_steps[0]
+    assert test_case.pickle_id == pickle.id
+    assert test_step.pickle_step_id == pickle.steps[0].id
+    assert case_started.test_case_id == test_case.id
+    assert case_finished.test_case_started_id == case_started.id
+    assert step_started.test_case_started_id == case_started.id
+    assert step_finished.test_case_started_id == case_started.id
+    assert step_started.test_step_id == test_step.id
+    assert step_finished.test_step_id == test_step.id
+    assert step_finished.test_step_result.status.value == "PASSED"
+    assert case_finished.will_be_retried is False
+    assert run_finished.success is True
+    assert (
+        positions["test_run_started"][0]
+        < positions["test_case_started"][0]
+        < positions["test_step_started"][0]
+        < positions["test_step_finished"][0]
+        < positions["test_case_finished"][0]
+        < positions["test_run_finished"][0]
+    )
+    assert positions["test_run_finished"][0] == line_count - 1, "test_run_finished must terminate the stream"
+
+
 @given(re.compile(r'runtime source probe "(?P<name>[a-z][a-z0-9_]*)" contains:'))
 def create_runtime_source_type_probe(name: str, request, step) -> None:
     project_root = Path(request.config.rootpath)
