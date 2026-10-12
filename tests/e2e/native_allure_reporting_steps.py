@@ -417,14 +417,15 @@ def _install_duplicate_worker_batch_replay(context: NativeAllureConsumer) -> Non
         "_first_batch_path = Path('native-allure-first-worker-batch.json')\n\n\n"
         "@pytest.hookimpl(tryfirst=True)\n"
         "def pytest_cuke_message_batch(config, batch):\n"
-        "    del config\n"
+        "    if isinstance(getattr(config, 'workerinput', None), dict):\n"
+        "        return\n"
         "    global _first_batch\n"
         "    observation = {'worker_id': batch.get('worker_id'), 'sequence': batch.get('sequence')}\n"
         "    with _observed_batches.open('a', encoding='utf-8') as stream:\n"
         "        stream.write(json.dumps(observation, sort_keys=True) + '\\n')\n"
         "    if _first_batch is None:\n"
         "        _first_batch = deepcopy(batch)\n"
-        "        _first_batch_path.write_text(json.dumps(_first_batch), encoding='utf-8')\n\n\n"
+        "\n\n"
         "@pytest.hookimpl(tryfirst=True)\n"
         "def pytest_sessionfinish(session, exitstatus):\n"
         "    del exitstatus\n"
@@ -436,7 +437,9 @@ def _install_duplicate_worker_batch_replay(context: NativeAllureConsumer) -> Non
         "    replay = getattr(message_plugin, '_receive_worker_message_batch', None)\n"
         "    if not callable(replay):\n"
         "        raise RuntimeError('pytest-cuke has no worker Messages batch receiver to replay')\n"
-        "    replay(deepcopy(_first_batch))\n",
+        "    replay_batch = deepcopy(_first_batch)\n"
+        "    _first_batch_path.write_text(json.dumps(replay_batch), encoding='utf-8')\n"
+        "    replay(replay_batch)\n",
         encoding="utf-8",
     )
     (context.project / "conftest.py").write_text(
@@ -794,7 +797,7 @@ def install_pinned_pytest_xdist(native_allure_consumer: NativeAllureConsumer) ->
     )
 
 
-@given("the consumer replays its first live worker batch at controller session finish")
+@given("the consumer replays its first controller-observed worker batch at controller session finish")
 def consumer_replays_first_live_worker_batch(native_allure_consumer: NativeAllureConsumer) -> None:
     _install_duplicate_worker_batch_replay(native_allure_consumer)
 
@@ -1601,7 +1604,10 @@ def duplicate_worker_batches_are_rejected_before_allure_publication(
     results = [_load_json(path) for path in result_files]
     expected_names = set(_REPORT_SCENARIOS[1:])
     actual_names = [result.get("name") for result in results]
-    assert len(matching_observations) == 1, observations
+    assert len(matching_observations) == 1, {
+        "expected": {"worker_id": worker_id, "sequence": sequence},
+        "observations": observations,
+    }
     assert len(actual_names) == len(expected_names), results
     assert set(actual_names) == expected_names, results
 

@@ -20,6 +20,7 @@ from pytest_cuke import given, then, when
 from pytest_cuke.model.message_stream_validation import validate_message_stream
 from pytest_cuke.model.message_types import message_from_dict
 from pytest_cuke.model.message_validation import validate_envelope
+from tests.support.testing_utils import mask_npm_package_from_node_resolution
 
 
 _SUPPORT_PLUGIN = """\
@@ -398,7 +399,7 @@ def hide_node_and_npm_from_consumer_path(consumer: Any) -> None:
     assert shutil.which("npm", path=consumer.env["PATH"]) is None
 
 
-@given("Node and npm are available but the official progress formatter package is absent")
+@given("Node and npm are available but the official progress formatter package is unavailable to the consumer")
 def expose_node_and_npm_without_progress_formatter(consumer: Any) -> None:
     runtime = _node_runtime(consumer)
     if runtime is None:
@@ -409,6 +410,7 @@ def expose_node_and_npm_without_progress_formatter(consumer: Any) -> None:
     assert not package.exists(), f"fresh consumer unexpectedly contains {package}"
     environment["npm_config_prefix"] = str(root / ".isolated-npm-prefix")
     environment.pop("NODE_PATH", None)
+    mask_npm_package_from_node_resolution(root, "@cucumber/pretty-formatter")
     consumer.env.update(environment)
 
 

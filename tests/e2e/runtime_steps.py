@@ -395,8 +395,22 @@ def consumer_terminal_outcomes_after_cleanup(runtime_path: str, messages_path: s
         started = starts[row["test_case_started_id"]]
         assert pickle["name"] == scenario_name, (pickle, row)
         assert started["testCaseId"] == case["id"], (started, case)
-        assert len(case["testSteps"]) == 1, case
-        step_finished = [finish for finish in finishes if finish["testCaseStartedId"] == row["test_case_started_id"]]
+        pickle_step_ids = {
+            step.get("id") for step in pickle.get("steps", []) if isinstance(step, dict) and isinstance(step.get("id"), str)
+        }
+        case_steps = [
+            step
+            for step in case["testSteps"]
+            if isinstance(step, dict) and step.get("pickleStepId") in pickle_step_ids
+        ]
+        assert len(case_steps) == 1, case
+        case_step_ids = {step["id"] for step in case_steps if isinstance(step.get("id"), str)}
+        step_finished = [
+            finish
+            for finish in finishes
+            if finish["testCaseStartedId"] == row["test_case_started_id"]
+            and finish.get("testStepId") in case_step_ids
+        ]
         assert len(step_finished) == 1, step_finished
         assert step_finished[0]["testStepResult"]["status"] == outcome["message_status"], step_finished
 

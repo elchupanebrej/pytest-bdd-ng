@@ -54,7 +54,7 @@ Feature: Live Cucumber progress bar
   Scenario: Selecting the progress bar without its formatter package fails before execution
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer prepares a progress-bar scenario that records execution
-    And Node and npm are available but the official progress formatter package is absent
+    And Node and npm are available but the official progress formatter package is unavailable to the consumer
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-progress-bar -q --color=no"
     Then missing progress-bar backend should fail before the scenario starts
 

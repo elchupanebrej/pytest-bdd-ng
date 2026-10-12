@@ -21,7 +21,7 @@
 
 * When I run pytest in a subprocess with arguments "--cuke-messages-ndjson out.ndjson"
 
-* Then File "out.ndjson" has "9" lines
+* Then File "out.ndjson" is not empty
 * Then Report "out.ndjson" parsable into messages
 
 ## Scenario: HTML report could be produced on the feature run

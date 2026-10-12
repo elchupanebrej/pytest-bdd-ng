@@ -231,7 +231,7 @@ Feature: Govern Cucumber Messages runtime capabilities
     When I remember the exact bytes of consumer file "report.json"
     And I run command "cuke" with arguments "messages capabilities report --messages-file invalid-messages.ndjson --input-kind runtime --output report.json --format json"
     Then the command should exit with code 2
-    And the command output should contain "invalid Messages envelope at line 1"
+    And the command output should contain "invalid Messages envelope in invalid-messages.ndjson at line 1"
     And consumer file "report.json" should match its remembered bytes
     And consumer file "missing-comment-decisions.json" contains:
       """json

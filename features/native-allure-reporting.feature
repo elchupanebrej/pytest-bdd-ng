@@ -88,7 +88,7 @@ Feature: Live native Allure reporting
     And the consumer contains two native Allure scenarios with distinct nested steps and attachments
     And the consumer installs pytest-cuke with its Allure extra
     And the consumer installs pinned pytest-xdist
-    And the consumer replays its first live worker batch at controller session finish
+    And the consumer replays its first controller-observed worker batch at controller session finish
     When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-parser=python --cuke-allure=allure-results -n 2 --dist=load -q"
     Then the native Allure consumer should exit nonzero
     And duplicate worker batches should be diagnosed without republishing to native Allure
