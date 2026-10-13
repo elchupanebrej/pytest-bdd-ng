@@ -151,6 +151,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--job", required=True)
     parser.add_argument("--cell", required=True)
+    parser.add_argument(
+        "--tox-env",
+        help="run only this tox environment from the selected inventory cell",
+    )
     parser.add_argument("--inventory", type=Path, default=Path("config/env-matrix.yaml"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--sha", default=os.environ.get("GITHUB_SHA"))
@@ -179,6 +183,13 @@ def main() -> int:
     if selected is None:
         _write_console_text(f"run-env-matrix: cell {args.cell!r} is not part of job {args.job!r}", stream=sys.stderr)
         return 2
+    if args.tox_env and args.tox_env not in selected["tox_envs"]:
+        _write_console_text(
+            f"run-env-matrix: tox environment {args.tox_env!r} is not part of cell {args.cell!r}",
+            stream=sys.stderr,
+        )
+        return 2
+    tox_environments = [args.tox_env] if args.tox_env else selected["tox_envs"]
 
     project_root = args.inventory.resolve().parent.parent
     output_path = args.output.resolve()
@@ -187,7 +198,7 @@ def main() -> int:
     tox_results_dir.mkdir(parents=True, exist_ok=True)
     environment_records: list[dict[str, Any]] = []
     overall_status = "passed"
-    for env_name in selected["tox_envs"]:
+    for env_name in tox_environments:
         result_json = tox_results_dir / f"{env_name}.json"
         remote_runtime_path = tox_results_dir / f"{env_name}.remote-workers.json"
         command = [tox, "run", "--result-json", str(result_json), "-e", env_name]

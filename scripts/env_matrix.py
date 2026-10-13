@@ -40,9 +40,37 @@ def load_cells(inventory_path: Path, job: str) -> list[dict[str, Any]]:
     return selected
 
 
+def split_cell_environments(cells: list[dict[str, Any]], cell_ids: list[str]) -> list[dict[str, Any]]:
+    """Expand selected cells into rows that each carry one tox environment."""
+    requested_ids = set(cell_ids)
+    available_ids = {str(cell.get("id")) for cell in cells}
+    unknown_ids = requested_ids - available_ids
+    if unknown_ids:
+        unknown = ", ".join(sorted(unknown_ids))
+        raise RuntimeError(f"cannot split unknown workflow cell(s): {unknown}")
+
+    rows: list[dict[str, Any]] = []
+    for cell in cells:
+        if cell.get("id") not in requested_ids:
+            rows.append(cell)
+            continue
+        for tox_environment in cell["tox_envs"]:
+            row = dict(cell)
+            row["tox_environment"] = tox_environment
+            rows.append(row)
+    return rows
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--job", required=True, help="workflow job key from workflow_cells")
+    parser.add_argument(
+        "--split-cells",
+        nargs="+",
+        default=[],
+        metavar="CELL_ID",
+        help="expand each named cell into one matrix row per tox environment",
+    )
     parser.add_argument(
         "--inventory",
         type=Path,
@@ -57,6 +85,10 @@ def main() -> int:
     args = parser.parse_args()
     try:
         cells = load_cells(args.inventory, args.job)
+        if args.split_cells:
+            if args.job != "full-matrix":
+                raise RuntimeError("--split-cells is supported only for the full-matrix job")
+            cells = split_cell_environments(cells, args.split_cells)
     except RuntimeError as error:
         print(f"env-matrix: {error}", file=sys.stderr)
         return 2
