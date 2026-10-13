@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import wraps
 from types import SimpleNamespace
 from typing import Any
 
@@ -14,6 +15,7 @@ from pytest_cuke.plugin import (
     _item_fixture_definitions,
     _scenario_has_matching_step,
 )
+from pytest_cuke.steps import registry as registry_module
 from pytest_cuke.steps.definition import Definition
 from pytest_cuke.steps.registry import Registry
 
@@ -139,6 +141,32 @@ def test_collection_registry_uses_applicable_registries_without_running_fixtures
 
     assert tuple(registry) == (child_definition, parent_definition, root_definition)
     assert invoked == []
+
+
+def test_collection_registry_reads_pytest_legacy_unwrapped_fixture_function(monkeypatch: Any) -> None:
+    definition = _definition("parent conftest step")
+    registry = Registry(definitions=OrderedSet((definition,)))
+
+    def legacy_fixture_decorator(function: Any) -> Any:
+        @wraps(function)
+        def fixture_wrapper(*args: Any, **kwargs: Any) -> Any:
+            return function(*args, **kwargs)
+
+        fixture_wrapper.__pytest_wrapped__ = SimpleNamespace(obj=function)
+        return fixture_wrapper
+
+    monkeypatch.setattr(registry_module.pytest, "fixture", legacy_fixture_decorator)
+    fixture = registry.fixture
+    underlying_fixture = fixture.__pytest_wrapped__.obj
+    fixture_definition = SimpleNamespace(func=underlying_fixture)
+    item = SimpleNamespace(
+        module=SimpleNamespace(),
+        session=SimpleNamespace(
+            _fixturemanager=SimpleNamespace(getfixturedefs=lambda name, _item: (fixture_definition,))
+        ),
+    )
+
+    assert tuple(_collection_step_registry(item)) == (definition,)
 
 
 def test_collection_matcher_treats_any_matching_step_as_partial_match() -> None:

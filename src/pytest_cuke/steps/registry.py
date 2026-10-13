@@ -79,11 +79,16 @@ class Registry:
             return self
 
         cast("StepRegistryProtocol", cast("object", step_registry)).__pytest_cuke_step_registry__ = self
-        # pytest 9 stores the underlying fixture function in FixtureDef.func,
-        # while the decorated wrapper retains fixture-specific metadata.
-        fixture_function = getattr(step_registry, "_fixture_function", None)
-        if fixture_function is not None:
-            setattr(fixture_function, "__pytest_cuke_step_registry__", self)
+        # FixtureDef.func can refer to a callable below pytest's fixture wrapper
+        # on older pytest versions, or to the function carried by the modern
+        # FixtureFunctionDefinition.
+        fixture_functions = (
+            getattr(step_registry, "_fixture_function", None),
+            getattr(getattr(step_registry, "__pytest_wrapped__", None), "obj", None),
+        )
+        for fixture_function in fixture_functions:
+            if fixture_function is not None:
+                fixture_function.__pytest_cuke_step_registry__ = self
         return cast("Callable[[Registry], Registry]", step_registry)
 
     def __iter__(self) -> Iterator[Definition]:

@@ -1593,16 +1593,21 @@ class MessagePlugin:
             worker_id=run_context.worker_id if run_context is not None else None,
         )
 
-        self._emit_ide_attachment(
-            config,
-            IDE_LAUNCH_MEDIA_TYPE,
-            {
-                "testCaseId": current_test_case.id,
-                "pickleId": current_test_case.pickle_id,
-                "nodeid": request.node.nodeid,
-                "sourceIdentity": identity,
-            },
-        )
+        launch_payload: dict[str, Any] = {
+            "testCaseId": current_test_case.id,
+            "pickleId": current_test_case.pickle_id,
+            "nodeid": request.node.nodeid,
+            "sourceIdentity": identity,
+        }
+        if external_source := scenario.external_example_source:
+            launch_payload["externalExamplesSource"] = {
+                "path": external_source.path,
+                "markerLine": external_source.marker_line,
+                "sectionIndex": external_source.section_index,
+                "rowIndex": external_source.row_index,
+                "sourceLine": external_source.source_line,
+            }
+        self._emit_ide_attachment(config, IDE_LAUNCH_MEDIA_TYPE, launch_payload)
 
         available_definitions = [definition_reference(definition, config) for definition in available_step_definitions]
         for test_step, (step, definition, candidates) in zip(test_steps, step_binding_records, strict=True):

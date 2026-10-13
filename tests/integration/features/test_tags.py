@@ -145,7 +145,7 @@ def test_at_in_scenario(testdir):
     strict_option = "--strict-markers" if compare_distribution_version("pytest", "6.2", ge) else "--strict"
 
     result = testdir.runpytest_subprocess(strict_option)
-    result.stdout.fnmatch_lines(["*= 2 passed * =*"])
+    assert result.parseoutcomes()["passed"] == 2
 
 
 def test_invalid_tags(testdir):

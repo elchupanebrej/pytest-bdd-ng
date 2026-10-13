@@ -103,6 +103,8 @@ def check_environment_inventory(
         set(tox_environments),
     )
     diagnostics.extend(support_ledger_diagnostics)
+    capability_exclusions, capability_exclusion_diagnostics = _validate_capability_exclusions(document, valid_lanes)
+    diagnostics.extend(capability_exclusion_diagnostics)
 
     cell_index = _index_cells(valid_cells, diagnostics)
     workflow_results = _check_workflow_jobs(project_root, valid_cells, diagnostics)
@@ -134,6 +136,7 @@ def check_environment_inventory(
             "toxEnvironments": tox_environments,
             "workflowCells": valid_cells,
             "supportLedger": support_ledger_summary,
+            "capabilityExclusions": capability_exclusions,
         },
         "proof": {
             "tox": {"command": list(TOX_LIST_COMMAND), "environments": tox_environments},
@@ -691,6 +694,163 @@ def _validate_support_ledger(
         },
         diagnostics,
     )
+
+
+def _validate_capability_exclusions(
+    document: dict[str, Any],
+    lanes: list[dict[str, Any]],
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    """Validate source-backed exclusions for optional capabilities on supported runtimes."""
+    diagnostics: list[dict[str, str]] = []
+    exclusions = document.get("capability_exclusions", [])
+    if not isinstance(exclusions, list):
+        return (
+            {"count": 0, "entries": []},
+            [
+                _diagnostic(
+                    "capability-exclusions",
+                    "capability-exclusions-invalid",
+                    "capability_exclusions must be a list",
+                    "Declare capability-specific unsupported combinations as a list of source-backed records.",
+                )
+            ],
+        )
+
+    seen_ids: set[str] = set()
+    seen_dimensions: set[tuple[str, str, str, str]] = set()
+    entries: list[dict[str, Any]] = []
+    supported_dimensions = {
+        (
+            str(lane.get("runtime", "")).casefold(),
+            str(lane.get("python", "")).casefold(),
+            str(lane.get("platform", "")).casefold(),
+        )
+        for lane in lanes
+        if _status(lane) in {"required", "optional"}
+    }
+    active_capabilities = {
+        (
+            str(lane.get("runtime", "")).casefold(),
+            str(lane.get("python", "")).casefold(),
+            str(lane.get("platform", "")).casefold(),
+            str(lane.get("capability", "")).casefold(),
+        )
+        for lane in lanes
+        if _status(lane) in {"required", "optional"}
+    }
+
+    for item in exclusions:
+        if not isinstance(item, dict):
+            diagnostics.append(
+                _diagnostic(
+                    "capability-exclusions",
+                    "capability-exclusion-invalid",
+                    "a capability exclusion record is not an object",
+                    "Declare ID, runtime, Python, platform, capability, unsupported status, basis, reason, and "
+                    "source evidence.",
+                )
+            )
+            continue
+
+        exclusion_id = item.get("id")
+        runtime = item.get("runtime")
+        python = item.get("python")
+        platform_name = item.get("platform")
+        capability = item.get("capability")
+        status = item.get("status")
+        basis = item.get("basis")
+        reason = item.get("reason")
+        dimensions = (
+            str(runtime or "").casefold(),
+            str(python or "").casefold(),
+            str(platform_name or "").casefold(),
+        )
+        key = (*dimensions, str(capability or "").casefold())
+        if (
+            not isinstance(exclusion_id, str)
+            or not exclusion_id
+            or not isinstance(runtime, str)
+            or not runtime
+            or not isinstance(python, str)
+            or not python
+            or not isinstance(platform_name, str)
+            or not platform_name
+            or not isinstance(capability, str)
+            or not capability
+            or status != "unsupported"
+            or not isinstance(basis, str)
+            or not basis.strip()
+            or not isinstance(reason, str)
+            or not reason.strip()
+            or not _has_source_evidence(item.get("source_evidence"))
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    str(exclusion_id or "capability-exclusions"),
+                    "capability-exclusion-invalid",
+                    "capability exclusions require ID, runtime, Python, platform, capability, unsupported status, "
+                    "basis, reason, and HTTP(S) source evidence",
+                    "Add the exact supported-runtime capability pair, explain the upstream constraint, and cite "
+                    "its source.",
+                )
+            )
+            continue
+
+        if exclusion_id in seen_ids:
+            diagnostics.append(
+                _diagnostic(
+                    exclusion_id,
+                    "capability-exclusion-id-duplicate",
+                    f"capability exclusion ID {exclusion_id!r} is duplicated",
+                    "Give each capability exclusion a unique ID.",
+                )
+            )
+        seen_ids.add(exclusion_id)
+        if key in seen_dimensions:
+            diagnostics.append(
+                _diagnostic(
+                    exclusion_id,
+                    "capability-exclusion-duplicate",
+                    f"capability exclusion {key!r} is duplicated",
+                    "Keep one record for each runtime/Python/platform/capability tuple.",
+                )
+            )
+        seen_dimensions.add(key)
+
+        if dimensions not in supported_dimensions:
+            diagnostics.append(
+                _diagnostic(
+                    exclusion_id,
+                    "capability-exclusion-runtime-unavailable",
+                    f"capability exclusion {key!r} has no required or optional base runtime lane",
+                    "Keep a required or optional base lane when excluding only one capability.",
+                )
+            )
+        if key in active_capabilities:
+            diagnostics.append(
+                _diagnostic(
+                    exclusion_id,
+                    "capability-exclusion-conflict",
+                    f"unsupported capability {capability!r} is also active for {runtime} Python {python} "
+                    f"on {platform_name}",
+                    "Remove the active lane for this capability or revise the exclusion record.",
+                )
+            )
+        entries.append(
+            {
+                "id": exclusion_id,
+                "runtime": runtime,
+                "python": python,
+                "platform": platform_name,
+                "capability": capability,
+                "status": status,
+                "basis": basis,
+                "reason": reason,
+                "sourceEvidence": item["source_evidence"],
+            }
+        )
+
+    return {"count": len(entries), "entries": entries}, diagnostics
 
 
 def _has_source_evidence(value: Any) -> bool:

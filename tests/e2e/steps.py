@@ -23,6 +23,7 @@ from textwrap import dedent, indent
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
+import pytest
 from packaging.version import Version
 from pytest import fixture
 
@@ -31,8 +32,6 @@ try:
 
     HTTPServer = pytest_httpserver.HTTPServer
 except ImportError:
-    import pytest
-
     pytest_httpserver = None
     HTTPServer = None
 
@@ -100,6 +99,56 @@ def _split_consumer_arguments(arguments: str) -> list[str]:
 def _normalized_path_text(value: str) -> str:
     """Normalize host-specific separators before comparing diagnostic paths."""
     return value.replace("\\", "/")
+
+
+_DEBUG_MCP_PYPY_WINDOWS_SKIP_REASON = (
+    "Debug MCP is unsupported for PyPy on Windows under #300: MCP SDK v1.x requires pywin32>=310 on Windows "
+    "for Python <3.14, and published pywin32 wheels target CPython only; see capability_exclusions in "
+    "config/env-matrix.yaml."
+)
+
+
+def _debug_mcp_capability_skip_reason(implementation: str, sys_platform: str) -> str | None:
+    """Return the declared upstream-compatibility exclusion for the one unsupported pair."""
+    if implementation.casefold() == "pypy" and sys_platform.casefold() == "win32":
+        return _DEBUG_MCP_PYPY_WINDOWS_SKIP_REASON
+    return None
+
+
+def _require_debug_mcp_capability(implementation: str, sys_platform: str) -> None:
+    reason = _debug_mcp_capability_skip_reason(implementation, sys_platform)
+    if reason is not None:
+        pytest.skip(reason)
+
+
+def _consumer_python_implementation_and_platform(consumer: ConsumerProject) -> tuple[str, str]:
+    probe = (
+        "import json, platform, sys; "
+        "print(json.dumps({'implementation': platform.python_implementation(), 'platform': sys.platform}))"
+    )
+    result = subprocess.run(
+        [str(consumer.python), "-c", probe],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, (
+        "could not identify the installed consumer runtime before installing Debug MCP: "
+        f"stdout={result.stdout!r}; stderr={result.stderr!r}"
+    )
+    try:
+        runtime = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise AssertionError(f"invalid installed consumer runtime probe: {result.stdout!r}") from error
+    assert isinstance(runtime, dict), runtime
+    implementation = runtime.get("implementation")
+    sys_platform = runtime.get("platform")
+    assert isinstance(implementation, str) and implementation, runtime
+    assert isinstance(sys_platform, str) and sys_platform, runtime
+    return implementation, sys_platform
 
 
 @dataclass
@@ -2507,6 +2556,7 @@ def consumer_external_examples_reports(consumer: ConsumerProject):
         assert set(pickle["astNodeIds"]).issubset(document_ast_ids[pickle["uri"]])
         assert step_texts[0] in {
             "the lookup service is ready",
+            "the user lookup service is ready",
             "the report session is open",
         }
         assert statuses_by_pickle[pickle["id"]]
@@ -11114,6 +11164,9 @@ def configure_consumer_pytest_signal_group(consumer: ConsumerProject) -> None:
 
 @given("the installed consumer has the optional debug MCP extra installed")
 def install_debug_mcp_extra(consumer: ConsumerProject) -> None:
+    implementation, sys_platform = _consumer_python_implementation_and_platform(consumer)
+    _require_debug_mcp_capability(implementation, sys_platform)
+
     uv_executable = shutil.which("uv")
     assert uv_executable, "the installed-consumer contract requires uv to install the optional MCP extra"
     install = subprocess.run(
@@ -11129,6 +11182,71 @@ def install_debug_mcp_extra(consumer: ConsumerProject) -> None:
         "could not install the optional debug-mcp consumer extra:\n"
         f"{install.stdout}\n{install.stderr}"
     )
+
+
+@then("the Debug MCP install guard should exclude only PyPy on Windows")
+def debug_mcp_install_guard_excludes_only_pypy_windows() -> None:
+    with pytest.raises(pytest.skip.Exception) as outcome:
+        _require_debug_mcp_capability("PyPy", "win32")
+    assert str(outcome.value) == _DEBUG_MCP_PYPY_WINDOWS_SKIP_REASON
+    _require_debug_mcp_capability("PyPy", "linux")
+    _require_debug_mcp_capability("CPython", "win32")
+    _require_debug_mcp_capability("CPython", "linux")
+
+
+@then("required PyPy Windows base lanes should record only the source-backed Debug MCP exclusion")
+def pypy_windows_base_lanes_remain_required_with_debug_mcp_exclusion(consumer: ConsumerProject) -> None:
+    context = getattr(consumer, "_environment_inventory_context", None)
+    assert context is not None, "the repository environment inventory has not been loaded"
+    document = context.document
+    lanes = document.get("lanes")
+    assert isinstance(lanes, list), lanes
+    base_lanes = {
+        str(lane.get("python")): lane
+        for lane in lanes
+        if isinstance(lane, dict)
+        and lane.get("runtime") == "PyPy"
+        and lane.get("platform") == "windows"
+        and lane.get("status") == "required"
+    }
+    assert set(base_lanes) == {"3.10", "3.11"}, base_lanes
+
+    exclusions = document.get("capability_exclusions")
+    assert isinstance(exclusions, list), exclusions
+    pypy_windows_debug_mcp = [
+        item
+        for item in exclusions
+        if isinstance(item, dict)
+        and item.get("runtime") == "PyPy"
+        and item.get("platform") == "windows"
+        and item.get("capability") == "debug-mcp"
+    ]
+    pypy_windows_exclusions = [
+        item
+        for item in exclusions
+        if isinstance(item, dict) and item.get("runtime") == "PyPy" and item.get("platform") == "windows"
+    ]
+    assert len(pypy_windows_exclusions) == 2, pypy_windows_exclusions
+    assert all(item.get("capability") == "debug-mcp" for item in pypy_windows_exclusions), pypy_windows_exclusions
+    assert {str(item.get("python")) for item in pypy_windows_debug_mcp} == {"3.10", "3.11"}, pypy_windows_debug_mcp
+    assert len(pypy_windows_debug_mcp) == 2, pypy_windows_debug_mcp
+    for item in pypy_windows_debug_mcp:
+        reason = str(item.get("reason", "")).casefold()
+        sources = item.get("source_evidence")
+        assert item.get("status") == "unsupported", item
+        assert item.get("basis") == "upstream-dependency-wheel-availability", item
+        assert "pywin32" in reason and "cpython" in reason, item
+        assert isinstance(sources, list) and any("modelcontextprotocol/python-sdk" in source for source in sources), item
+        assert any("pypi.org/project/pywin32/310" in source for source in sources), item
+
+    report = getattr(context, "report", None)
+    assert isinstance(report, dict), "the environment inventory check has not returned JSON"
+    summary = report.get("inventory", {}).get("capabilityExclusions")
+    assert isinstance(summary, dict) and summary.get("count") == 2, summary
+    assert {entry.get("id") for entry in summary.get("entries", []) if isinstance(entry, dict)} >= {
+        "pypy-310-windows-debug-mcp",
+        "pypy-311-windows-debug-mcp",
+    }, summary
 
 
 @then("the installed debug MCP extra should be importable, PyPy 3.10 compatible, and resolve a supported MCP SDK version")
