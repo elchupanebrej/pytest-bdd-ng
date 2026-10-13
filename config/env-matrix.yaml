@@ -1247,7 +1247,7 @@ lanes:
     workflow_selector: pypy-311-linux
     command: "tox run -e pypy311-pytest90-coverage-lin,pypy311-pytestlatest-coverage-lin,pypy311-pytestlatest-xdist-coverage-lin"
     prerequisites: [{type: python-package, name: coverage, remedy: "install coverage<7.5 in the PyPy tox environment"}]
-    expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+    expected_carrier: {kind: pytest, path: features/compatibility/pypy-runtime-acceptance.feature, command: "python -m pytest --cuke-autoload --cuke-features-dir=features features/compatibility/pypy-runtime-acceptance.feature -m e2e"}
   - id: pypy-311-macos-coverage
     status: required
     runtime: PyPy
@@ -1259,7 +1259,7 @@ lanes:
     workflow_selector: pypy-311-macos
     command: "tox run -e pypy311-pytest90-coverage-mac,pypy311-pytestlatest-coverage-mac"
     prerequisites: [{type: python-package, name: coverage, remedy: "install coverage<7.5 in the PyPy tox environment"}]
-    expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+    expected_carrier: {kind: pytest, path: features/compatibility/pypy-runtime-acceptance.feature, command: "python -m pytest --cuke-autoload --cuke-features-dir=features features/compatibility/pypy-runtime-acceptance.feature -m e2e"}
   - id: pypy-311-windows-coverage
     status: required
     runtime: PyPy
@@ -1271,7 +1271,7 @@ lanes:
     workflow_selector: pypy-311-windows
     command: "tox run -e pypy311-pytest90-coverage-win,pypy311-pytestlatest-coverage-win"
     prerequisites: [{type: python-package, name: coverage, remedy: "install coverage<7.5 in the PyPy tox environment"}]
-    expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+    expected_carrier: {kind: pytest, path: features/compatibility/pypy-runtime-acceptance.feature, command: "python -m pytest --cuke-autoload --cuke-features-dir=features features/compatibility/pypy-runtime-acceptance.feature -m e2e"}
   - id: pypy-310-linux-coverage
     status: required
     runtime: PyPy
