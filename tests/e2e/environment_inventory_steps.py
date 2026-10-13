@@ -87,6 +87,8 @@ def _inventory_command_environment(
     if pandoc_executable is not None:
         path_entries.append(str(Path(pandoc_executable).parent))
     path_entries.extend(environment.get("PATH", os.defpath).split(os.pathsep))
+    # Keep setup-python interpreters visible to tox even though the consumer PATH is isolated.
+    path_entries.extend(os.environ.get("PATH", os.defpath).split(os.pathsep))
     environment["PATH"] = os.pathsep.join(dict.fromkeys(path_entries))
     return environment
 
@@ -1642,7 +1644,7 @@ def remove_github_output_flag_from_selector_step(
     content = workflow_path.read_text(encoding="utf-8")
     selected_command = (
         "scripts/env_matrix.py --job full-matrix --split-cells "
-        "cpython-312-linux cpython-313-linux cpython-313-windows --github-output"
+        "cpython-312-linux cpython-313-linux cpython-313-macos cpython-313-windows --github-output"
     )
     command_without_export = selected_command.removesuffix(" --github-output")
     assert content.count(selected_command) == 1, (
@@ -1714,7 +1716,12 @@ def expand_selected_full_matrix_cells(
     split_index = selector_tokens.index("--split-cells")
     output_index = selector_tokens.index("--github-output")
     selected_ids = tuple(selector_tokens[split_index + 1 : output_index])
-    assert selected_ids == ("cpython-312-linux", "cpython-313-linux", "cpython-313-windows"), selected_ids
+    assert selected_ids == (
+        "cpython-312-linux",
+        "cpython-313-linux",
+        "cpython-313-macos",
+        "cpython-313-windows",
+    ), selected_ids
     selector_path = context.project_root / "scripts" / "env_matrix.py"
     selector_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(repository_root / "scripts" / "env_matrix.py", selector_path)

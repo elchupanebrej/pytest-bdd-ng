@@ -5,6 +5,7 @@ pytest_plugins = [
     "tests.support.pytester_local_config",
     "tests.e2e.steps",
     "tests.e2e.pytester_local_config_steps",
+    "tests.e2e.legacy_pytest_fixture_registry_steps",
     "tests.e2e.runtime_steps",
     "tests.e2e.windows_file_uri_steps",
     "tests.e2e.formatter_steps",

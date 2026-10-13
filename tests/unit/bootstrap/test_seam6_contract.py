@@ -49,7 +49,7 @@ def test_seam6_features_base_dir_configuration_contract() -> None:
     locators = list(_build_scenario_locators_from_mark(mark, config))
     file_locators = [loc for loc in locators if isinstance(loc, FileScenarioLocator)]
     assert len(file_locators) == 1
-    expected_base_dir = Path(config.rootpath.anchor) / "custom" / "features" / "dir"
+    expected_base_dir = Path("/custom/features/dir").resolve()
     assert Path(file_locators[0].features_base_dir) == expected_base_dir
 
 

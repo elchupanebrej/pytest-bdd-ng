@@ -89,7 +89,7 @@
     ```markdown
     # Feature: External Markdown users
     ## Scenario Outline: Look up a Markdown user
-      * Given the lookup service is ready
+      * Given the user lookup service is ready
       * Given user row <name> has tier <tier>
       * Then looked up user <name> has tier <tier>
     ### Examples:
