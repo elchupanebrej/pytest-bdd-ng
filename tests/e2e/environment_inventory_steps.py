@@ -1640,8 +1640,11 @@ def remove_github_output_flag_from_selector_step(
     context = temporary_environment_inventory
     cell, lane, workflow_path = _full_matrix_workflow_context(context)
     content = workflow_path.read_text(encoding="utf-8")
-    selected_command = "scripts/env_matrix.py --job full-matrix --github-output"
-    command_without_export = "scripts/env_matrix.py --job full-matrix"
+    selected_command = (
+        "scripts/env_matrix.py --job full-matrix --split-cells "
+        "cpython-312-linux cpython-313-linux cpython-313-windows --github-output"
+    )
+    command_without_export = selected_command.removesuffix(" --github-output")
     assert content.count(selected_command) == 1, (
         f"expected exactly one full-matrix output-producing step in {workflow_path}, "
         f"found {content.count(selected_command)}"
@@ -1683,6 +1686,97 @@ def missing_matrix_export_fails_actionably(
     diagnostic = matching[0]
     remedy = str(diagnostic.get("remedy", "")).casefold()
     assert remedy and any(action in remedy for action in ("github-output", "output", "export")), diagnostic
+
+
+@when(
+    "I expand the selected long full-matrix cells into tox environment rows",
+    target_fixture="expanded_full_matrix_rows",
+)
+def expand_selected_full_matrix_cells(
+    request: Any,
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> dict[str, Any]:
+    context = temporary_environment_inventory
+    repository_root = Path(request.config.rootpath)
+    inventory = context.document
+    workflow_relative_path = inventory.get("project", {}).get("workflow")
+    assert isinstance(workflow_relative_path, str), workflow_relative_path
+    workflow = yaml.safe_load((context.project_root / workflow_relative_path).read_text(encoding="utf-8"))
+    selector_steps = workflow["jobs"]["matrix-select"]["steps"]
+    selector_commands = [
+        step.get("run", "")
+        for step in selector_steps
+        if isinstance(step, dict) and "scripts/env_matrix.py --job full-matrix" in str(step.get("run", ""))
+    ]
+    assert len(selector_commands) == 1, selector_commands
+    selector_tokens = shlex.split(selector_commands[0])
+    assert "--split-cells" in selector_tokens and "--github-output" in selector_tokens, selector_tokens
+    split_index = selector_tokens.index("--split-cells")
+    output_index = selector_tokens.index("--github-output")
+    selected_ids = tuple(selector_tokens[split_index + 1 : output_index])
+    assert selected_ids == ("cpython-312-linux", "cpython-313-linux", "cpython-313-windows"), selected_ids
+    selector_path = context.project_root / "scripts" / "env_matrix.py"
+    selector_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(repository_root / "scripts" / "env_matrix.py", selector_path)
+    command = [
+        sys.executable,
+        str(selector_path),
+        "--job",
+        "full-matrix",
+        "--split-cells",
+        *selected_ids,
+        "--inventory",
+        str(context.inventory_path),
+    ]
+    result = subprocess.run(
+        command,
+        cwd=context.project_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"full-matrix expansion failed:\n{result.stdout}\n{result.stderr}"
+    rows = json.loads(result.stdout)
+    assert isinstance(rows, list) and all(isinstance(row, dict) for row in rows), rows
+    return {"rows": rows, "selected_ids": selected_ids, "inventory": inventory}
+
+
+@then("each selected tox environment should appear exactly once with canonical cell metadata")
+def expanded_full_matrix_rows_cover_selected_environments_once(
+    expanded_full_matrix_rows: dict[str, Any],
+) -> None:
+    inventory = expanded_full_matrix_rows["inventory"]
+    rows = expanded_full_matrix_rows["rows"]
+    selected_ids = set(expanded_full_matrix_rows["selected_ids"])
+    inventory_cells = inventory.get("workflow_cells")
+    assert isinstance(inventory_cells, list), inventory_cells
+    full_matrix_cells = [
+        cell for cell in inventory_cells if isinstance(cell, dict) and cell.get("job") == "full-matrix"
+    ]
+    expected_cells = {str(cell["id"]): cell for cell in full_matrix_cells}
+    assert selected_ids <= expected_cells.keys(), (selected_ids, expected_cells.keys())
+
+    expected_environments: list[str] = []
+    for cell_id in selected_ids:
+        tox_envs = expected_cells[cell_id].get("tox_envs")
+        assert isinstance(tox_envs, list) and tox_envs, expected_cells[cell_id]
+        expected_environments.extend(str(tox_env) for tox_env in tox_envs)
+
+    actual_environments = [row.get("tox_environment") for row in rows if row.get("id") in selected_ids]
+    assert sorted(actual_environments) == sorted(expected_environments), actual_environments
+    assert len(actual_environments) == len(set(actual_environments)), actual_environments
+
+    for cell in full_matrix_cells:
+        cell_id = str(cell["id"])
+        matching_rows = [row for row in rows if row.get("id") == cell_id]
+        if cell_id in selected_ids:
+            assert len(matching_rows) == len(cell["tox_envs"]), (cell_id, matching_rows)
+            for row in matching_rows:
+                assert row.get("tox_environment") in cell["tox_envs"], row
+                for key in ("id", "runtime", "python", "platform", "runner"):
+                    assert row.get(key) == cell.get(key), (key, cell, row)
+        else:
+            assert matching_rows == [cell], (cell, matching_rows)
 
 
 @when("I add an unsupported Windows lane overlapping the optional Windows lane")
