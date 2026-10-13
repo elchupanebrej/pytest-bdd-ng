@@ -5,6 +5,16 @@ Feature: Pytester child projects use a local default feature root
     When I run the pytester child with arguments "--cuke-autoload --cuke-parser=python -q"
     Then the pytester child should have one passing test
 
+  Scenario: In-process pytester uses the child project root
+    Given a pytester child has a plain Python test that checks its local feature root
+    When I run the pytester child in-process with arguments "--cuke-autoload --cuke-parser=python -q"
+    Then the pytester child should have one passing test
+
+  Scenario: Inline pytester uses the child project root
+    Given a pytester child has a plain Python test that checks its local feature root
+    When I run the pytester child inline with arguments "--cuke-autoload --cuke-parser=python -q"
+    Then the inline pytester child should have one passing test
+
   Scenario: An explicitly selected missing child feature root remains an error
     Given a pytester child has a plain Python test that checks its local feature root
     When I run the pytester child with arguments "--cuke-autoload --cuke-parser=python --cuke-features-dir=missing-features -q"
