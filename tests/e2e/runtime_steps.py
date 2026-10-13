@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import platform
 import re
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +40,48 @@ def _runtime_jsonl(relative_path: str, consumer: Any) -> list[dict[str, Any]]:
 
 def _messages_envelopes(relative_path: str, consumer: Any) -> list[dict[str, Any]]:
     return _jsonl_artifact_rows(relative_path, consumer, "Messages artifact")
+
+
+@then("the installed consumer should use the current PyPy 3.11 interpreter")
+def installed_consumer_uses_current_pypy_311_interpreter(consumer: Any) -> None:
+    expected_runtime = {
+        "implementation": platform.python_implementation(),
+        "version": [sys.version_info.major, sys.version_info.minor],
+    }
+    assert expected_runtime == {"implementation": "PyPy", "version": [3, 11]}, expected_runtime
+
+    probe = (
+        "import json, platform, sys; "
+        "print(json.dumps({'implementation': platform.python_implementation(), "
+        "'version': [sys.version_info.major, sys.version_info.minor]}))"
+    )
+    result = subprocess.run(
+        [str(consumer.python), "-c", probe],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"could not inspect installed consumer runtime:\n{result.stdout}\n{result.stderr}"
+    actual_runtime = json.loads(result.stdout)
+    assert actual_runtime == expected_runtime, (actual_runtime, expected_runtime)
+
+
+@then(
+    re.compile(
+        r'consumer Messages artifact "(?P<relative_path>[^"]+)" should identify scenario "(?P<scenario_name>[^"]+)"'
+    )
+)
+def consumer_messages_artifact_identifies_scenario(
+    relative_path: str,
+    scenario_name: str,
+    consumer: Any,
+) -> None:
+    envelopes = _messages_envelopes(relative_path, consumer)
+    pickles = [envelope["pickle"] for envelope in envelopes if isinstance(envelope.get("pickle"), dict)]
+    assert len(pickles) == 1, pickles
+    assert pickles[0].get("name") == scenario_name, pickles[0]
 
 
 @then(
