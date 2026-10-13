@@ -125,6 +125,11 @@ Feature: Supported environment inventory and acceptance proof
     When I wire a workflow job to a different matrix selection output
     Then the inventory check should fail with a scoped matrix output diagnostic
 
+  Scenario: Long full-matrix cells expand into canonical per-environment rows
+    Given the repository environment inventory is copied to a temporary project
+    When I expand the selected long full-matrix cells into tox environment rows
+    Then each selected tox environment should appear exactly once with canonical cell metadata
+
   Scenario: Selector steps export the matrix output consumed by workflow jobs
     Given the repository environment inventory is copied to a temporary project
     When I remove the GitHub output flag from a selector step

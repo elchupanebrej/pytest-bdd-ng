@@ -89,6 +89,14 @@ Feature: Aggregate the full supported environment proof
     When I run the environment matrix runner with a non-ASCII evidence path and cp1252 parent stdout when tox exits 23
     Then it should return failure and record tox exit 23 in evidence
 
+  Scenario: The matrix runner executes one selected tox environment with its canonical proof key
+    When I run the matrix runner for one tox environment selected from its cell
+    Then it should execute only that environment and record the canonical proof key and SHA
+
+  Scenario: The matrix runner rejects an environment outside its selected cell
+    When I run the matrix runner for a tox environment outside its cell
+    Then it should reject the environment before invoking tox or writing evidence
+
   Scenario: The aggregator accepts complete and interrupted runtime evidence from every remote transport
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
     When I run the full environment proof aggregator

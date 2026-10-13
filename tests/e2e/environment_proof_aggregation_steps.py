@@ -1688,3 +1688,141 @@ def proof_summary_fails_for_missing_tox_result_command(
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "command evidence" in proof_aggregation_result.stderr
+
+
+def _run_selected_matrix_environment(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+    *,
+    requested_environment: str,
+) -> dict[str, Any]:
+    monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
+    runner = importlib.import_module("run_env_matrix_cell")
+    project_root = tmp_path / "project"
+    inventory_path = project_root / "config" / "env-matrix.yaml"
+    inventory_path.parent.mkdir(parents=True)
+    inventory_path.write_text("{}\n", encoding="utf-8")
+    output_path = tmp_path / "artifacts" / "canonical-cell-evidence.json"
+    cell = {
+        "id": "cpython-313-linux",
+        "runtime": "CPython",
+        "python": "3.13",
+        "platform": "linux",
+        "runner": "ubuntu-latest",
+        "tox_envs": [
+            "py313-pytestlatest-runner-selected",
+            "py313-pytest90-runner-other",
+        ],
+    }
+    monkeypatch.setattr(runner.shutil, "which", lambda _executable: "tox")
+    monkeypatch.setattr(runner, "load_cells", lambda _inventory, _job: [cell])
+    monkeypatch.setattr(
+        runner,
+        "_installed_versions",
+        lambda _python: {
+            "python": "3.13.0",
+            "runtime": "CPython",
+            "packages": {"pytest": "9.0.1"},
+        },
+    )
+    monkeypatch.setattr(runner, "_python_in_tox_environment", lambda *_args: tmp_path / "python")
+    monkeypatch.setattr(runner, "_system_tool_evidence", lambda *_args, **_kwargs: ({}, {}))
+    monkeypatch.setattr(runner.platform, "platform", lambda: "synthetic-platform")
+    tox_calls: list[dict[str, Any]] = []
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        tox_calls.append({"command": command, **kwargs})
+        result_json = Path(command[command.index("--result-json") + 1])
+        result_json.parent.mkdir(parents=True, exist_ok=True)
+        result_json.write_text('{"testenvs": {}}\n', encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, stdout="1 passed in 0.01s\n", stderr="")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_env_matrix_cell.py",
+            "--job",
+            "full-matrix",
+            "--cell",
+            str(cell["id"]),
+            "--tox-env",
+            requested_environment,
+            "--inventory",
+            str(inventory_path),
+            "--output",
+            str(output_path),
+            "--sha",
+            _PROOF_SHA,
+        ],
+    )
+    returncode = runner.main()
+    return {
+        "returncode": returncode,
+        "tox_calls": tox_calls,
+        "output_path": output_path,
+        "cell": cell,
+        "requested_environment": requested_environment,
+    }
+
+
+@when(
+    "I run the matrix runner for one tox environment selected from its cell",
+    target_fixture="selected_matrix_environment_run",
+)
+def run_matrix_runner_for_one_selected_environment(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> dict[str, Any]:
+    return _run_selected_matrix_environment(
+        request,
+        tmp_path,
+        monkeypatch,
+        requested_environment="py313-pytestlatest-runner-selected",
+    )
+
+
+@then("it should execute only that environment and record the canonical proof key and SHA")
+def selected_matrix_environment_has_canonical_evidence(selected_matrix_environment_run: dict[str, Any]) -> None:
+    capture = selected_matrix_environment_run
+    assert capture["returncode"] == 0, capture
+    calls = capture["tox_calls"]
+    assert len(calls) == 1, calls
+    command = calls[0]["command"]
+    assert command[command.index("-e") + 1] == capture["requested_environment"], command
+
+    evidence = json.loads(capture["output_path"].read_text(encoding="utf-8"))
+    record = evidence["environments"][0]
+    assert evidence["job"] == record["job"] == "full-matrix", evidence
+    assert evidence["cell"] == record["cell"] == capture["cell"]["id"], evidence
+    assert record["tox_environment"] == capture["requested_environment"], record
+    assert evidence["git_sha"] == record["git_sha"] == _PROOF_SHA, evidence
+    assert len(evidence["environments"]) == 1, evidence
+
+
+@when(
+    "I run the matrix runner for a tox environment outside its cell",
+    target_fixture="rejected_matrix_environment_run",
+)
+def run_matrix_runner_for_environment_outside_cell(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> dict[str, Any]:
+    return _run_selected_matrix_environment(
+        request,
+        tmp_path,
+        monkeypatch,
+        requested_environment="py313-pytestlatest-not-in-cell",
+    )
+
+
+@then("it should reject the environment before invoking tox or writing evidence")
+def matrix_runner_rejects_environment_outside_cell(rejected_matrix_environment_run: dict[str, Any]) -> None:
+    capture = rejected_matrix_environment_run
+    assert capture["returncode"] == 2, capture
+    assert capture["tox_calls"] == [], capture
+    assert not capture["output_path"].exists(), capture

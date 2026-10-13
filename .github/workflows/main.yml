@@ -27,7 +27,7 @@ jobs:
         run: python -m pip install "PyYAML==6.0.3"
       - id: full
         name: Select full runtime cells from the inventory
-        run: python scripts/env_matrix.py --job full-matrix --github-output
+        run: python scripts/env_matrix.py --job full-matrix --split-cells cpython-312-linux cpython-313-linux cpython-313-windows --github-output
       - id: remote
         name: Select remote xdist cells from the inventory
         run: python scripts/env_matrix.py --job remote --github-output
@@ -110,6 +110,7 @@ jobs:
 
   full-matrix:
     if: github.event_name != 'pull_request'
+    name: Full runtime matrix (${{ matrix.cell.id }} / ${{ matrix.cell.tox_environment || 'all' }})
     needs: matrix-select
     runs-on: ${{ matrix.cell.runner }}
     timeout-minutes: 360
@@ -140,15 +141,15 @@ jobs:
           npm --version >> artifacts/tool-versions.txt
           pandoc --version >> artifacts/tool-versions.txt
           npm list --json --depth=0 > artifacts/npm-versions.json
-      - name: Run every tox environment selected by this runtime cell
+      - name: Run the selected tox environment or runtime cell
         shell: bash
-        run: python scripts/run_env_matrix_cell.py --job full-matrix --cell "${{ matrix.cell.id }}" --sha "${{ github.sha }}" --output "artifacts/evidence-full-matrix-${{ matrix.cell.id }}.json"
+        run: python scripts/run_env_matrix_cell.py --job full-matrix --cell "${{ matrix.cell.id }}" --tox-env "${{ matrix.cell.tox_environment || '' }}" --sha "${{ github.sha }}" --output "artifacts/evidence-full-matrix-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: env-evidence-full-${{ matrix.cell.id }}
+          name: env-evidence-full-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}
           path: |
-            artifacts/evidence-full-matrix-${{ matrix.cell.id }}.json
+            artifacts/evidence-full-matrix-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json
             artifacts/npm-versions.json
             artifacts/tool-versions.txt
           if-no-files-found: warn
