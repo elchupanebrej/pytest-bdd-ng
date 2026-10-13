@@ -152,7 +152,7 @@ def _wrap_pytester(pytester: Any) -> None:
     if getattr(pytester, _WRAPPED_ATTRIBUTE, False):
         return
 
-    for name in ("runpytest", "runpytest_inprocess", "runpytest_subprocess"):
+    for name in ("runpytest", "runpytest_inprocess", "runpytest_subprocess", "inline_run"):
         original_run = getattr(pytester, name)
 
         def run_with_local_config(*arguments: Any, _original_run=original_run, **kwargs: Any) -> Any:
