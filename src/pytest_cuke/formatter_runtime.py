@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import codecs
+import errno
 import json
 import os
 import queue
@@ -337,12 +338,25 @@ class _FormatterProcess:
                         raise BrokenPipeError("formatter stdin accepted no bytes")
                     remaining = remaining[written:]
         except (BrokenPipeError, OSError, ValueError) as error:
-            self._record_failure(
-                FormatterRuntimeError(
+            process = self._process
+            return_code = None
+            if isinstance(error, OSError) and error.errno == errno.EINVAL and process is not None:
+                return_code = process.poll()
+                if return_code is None:
+                    with suppress(subprocess.TimeoutExpired):
+                        return_code = process.wait(timeout=min(self.request.timeout_seconds, 0.1))
+
+            if return_code is not None:
+                failure = FormatterRuntimeError(
+                    f"{self.label.capitalize()} {self.request.name!r} exited before the Messages stream finished "
+                    f"(status {return_code})."
+                )
+            else:
+                failure = FormatterRuntimeError(
                     f"{self.label.capitalize()} {self.request.name!r} stopped reading Messages: "
                     f"{type(error).__name__}: {error}"
                 )
-            )
+            self._record_failure(failure)
         finally:
             with suppress(OSError):
                 process.stdin.close()

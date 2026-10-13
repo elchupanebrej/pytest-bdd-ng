@@ -449,7 +449,7 @@ def test_formatter_broken_pipe_is_reported_and_child_is_cleaned_up(tmp_path: Pat
     output = tmp_path / "formatter-output.txt"
     session = FormatterSession(
         _config(),
-        (_request(tmp_path, "import time; time.sleep(0.1)", output=output.name),),
+        (_request(tmp_path, "import sys; sys.stdin.buffer.readline()", output=output.name),),
     )
     session.start()
     session.pytest_cuke_message_validated(_config(), _started_message())
@@ -467,12 +467,47 @@ def test_formatter_broken_pipe_is_reported_and_child_is_cleaned_up(tmp_path: Pat
     while formatter.failure is None and time.monotonic() < deadline:
         time.sleep(0.01)
 
-    assert formatter.failure is not None and "stopped reading Messages" in str(formatter.failure)
+    assert formatter.failure is not None
+    assert any(
+        message in str(formatter.failure)
+        for message in (
+            "stopped reading Messages",
+            "exited before the Messages stream finished",
+        )
+    ), formatter.failure
     session.abort()
 
     assert formatter._process is not None and formatter._process.poll() is not None
     assert not output.exists()
     assert not list(tmp_path.glob(".formatter-output.txt.*.pytest-cuke-tmp"))
+
+
+def test_formatter_windows_closed_pipe_reports_early_child_exit(tmp_path: Path) -> None:
+    class ClosedPipe:
+        def write(self, data: bytes) -> int:
+            raise OSError(22, "Invalid argument")
+
+        def close(self) -> None:
+            pass
+
+    formatter = formatter_runtime._FormatterProcess(
+        _request(tmp_path, "pass"),
+        config=_config(),
+        label="Live formatter",
+    )
+    formatter._process = SimpleNamespace(
+        stdin=ClosedPipe(),
+        poll=lambda: None,
+        wait=lambda timeout: 17,
+    )
+    formatter._input.put(b"first message")
+
+    formatter._write_input()
+
+    assert formatter.failure is not None
+    assert "Live formatter 'test-formatter' exited before the Messages stream finished (status 17)" in str(
+        formatter.failure
+    )
 
 
 def test_formatter_detects_early_exit_and_removes_staged_output(

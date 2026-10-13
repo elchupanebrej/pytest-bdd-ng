@@ -34,9 +34,11 @@ Feature: Local and subprocess Cucumber Messages consolidation
           observations = Path(f"{messages_path}.worker-observations")
           observations.mkdir(parents=True, exist_ok=True)
           observation = observations / f"{case}-{uuid.uuid4().hex}.json"
-          observation.write_text(
+          temporary_observation = observation.with_suffix(".json.tmp")
+          temporary_observation.write_text(
               json.dumps({"case": case, "worker_id": worker_id}), encoding="utf-8"
           )
+          temporary_observation.replace(observation)
 
           deadline = time.monotonic() + 20
           while time.monotonic() < deadline:

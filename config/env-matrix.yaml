@@ -1780,3 +1780,35 @@ lanes:
     expected_carrier: {kind: none, path: src/pytest_cuke/compatibility/runtime_compat.py}
     reason: "pytest 8.0 predates official Python 3.13 support; pytest 8.2 added it."
     source_evidence: ["https://docs.pytest.org/en/8.4.x/changelog.html"]
+
+capability_exclusions:
+  - id: pypy-310-windows-debug-mcp
+    runtime: PyPy
+    python: "3.10"
+    platform: windows
+    capability: debug-mcp
+    status: unsupported
+    basis: upstream-dependency-wheel-availability
+    reason: >-
+      The Debug MCP extra resolves MCP SDK v1.x, which requires pywin32>=310 on
+      Windows for Python versions below 3.14. Published pywin32 wheels target
+      CPython only, so this optional capability cannot be installed on PyPy;
+      the required PyPy 3.10 Windows base environment remains supported.
+    source_evidence:
+      - https://github.com/modelcontextprotocol/python-sdk/blob/v1.x/pyproject.toml#L718-L724
+      - https://pypi.org/project/pywin32/310/
+  - id: pypy-311-windows-debug-mcp
+    runtime: PyPy
+    python: "3.11"
+    platform: windows
+    capability: debug-mcp
+    status: unsupported
+    basis: upstream-dependency-wheel-availability
+    reason: >-
+      The Debug MCP extra resolves MCP SDK v1.x, which requires pywin32>=310 on
+      Windows for Python versions below 3.14. Published pywin32 wheels target
+      CPython only, so this optional capability cannot be installed on PyPy;
+      the required PyPy 3.11 Windows base environment remains supported.
+    source_evidence:
+      - https://github.com/modelcontextprotocol/python-sdk/blob/v1.x/pyproject.toml#L718-L724
+      - https://pypi.org/project/pywin32/310/

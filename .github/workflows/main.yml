@@ -27,7 +27,7 @@ jobs:
         run: python -m pip install "PyYAML==6.0.3"
       - id: full
         name: Select full runtime cells from the inventory
-        run: python scripts/env_matrix.py --job full-matrix --split-cells cpython-312-linux cpython-313-linux cpython-313-windows --github-output
+        run: python scripts/env_matrix.py --job full-matrix --split-cells cpython-312-linux cpython-313-linux cpython-313-macos cpython-313-windows --github-output
       - id: remote
         name: Select remote xdist cells from the inventory
         run: python scripts/env_matrix.py --job remote --github-output

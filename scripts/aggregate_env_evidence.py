@@ -181,10 +181,17 @@ def _system_tool_command_matches(
         return False
     executable = command.get("executable")
     argv = command.get("argv")
+    if isinstance(executable, str):
+        executable_path = (
+            PureWindowsPath(executable) if platform_name in {"win32", "windows"} else PurePosixPath(executable)
+        )
+        absolute_executable = executable_path.is_absolute()
+    else:
+        absolute_executable = False
     if (
         not isinstance(executable, str)
         or not executable
-        or not (Path(executable).is_absolute() or PureWindowsPath(executable).is_absolute())
+        or not absolute_executable
         or not isinstance(argv, list)
         or not argv
         or any(not isinstance(part, str) or not part for part in argv)

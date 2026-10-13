@@ -27,6 +27,12 @@ import {
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
 const envelopes = [];
 const stepDefinitionsById = new Map();
+const picklesById = new Map();
+const testCasesById = new Map();
+const testCaseStarted = [];
+const testCaseFinishedByStartedId = new Map();
+const externalExamplesSourcesByPickleId = new Map();
+let report = "";
 
 const createSupportCodeLibrary = () => {
   let generatedId = 0;
@@ -55,6 +61,36 @@ for await (const line of input) {
   if (stepDefinition && typeof stepDefinition.id === "string") {
     stepDefinitionsById.set(stepDefinition.id, stepDefinition);
   }
+  if (envelope.pickle && typeof envelope.pickle.id === "string") {
+    picklesById.set(envelope.pickle.id, envelope.pickle);
+  }
+  if (envelope.testCase && typeof envelope.testCase.id === "string") {
+    testCasesById.set(envelope.testCase.id, envelope.testCase);
+  }
+  if (envelope.testCaseStarted && typeof envelope.testCaseStarted.id === "string") {
+    testCaseStarted.push(envelope.testCaseStarted);
+  }
+  if (envelope.testCaseFinished && typeof envelope.testCaseFinished.testCaseStartedId === "string") {
+    testCaseFinishedByStartedId.set(
+      envelope.testCaseFinished.testCaseStartedId,
+      envelope.testCaseFinished,
+    );
+  }
+  const attachment = envelope.attachment;
+  if (
+    attachment?.mediaType === "application/vnd.pytest-bdd.launch+json"
+    && attachment.contentEncoding === "IDENTITY"
+    && typeof attachment.body === "string"
+  ) {
+    const launch = JSON.parse(attachment.body);
+    if (
+      typeof launch.pickleId === "string"
+      && launch.externalExamplesSource
+      && typeof launch.externalExamplesSource.path === "string"
+    ) {
+      externalExamplesSourcesByPickleId.set(launch.pickleId, launch.externalExamplesSource);
+    }
+  }
   envelopes.push(envelope);
 }
 
@@ -66,7 +102,7 @@ await FormatterBuilder.build(JsonFormatter, {
   eventBroadcaster,
   eventDataCollector,
   log: (output) => {
-    if (output) process.stdout.write(output);
+    if (output) report += output;
   },
   parsedArgvOptions: {},
   stream: process.stdout,
@@ -77,6 +113,36 @@ await FormatterBuilder.build(JsonFormatter, {
 for (const envelope of envelopes) {
   eventBroadcaster.emit("envelope", envelope);
 }
+
+const externalExamplesByFeatureAndName = new Map();
+for (const started of testCaseStarted) {
+  if (testCaseFinishedByStartedId.get(started.id)?.willBeRetried) continue;
+  const testCase = testCasesById.get(started.testCaseId);
+  const pickle = picklesById.get(testCase?.pickleId);
+  const source = externalExamplesSourcesByPickleId.get(pickle?.id);
+  if (!pickle || !source) continue;
+
+  const key = JSON.stringify([pickle.uri, pickle.name]);
+  const queue = externalExamplesByFeatureAndName.get(key) ?? [];
+  queue.push({
+    path: source.path,
+    marker_line: source.markerLine,
+    section_index: source.sectionIndex,
+    row_index: source.rowIndex,
+    source_line: source.sourceLine,
+  });
+  externalExamplesByFeatureAndName.set(key, queue);
+}
+
+const features = JSON.parse(report);
+for (const feature of features) {
+  for (const element of feature.elements ?? []) {
+    const key = JSON.stringify([feature.uri, element.name]);
+    const source = externalExamplesByFeatureAndName.get(key)?.shift();
+    if (source) element.external_examples_source = source;
+  }
+}
+process.stdout.write(JSON.stringify(features, null, 2));
 """.strip()
 
 
