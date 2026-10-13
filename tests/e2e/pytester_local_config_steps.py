@@ -41,9 +41,30 @@ def run_pytester_child(arguments: str, pytester: Any) -> Any:
     return pytester.runpytest_subprocess(*shlex.split(arguments))
 
 
+@when(
+    re.compile(r'I run the pytester child in-process with arguments "(?P<arguments>[^"]*)"'),
+    target_fixture="pytester_child_result",
+)
+def run_pytester_child_in_process(arguments: str, pytester: Any) -> Any:
+    return pytester.runpytest(*shlex.split(arguments))
+
+
+@when(
+    re.compile(r'I run the pytester child inline with arguments "(?P<arguments>[^"]*)"'),
+    target_fixture="pytester_child_result",
+)
+def run_pytester_child_inline(arguments: str, testdir: Any) -> Any:
+    return testdir.inline_run(*shlex.split(arguments))
+
+
 @then("the pytester child should have one passing test")
 def pytester_child_has_one_passing_test(pytester_child_result: Any) -> None:
     pytester_child_result.assert_outcomes(passed=1)
+
+
+@then("the inline pytester child should have one passing test")
+def inline_pytester_child_has_one_passing_test(pytester_child_result: Any) -> None:
+    pytester_child_result.assertoutcome(passed=1)
 
 
 @then("the pytester child should report its selected missing feature root")
