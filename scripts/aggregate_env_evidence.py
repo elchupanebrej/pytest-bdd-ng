@@ -92,13 +92,13 @@ def _workflow_link_identity(value: Any, *, job_link: bool) -> tuple[str, str, st
 
 
 def _pytest_factor(tox_environment: str) -> str | None:
-    match = re.search(r"(?:^|-)pytest(\d{2}|latest)(?:-|$)", tox_environment)
+    match = re.search(r"(?:^|-)pytest(\d{2}|9|latest)(?:-|$)", tox_environment)
     return match.group(1) if match else None
 
 
 def _pytest_factor_pair(tox_environment: str) -> tuple[int, int] | None:
     factor = _pytest_factor(tox_environment)
-    if factor is None or factor == "latest":
+    if factor is None or factor == "latest" or len(factor) == 1:
         return None
     return int(factor[0]), int(factor[1])
 
@@ -161,7 +161,7 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
                 expected_interpreter = cell.get("expected_interpreter")
                 if not isinstance(expected_interpreter, str) or not expected_interpreter:
                     expected_interpreter = f"{python}.*" if _version_pair(python) is not None else python
-                expected[key] = {
+                specification = {
                     "group": evidence_group(job, name),
                     "runtime": runtime,
                     "python": python,
@@ -169,6 +169,7 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
                     "architecture": expected_architecture,
                     "expected_interpreter": expected_interpreter,
                 }
+                expected[key] = specification
     return expected
 
 
@@ -492,9 +493,13 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                 f"inventory expects {specification['platform']!r}"
             )
             invalid_groups.add(expected_group)
-        if not _architecture_matches(specification["architecture"], record.get("architecture")):
+        architecture = record.get("architecture")
+        if not isinstance(architecture, str) or not architecture.strip():
+            errors.append(f"{job}/{cell}/{tox_environment} is missing architecture evidence")
+            invalid_groups.add(expected_group)
+        elif not _architecture_matches(specification["architecture"], architecture):
             errors.append(
-                f"{job}/{cell}/{tox_environment} reports architecture {record.get('architecture')!r}; "
+                f"{job}/{cell}/{tox_environment} reports architecture {architecture!r}; "
                 f"inventory expects {specification['architecture']!r}"
             )
             invalid_groups.add(expected_group)
@@ -673,6 +678,17 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                 f"tox factor requires {declared_pytest_pair[0]}.{declared_pytest_pair[1]}"
             )
             invalid_groups.add(expected_group)
+        if (
+            actual_pytest_pair is not None
+            and declared_pytest_factor is not None
+            and len(declared_pytest_factor) == 1
+            and actual_pytest_pair[0] != int(declared_pytest_factor)
+        ):
+            errors.append(
+                f"{job}/{cell}/{tox_environment} reports pytest {pytest_version!r}; "
+                f"tox factor requires major version {declared_pytest_factor}"
+            )
+            invalid_groups.add(expected_group)
         for remote_error in _remote_worker_evidence_errors(record, specification):
             errors.append(remote_error)
             invalid_groups.add(expected_group)
@@ -722,6 +738,9 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                     "system_tool_commands",
                     "platform",
                     "platform_name",
+                    "os_name",
+                    "os_release",
+                    "architecture",
                     "command",
                     "selected_tests",
                     "passed_tests",

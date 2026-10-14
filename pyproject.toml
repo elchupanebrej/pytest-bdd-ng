@@ -67,6 +67,7 @@ dependencies = [
   "parse_type>=0.6.6",
   "pathvalidate",
   "py",
+  "pydantic>=2.0.3",
   "referencing>=0.30",
   "pytest>=7.0",
   "cucumber-tag-expressions",
@@ -272,7 +273,7 @@ DEP002 = [
   "pandoc",
   "types-PyYAML",
 ]
-DEP003 = ["pluggy", "tomli"]
+DEP003 = ["pluggy"]
 
 [tool.mutmut]
 mutate_only_covered_lines = true
@@ -316,7 +317,9 @@ required_distributions = [
 
 [tool.pytest-cuke.compatibility]
 python-factors = ["3.11", "3.12", "3.13", "3.14", "3.15"]
-pytest-factors = ["7.4", "8.4", "9.0", "latest"]
+pytest-factors = [
+  "7.0", "7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "9.0", "9", "latest"
+]
 execution-targets = ["lin", "mac", "win"]
 tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
 compatibility-source = "pytest-official-policy-and-release-notes"

@@ -1,24 +1,12 @@
 from __future__ import annotations
 
 import ast
-import sys
+import tomllib
 from pathlib import Path
 
 from pytest import mark
 
 pytestmark = mark.unit
-
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    try:
-        import tomllib  # type: ignore[no-redef]
-    except ImportError:
-        try:
-            import tomli as tomllib  # type: ignore[no-redef]
-        except ImportError:
-            import tomllib  # type: ignore[no-redef]
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LAYERS_CONFIG_PATH = REPO_ROOT / "docs" / "architecture" / "layers.toml"

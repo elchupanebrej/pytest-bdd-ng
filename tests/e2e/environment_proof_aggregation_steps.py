@@ -106,12 +106,12 @@ def _group_for(job: str, tox_environment: str) -> str:
 
 
 def _pytest_version(tox_environment: str, group: str) -> str | None:
-    match = re.search(r"(?:^|-)pytest(?P<factor>\d{2}|latest)(?:-|$)", tox_environment)
+    match = re.search(r"(?:^|-)pytest(?P<factor>\d{1,2}|latest)(?:-|$)", tox_environment)
     if match and match.group("factor") == "latest":
         return "9.0.1"
     if match:
         factor = match.group("factor")
-        return f"{factor[0]}.{factor[1]}.0"
+        return f"{factor[0]}.{factor[1]}.0" if len(factor) == 2 else f"{factor}.0.0"
     if tox_environment == "typecheck":
         return "9.0.1"
     return "9.0.1" if group in _TEST_GROUPS else None
@@ -243,6 +243,7 @@ def _remote_worker_runs(
     python_version: str,
     pytest_version: str | None,
     xdist_version: str | None,
+    architecture: str,
 ) -> list[dict[str, Any]]:
     mode = _REMOTE_MODES.get(cell_id)
     assert mode is not None, f"unknown remote transport cell {cell_id!r}"
@@ -253,6 +254,7 @@ def _remote_worker_runs(
         "python": f"{python_version}.0",
         "pytest": pytest_version,
         "pytest-xdist": xdist_version,
+        "architecture": architecture,
     }
     return [
         {
@@ -322,11 +324,13 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
             python_version = cell_record.get("python")
             runtime = cell_record.get("runtime")
             expected_platform = cell_record.get("platform")
+            architecture = cell_record.get("architecture", "x86_64")
             pytest_version = _pytest_version(tox_environment, group)
             optional_versions = _optional_versions(tox_environment)
             assert isinstance(python_version, str) and python_version, cell_record
             assert isinstance(runtime, str) and runtime, cell_record
             assert isinstance(expected_platform, str) and expected_platform in _PLATFORM_NAMES, cell_record
+            assert isinstance(architecture, str) and architecture, cell_record
             platform_name = _PLATFORM_NAMES[expected_platform]
             environment: dict[str, Any] = {
                 "git_sha": context.git_sha,
@@ -347,7 +351,7 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
                 "runtime": runtime,
                 "python": _actual_python_version(python_version),
                 "pytest": pytest_version,
-                "architecture": "x86_64",
+                "architecture": architecture,
                 "job_url": f"https://github.com/example/project/actions/runs/123456/job/{2000 + artifact_index}",
                 "run_url": "https://github.com/example/project/actions/runs/123456",
                 "selected_tests": 1 if group in _TEST_GROUPS else None,
@@ -374,6 +378,7 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
                     python_version,
                     pytest_version,
                     optional_versions.get("pytest-xdist"),
+                    architecture,
                 )
             artifact_path = input_directory / f"evidence-{artifact_index:04d}.json"
             artifact_index += 1
@@ -443,6 +448,14 @@ def _graalpy_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
         None,
     )
     assert artifact is not None, "the inventory must contain the required GraalPy runtime"
+    return artifact
+
+
+def _first_architecture_declared_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
+    cells = _load_cells(context.inventory_path)
+    cell_ids = {cell.get("id") for cell in cells if cell.get("architecture")}
+    artifact = next((item for item in context.artifacts if item.cell in cell_ids), None)
+    assert artifact is not None, "the inventory must declare architecture on a cell with a tox environment"
     return artifact
 
 
@@ -758,6 +771,37 @@ def remove_pytest_xdist_from_optional_environment(proof_aggregation: ProofAggreg
         None,
     )
     assert artifact is not None, "the inventory must contain an optional xdist environment"
+
+    def mutate(environment: dict[str, Any]) -> None:
+        optional_versions = environment["optional_versions"]
+        optional_versions["pytest-xdist"] = None
+        tox_result = environment["tox_result"]
+        tox_entry = tox_result["testenvs"][artifact.tox_environment]
+        tox_entry["installed_packages"] = [
+            package
+            for package in tox_entry["installed_packages"]
+            if package.partition("==")[0].casefold() != "pytest-xdist"
+        ]
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("one environment omits its architecture")
+def omit_environment_architecture(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_architecture_declared_artifact(proof_aggregation)
+    _mutate_environment(artifact, lambda environment: environment.pop("architecture", None))
+
+
+@given("one environment reports an architecture that disagrees with its workflow cell")
+def assign_environment_architecture_mismatch(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_architecture_declared_artifact(proof_aggregation)
+    _mutate_environment(artifact, lambda environment: environment.__setitem__("architecture", "arm64"))
+
+
+@given("one parallel environment is missing its required pytest-xdist package")
+def remove_required_pytest_xdist_from_parallel_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = next((item for item in proof_aggregation.artifacts if item.group == "parallel"), None)
+    assert artifact is not None, "the inventory must contain a parallel environment"
 
     def mutate(environment: dict[str, Any]) -> None:
         optional_versions = environment["optional_versions"]
@@ -1160,6 +1204,7 @@ def proof_summary_preserves_actual_environment_evidence(proof_aggregation: Proof
     preserved_fields = (
         "runtime",
         "python",
+        "architecture",
         "pytest",
         "optional_versions",
         "system_tool_versions",
@@ -1368,6 +1413,20 @@ def proof_summary_fails_for_missing_debug_mcp_uv_version(
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "requires system tool 'uv' with an actual version" in proof_aggregation_result.stderr
+
+@then("every evidence record should retain its declared architecture")
+def proof_summary_preserves_declared_architecture(proof_aggregation: ProofAggregationContext) -> None:
+    summary_environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(summary_environments, list), summary_environments
+    cells = {cell["id"]: cell for cell in _load_cells(proof_aggregation.inventory_path)}
+    assert summary_environments, summary_environments
+    for environment in summary_environments:
+        assert isinstance(environment, dict), environment
+        architecture = environment.get("architecture")
+        assert isinstance(architecture, str) and architecture, environment
+        declared = cells[environment["cell"]].get("architecture")
+        if declared is not None:
+            assert architecture == declared, (environment, cells[environment["cell"]])
 
 
 @then("the proof summary should preserve Linux Windows and macOS runner evidence")
@@ -2200,6 +2259,28 @@ def proof_summary_fails_for_runtime_python_and_platform_mismatches(
         assert diagnostic in proof_aggregation_result.stderr
 
 
+@then("the proof summary should fail for missing architecture evidence")
+def proof_summary_fails_for_missing_architecture(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    diagnostic = proof_aggregation_result.stderr.casefold()
+    assert "architecture" in diagnostic and "missing" in diagnostic, diagnostic
+
+
+@then("the proof summary should fail for mismatched architecture evidence")
+def proof_summary_fails_for_mismatched_architecture(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    diagnostic = proof_aggregation_result.stderr.casefold()
+    assert "architecture" in diagnostic and "arm64" in diagnostic and "x86_64" in diagnostic, diagnostic
+
+
 @then("the proof summary should fail with a no tests passed diagnostic")
 def proof_summary_fails_when_no_selected_tests_passed(
     proof_aggregation: ProofAggregationContext,
@@ -2418,6 +2499,7 @@ def _run_selected_matrix_environment(
         "runtime": "CPython",
         "python": "3.13",
         "platform": "linux",
+        "architecture": "x86_64",
         "runner": "ubuntu-latest",
         "tox_envs": [
             "py313-pytestlatest-runner-selected",
@@ -2563,6 +2645,7 @@ def selected_matrix_environment_has_canonical_evidence(selected_matrix_environme
             "outcome": "passed",
         },
     }, record
+    assert record["architecture"] == capture["cell"]["architecture"], record
     assert len(evidence["environments"]) == 1, evidence
 
 

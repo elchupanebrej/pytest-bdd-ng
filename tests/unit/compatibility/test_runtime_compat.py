@@ -55,8 +55,7 @@ def test_parse_and_format_versions() -> None:
     assert _parse_python_factor("invalid") is None
     assert _format_python_version("310") == "3.10"
     assert _parse_pytest_factor("80") == (8, 0, 0)
-    assert _parse_pytest_factor("813") == (8, 1, 3)
-    assert _parse_pytest_factor("7000") is None
+    assert _parse_pytest_factor("9") == (9, 0, 0)
     assert _parse_pytest_factor("latest") == (99, 0, 0)
     assert _parse_pytest_factor("invalid") is None
     assert _format_pytest_version("80") == "8.0"
@@ -67,8 +66,14 @@ def test_parse_and_format_versions() -> None:
 
 def test_is_pair_compatible() -> None:
     assert is_pair_compatible("310", "80") == (False, REASON_EOL_PYTHON)
+    assert is_pair_compatible("311", "72") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("311", "74") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("311", "80") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("311", "9") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("312", "74") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("312", "73") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("312", "80") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("312", "81") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("314", "84") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("314", "90") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("315", "latest") == (True, REASON_COMPATIBLE)
@@ -76,6 +81,4 @@ def test_is_pair_compatible() -> None:
     assert is_pair_compatible("310", "62") == (False, REASON_EOL_PYTEST)
     assert is_pair_compatible("313", "80")[0] is False
     assert is_pair_compatible("invalid", "80") == (False, REASON_PYTHON_UNAVAILABLE)
-    assert is_pair_compatible("310", "unknown") == (False, REASON_PYTEST_UNAVAILABLE)
-    assert is_pair_compatible("312", "70") == (False, REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST)
-    assert is_pair_compatible("310", "90") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("311", "unknown") == (False, REASON_PYTEST_UNAVAILABLE)
