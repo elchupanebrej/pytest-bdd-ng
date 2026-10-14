@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import configparser
 import importlib
 import io
@@ -14,6 +15,8 @@ import shlex
 import shutil
 import subprocess
 import sys
+import uuid
+import tomllib
 from dataclasses import dataclass
 from importlib.metadata import version as distribution_version
 from pathlib import Path
@@ -22,6 +25,8 @@ from typing import Any
 
 import pytest
 import yaml
+from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 from pytest_cuke import given, parsers, then, when
 from pytest_cuke.compatibility.environment_matrix import _collected_count, check_environment_inventory
 from pytest_cuke.compatibility.runtime_compat import is_pair_compatible
@@ -94,6 +99,30 @@ def _required_runtime_cells(context: EnvironmentInventoryContext) -> list[dict[s
 
 def _runtime_cell_key(cell: dict[str, Any]) -> tuple[str, str, str, str]:
     return tuple(str(cell.get(key, "")).casefold() for key in ("runtime", "python", "platform", "architecture"))  # type: ignore[return-value]
+def _runtime_inventory(context: EnvironmentInventoryContext) -> dict[str, Any]:
+    inventory = context.document.get("runtime_inventory")
+    assert isinstance(inventory, dict), "config/env-matrix.yaml must declare runtime_inventory"
+    assert inventory.get("schema_version") == 1, inventory
+    assert isinstance(inventory.get("rows"), list), inventory
+    assert isinstance(inventory.get("exclusions"), list), inventory
+    return inventory
+
+
+_CANONICAL_RUNTIME_RECORD_FIELDS = {
+    "id",
+    "runtime",
+    "python",
+    "pytest",
+    "platform",
+    "architecture",
+    "availability",
+    "installability",
+    "support",
+    "required_ci",
+    "result",
+    "evidence",
+    "exclusion_reason",
+}
 
 
 def _lane_text(lane: dict[str, Any]) -> str:
@@ -1530,6 +1559,66 @@ def cpython_311_linux_cell_requires_x86_64(consumer: Any) -> None:
         "workflow_cell": workflow_cell.get("architecture"),
     }
     assert actual_architectures == {"runtime_policy": "x86_64", "workflow_cell": "x86_64"}, actual_architectures
+@then("required lanes should include CPython 3.11 and 3.14")
+def required_lanes_include_supported_cpython_targets(consumer: Any) -> None:
+    required = [lane for lane in _lanes(_context(consumer)) if _status(lane) == "required"]
+    for python_version in ("3.11", "3.14"):
+        assert any(
+            "cpython" in str(lane["runtime"]).casefold() and str(lane["python"]).startswith(python_version)
+            for lane in required
+        ), python_version
+
+
+@then("required lanes should exercise compatible pytest 7 8 and 9 versions")
+def required_lanes_exercise_supported_pytest_majors(consumer: Any) -> None:
+    required = [lane for lane in _lanes(_context(consumer)) if _status(lane) == "required"]
+    observed_majors = {major for lane in required for major in _majors(lane.get("pytest"))}
+    assert {7, 8, 9} <= observed_majors, observed_majors
+
+
+@then("the older viable pytest minors should use compatible Python lanes")
+def older_pytest_minors_use_compatible_python_lanes(consumer: Any) -> None:
+    required = [lane for lane in _lanes(_context(consumer)) if _status(lane) == "required"]
+    for lane in required:
+        python = str(lane.get("python", "")).replace(".", "")
+        tox_environments = str(lane.get("tox_env", "")).split(",")
+        for tox_environment in tox_environments:
+            match = re.match(r"py(?P<python>\d+)-pytest(?P<pytest>\d+)(?:-|$)", tox_environment.strip())
+            if match is None:
+                continue
+            python_factor = match.group("python")
+            pytest_factor = match.group("pytest")
+            if python and python_factor != python:
+                continue
+            compatible, reason = is_pair_compatible(python_factor, pytest_factor)
+            assert compatible, (
+                f"required lane {_lane_id(lane)!r} selects upstream-incompatible Python/pytest pair "
+                f"{python_factor}/{pytest_factor}: {reason}"
+            )
+
+
+@then("Python 3.9 and pytest versions below 7 should be explicitly unsupported and unselected")
+def below_floor_runtime_and_pytest_factors_are_not_selected(consumer: Any) -> None:
+    context = _context(consumer)
+    project = context.document.get("project")
+    assert isinstance(project, dict), project
+    python_floor = SpecifierSet(str(project.get("python_requirement", "")))
+    pytest_floor = SpecifierSet(str(project.get("pytest_requirement", "")))
+    assert python_floor.contains("3.11.0") and not python_floor.contains("3.9.99"), project
+    assert pytest_floor.contains("7.0") and not pytest_floor.contains("6.99"), project
+
+    for lane in _lanes(context):
+        selected = _status(lane) in {"required", "optional"}
+        python_version = str(lane.get("python", ""))
+        pytest_majors = _majors(lane.get("pytest"))
+        selected_tox_environments = str(lane.get("tox_env", "")).split(",") if selected else []
+        below_floor = python_version.startswith("3.9") or any(major < 7 for major in pytest_majors)
+        if below_floor:
+            assert _status(lane) == "unsupported", lane
+            assert not lane.get("workflow_selector") and not lane.get("tox_env"), lane
+        for tox_environment in selected_tox_environments:
+            match = re.match(r"py\d+-pytest(?P<pytest>\d+)(?:-|$)", tox_environment.strip())
+            assert match is None or int(match.group("pytest")) >= 70, lane
 
 
 @then("required CPython cells should use latest pytest 9 with the specified pytest 7 and 8 floor cells")
@@ -1694,6 +1783,7 @@ def retired_pypy_runtime_and_capability_exclusions_remain_historical(consumer: A
 def every_upstream_compatible_pairing_retains_pytest_7_support(consumer: Any) -> None:
     from pytest_cuke.compatibility.runtime_compat import PYTEST_COMPATIBILITY_BOUNDS
 
+    pairs: set[tuple[str, str]] = set()
     python_versions = {
         str(cell["python"])
         for cell in _required_runtime_cells(_context(consumer))
@@ -1713,6 +1803,16 @@ def every_upstream_compatible_pairing_retains_pytest_7_support(consumer: Any) ->
                 f"Python {python_version} and pytest {pytest_factor} are permitted upstream, "
                 f"but product compatibility reports {reason}"
             )
+            pairs.add((python_factor, pytest_factor))
+
+    expected = {
+        ("311", "72"),
+        ("312", "73"),
+        ("312", "74"),
+        ("312", "80"),
+        ("312", "81"),
+    }
+    assert expected <= pairs, f"older viable pytest tox pairings are missing: {sorted(expected - pairs)!r}"
 
 
 @then("each unsupported runtime or pytest pairing should have upstream evidence and a reason")
@@ -1778,6 +1878,266 @@ def _has_http_sources(value: Any) -> bool:
         and bool(value)
         and all(isinstance(source, str) and source.startswith(("https://", "http://")) for source in value)
     )
+
+
+@then("the project should require CPython 3.11 and pytest 7 or newer")
+def project_runtime_and_pytest_floors_are_current(consumer: Any) -> None:
+    project_path = _context(consumer).repository_root / "pyproject.toml"
+    project = tomllib.loads(project_path.read_text(encoding="utf-8"))["project"]
+    python_floor = SpecifierSet(str(project["requires-python"]))
+    assert python_floor.contains("3.11.0"), project["requires-python"]
+    assert not python_floor.contains("3.10.99"), project["requires-python"]
+
+    test_requirements = [Requirement(str(item)) for item in project["optional-dependencies"]["test"]]
+    pytest_requirement = next(
+        requirement
+        for requirement in test_requirements
+        if re.sub(r"[-_.]+", "-", requirement.name).casefold() == "pytest"
+    )
+    assert pytest_requirement.specifier.contains("7.0"), pytest_requirement
+    assert not pytest_requirement.specifier.contains("6.99"), pytest_requirement
+
+
+@then("CPython 3.10 and PyPy 3.11 should be explicit source-backed runtime exclusions")
+def obsolete_cpython_and_pypy_runtimes_are_canonical_exclusions(consumer: Any) -> None:
+    context = _context(consumer)
+    inventory = _runtime_inventory(context)
+    exclusions = inventory["exclusions"]
+    expected = {
+        ("CPython", "3.10"): "blocked",
+        ("PyPy", "3.11"): "not_assessed",
+    }
+    for (runtime, python_version), installability in expected.items():
+        matches = [
+            item
+            for item in exclusions
+            if item.get("runtime") == runtime and str(item.get("python", "")).startswith(python_version)
+        ]
+        assert matches, f"runtime_inventory.exclusions is missing {runtime} {python_version}"
+        for exclusion in matches:
+            assert exclusion.get("availability") == "available", exclusion
+            assert exclusion.get("installability") == installability, exclusion
+            assert exclusion.get("support") == "unsupported", exclusion
+            assert exclusion.get("required_ci") is False, exclusion
+            assert exclusion.get("result") == "not_required", exclusion
+            assert isinstance(exclusion.get("evidence"), dict) and exclusion["evidence"], exclusion
+            assert (
+                isinstance(exclusion.get("exclusion_reason"), str) and exclusion["exclusion_reason"].strip()
+            ), exclusion
+        supported_rows = [
+            row
+            for row in inventory["rows"]
+            if row.get("runtime") == runtime
+            and str(row.get("python", "")).startswith(python_version)
+            and row.get("support") == "supported"
+        ]
+        assert not supported_rows, supported_rows
+
+
+@then(
+    "canonical runtime records should keep availability installability core support required CI result evidence "
+    "and exclusion reason distinct"
+)
+def canonical_runtime_dimensions_remain_separate(consumer: Any) -> None:
+    inventory = _runtime_inventory(_context(consumer))
+    records = [*inventory["rows"], *inventory["exclusions"]]
+    assert records, inventory
+    for record in records:
+        missing = _CANONICAL_RUNTIME_RECORD_FIELDS - record.keys()
+        assert not missing, f"canonical runtime record is missing distinct fields {sorted(missing)}: {record}"
+        assert record["availability"] in {"available", "unavailable", "unknown"}, record
+        assert record["installability"] in {"verified", "blocked", "not_assessed"}, record
+        assert record["support"] in {"supported", "unsupported"}, record
+        assert isinstance(record["required_ci"], bool), record
+        assert record["result"] in {"recorded_in_evidence", "not_run", "not_required"}, record
+        assert record["evidence"] is None or isinstance(record["evidence"], dict), record
+        assert record["exclusion_reason"] is None or (
+            isinstance(record["exclusion_reason"], str) and record["exclusion_reason"].strip()
+        ), record
+
+    for row in inventory["rows"]:
+        assert row["exclusion_reason"] is None, row
+    for exclusion in inventory["exclusions"]:
+        assert exclusion["support"] == "unsupported", exclusion
+        assert exclusion["required_ci"] is False, exclusion
+        assert isinstance(exclusion["exclusion_reason"], str) and exclusion["exclusion_reason"].strip(), exclusion
+
+
+@then("the first required runtime row should be Linux x86_64 CPython 3.11 with pytest 9 and complete evidence")
+def first_required_runtime_row_has_complete_evidence(consumer: Any) -> None:
+    inventory = _runtime_inventory(_context(consumer))
+    rows = inventory["rows"]
+    assert rows, inventory
+    row = rows[0]
+    assert row.get("id") == "cpython-311-linux-x86_64-pytest9latest", row
+    assert row.get("runtime") == "CPython", row
+    assert str(row.get("python", "")).startswith("3.11"), row
+    assert row.get("pytest") and 9 in _majors(row["pytest"]), row
+    assert "latest" in json.dumps(row["pytest"], ensure_ascii=False).casefold(), row
+    assert row.get("platform") == "linux", row
+    assert row.get("architecture") == "x86_64", row
+    assert row.get("availability") == "available", row
+    assert row.get("installability") == "verified", row
+    assert row.get("support") == "supported", row
+    assert row.get("required_ci") is True, row
+    assert row.get("result") == "recorded_in_evidence", row
+    evidence = row.get("evidence")
+    assert isinstance(evidence, dict) and evidence, row
+    assert evidence.get("job") == "full-matrix", evidence
+    assert evidence.get("cell") == "cpython-311-linux", evidence
+    assert evidence.get("tox_environment") == "py311-pytest9-coverage-lin", evidence
+    assert isinstance(evidence.get("artifact_name"), str) and evidence["artifact_name"], evidence
+    assert isinstance(evidence.get("artifact_path"), str) and evidence["artifact_path"], evidence
+    required_fields = evidence.get("required_fields")
+    assert isinstance(required_fields, list), evidence
+    assert {
+        "git_sha",
+        "runtime",
+        "python",
+        "pytest",
+        "platform_name",
+        "architecture",
+        "command",
+        "selected_tests",
+        "passed_tests",
+        "outcome",
+        "returncode",
+    } <= set(required_fields), evidence
+    evidence_text = json.dumps(evidence, ensure_ascii=False, sort_keys=True).casefold()
+    assert "py311-pytest9-coverage-lin" in evidence_text, evidence
+    assert "cpython-311-linux" in evidence_text, evidence
+    assert row.get("exclusion_reason") is None, row
+
+
+@when("I change the canonical runtime artifact name")
+def change_canonical_runtime_artifact_name(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    row = context.document["runtime_inventory"]["rows"][0]
+    row["evidence"]["artifact_name"] += "-unlinked"
+    context.inventory_path.write_text(
+        yaml.safe_dump(context.document, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    context.report = check_environment_inventory(context.inventory_path)
+
+
+@then("the inventory check should reject the unlinked runtime artifact")
+def unlinked_runtime_artifact_fails_inventory_check(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    report = temporary_environment_inventory.report
+    assert report is not None, "the direct environment inventory check has not run"
+    assert report.get("status") == "fail", report
+    diagnostics = report.get("diagnostics")
+    assert isinstance(diagnostics, list), report
+    assert any(
+        isinstance(item, dict)
+        and item.get("laneId") == "cpython-311-linux-x86_64-pytest9latest"
+        and item.get("code") == "runtime-evidence-artifact-mismatch"
+        for item in diagnostics
+    ), diagnostics
+
+
+@when("I rename the runtime evidence artifact and its workflow upload outside the aggregate pattern")
+def rename_runtime_evidence_artifact_outside_aggregate_pattern(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    row = context.document["runtime_inventory"]["rows"][0]
+    evidence = row["evidence"]
+    job_id = evidence["job"]
+    workflow_relative_path = context.document["project"]["workflow"]
+    workflow_path = context.project_root / workflow_relative_path
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+    job = workflow["jobs"][job_id]
+    upload_steps = [
+        step
+        for step in job["steps"]
+        if isinstance(step, dict)
+        and str(step.get("uses", "")).startswith("actions/upload-artifact@")
+        and isinstance(step.get("with"), dict)
+        and str(step["with"].get("name", "")).startswith("env-evidence-full-")
+    ]
+    assert len(upload_steps) == 1, upload_steps
+
+    unaggregated_name = "uncollected-runtime-results-cpython-311-linux"
+    workflow_upload_name = str(upload_steps[0]["with"]["name"])
+    assert workflow_text.count(workflow_upload_name) == 1, workflow_upload_name
+    evidence["artifact_name"] = unaggregated_name
+    context.inventory_path.write_text(
+        yaml.safe_dump(context.document, sort_keys=False, allow_unicode=True), encoding="utf-8"
+    )
+    workflow_path.write_text(workflow_text.replace(workflow_upload_name, unaggregated_name, 1), encoding="utf-8")
+    context.report = check_environment_inventory(context.inventory_path)
+
+
+@then("the inventory check should reject the artifact excluded by the aggregate download")
+def runtime_evidence_artifact_outside_aggregate_pattern_fails(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    report = temporary_environment_inventory.report
+    assert report is not None, "the direct environment inventory check has not run"
+    assert report.get("status") == "fail", report
+    diagnostics = report.get("diagnostics")
+    assert isinstance(diagnostics, list), report
+    matching = [
+        item
+        for item in diagnostics
+        if isinstance(item, dict)
+        and item.get("laneId") == "cpython-311-linux-x86_64-pytest9latest"
+        and item.get("code") == "runtime-evidence-artifact-mismatch"
+    ]
+    assert matching, diagnostics
+    assert "aggregate download pattern" in str(matching[0].get("message", "")).casefold(), matching[0]
+
+
+@then("optional integration outcomes should remain independent from core runtime support")
+def optional_integration_outcomes_do_not_change_core_support(consumer: Any) -> None:
+    inventory = _runtime_inventory(_context(consumer))
+    row = next(
+        (item for item in inventory["rows"] if item.get("id") == "cpython-311-linux-x86_64-pytest9latest"), None
+    )
+    assert row is not None, inventory
+    assert row["support"] == "supported", row
+    optional_integrations = row.get("optional_integrations")
+    assert isinstance(optional_integrations, dict) and optional_integrations, row
+    for name, integration in optional_integrations.items():
+        assert isinstance(integration, dict), (name, integration)
+        assert {"compatibility", "result", "evidence"} <= integration.keys(), (name, integration)
+        assert integration["compatibility"] == "not_assessed", (name, integration)
+        assert integration["result"] == "not_run", (name, integration)
+        assert integration["evidence"] is None, (name, integration)
+
+    changed_document = copy.deepcopy(_context(consumer).document)
+    changed_row = next(
+        item
+        for item in changed_document["runtime_inventory"]["rows"]
+        if item["id"] == row["id"]
+    )
+    core_support = changed_row["support"]
+    for integration in changed_row["optional_integrations"].values():
+        integration.update(
+            compatibility="incompatible",
+            result="failed",
+            evidence={"artifact": "optional-integration-failure.json"},
+        )
+    repository_root = _context(consumer).repository_root
+    temporary_inventory = repository_root / "config" / f".runtime-inventory-{uuid.uuid4().hex}.yaml"
+    try:
+        temporary_inventory.write_text(yaml.safe_dump(changed_document, sort_keys=False), encoding="utf-8")
+        report = check_environment_inventory(temporary_inventory)
+    finally:
+        temporary_inventory.unlink(missing_ok=True)
+    assert report["status"] == "pass", report.get("diagnostics")
+    checked_inventory = report["inventory"]["runtimeInventory"]
+    checked_row = next(item for item in checked_inventory["rows"] if item["id"] == row["id"])
+    assert checked_row["support"] == core_support == "supported", checked_row
+    assert all(
+        integration["compatibility"] == "incompatible" and integration["result"] == "failed"
+        for integration in checked_row["optional_integrations"].values()
+    ), checked_row
 
 
 @then("the pre-commit lane should resolve to a tox command that runs pre-commit")
@@ -2868,6 +3228,56 @@ def messages_schema_inventory_uses_installed_schema_fixture(request: pytest.Fixt
         f"messages-schema inventory must use --source-dir {source_directory!r} for cucumber-messages {release}; "
         f"configured={configured_source_directories!r}"
     )
+
+
+@then(
+    "installed package metadata should require Python 3.11 and pytest 7 without implementation-specific dependency "
+    "markers"
+)
+def installed_metadata_declares_runtime_floors_without_implementation_markers(consumer: Any) -> None:
+    metadata_script = (
+        "import json; from importlib.metadata import distribution; dist=distribution('pytest-cuke'); "
+        "print(json.dumps({'requires_python': dist.metadata.get('Requires-Python'), "
+        "'requires_dist': dist.metadata.get_all('Requires-Dist') or []}))"
+    )
+    result = subprocess.run(
+        [str(consumer.python), "-c", metadata_script],
+        cwd=consumer.path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"could not read installed pytest-cuke metadata: {result.stderr}"
+    metadata = json.loads(result.stdout)
+    assert isinstance(metadata, dict), metadata
+    python_floor = metadata.get("requires_python")
+    assert isinstance(python_floor, str) and python_floor, metadata
+    python_specifier = SpecifierSet(python_floor)
+    assert python_specifier.contains("3.11.0"), python_floor
+    assert not python_specifier.contains("3.10.99"), python_floor
+
+    requirement_lines = metadata.get("requires_dist")
+    assert isinstance(requirement_lines, list), metadata
+    requirements = [Requirement(line) for line in requirement_lines]
+    pytest_requirements = [
+        requirement
+        for requirement in requirements
+        if re.sub(r"[-_.]+", "-", requirement.name).casefold() == "pytest"
+    ]
+    assert pytest_requirements, requirements
+    assert all(requirement.specifier.contains("7.0") for requirement in pytest_requirements), pytest_requirements
+    assert all(not requirement.specifier.contains("6.99") for requirement in pytest_requirements), pytest_requirements
+
+    implementation_markers = [
+        str(requirement)
+        for requirement in requirements
+        if requirement.marker is not None
+        and any(
+            marker_name in str(requirement.marker).casefold()
+            for marker_name in ("implementation_name", "platform_python_implementation")
+        )
+    ]
+    assert not implementation_markers, implementation_markers
 
 
 @given(

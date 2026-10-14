@@ -89,6 +89,23 @@ Feature: Aggregate the full supported environment proof
     And the optional Allure environment omits its Allure CLI version
     When I run the full environment proof aggregator
     Then the proof summary should fail for missing optional Allure CLI evidence
+  Scenario: Required evidence preserves its declared architecture
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And every evidence record should retain its declared architecture
+
+  Scenario: The aggregator rejects an environment without architecture evidence
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one environment omits its architecture
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for missing architecture evidence
+
+  Scenario: The aggregator rejects architecture that disagrees with its workflow cell
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one environment reports an architecture that disagrees with its workflow cell
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for mismatched architecture evidence
 
   Scenario: Live formatter acceptance outcomes appear in the aggregate proof
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory

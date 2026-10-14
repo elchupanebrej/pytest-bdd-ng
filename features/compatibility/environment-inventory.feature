@@ -91,6 +91,29 @@ Feature: Supported environment inventory and acceptance proof
     And each unsupported runtime or pytest pairing should have upstream evidence and a reason
     And every runtime exclusion should record upstream availability installability product support required CI measured evidence and a named reason
     And PyPy 3.10 and 3.11 exclusions should remain source-backed historical runtime records
+    Then required lanes should include CPython 3.11 and 3.14
+    And required lanes should exercise compatible pytest 7 8 and 9 versions
+    And the older viable pytest minors should use compatible Python lanes
+    And Python 3.9 and pytest versions below 7 should be explicitly unsupported and unselected
+
+  Scenario: Runtime floors and canonical inventory keep core support evidence distinct
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    Then the project should require CPython 3.11 and pytest 7 or newer
+    And CPython 3.10 and PyPy 3.11 should be explicit source-backed runtime exclusions
+    And canonical runtime records should keep availability installability core support required CI result evidence and exclusion reason distinct
+    And the first required runtime row should be Linux x86_64 CPython 3.11 with pytest 9 and complete evidence
+    And optional integration outcomes should remain independent from core runtime support
+
+  Scenario: Required runtime evidence links to the uploaded and aggregated CI artifact
+    Given the repository environment inventory is copied to a temporary project
+    When I change the canonical runtime artifact name
+    Then the inventory check should reject the unlinked runtime artifact
+
+  Scenario: Required runtime evidence artifact names match the aggregate download pattern
+    Given the repository environment inventory is copied to a temporary project
+    When I rename the runtime evidence artifact and its workflow upload outside the aggregate pattern
+    Then the inventory check should reject the artifact excluded by the aggregate download
 
   Scenario: The pre-commit environment resolves to the lint command
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
@@ -185,6 +208,9 @@ Feature: Supported environment inventory and acceptance proof
     Then the environment inventory check should pass
     And the optional Debug MCP integration cell should install and run its acceptance feature
     And optional integration evidence should include the Debug MCP environment
+  Scenario: Installed metadata enforces the Python and pytest floors without PyPy-specific markers
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    Then installed package metadata should require Python 3.11 and pytest 7 without implementation-specific dependency markers
 
   Scenario: Live formatter acceptance uses inventory selected lanes on every platform
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project

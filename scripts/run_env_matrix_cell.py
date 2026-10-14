@@ -438,6 +438,8 @@ def main() -> int:
             "returncode": run.returncode,
             "platform": preflight["platform"],
             "platform_name": preflight["platform_name"],
+            "os_name": platform.system(),
+            "os_release": platform.release(),
             "architecture": preflight["architecture"],
             "job_url": job_url,
             "run_url": run_url,

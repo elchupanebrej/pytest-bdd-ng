@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
 import pytest
+from packaging.version import Version
 from pytest import fixture
 
 try:
@@ -104,6 +105,8 @@ def _normalized_path_text(value: str) -> str:
 _DEBUG_MCP_PYPY_WINDOWS_SKIP_REASON = (
     "Debug MCP is unsupported for PyPy on Windows: MCP SDK v1.x requires pywin32>=310 on Windows "
     "for Python <3.14, and published pywin32 wheels target CPython only."
+    "Debug MCP is unsupported for PyPy on Windows because MCP SDK v1.x requires pywin32>=310 for Python <3.14, "
+    "and published pywin32 wheels target CPython only. PyPy is excluded from the core runtime inventory."
 )
 
 
@@ -8267,7 +8270,7 @@ def compatibility_pair_reports_project_support(support: str, consumer: ConsumerP
 def consumer_with_default_and_alternate_compatibility_configs(consumer: ConsumerProject) -> None:
     _write_compatibility_pyproject(
         consumer,
-        python_factors=("311",),
+        python_factors=("311", "312"),
         pytest_factors=("80", "latest"),
         execution_targets=("lin", "win"),
     )
@@ -8310,12 +8313,12 @@ def tox_expansion_is_deterministic_and_complete(consumer: ConsumerProject) -> No
     assert all(run.returncode == 0 for run in runs), [(run.stdout, run.stderr) for run in runs]
     assert runs[0].stdout == runs[1].stdout, "repeated tox expansion changed its JSON output"
     names = json.loads(runs[-1].stdout)["toxEnvNames"]
-    assert len(names) == 4 and len(set(names)) == 4, names
+    assert len(names) == 8 and len(set(names)) == 8, names
     assert set(names) == {
-        "py311-pytest80-lin",
-        "py311-pytest80-win",
-        "py311-pytestlatest-lin",
-        "py311-pytestlatest-win",
+        f"py{python}-pytest{pytest}-{target}"
+        for python in ("311", "312")
+        for pytest in ("80", "latest")
+        for target in ("lin", "win")
     }
 
 
@@ -11509,6 +11512,56 @@ def install_debug_mcp_extra(consumer: ConsumerProject) -> None:
         f"{install.stdout}\n{install.stderr}"
     )
 
+
+@then("the Debug MCP install guard should exclude only PyPy on Windows")
+def debug_mcp_install_guard_excludes_only_pypy_windows() -> None:
+    with pytest.raises(pytest.skip.Exception) as outcome:
+        _require_debug_mcp_capability("PyPy", "win32")
+    assert str(outcome.value) == _DEBUG_MCP_PYPY_WINDOWS_SKIP_REASON
+    _require_debug_mcp_capability("PyPy", "linux")
+    _require_debug_mcp_capability("CPython", "win32")
+    _require_debug_mcp_capability("CPython", "linux")
+
+
+@then("the installed debug MCP extra should be importable on CPython 3.11 or newer and resolve a supported MCP SDK version")
+def installed_debug_mcp_extra_is_supported_cpython(consumer: ConsumerProject) -> None:
+    probe = (
+        "import importlib, json, platform, sys\n"
+        "from importlib.metadata import version\n"
+        "for module in ('cryptography', 'mcp', 'mcp_pdb.main', 'uvicorn'):\n"
+        "    importlib.import_module(module)\n"
+        "import cryptography\n"
+        "print(json.dumps({\n"
+        "    'implementation': platform.python_implementation(),\n"
+        "    'python': list(sys.version_info[:2]),\n"
+        "    'cryptography': cryptography.__version__,\n"
+        "    'mcp': version('mcp'),\n"
+        "}))\n"
+    )
+    result = subprocess.run(
+        [str(consumer.python), "-c", probe],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, (
+        "the installed debug-mcp dependencies could not be imported:\n"
+        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
+    resolved = json.loads(result.stdout)
+    assert isinstance(resolved, dict), f"invalid runtime probe output: {result.stdout!r}"
+    assert isinstance(resolved.get("cryptography"), str), f"missing cryptography version: {resolved!r}"
+    assert isinstance(resolved.get("mcp"), str), f"missing mcp version: {resolved!r}"
+    assert resolved.get("implementation") == "CPython", resolved
+    assert resolved.get("python", [0, 0]) >= [3, 11], resolved
+    mcp_version = Version(resolved["mcp"])
+    assert Version("1.24") <= mcp_version < Version("2"), (
+        f"the Debug MCP SDK requires mcp>=1.24,<2, but resolved {mcp_version}:\n"
+        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    )
 
 
 @when(re.compile(r'I start installed pytest for MCP inspection with arguments "(?P<arguments>[^"]*)"'))

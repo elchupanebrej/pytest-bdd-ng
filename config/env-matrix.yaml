@@ -15,8 +15,9 @@ project:
     rationale: "Fast feedback only; it is not a full-matrix acceptance result."
   evidence:
     command: "tox run --result-json tox-result.json -e <environment>"
-    fields: [git_sha, tox_environment, runtime, python, pytest, platform, architecture, optional_versions, system_tool_versions, system_tool_commands, remote_worker_runs, command, selected_tests, passed_tests, outcome, job_url, run_url]
+    fields: [git_sha, job, cell, tox_environment, runtime, python, pytest, platform, platform_name, os_name, os_release, architecture, optional_versions, system_tool_versions, system_tool_commands, remote_worker_runs, command, selected_tests, passed_tests, outcome, returncode, job_url, run_url]
     aggregate_groups: [serial, parallel, e2e, external, quality, optional]
+
 
 runtime_policy:
   schema_version: 1
@@ -436,6 +437,78 @@ runtime_policy:
     source_evidence:
     - https://www.graalvm.org/latest/python/docs/
     - https://github.com/elchupanebrej/pytest-bdd-ng/issues/323
+
+runtime_inventory:
+  schema_version: 1
+  rows:
+    - id: cpython-311-linux-x86_64-pytest9latest
+      runtime: CPython
+      python: "3.11"
+      pytest: "9.x latest"
+      platform: linux
+      architecture: x86_64
+      availability: available
+      installability: verified
+      support: supported
+      required_ci: true
+      result: recorded_in_evidence
+      evidence:
+        job: full-matrix
+        cell: cpython-311-linux
+        tox_environment: py311-pytest9-coverage-lin
+        artifact_name: env-evidence-full-cpython-311-linux-py311-pytest9-coverage-lin
+        artifact_path: artifacts/evidence-full-matrix-cpython-311-linux-py311-pytest9-coverage-lin.json
+        required_fields: [git_sha, job, cell, tox_environment, runtime, python, pytest, platform, platform_name, os_name, os_release, architecture, command, selected_tests, passed_tests, outcome, returncode, job_url, run_url]
+      exclusion_reason: null
+      optional_integrations:
+        allure:
+          compatibility: not_assessed
+          result: not_run
+          evidence: null
+  exclusions:
+    - id: cpython-310-retired
+      runtime: CPython
+      python: "3.10"
+      pytest: "7.x and newer"
+      platform: all
+      architecture: any
+      availability: available
+      installability: blocked
+      support: unsupported
+      required_ci: false
+      result: not_required
+      evidence:
+        source: https://github.com/elchupanebrej/pytest-bdd-ng/issues/319
+      exclusion_reason: "The product now requires CPython 3.11 or newer."
+    - id: pypy-311-retired
+      runtime: PyPy
+      python: "3.11"
+      pytest: "7.x and newer"
+      platform: all
+      architecture: any
+      availability: available
+      installability: not_assessed
+      support: unsupported
+      required_ci: false
+      result: not_required
+      evidence:
+        source: https://github.com/elchupanebrej/pytest-bdd-ng/issues/319
+      exclusion_reason: "PyPy is no longer part of the declared runtime support policy."
+    - id: pypy-310-requires-python-floor
+      runtime: PyPy
+      python: "3.10"
+      pytest: "7.x and newer"
+      platform: all
+      architecture: any
+      availability: available
+      installability: blocked
+      support: unsupported
+      required_ci: false
+      result: not_required
+      evidence:
+        source: https://github.com/elchupanebrej/pytest-bdd-ng/issues/319
+      exclusion_reason: "The package metadata requires Python 3.11 or newer."
+
 support_ledger:
   schema_version: 1
   historical_reference:
@@ -666,6 +739,160 @@ support_ledger:
     disposition: required
     source_evidence:
     - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py311-pytest72-coverage-lin
+    lane_id: cpython-311-linux-coverage
+    tox_env: py311-pytest72-coverage-lin
+    origin: added
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py311-pytest9-coverage-lin
+    lane_id: cpython-311-linux-coverage
+    tox_env: py311-pytest9-coverage-lin
+    origin: added
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/319
+  - id: r-tox-py311-pytestlatest-xdist-coverage-lin
+    lane_id: cpython-311-linux-coverage
+    tox_env: py311-pytestlatest-xdist-coverage-lin
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L17
+  - id: r-tox-py312-pytest73-coverage-lin
+    lane_id: cpython-312-linux-pytest7
+    tox_env: py312-pytest73-coverage-lin
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L14
+  - id: r-tox-py312-pytest73-coverage-mac
+    lane_id: py312-macos-manual
+    tox_env: py312-pytest73-coverage-mac
+    origin: historical
+    disposition: manual
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L14
+  - id: r-tox-py312-pytest73-coverage-win
+    lane_id: py312-windows-manual
+    tox_env: py312-pytest73-coverage-win
+    origin: historical
+    disposition: manual
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L14
+  - id: r-tox-py312-pytest74-coverage-lin
+    lane_id: cpython-312-linux-pytest7
+    tox_env: py312-pytest74-coverage-lin
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L14
+  - id: r-tox-py312-pytest74-coverage-mac
+    lane_id: py312-macos-manual
+    tox_env: py312-pytest74-coverage-mac
+    origin: historical
+    disposition: manual
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L14
+  - id: r-tox-py312-pytest74-coverage-win
+    lane_id: py312-windows-manual
+    tox_env: py312-pytest74-coverage-win
+    origin: historical
+    disposition: manual
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L14
+  - id: added-tox-py312-pytest80-coverage-lin
+    lane_id: cpython-312-linux-pytest8-early
+    tox_env: py312-pytest80-coverage-lin
+    origin: added
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py312-pytest80-coverage-mac
+    lane_id: py312-macos-manual
+    tox_env: py312-pytest80-coverage-mac
+    origin: added
+    disposition: manual
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py312-pytest80-coverage-win
+    lane_id: py312-windows-manual
+    tox_env: py312-pytest80-coverage-win
+    origin: added
+    disposition: manual
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py312-pytest81-coverage-lin
+    lane_id: cpython-312-linux-pytest8-early
+    tox_env: py312-pytest81-coverage-lin
+    origin: added
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py312-pytest81-coverage-mac
+    lane_id: py312-macos-manual
+    tox_env: py312-pytest81-coverage-mac
+    origin: added
+    disposition: manual
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: added-tox-py312-pytest81-coverage-win
+    lane_id: py312-windows-manual
+    tox_env: py312-pytest81-coverage-win
+    origin: added
+    disposition: manual
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: r-tox-py312-pytestlatest-xdist-coverage-lin
+    lane_id: cpython-312-linux-xdist
+    tox_env: py312-pytestlatest-xdist-coverage-lin
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L17
+  - id: r-tox-py313-pytest82-coverage-lin
+    lane_id: cpython-313-linux-coverage
+    tox_env: py313-pytest82-coverage-lin
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13
+  - id: r-tox-py313-pytest82-coverage-mac
+    lane_id: cpython-313-macos-coverage
+    tox_env: py313-pytest82-coverage-mac
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13
+  - id: r-tox-py313-pytest82-coverage-win
+    lane_id: cpython-313-windows-coverage
+    tox_env: py313-pytest82-coverage-win
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13
+  - id: r-tox-py313-pytest83-coverage-lin
+    lane_id: cpython-313-linux-coverage
+    tox_env: py313-pytest83-coverage-lin
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13
+  - id: r-tox-py313-pytest83-coverage-mac
+    lane_id: cpython-313-macos-coverage
+    tox_env: py313-pytest83-coverage-mac
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13
+  - id: r-tox-py313-pytest83-coverage-win
+    lane_id: cpython-313-windows-coverage
+    tox_env: py313-pytest83-coverage-win
+    origin: historical
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13
   - id: inventory-tox-py313-pytest84-allure-coverage-lin
     lane_id: optional-allure-py313-linux
     tox_env: py313-pytest84-allure-coverage-lin
@@ -1065,9 +1292,6 @@ support_ledger:
     - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
     - https://docs.pytest.org/en/7.4.x/changelog.html
 
-# Runtime cells follow the resolved #300 policy: CPython 3.11–3.15 on all three
-# operating systems, plus PyPy 3.12 and GraalPy 25.3 on Linux x86_64.
-workflow_cells:
 - id: remote-socket
   job: remote
   runtime: CPython
@@ -1131,7 +1355,7 @@ workflow_cells:
   job: native-go-parser
   workflow: .github/workflows/main.yml
   runtime: CPython
-  python: '3.11'
+  python: '3.14'
   platform: linux
   runner: ubuntu-latest
   tox_envs:
@@ -1140,7 +1364,7 @@ workflow_cells:
   job: native-go-parser
   workflow: .github/workflows/main.yml
   runtime: CPython
-  python: '3.11'
+  python: '3.14'
   platform: macos
   runner: macos-latest
   tox_envs:
@@ -1149,7 +1373,7 @@ workflow_cells:
   job: native-go-parser
   workflow: .github/workflows/main.yml
   runtime: CPython
-  python: '3.11'
+  python: '3.14'
   platform: windows
   runner: windows-latest
   tox_envs:
@@ -1202,6 +1426,9 @@ workflow_cells:
   tox_envs:
   - py311-pytestlatest-coverage-lin
   - py311-pytest74-coverage-lin
+  - py311-pytest72-coverage-lin
+  - py311-pytest9-coverage-lin
+  - py311-pytestlatest-xdist-coverage-lin
 - id: cpython-311-macos
   job: full-matrix
   runtime: CPython
@@ -1236,6 +1463,11 @@ workflow_cells:
   tox_envs:
   - py312-pytestlatest-coverage-lin
   - py312-pytest84-coverage-lin
+  - py312-pytest73-coverage-lin
+  - py312-pytest74-coverage-lin
+  - py312-pytest80-coverage-lin
+  - py312-pytest81-coverage-lin
+  - py312-pytestlatest-xdist-coverage-lin
 - id: cpython-312-macos
   job: full-matrix
   runtime: CPython
@@ -1269,6 +1501,8 @@ workflow_cells:
   expected_interpreter: 3.13.*
   tox_envs:
   - py313-pytestlatest-coverage-lin
+  - py313-pytest82-coverage-lin
+  - py313-pytest83-coverage-lin
 - id: cpython-313-macos
   job: full-matrix
   runtime: CPython
@@ -1280,6 +1514,8 @@ workflow_cells:
   expected_interpreter: 3.13.*
   tox_envs:
   - py313-pytestlatest-coverage-mac
+  - py313-pytest82-coverage-mac
+  - py313-pytest83-coverage-mac
 - id: cpython-313-windows
   job: full-matrix
   runtime: CPython
@@ -1291,6 +1527,8 @@ workflow_cells:
   expected_interpreter: 3.13.*
   tox_envs:
   - py313-pytestlatest-coverage-win
+  - py313-pytest82-coverage-win
+  - py313-pytest83-coverage-win
 - id: cpython-314-linux
   job: full-matrix
   runtime: CPython
@@ -2221,7 +2459,7 @@ lanes:
 - id: native-go-parser-linux
   status: required
   runtime: CPython
-  python: '3.11'
+  python: '3.14'
   pytest: latest
   platform: linux
   capability: optional-native-go-parser
@@ -2239,7 +2477,7 @@ lanes:
 - id: native-go-parser-macos
   status: required
   runtime: CPython
-  python: '3.11'
+  python: '3.14'
   pytest: latest
   platform: macos
   capability: optional-native-go-parser
@@ -2257,7 +2495,7 @@ lanes:
 - id: native-go-parser-windows
   status: required
   runtime: CPython
-  python: '3.11'
+  python: '3.14'
   pytest: latest
   platform: windows
   capability: optional-native-go-parser
@@ -2558,4 +2796,116 @@ lanes:
   reason: pytest 8.0 predates official Python 3.13 support; pytest 8.2 added it.
   source_evidence:
   - https://docs.pytest.org/en/8.4.x/changelog.html
+- id: cpython-311-linux-coverage
+  status: required
+  runtime: CPython
+  python: "3.11"
+  pytest: ["7.2", "9", latest]
+  platform: linux
+  capability: serial-xdist-coverage
+  tox_env: "py311-pytest72-coverage-lin,py311-pytest9-coverage-lin,py311-pytestlatest-xdist-coverage-lin"
+  workflow_selector: cpython-311-linux
+  command: "tox run -e py311-pytest72-coverage-lin,py311-pytest9-coverage-lin,py311-pytestlatest-xdist-coverage-lin"
+  prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
+  expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+- id: cpython-312-linux-pytest7
+  status: required
+  runtime: CPython
+  python: "3.12"
+  pytest: "7.3-7.4"
+  platform: linux
+  capability: pytest7-serial-coverage
+  tox_env: "py312-pytest73-coverage-lin,py312-pytest74-coverage-lin"
+  workflow_selector: cpython-312-linux
+  command: "tox run -e py312-pytest73-coverage-lin,py312-pytest74-coverage-lin"
+  prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
+  expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+- id: cpython-312-linux-pytest8-early
+  status: required
+  runtime: CPython
+  python: "3.12"
+  pytest: ["8.0", "8.1"]
+  platform: linux
+  capability: pytest8-serial-coverage
+  tox_env: "py312-pytest80-coverage-lin,py312-pytest81-coverage-lin"
+  workflow_selector: cpython-312-linux
+  command: "tox run -e py312-pytest80-coverage-lin,py312-pytest81-coverage-lin"
+  prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
+  expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+- id: cpython-312-linux-xdist
+  status: required
+  runtime: CPython
+  python: "3.12"
+  pytest: latest
+  platform: linux
+  capability: xdist-coverage
+  tox_env: py312-pytestlatest-xdist-coverage-lin
+  workflow_selector: cpython-312-linux
+  command: "tox run -e py312-pytestlatest-xdist-coverage-lin"
+  prerequisites: [{type: python-package, name: pytest-xdist, remedy: "install pytest-xdist in the tox environment"}]
+  expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+- id: cpython-313-linux-coverage
+  status: required
+  runtime: CPython
+  python: "3.13"
+  pytest: ["8.2", "8.3"]
+  platform: linux
+  capability: pytest8-serial-coverage
+  tox_env: "py313-pytest82-coverage-lin,py313-pytest83-coverage-lin"
+  workflow_selector: cpython-313-linux
+  command: "tox run -e py313-pytest82-coverage-lin,py313-pytest83-coverage-lin"
+  prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
+  expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+- id: cpython-313-macos-coverage
+  status: required
+  runtime: CPython
+  python: "3.13"
+  pytest: ["8.2", "8.3"]
+  platform: macos
+  capability: pytest8-serial-coverage
+  tox_env: "py313-pytest82-coverage-mac,py313-pytest83-coverage-mac"
+  workflow_selector: cpython-313-macos
+  command: "tox run -e py313-pytest82-coverage-mac,py313-pytest83-coverage-mac"
+  prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
+  expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+- id: cpython-313-windows-coverage
+  status: required
+  runtime: CPython
+  python: "3.13"
+  pytest: ["8.2", "8.3"]
+  platform: windows
+  capability: pytest8-serial-coverage
+  tox_env: "py313-pytest82-coverage-win,py313-pytest83-coverage-win"
+  workflow_selector: cpython-313-windows
+  command: "tox run -e py313-pytest82-coverage-win,py313-pytest83-coverage-win"
+  prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
+  expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+- id: py312-macos-manual
+  status: optional
+  runtime: CPython
+  python: "3.12"
+  pytest: ["7.3", "7.4", "8.0", "8.1"]
+  platform: macos
+  capability: manual-tox-coverage
+  tox_env: "py312-pytest73-coverage-mac,py312-pytest74-coverage-mac,py312-pytest80-coverage-mac,py312-pytest81-coverage-mac"
+  workflow_selector: null
+  command: "tox run -e py312-pytest73-coverage-mac,py312-pytest74-coverage-mac,py312-pytest80-coverage-mac,py312-pytest81-coverage-mac"
+  prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
+  expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+  reason: "Retained as runnable manual coverage lanes outside the owner-frozen #149 required GitHub Actions matrix."
+  source_evidence: ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/149"]
+- id: py312-windows-manual
+  status: optional
+  runtime: CPython
+  python: "3.12"
+  pytest: ["7.3", "7.4", "8.0", "8.1"]
+  platform: windows
+  capability: manual-tox-coverage
+  tox_env: "py312-pytest73-coverage-win,py312-pytest74-coverage-win,py312-pytest80-coverage-win,py312-pytest81-coverage-win"
+  workflow_selector: null
+  command: "tox run -e py312-pytest73-coverage-win,py312-pytest74-coverage-win,py312-pytest80-coverage-win,py312-pytest81-coverage-win"
+  prerequisites: [{type: python-package, name: pytest, remedy: "install the tox environment dependencies"}]
+  expected_carrier: {kind: pytest, path: tests/unit/compatibility/test_runtime_compat.py, command: "pytest tests/unit/compatibility/test_runtime_compat.py"}
+  reason: "Retained as runnable manual coverage lanes outside the owner-frozen #149 required GitHub Actions matrix."
+  source_evidence: ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/149"]
 capability_exclusions: []

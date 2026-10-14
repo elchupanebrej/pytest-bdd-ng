@@ -16,6 +16,8 @@ PYTEST_COMPATIBILITY_BOUNDS: dict[str, tuple[tuple[int, int], tuple[int, int] | 
     "83": ((3, 8), (3, 13)),
     "84": ((3, 9), (3, 14)),
     "90": ((3, 10), (3, 14)),
+    # pytest 9.0+ supports Python 3.10+ (docs.pytest.org/en/stable/backwards-compatibility.html).
+    "9": ((3, 10), None),
     "latest": ((3, 10), None),
 }
 
@@ -80,6 +82,8 @@ def _format_pytest_version(pytest_factor: str) -> str:
 def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
     if pytest_factor == "latest":
         return (99, 0, 0)
+    if len(pytest_factor) == 1 and pytest_factor.isdigit():
+        return (int(pytest_factor), 0, 0)
     if not pytest_factor.isdigit():
         return None
     if len(pytest_factor) == 2:

@@ -1,5 +1,4 @@
 Runtime type checking
-=====================
 
 Mypy is the blocking type checker for all Python files under ``src/pytest_cuke``.
 The runtime-source scope is declared in ``pyproject.toml`` and applies to new
@@ -54,9 +53,9 @@ same gate, run the shared adapter locally:
 
    uv run --extra testtypes python scripts/check_types.py
 
-The ``testtypes`` extra pins Mypy 2.3.1, attrs 26.1.0, Pydantic 2.12.5 for
-its framework plugin. The package supports Python 3.11 and newer, so the
-compatibility module uses the standard-library TOML parser.
+The ``testtypes`` extra pins Mypy 2.3.1, attrs 26.1.0, and Pydantic 2.12.5 for
+its framework plugin. The project floor is Python 3.11, so the compatibility
+module uses the standard-library ``tomllib`` parser.
 Mypy's built-in attrs support checks attrs models, while
 ``types-PyYAML==6.0.12.20260906`` supplies the required PyYAML typing support.
 The adapter verifies these exact framework and stub versions before checking.

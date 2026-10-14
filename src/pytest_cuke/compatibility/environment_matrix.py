@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fnmatch
 import importlib
 import importlib.metadata
 import platform
@@ -113,6 +114,14 @@ def check_environment_inventory(
         set(tox_environments),
     )
     diagnostics.extend(support_ledger_diagnostics)
+    runtime_inventory_summary, runtime_inventory_diagnostics = _validate_runtime_inventory(
+        document,
+        valid_lanes,
+        valid_cells,
+        set(tox_environments),
+        project_root,
+    )
+    diagnostics.extend(runtime_inventory_diagnostics)
     capability_exclusions, capability_exclusion_diagnostics = _validate_capability_exclusions(document, valid_lanes)
     diagnostics.extend(capability_exclusion_diagnostics)
     historical_capability_exclusions, historical_capability_diagnostics = _validate_historical_capability_exclusions(
@@ -161,6 +170,7 @@ def check_environment_inventory(
             "toxSelectorFragments": tox_selector_fragments,
             "workflowCells": valid_cells,
             "supportLedger": support_ledger_summary,
+            "runtimeInventory": runtime_inventory_summary,
             "capabilityExclusions": capability_exclusions,
             "historicalCapabilityExclusions": historical_capability_exclusions,
             "runtimePolicy": runtime_policy_summary,
@@ -964,6 +974,394 @@ def _validate_runtime_policy(
         },
         diagnostics,
     )
+
+def _validate_runtime_inventory(
+    document: dict[str, Any],
+    lanes: list[dict[str, Any]],
+    cells: list[dict[str, Any]],
+    tox_environments: set[str],
+    project_root: Path,
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    """Validate canonical runtime rows and their independent proof dimensions."""
+    diagnostics: list[dict[str, str]] = []
+    inventory = document.get("runtime_inventory")
+    if not isinstance(inventory, dict) or inventory.get("schema_version") != 1:
+        return (
+            {"rowCount": 0, "exclusionCount": 0, "rows": [], "exclusions": []},
+            [
+                _diagnostic(
+                    "runtime-inventory",
+                    "runtime-inventory-schema-invalid",
+                    "runtime_inventory must be an object with schema_version 1",
+                    "Declare runtime_inventory.schema_version, rows, and exclusions in config/env-matrix.yaml.",
+                )
+            ],
+        )
+
+    rows = inventory.get("rows")
+    exclusions = inventory.get("exclusions")
+    if not isinstance(rows, list) or not rows:
+        diagnostics.append(
+            _diagnostic(
+                "runtime-inventory",
+                "runtime-inventory-rows-missing",
+                "runtime_inventory.rows must be a non-empty list",
+                "Add each declared supported runtime proof as a canonical runtime row.",
+            )
+        )
+        rows = rows if isinstance(rows, list) else []
+    if not isinstance(exclusions, list):
+        diagnostics.append(
+            _diagnostic(
+                "runtime-inventory",
+                "runtime-inventory-exclusions-invalid",
+                "runtime_inventory.exclusions must be a list",
+                "Use an empty list or add explicit excluded-runtime records.",
+            )
+        )
+        exclusions = exclusions if isinstance(exclusions, list) else []
+
+    common_fields = {
+        "runtime",
+        "python",
+        "pytest",
+        "platform",
+        "architecture",
+        "availability",
+        "installability",
+        "support",
+        "required_ci",
+        "result",
+        "evidence",
+        "exclusion_reason",
+    }
+    enum_values = {
+        "availability": {"available", "unavailable", "unknown"},
+        "installability": {"verified", "blocked", "not_assessed"},
+        "support": {"supported", "unsupported"},
+        "result": {"recorded_in_evidence", "not_run", "not_required"},
+    }
+    seen_ids: set[str] = set()
+    lane_by_environment = {
+        environment: lane
+        for lane in lanes
+        if _status(lane) in {"required", "optional"}
+        for environment in _split_tox_envs(lane.get("tox_env"))
+    }
+    cell_by_id = {str(cell.get("id")): cell for cell in cells if isinstance(cell.get("id"), str)}
+
+    def validate_record(record: Any, *, excluded: bool) -> None:
+        if not isinstance(record, dict):
+            diagnostics.append(
+                _diagnostic(
+                    "runtime-inventory",
+                    "runtime-record-invalid",
+                    "a canonical runtime record is not an object",
+                    "Use an object with a unique ID and all independent runtime evidence fields.",
+                )
+            )
+            return
+        record_id = record.get("id")
+        label = str(record_id or "runtime-inventory")
+        if not isinstance(record_id, str) or not record_id:
+            diagnostics.append(
+                _diagnostic(label, "runtime-record-id-missing", "a canonical runtime record has no ID", "Add a unique ID.")
+            )
+        elif record_id in seen_ids:
+            diagnostics.append(
+                _diagnostic(label, "runtime-record-id-duplicate", f"runtime record ID {record_id!r} is duplicated", "Keep runtime IDs unique.")
+            )
+        else:
+            seen_ids.add(record_id)
+        missing = common_fields - record.keys()
+        if missing:
+            diagnostics.append(
+                _diagnostic(label, "runtime-record-fields-missing", f"runtime record is missing {', '.join(sorted(missing))}", "Declare every runtime dimension and proof field separately.")
+            )
+            return
+        for field in ("runtime", "python", "pytest", "platform", "architecture"):
+            if not isinstance(record.get(field), str) or not record[field].strip():
+                diagnostics.append(
+                    _diagnostic(label, "runtime-record-dimension-invalid", f"runtime record {field} must be a non-empty string", "Use explicit runtime, version, platform, and architecture values.")
+                )
+        for field, allowed in enum_values.items():
+            value = record.get(field)
+            if not isinstance(value, str) or value not in allowed:
+                diagnostics.append(
+                    _diagnostic(label, "runtime-record-enum-invalid", f"runtime record {field} must be one of {sorted(allowed)!r}", "Use a declared canonical status value.")
+                )
+        if not isinstance(record.get("required_ci"), bool):
+            diagnostics.append(
+                _diagnostic(label, "runtime-record-ci-invalid", "runtime record required_ci must be boolean", "Use true or false independently of support status.")
+            )
+        evidence = record.get("evidence")
+        if evidence is not None and not isinstance(evidence, dict):
+            diagnostics.append(
+                _diagnostic(label, "runtime-record-evidence-invalid", "runtime record evidence must be an object or null", "Use a structured proof reference or null.")
+            )
+        exclusion_reason = record.get("exclusion_reason")
+        if exclusion_reason is not None and (not isinstance(exclusion_reason, str) or not exclusion_reason.strip()):
+            diagnostics.append(
+                _diagnostic(label, "runtime-record-reason-invalid", "runtime exclusion reason must be non-empty text or null", "Explain the product exclusion or use null for supported rows.")
+            )
+
+        if excluded:
+            if record.get("support") != "unsupported" or record.get("required_ci") is not False or record.get("result") != "not_required":
+                diagnostics.append(
+                    _diagnostic(label, "runtime-exclusion-status-invalid", "excluded runtimes must be unsupported, not required by CI, and not_required for results", "Keep product support, CI requirement, and run result distinct.")
+                )
+            if not isinstance(exclusion_reason, str) or not exclusion_reason.strip():
+                diagnostics.append(
+                    _diagnostic(label, "runtime-exclusion-reason-missing", "excluded runtimes need a non-empty exclusion_reason", "Record why the runtime is excluded.")
+                )
+            if not isinstance(evidence, dict) or not _has_source_evidence([evidence.get("source")]):
+                diagnostics.append(
+                    _diagnostic(label, "runtime-exclusion-source-missing", "excluded runtimes need source evidence", "Use an issue, policy, or upstream source URL.")
+                )
+            return
+
+        if record.get("support") != "supported":
+            diagnostics.append(
+                _diagnostic(label, "runtime-row-unsupported", "runtime_inventory.rows may contain only supported rows", "Move unsupported runtime records to exclusions.")
+            )
+        if record.get("exclusion_reason") is not None:
+            diagnostics.append(
+                _diagnostic(label, "runtime-row-has-exclusion-reason", "supported runtime rows must have a null exclusion_reason", "Use null for supported rows.")
+            )
+        if record.get("result") == "recorded_in_evidence" and not isinstance(evidence, dict):
+            diagnostics.append(
+                _diagnostic(label, "runtime-row-evidence-missing", "recorded runtime results need an evidence object", "Link the required CI job, cell, tox environment, and uploaded artifact.")
+            )
+        if record.get("required_ci") is not True:
+            return
+        if record.get("result") != "recorded_in_evidence" or not isinstance(evidence, dict):
+            diagnostics.append(
+                _diagnostic(label, "runtime-required-evidence-missing", "required runtime rows need a recorded result and evidence reference", "Link the passing required CI proof artifact.")
+            )
+            return
+        job = evidence.get("job")
+        cell_id = evidence.get("cell")
+        tox_environment = evidence.get("tox_environment")
+        cell = cell_by_id.get(str(cell_id))
+        lane = lane_by_environment.get(str(tox_environment))
+        if (
+            not isinstance(job, str)
+            or not isinstance(cell_id, str)
+            or not isinstance(tox_environment, str)
+            or not isinstance(cell, dict)
+            or cell.get("job") != job
+            or tox_environment not in cell.get("tox_envs", [])
+            or tox_environment not in tox_environments
+        ):
+            diagnostics.append(
+                _diagnostic(label, "runtime-evidence-target-unresolved", "runtime evidence must link to a resolved required workflow cell and tox environment", "Match evidence.job, evidence.cell, and evidence.tox_environment to config/env-matrix.yaml.")
+            )
+        if (
+            isinstance(cell, dict)
+            and (
+                cell.get("runtime") != record.get("runtime")
+                or str(cell.get("python")) != str(record.get("python"))
+                or cell.get("platform") != record.get("platform")
+                or (cell.get("architecture") is not None and cell.get("architecture") != record.get("architecture"))
+            )
+        ):
+            diagnostics.append(
+                _diagnostic(label, "runtime-evidence-dimensions-mismatch", "runtime record dimensions disagree with the linked workflow cell", "Align runtime, Python, platform, and architecture with the selected CI cell.")
+            )
+        if lane is None or _status(lane) != "required":
+            diagnostics.append(
+                _diagnostic(label, "runtime-evidence-lane-not-required", "runtime evidence must resolve to a required product lane", "Select the tox environment from a required lane.")
+            )
+        artifact_fields = ("artifact_name", "artifact_path")
+        if any(not isinstance(evidence.get(field), str) or not evidence[field] for field in artifact_fields):
+            diagnostics.append(
+                _diagnostic(label, "runtime-evidence-artifact-missing", "required runtime evidence must name its CI artifact", "Declare artifact_name and artifact_path.")
+            )
+        elif isinstance(cell, dict):
+            artifact_error = _runtime_artifact_reference_error(project_root, cell, evidence)
+            if artifact_error:
+                diagnostics.append(
+                    _diagnostic(
+                        label,
+                        "runtime-evidence-artifact-mismatch",
+                        artifact_error,
+                        "Match the runtime evidence artifact name and path to the tox result uploaded by its workflow job.",
+                    )
+                )
+        required_fields = evidence.get("required_fields")
+        required_evidence_fields = {
+            "git_sha",
+            "job",
+            "cell",
+            "tox_environment",
+            "runtime",
+            "python",
+            "pytest",
+            "platform",
+            "platform_name",
+            "os_name",
+            "os_release",
+            "architecture",
+            "command",
+            "selected_tests",
+            "passed_tests",
+            "outcome",
+            "returncode",
+            "job_url",
+            "run_url",
+        }
+        if (
+            not isinstance(required_fields, list)
+            or any(not isinstance(field, str) for field in required_fields)
+            or not required_evidence_fields <= set(required_fields)
+        ):
+            diagnostics.append(
+                _diagnostic(label, "runtime-evidence-fields-incomplete", "runtime evidence does not declare the complete result fields", "List SHA, runtime versions, OS, architecture, command, test counts, outcome, and return code.")
+            )
+        optional_integrations = record.get("optional_integrations", {})
+        if not isinstance(optional_integrations, dict):
+            diagnostics.append(
+                _diagnostic(label, "runtime-optional-integrations-invalid", "optional_integrations must be an object", "Declare optional integration results separately from core support.")
+            )
+            return
+        for integration_name, integration in optional_integrations.items():
+            if not isinstance(integration, dict):
+                diagnostics.append(
+                    _diagnostic(label, "runtime-optional-integration-invalid", f"optional integration {integration_name!r} must be an object", "Declare compatibility, result, and optional evidence.")
+                )
+                continue
+            compatibility = integration.get("compatibility")
+            if not isinstance(compatibility, str) or compatibility not in {"compatible", "incompatible", "not_assessed"}:
+                diagnostics.append(
+                    _diagnostic(label, "runtime-optional-compatibility-invalid", f"optional integration {integration_name!r} has an invalid compatibility status", "Use compatible, incompatible, or not_assessed.")
+                )
+            integration_result = integration.get("result")
+            if not isinstance(integration_result, str) or integration_result not in {"passed", "failed", "not_run"}:
+                diagnostics.append(
+                    _diagnostic(label, "runtime-optional-result-invalid", f"optional integration {integration_name!r} has an invalid result", "Use passed, failed, or not_run independently from core support.")
+                )
+            optional_evidence = integration.get("evidence")
+            if optional_evidence is not None and not isinstance(optional_evidence, dict):
+                diagnostics.append(
+                    _diagnostic(label, "runtime-optional-evidence-invalid", f"optional integration {integration_name!r} evidence must be an object or null", "Use a structured integration proof or null.")
+                )
+
+    for record in rows:
+        validate_record(record, excluded=False)
+    for record in exclusions:
+        validate_record(record, excluded=True)
+    return {
+        "rowCount": len(rows),
+        "exclusionCount": len(exclusions),
+        "rows": rows,
+        "exclusions": exclusions,
+    }, diagnostics
+
+
+def _runtime_artifact_reference_error(
+    project_root: Path,
+    cell: dict[str, Any],
+    evidence: dict[str, Any],
+) -> str | None:
+    """Join a canonical runtime artifact reference to the workflow upload and proof aggregator."""
+    workflow_path = _workflow_path(project_root, cell)
+    yaml = _yaml_module()
+    try:
+        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, yaml.YAMLError) as error:
+        return f"runtime evidence workflow {workflow_path} cannot be read: {error}"
+    jobs = workflow.get("jobs") if isinstance(workflow, dict) else None
+    job_id = cell.get("job")
+    job = jobs.get(job_id) if isinstance(jobs, dict) and isinstance(job_id, str) else None
+    steps = job.get("steps") if isinstance(job, dict) else None
+    if not isinstance(steps, list):
+        return f"runtime evidence workflow job {job_id!r} has no steps"
+
+    run_steps = [
+        step
+        for step in steps
+        if isinstance(step, dict) and "scripts/run_env_matrix_cell.py" in str(step.get("run", ""))
+    ]
+    if len(run_steps) != 1:
+        return f"runtime evidence workflow job {job_id!r} must run exactly one inventory evidence command"
+    run_command = str(run_steps[0].get("run", ""))
+    output_template = _command_option_value(run_command, "--output")
+    if output_template is None:
+        return f"runtime evidence workflow job {job_id!r} does not declare an evidence output path"
+    output_path = _render_matrix_cell_template(output_template, cell)
+    expected_path = evidence.get("artifact_path")
+    expected_name = evidence.get("artifact_name")
+    if output_path != expected_path:
+        return f"runtime artifact path {expected_path!r} does not match workflow result path {output_path!r}"
+
+    matching_upload = False
+    for step in steps:
+        if not isinstance(step, dict) or not str(step.get("uses", "")).startswith("actions/upload-artifact@"):
+            continue
+        upload_options = step.get("with")
+        if not isinstance(upload_options, dict):
+            continue
+        artifact_name = upload_options.get("name")
+        artifact_path = upload_options.get("path")
+        if not isinstance(artifact_name, str) or not isinstance(artifact_path, str):
+            continue
+        rendered_name = _render_matrix_cell_template(artifact_name, cell)
+        rendered_paths = {
+            _render_matrix_cell_template(line.strip(), cell)
+            for line in artifact_path.splitlines()
+            if line.strip()
+        }
+        if rendered_name == expected_name and expected_path in rendered_paths:
+            matching_upload = True
+            break
+    if not matching_upload:
+        return f"runtime artifact {expected_name!r} at {expected_path!r} is not uploaded by workflow job {job_id!r}"
+
+    aggregate_job = jobs.get("aggregate-proof") if isinstance(jobs, dict) else None
+    aggregate_steps = aggregate_job.get("steps") if isinstance(aggregate_job, dict) else None
+    if not isinstance(aggregate_steps, list):
+        return "runtime artifact workflow has no aggregate-proof job"
+    download_patterns = [
+        step["with"].get("pattern")
+        for step in aggregate_steps
+        if isinstance(step, dict)
+        and str(step.get("uses", "")).startswith("actions/download-artifact@")
+        and isinstance(step.get("with"), dict)
+        and isinstance(step["with"].get("pattern"), str)
+    ]
+    aggregates_runtime_results = any(
+        isinstance(step, dict) and "scripts/aggregate_env_evidence.py" in str(step.get("run", ""))
+        for step in aggregate_steps
+    )
+    if not download_patterns or not aggregates_runtime_results:
+        return "runtime artifact is not consumed by the workflow's environment evidence aggregator"
+    if not any(fnmatch.fnmatchcase(str(expected_name), pattern) for pattern in download_patterns):
+        return f"runtime artifact name {expected_name!r} is not matched by the aggregate download pattern"
+    return None
+
+
+def _command_option_value(command: str, option: str) -> str | None:
+    try:
+        tokens = shlex.split(command)
+        option_index = tokens.index(option)
+    except (ValueError, IndexError):
+        return None
+    return tokens[option_index + 1] if option_index + 1 < len(tokens) else None
+
+
+_MATRIX_CELL_EXPRESSION = re.compile(
+    r"\$\{\{\s*matrix\.cell\.([A-Za-z_][A-Za-z0-9_]*)(?:\s*\|\|\s*'([^']*)')?\s*\}\}"
+)
+
+
+def _render_matrix_cell_template(template: str, cell: dict[str, Any]) -> str:
+    def replace(match: re.Match[str]) -> str:
+        value = cell.get(match.group(1))
+        if value in (None, ""):
+            value = match.group(2) or ""
+        return str(value)
+
+    return _MATRIX_CELL_EXPRESSION.sub(replace, template)
 
 
 def _validate_support_ledger(

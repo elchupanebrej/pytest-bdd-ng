@@ -11,7 +11,7 @@ The project matrix is configured in `pyproject.toml`:
 
     [tool.pytest-cuke.compatibility]
     python-factors = ["3.11", "3.12", "3.13", "3.14", "3.15"]
-    pytest-factors = ["7.4", "8.4", "9.0", "latest"]
+    pytest-factors = ["7.0", "7.4", "8.0", "8.4", "9.0", "latest"]
     execution-targets = ["lin", "mac", "win"]
     tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
     compatibility-source = "pytest-official-policy-and-release-notes"
@@ -20,7 +20,8 @@ The project matrix is configured in `pyproject.toml`:
 factors. `latest` is an explicit policy entry resolved through the minimum
 supported Python floor in `pytest_cuke.compatibility.runtime_compat`; the
 command does not query an installed pytest or infer runtime support from an
-environment name. The configured release bounds reflect pytest's [Python
+environment name. The current product floors are CPython 3.11 and pytest 7.0.
+The configured release bounds reflect pytest's [Python
 support policy](https://docs.pytest.org/en/stable/backwards-compatibility.html)
 and release notes for when new Python versions gained support, including
 [Python 3.12 in pytest 7.3](https://docs.pytest.org/en/7.4.x/changelog.html),
