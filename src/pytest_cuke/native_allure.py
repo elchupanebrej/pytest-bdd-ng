@@ -877,7 +877,10 @@ class NativeAllureReporter:
         if case is None:
             return
         step_params = params or {}
-        parent_uuid = case.step_uuids[case.active_step_ids[-1]].uuid if case.active_step_ids else case.result_uuid
+        if self._api_step_stack:
+            parent_uuid = self._api_step_stack[-1][1]
+        else:
+            parent_uuid = case.step_uuids[case.active_step_ids[-1]].uuid if case.active_step_ids else case.result_uuid
         step_uuid = f"api-{api_uuid}"
         with self._lifecycle.start_step(parent_uuid=parent_uuid, uuid=step_uuid) as step:
             step.name = title

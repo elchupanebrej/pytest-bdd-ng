@@ -14,6 +14,14 @@ Feature: Live native Allure reporting
     And native Allure results should contain the text, binary, and file attachments
     And the native report consumer should not write a Messages NDJSON file
 
+  Scenario: Local reporting preserves public Allure parent and child steps
+    Given a fresh isolated pytest-cuke consumer is ready
+    And the consumer contains one native Allure scenario with nested public steps
+    And the consumer installs pytest-cuke with its Allure extra
+    When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results -q"
+    Then the native Allure consumer should exit with code 0
+    And native Allure JSON should preserve public step parent-child nesting
+
   Scenario: The live native results can be rendered by the Allure CLI
     Given a fresh isolated pytest-cuke consumer is ready
     And the consumer contains one live native Allure scenario with attachments
