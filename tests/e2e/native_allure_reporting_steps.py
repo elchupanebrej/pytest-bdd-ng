@@ -72,6 +72,7 @@ def _write_feature(
     with_live_observer: bool = False,
     with_xdist_evidence: bool = False,
     with_colliding_worker_message_ids: bool = False,
+    with_nested_public_allure_steps: bool = False,
     feature_relative_path: str = "native-allure-samples.feature",
 ) -> None:
     feature_dir = context.project / "features"
@@ -178,12 +179,26 @@ def _write_feature(
         "@when('its reportable check succeeds')\n"
         "def native_reportable_check_succeeds(pytestconfig):\n"
         + (
-            f"    if {allure_selection}:\n"
-            "        import allure\n"
-            "        with allure.step('A nested native Allure action'):\n"
-            "            assert 6 * 7 == 42\n"
-            "    else:\n"
-            "        assert 6 * 7 == 42\n\n\n"
+            (
+                (
+                    f"    if {allure_selection}:\n"
+                    "        import allure\n"
+                    "        with allure.step('outer'):\n"
+                    "            with allure.step('inner'):\n"
+                    "                assert 6 * 7 == 42\n"
+                    "    else:\n"
+                    "        assert 6 * 7 == 42\n\n\n"
+                )
+                if with_nested_public_allure_steps
+                else (
+                    f"    if {allure_selection}:\n"
+                    "        import allure\n"
+                    "        with allure.step('A nested native Allure action'):\n"
+                    "            assert 6 * 7 == 42\n"
+                    "    else:\n"
+                    "        assert 6 * 7 == 42\n\n\n"
+                )
+            )
             if with_allure_api
             else "    assert 6 * 7 == 42\n\n\n"
         )
@@ -690,6 +705,16 @@ def consumer_has_native_scenario_without_adapter_api(native_allure_consumer: Nat
 @given("the consumer contains one live native Allure scenario with attachments")
 def consumer_has_one_live_reportable_scenario(native_allure_consumer: NativeAllureConsumer) -> None:
     _write_feature(native_allure_consumer, (_REPORT_SCENARIOS[0],), with_attachments=True, with_live_observer=True)
+
+
+@given("the consumer contains one native Allure scenario with nested public steps")
+def consumer_has_nested_public_allure_steps(native_allure_consumer: NativeAllureConsumer) -> None:
+    _write_feature(
+        native_allure_consumer,
+        ("Native public parent child step scenario",),
+        with_attachments=False,
+        with_nested_public_allure_steps=True,
+    )
 
 
 @given("the consumer contains one native Allure scenario and one ordinary pytest test")
@@ -1460,6 +1485,25 @@ def native_allure_contains_attachments(native_allure_consumer: NativeAllureConsu
 @then("the native report consumer should not write a Messages NDJSON file")
 def native_allure_does_not_write_ndjson(native_allure_consumer: NativeAllureConsumer) -> None:
     assert not (native_allure_consumer.project / "messages.ndjson").exists()
+
+
+@then("native Allure JSON should preserve public step parent-child nesting")
+def native_allure_preserves_public_step_parent_child_nesting(
+    native_allure_consumer: NativeAllureConsumer,
+) -> None:
+    results = [_load_json(path) for path in _result_files(native_allure_consumer, "allure-results")]
+    assert len(results) == 1, results
+    result = results[0]
+    assert result.get("name") == "Native public parent child step scenario", result
+    assert result.get("status") == "passed", result
+
+    outer_steps = [node for node in _all_objects(result.get("steps", [])) if node.get("name") == "outer"]
+    assert len(outer_steps) == 1, result
+    outer = outer_steps[0]
+    children = outer.get("steps")
+    assert isinstance(children, list) and [child.get("name") for child in children] == ["inner"], result
+    inner = children[0]
+    assert inner.get("status") == "passed", result
 
 
 @then("native Allure results should contain both controller scenarios exactly once")
