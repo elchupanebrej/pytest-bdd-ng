@@ -75,6 +75,27 @@ def test_npm_helpers_find_shim_on_path(monkeypatch, tmp_path) -> None:
     assert get_npm_root() == "10.0.0"
 
 
+def test_npm_helpers_use_resolved_windows_cmd_executable() -> None:
+    npm_cmd = r"C:\Program Files\nodejs\npm.CMD"
+    with (
+        patch("shutil.which", return_value=npm_cmd),
+        patch("pytest_cuke.npm_resource.subprocess.check_output", return_value=b"result\n") as check_output,
+    ):
+        assert get_npm_root() == "result"
+        assert check_npm()
+        assert check_npm_package("some-pkg")
+        assert get_npm_root(global_install=True) == "result"
+        assert check_npm_package("some-pkg", global_install=True)
+
+    assert [call.args[0] for call in check_output.call_args_list] == [
+        [npm_cmd, "root"],
+        [npm_cmd, "--version"],
+        [npm_cmd, "list", "some-pkg"],
+        [npm_cmd, "root", "-g"],
+        [npm_cmd, "list", "-g", "some-pkg"],
+    ]
+
+
 def test_find_resource() -> None:
     with (
         patch("pytest_cuke.npm_resource.get_npm_root", side_effect=["/l", "/g"]),

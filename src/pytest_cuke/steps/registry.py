@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, cast, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 import pytest
 from attrs import define, field
 from ordered_set import OrderedSet
-from typing_extensions import Protocol
-
 from pytest_cuke.utils import setdefaultattr
 
 if TYPE_CHECKING:

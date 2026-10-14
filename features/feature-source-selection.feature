@@ -151,6 +151,34 @@ Feature: Invocation-level feature source selection
     And pytest output should include "missing-features"
     And pytest output should include "does not exist"
 
+  Scenario: A valid explicit binding keeps its source when the autoload root is missing
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+
+      @given("the explicit binding source is available")
+      def explicit_binding_source_is_available():
+          pass
+      """
+    And consumer file "binding-features/binding.feature" contains:
+      """gherkin
+      Feature: Explicit binding source
+        Scenario: The explicit binding source is used
+          Given the explicit binding source is available
+      """
+    And consumer file "test_explicit_source.py" contains:
+      """python
+      from pytest_cuke import scenarios
+
+
+      test_explicit_source = scenarios("binding.feature", features_base_dir="binding-features")
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=missing-features -q"
+    Then pytest should exit with code 0
+    And the test outcome should have 1 passed scenarios
+
   Scenario: A malformed URL base produces a configuration diagnostic
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And consumer file "test_url_binding.py" contains:

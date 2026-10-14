@@ -6,7 +6,7 @@ Feature: Debug MCP xdist worker discovery
     And the installed consumer has the optional debug MCP extra installed
     And the installed consumer has pytest-xdist installed
     And the installed consumer exposes two concurrent xdist debugger failures
-    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=180s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-mcp-artifacts=xdist-artifacts --cuke-json=report.json -n2 --dist=loadfile --maxschedchunk=1 -q"
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=180s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-mcp-artifacts=xdist-artifacts --cuke-json=report.json --cuke-messages-ndjson=worker-messages.ndjson -n2 --dist=loadfile --maxschedchunk=1 -q"
     And I release the waiting xdist worker after observing one held failure
     Then xdist discovery should record one held worker while its peer waits
     When external MCP clients inspect both advertised xdist worker endpoints, heartbeat, and release them independently

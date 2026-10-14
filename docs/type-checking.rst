@@ -55,7 +55,8 @@ same gate, run the shared adapter locally:
    uv run --extra testtypes python scripts/check_types.py
 
 The ``testtypes`` extra pins Mypy 2.3.1, attrs 26.1.0, Pydantic 2.12.5 for
-its framework plugin, and Tomli 2.2.1 for the Python 3.10 compatibility module.
+its framework plugin. The package supports Python 3.11 and newer, so the
+compatibility module uses the standard-library TOML parser.
 Mypy's built-in attrs support checks attrs models, while
 ``types-PyYAML==6.0.12.20260906`` supplies the required PyYAML typing support.
 The adapter verifies these exact framework and stub versions before checking.

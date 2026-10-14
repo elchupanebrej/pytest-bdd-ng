@@ -23,20 +23,33 @@ if TYPE_CHECKING:
     from pytest_cuke.model.scenario_run import ScenarioRun
 
 
-def serialize_step_type(step: Any) -> str:
-    """Serialize a step type using the keyword-based vocabulary (e.g. ``given``, ``and``)."""
-    prefix = getattr(step, "prefix", "")
-    if prefix:
-        return str(prefix)
+def _step_type_and_keyword(step: Any, feature: Feature) -> tuple[str, str]:
+    """Return normalized legacy report fields from model or Messages steps."""
     step_type = getattr(step, "type", None)
-    if isinstance(step_type, Enum):
-        step_type = step_type.name
-    return str(step_type or "")
+    if not step_type:
+        step_type = (
+            feature._get_step_prefix(step) if hasattr(feature, "_get_step_prefix") else getattr(step, "prefix", "")
+        )
 
+    keyword = getattr(step, "keyword", "") or (
+        feature._get_step_keyword(step) if hasattr(feature, "_get_step_keyword") else ""
+    )
+    keyword = str(keyword or "").strip()
 
-def serialize_step_keyword(step: Any) -> str:
-    """Serialize a step keyword without surrounding whitespace."""
-    return str(getattr(step, "keyword", "") or "").strip()
+    type_name = getattr(step_type, "name", None) or getattr(step_type, "value", step_type)
+    normalized_type = str(type_name or "").strip().casefold()
+    normalized_keyword = keyword.casefold()
+    if normalized_keyword in {"and", "but", "*"}:
+        normalized_type = normalized_keyword
+    else:
+        normalized_type = {
+            "context": "given",
+            "action": "when",
+            "outcome": "then",
+            "conjunction": "and",
+        }.get(normalized_type, normalized_type)
+
+    return normalized_type, keyword
 
 
 class StepReport:
@@ -62,6 +75,7 @@ class StepReport:
 
         :return: Serialized step execution report.
         """
+        step_type, step_kw = _step_type_and_keyword(self.step, feature)
         step_line = getattr(self.step, "line", 0) or (
             feature._get_step_line_number(self.step) if hasattr(feature, "_get_step_line_number") else 0
         )
@@ -178,9 +192,8 @@ class ScenarioReport:
             else [
                 {
                     "name": getattr(s, "name", getattr(s, "text", "")),
-                    "type": serialize_step_type(s),
-                    "keyword": serialize_step_keyword(s)
-                    or (feature._get_step_keyword(s) if hasattr(feature, "_get_step_keyword") else ""),
+                    "type": _step_type_and_keyword(s, feature)[0],
+                    "keyword": _step_type_and_keyword(s, feature)[1],
                     "line_number": getattr(s, "line", 0)
                     or (feature._get_step_line_number(s) if hasattr(feature, "_get_step_line_number") else 0),
                     "failed": False,
@@ -200,7 +213,7 @@ class ScenarioReport:
                 "filename": feature.filename or feature.uri,
                 "rel_filename": feat_rel,
                 "line_number": getattr(feature, "line", getattr(feature, "line_number", 0)),
-                "description": getattr(feature, "description", ""),
+                "description": getattr(feature, "description", "") or "",
                 "tags": feature_tags,
             },
         }
@@ -293,6 +306,8 @@ class ScenarioReporterPlugin:
             if rep.skipped and scenario_run.status != "skipped":
                 scenario_report.skip()
             elif rep.failed and scenario_run.status not in ("failed", "undefined", "interrupted"):
+                if call.excinfo is not None:
+                    scenario_report.error_message = str(call.excinfo.value)
                 scenario_report.fail()
             rep.scenario = scenario_report.serialize()
             rep.item = {"name": item.name}

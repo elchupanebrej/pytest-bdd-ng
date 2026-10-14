@@ -831,9 +831,9 @@ def test_liberal_step_decorator(testdir, tmp_path):
             assert "nice" in step_values
             assert "good" in step_values
 
-        @step('I execute {value} step', liberal=True)
-        def foo(step_values, value):
-            step_values.append(value)
+        @step('I execute {word} step', anonymous_group_names=['word'], liberal=True)
+        def foo(step_values, word):
+            step_values.append(word)
         """
     )
     result = testdir.runpytest()
@@ -886,9 +886,9 @@ def test_liberal_keyworded_step_decorator(testdir, tmp_path):
             assert "nice" in step_values
             assert "good" in step_values
 
-        @given('I execute {value} step', liberal=True)
-        def foo(step_values, value):
-            step_values.append(value)
+        @given('I execute {word} step', anonymous_group_names=['word'], liberal=True)
+        def foo(step_values, word):
+            step_values.append(word)
         """
     )
     result = testdir.runpytest()
@@ -941,9 +941,9 @@ def test_liberal_keyworded_step_decorator_cli_option(testdir, tmp_path):
             assert "nice" in step_values
             assert "good" in step_values
 
-        @given('I execute {value} step')
-        def foo(step_values, value):
-            step_values.append(value)
+        @given('I execute {word} step', anonymous_group_names=['word'])
+        def foo(step_values, word):
+            step_values.append(word)
         """
     )
     result = testdir.runpytest("--cuke-liberal-steps")
@@ -954,7 +954,7 @@ def test_liberal_keyworded_step_decorator_ini_option(testdir, tmp_path):
     testdir.makeini(
         f"""\
         [pytest]
-        liberal_steps = True
+        cuke_liberal_steps = True
         cuke_features_dir={tmp_path}
         """
     )
@@ -998,9 +998,9 @@ def test_liberal_keyworded_step_decorator_ini_option(testdir, tmp_path):
             assert "nice" in step_values
             assert "good" in step_values
 
-        @given('I execute {value} step')
-        def foo(step_values, value):
-            step_values.append(value)
+        @given('I execute {word} step', anonymous_group_names=['word'])
+        def foo(step_values, word):
+            step_values.append(word)
         """
     )
     result = testdir.runpytest()
@@ -1158,23 +1158,23 @@ def test_extend_steps_from_step(testdir):
         """\
         from collections import deque
 
-        from messages import PickleStep, Type
-        from pytest_cuke import given, when, then
+        from pytest_cuke.model.message_types import PickleStep, PickleStepType
+        from pytest_cuke import given, when, then, parsers
 
         @when("I inject step \\"{keyword}\\" \\"{step_text}\\"")
         def inject_step(steps_left: deque, keyword, step_text, scenario):
             steps_left.appendleft(PickleStep(
                 id='MyStep',
                 ast_node_ids=[''],
-                type=PickleStepType.context,
                 text=step_text,
+                type=PickleStepType.context,
             ))
 
-        @given('I have {fixture_value}', target_fixture='foo_fixture')
+        @given(parsers.parse('I have {fixture_value}'), target_fixture='foo_fixture')
         def save_fixture(fixture_value):
             return fixture_value
 
-        @then("I have {fixture_value}")
+        @then(parsers.parse("I have {fixture_value}"))
         def check_fixture(fixture_value, foo_fixture):
             assert fixture_value == foo_fixture
         """

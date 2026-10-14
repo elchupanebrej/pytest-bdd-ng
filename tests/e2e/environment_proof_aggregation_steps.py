@@ -7,6 +7,7 @@ import io
 import json
 import os
 import re
+import runpy
 import shutil
 import subprocess
 import sys
@@ -18,8 +19,8 @@ import yaml
 from pytest_cuke import given, then, when
 
 
-_EXPECTED_GROUPS = ("serial", "parallel", "e2e", "external", "quality")
-_TEST_GROUPS = frozenset(("serial", "parallel", "e2e", "external"))
+_EXPECTED_GROUPS = ("serial", "parallel", "e2e", "external", "quality", "optional")
+_TEST_GROUPS = frozenset(("serial", "parallel", "e2e", "external", "optional"))
 _OPTIONAL_VERSION_KEYS = (
     "allure-pytest",
     "gherkin-official",
@@ -36,12 +37,15 @@ _PLAYWRIGHT_REPORT_PACKAGES = ("allure-pytest", "pytest-xdist", "gherkin-officia
 _DOC_GENERATION_PACKAGES = ("pandoc", "panflute", "pycmarkgfm", "pypandoc")
 _FORMATTER_SYSTEM_TOOL_VERSION_KEYS = ("node", "npm", "npx", "allure-cli", "uv")
 _NATIVE_SYSTEM_TOOL_VERSION_KEYS = ("go", "native-compiler")
-_SYSTEM_TOOL_VERSION_KEYS = (*_FORMATTER_SYSTEM_TOOL_VERSION_KEYS, "pandoc", *_NATIVE_SYSTEM_TOOL_VERSION_KEYS)
+_SYSTEM_TOOL_VERSION_KEYS = ("tox", *_FORMATTER_SYSTEM_TOOL_VERSION_KEYS, "pandoc", *_NATIVE_SYSTEM_TOOL_VERSION_KEYS)
 _PLATFORM_NAMES = {"linux": "linux", "macos": "darwin", "windows": "win32"}
 _REMOTE_MODES = {"remote-socket": "socket", "remote-via": "via", "remote-ssh": "ssh"}
 _PROOF_SHA = "a" * 40
 _OTHER_SHA = "b" * 40
 _PRODUCT_ROOT = Path(__file__).resolve().parents[2]
+_required_system_tool_versions = runpy.run_path(str(_PRODUCT_ROOT / "scripts" / "environment_evidence.py"))[
+    "required_system_tool_versions"
+]
 
 
 @dataclass
@@ -75,6 +79,8 @@ def _load_cells(inventory_path: Path) -> list[dict[str, Any]]:
 
 
 def _group_for(job: str, tox_environment: str) -> str:
+    if job == "optional-integrations":
+        return "optional"
     if "doc-gen" in tox_environment:
         return "serial"
     if job == "full-matrix":
@@ -115,13 +121,22 @@ def _optional_versions(tox_environment: str) -> dict[str, str | None]:
     }
 
 
+def _actual_python_version(inventory_version: str) -> str:
+    return inventory_version if re.fullmatch(r"\d+\.\d+\.\d+", inventory_version) else f"{inventory_version}.0"
+
+
 def _system_tool_versions(tox_environment: str, platform_name: str | None = None) -> dict[str, str | None]:
     versions: dict[str, str | None] = dict.fromkeys(_SYSTEM_TOOL_VERSION_KEYS, None)
+    versions["tox"] = "4.25.0"
     if "doc-gen" in tox_environment:
         versions["pandoc"] = "3.6.4"
-    if "-coverage-" in tox_environment or "live-formatters-acceptance" in tox_environment:
+    if "uv" in _required_system_tool_versions(tox_environment):
         versions["uv"] = "0.8.22"
-    if "live-formatters-acceptance" in tox_environment:
+    if (
+        "live-formatters-acceptance" in tox_environment
+        or "allure" in tox_environment
+        or "playwright-report" in tox_environment
+    ):
         versions.update(
             {
                 "node": "v22.20.0",
@@ -146,6 +161,9 @@ def _system_tool_commands(tox_environment: str, platform_name: str) -> dict[str,
     def record(tool: str, executable: str, arguments: list[str]) -> None:
         commands[tool] = {"executable": executable, "argv": [executable, *arguments]}
 
+    tox_executable = _host_tox_executable(platform_name)
+    record("tox", tox_executable, ["--version"])
+
     if "doc-gen" in tox_environment:
         pandoc = (
             r"C:\Program Files\Pandoc\pandoc.exe"
@@ -153,7 +171,11 @@ def _system_tool_commands(tox_environment: str, platform_name: str) -> dict[str,
             else ("/opt/homebrew/bin/pandoc" if platform_name == "macos" else "/usr/bin/pandoc")
         )
         record("pandoc", pandoc, ["--version"])
-    if "live-formatters-acceptance" in tox_environment:
+    if (
+        "live-formatters-acceptance" in tox_environment
+        or "allure" in tox_environment
+        or "playwright-report" in tox_environment
+    ):
         for tool, executable, arguments in (
             ("node", "node", ["--version"]),
             ("npm", "npm", ["--version"]),
@@ -168,7 +190,7 @@ def _system_tool_commands(tox_environment: str, platform_name: str) -> dict[str,
             else:
                 resolved = f"/usr/bin/{executable}"
             record(tool, resolved, arguments)
-    if "live-formatters-acceptance" in tox_environment or "-coverage-" in tox_environment:
+    if "uv" in _required_system_tool_versions(tox_environment):
         if platform_name == "windows":
             uv_executable = rf"C:\synthetic\project\.tox\{tox_environment}\Scripts\uv.exe"
         else:
@@ -183,6 +205,14 @@ def _system_tool_commands(tox_environment: str, platform_name: str) -> dict[str,
             compiler = "/usr/bin/cc"
             record("native-compiler", compiler, ["--version"])
     return commands
+
+
+def _host_tox_executable(platform_name: str) -> str:
+    if platform_name == "windows":
+        return r"C:\host\Python\Scripts\tox.exe"
+    if platform_name == "macos":
+        return "/host/python/bin/tox"
+    return "/usr/local/bin/tox"
 
 
 def _remote_worker_runs(
@@ -282,12 +312,22 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
                 "cell": cell_id,
                 "group": group,
                 "tox_environment": tox_environment,
-                "command": ["tox", "run", "--result-json", "tox-result.json", "-e", tox_environment],
+                "command": [
+                    _host_tox_executable(expected_platform),
+                    "run",
+                    "--result-json",
+                    "tox-result.json",
+                    "-e",
+                    tox_environment,
+                ],
                 "outcome": "passed",
                 "returncode": 0,
                 "runtime": runtime,
-                "python": f"{python_version}.0",
+                "python": _actual_python_version(python_version),
                 "pytest": pytest_version,
+                "architecture": "x86_64",
+                "job_url": f"https://github.com/example/project/actions/runs/123456/job/{2000 + artifact_index}",
+                "run_url": "https://github.com/example/project/actions/runs/123456",
                 "selected_tests": 1 if group in _TEST_GROUPS else None,
                 "passed_tests": 1 if group in _TEST_GROUPS else None,
                 "optional_versions": optional_versions,
@@ -343,6 +383,47 @@ def _first_test_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
     return artifact
 
 
+def _first_required_runtime_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
+    artifact = next((item for item in context.artifacts if item.job == "full-matrix"), None)
+    assert artifact is not None, "the inventory must contain a required runtime environment"
+    return artifact
+
+
+def _optional_allure_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
+    artifact = next(
+        (
+            item
+            for item in context.artifacts
+            if item.job == "optional-integrations" and "allure" in item.tox_environment
+        ),
+        None,
+    )
+    assert artifact is not None, "the inventory must contain the optional Allure integration environment"
+    return artifact
+
+
+def _exact_interpreter_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
+    cells = _load_cells(context.inventory_path)
+    exact_cell_ids = {
+        cell.get("id")
+        for cell in cells
+        if cell.get("job") == "full-matrix" and cell.get("expected_interpreter") == "3.15.0"
+    }
+    assert exact_cell_ids, "the inventory must declare exact CPython 3.15.0 runtime cells"
+    artifact = next((item for item in context.artifacts if item.cell in exact_cell_ids), None)
+    assert artifact is not None, "the exact CPython 3.15.0 runtime cell must have an evidence artifact"
+    return artifact
+
+
+def _graalpy_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
+    artifact = next(
+        (item for item in context.artifacts if item.job == "full-matrix" and item.cell.startswith("graalpy-")),
+        None,
+    )
+    assert artifact is not None, "the inventory must contain the required GraalPy runtime"
+    return artifact
+
+
 def _first_remote_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
     artifact = next((item for item in context.artifacts if item.job == "remote"), None)
     assert artifact is not None, "the inventory must contain a remote transport environment"
@@ -355,12 +436,10 @@ def _first_native_parser_artifact(context: ProofAggregationContext) -> EvidenceA
     return artifact
 
 
-def _full_matrix_coverage_artifacts(context: ProofAggregationContext) -> list[EvidenceArtifact]:
-    artifacts = [
-        item for item in context.artifacts if item.job == "full-matrix" and "-coverage-" in item.tox_environment
-    ]
-    assert len(artifacts) >= 2, "the inventory must contain at least two full-matrix coverage environments"
-    return artifacts
+def _tox_environment_artifact(context: ProofAggregationContext, tox_environment: str) -> EvidenceArtifact:
+    artifact = next((item for item in context.artifacts if item.tox_environment == tox_environment), None)
+    assert artifact is not None, f"the inventory must contain tox environment {tox_environment!r}"
+    return artifact
 
 
 def _doc_generation_artifact(context: ProofAggregationContext) -> EvidenceArtifact:
@@ -499,10 +578,90 @@ def assign_wrong_sha_to_environment(proof_aggregation: ProofAggregationContext) 
     _mutate_environment(artifact, lambda environment: environment.__setitem__("git_sha", _OTHER_SHA))
 
 
+@given("one required runtime environment omits its architecture")
+def omit_required_runtime_architecture(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_required_runtime_artifact(proof_aggregation)
+    _mutate_environment(artifact, lambda environment: environment.pop("architecture", None))
+
+
+@given("one required runtime environment reports an invalid architecture")
+def report_invalid_required_runtime_architecture(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_required_runtime_artifact(proof_aggregation)
+    _mutate_environment(artifact, lambda environment: environment.__setitem__("architecture", "../unknown"))
+
+
+@given("one required runtime environment omits its workflow job link")
+def omit_required_runtime_job_link(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_required_runtime_artifact(proof_aggregation)
+    _mutate_environment(artifact, lambda environment: environment.pop("job_url", None))
+
+
+@given("CPython 3.15.0 reports a different patch version")
+def mismatch_exact_interpreter_patch_version(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _exact_interpreter_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        environment["python"] = "3.15.1"
+        tox_result = environment.get("tox_result")
+        assert isinstance(tox_result, dict), environment
+        testenvs = tox_result.get("testenvs")
+        assert isinstance(testenvs, dict), tox_result
+        entry = testenvs.get(artifact.tox_environment)
+        assert isinstance(entry, dict), testenvs
+        python = entry.get("python")
+        assert isinstance(python, dict), entry
+        python["version_info"] = [3, 15, 1, "final", 0]
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("one environment records a job link from another workflow run")
+def mismatch_environment_workflow_run_link(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_required_runtime_artifact(proof_aggregation)
+    _mutate_environment(
+        artifact,
+        lambda environment: environment.__setitem__(
+            "job_url", "https://github.com/example/project/actions/runs/999999/job/2999"
+        ),
+    )
+
+
+@given("GraalPy tox results identify their implementation as GraalVM")
+def graalpy_tox_implementation_uses_graalvm_identity(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _graalpy_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        tox_result = environment.get("tox_result")
+        assert isinstance(tox_result, dict), environment
+        testenvs = tox_result.get("testenvs")
+        assert isinstance(testenvs, dict), tox_result
+        entry = testenvs.get(artifact.tox_environment)
+        assert isinstance(entry, dict), testenvs
+        python = entry.get("python")
+        assert isinstance(python, dict), entry
+        python["implementation"] = "GraalVM"
+
+    _mutate_environment(artifact, mutate)
+
+
 @given("one environment omits its resolved tox command")
 def omit_resolved_tox_command(proof_aggregation: ProofAggregationContext) -> None:
     artifact = _first_test_artifact(proof_aggregation)
     _mutate_environment(artifact, lambda environment: environment.pop("command", None))
+
+
+@given("one environment omits its host tox version and resolved command")
+def omit_host_tox_system_tool_evidence(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _first_test_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        versions = environment.get("system_tool_versions")
+        commands = environment.get("system_tool_commands")
+        assert isinstance(versions, dict) and isinstance(commands, dict), environment
+        versions["tox"] = None
+        commands["tox"] = None
+
+    _mutate_environment(artifact, mutate)
 
 
 @given("one test-group environment omits its actual pytest version")
@@ -544,10 +703,13 @@ def assign_runtime_python_and_platform_mismatches(proof_aggregation: ProofAggreg
     _mutate_environment(artifact, mutate)
 
 
-@given("one parallel environment is missing its required pytest-xdist package")
-def remove_required_pytest_xdist_from_parallel_environment(proof_aggregation: ProofAggregationContext) -> None:
-    artifact = next((item for item in proof_aggregation.artifacts if item.group == "parallel"), None)
-    assert artifact is not None, "the inventory must contain a parallel environment"
+@given("one optional xdist environment is missing its pytest-xdist package")
+def remove_pytest_xdist_from_optional_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = next(
+        (item for item in proof_aggregation.artifacts if item.group == "optional" and "xdist" in item.tox_environment),
+        None,
+    )
+    assert artifact is not None, "the inventory must contain an optional xdist environment"
 
     def mutate(environment: dict[str, Any]) -> None:
         optional_versions = environment["optional_versions"]
@@ -650,6 +812,18 @@ def omit_live_formatter_node_version(proof_aggregation: ProofAggregationContext)
     _mutate_environment(artifact, mutate)
 
 
+@given("the optional Allure environment omits its Allure CLI version")
+def omit_optional_allure_cli_version(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _optional_allure_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        versions = environment.get("system_tool_versions")
+        assert isinstance(versions, dict) and isinstance(versions.get("allure-cli"), str), environment
+        versions["allure-cli"] = None
+
+    _mutate_environment(artifact, mutate)
+
+
 @given("one live formatter environment omits its required uv version")
 def omit_live_formatter_uv_version(proof_aggregation: ProofAggregationContext) -> None:
     artifact = next(
@@ -682,9 +856,13 @@ def record_live_formatter_uv_outside_tox_environment(proof_aggregation: ProofAgg
     _mutate_environment(artifact, mutate)
 
 
-@given("one full-matrix coverage environment omits its tox-local uv version and another omits its uv command")
-def omit_full_matrix_coverage_uv_evidence(proof_aggregation: ProofAggregationContext) -> None:
-    version_artifact, command_artifact = _full_matrix_coverage_artifacts(proof_aggregation)[:2]
+@given("PyPy acceptance omits its tox-local uv version and xdist omits its uv command")
+def omit_acceptance_coverage_uv_evidence(proof_aggregation: ProofAggregationContext) -> None:
+    version_artifact = _tox_environment_artifact(proof_aggregation, "pypy312-pytestlatest-coverage-lin")
+    command_artifact = _tox_environment_artifact(
+        proof_aggregation,
+        "py314-pytestlatest-gherkin33-xdist-coverage-lin",
+    )
     assert version_artifact != command_artifact
 
     def omit_version(environment: dict[str, Any]) -> None:
@@ -824,14 +1002,15 @@ def proof_summary_passes_with_every_inventory_environment(
     assert summary.get("expected_environment_count") == expected_count, summary
 
 
-@then("the proof summary should report serial parallel e2e external and quality groups")
+@then("the proof summary should report serial parallel e2e external quality and optional groups")
 def proof_summary_reports_all_inventory_groups(proof_aggregation: ProofAggregationContext) -> None:
     groups = _group_records(proof_aggregation)
     assert set(groups) == set(_EXPECTED_GROUPS), groups
     for group in _EXPECTED_GROUPS:
         report = groups[group]
         assert report.get("outcome") == "passed", (group, report)
-        assert report.get("expectedEnvironmentCount", 0) > 0, (group, report)
+        if group != "parallel":
+            assert report.get("expectedEnvironmentCount", 0) > 0, (group, report)
         assert report.get("environmentCount") == report.get("expectedEnvironmentCount"), (group, report)
 
 
@@ -863,6 +1042,9 @@ def proof_summary_preserves_actual_environment_evidence(proof_aggregation: Proof
         "selected_tests",
         "passed_tests",
         "platform_name",
+        "architecture",
+        "job_url",
+        "run_url",
     )
     for key, expected in expected_records.items():
         actual = summarized_records[key]
@@ -881,6 +1063,67 @@ def proof_summary_preserves_actual_environment_evidence(proof_aggregation: Proof
             assert isinstance(actual.get("pytest"), str), (key, actual)
             assert actual.get("selected_tests", 0) > 0, (key, actual)
             assert actual.get("passed_tests", 0) > 0, (key, actual)
+
+
+@then("the proof summary should preserve architecture and actual job and run links")
+def proof_summary_preserves_architecture_and_workflow_links(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    assert environments, "the proof summary must contain environment evidence"
+    for environment in environments:
+        assert isinstance(environment, dict), environment
+        architecture = environment.get("architecture")
+        assert isinstance(architecture, str) and architecture, environment
+        job_url = environment.get("job_url")
+        run_url = environment.get("run_url")
+        assert isinstance(job_url, str) and "/actions/runs/" in job_url and "/job/" in job_url, environment
+        assert isinstance(run_url, str) and "/actions/runs/" in run_url, environment
+
+
+@then("host tox evidence should match each environment's resolved tox run command")
+def host_tox_evidence_matches_each_tox_run_command(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    assert len(environments) == len(proof_aggregation.artifacts), (len(environments), proof_aggregation.artifacts)
+    for environment in environments:
+        assert isinstance(environment, dict), environment
+        versions = environment.get("system_tool_versions")
+        commands = environment.get("system_tool_commands")
+        run_command = environment.get("command")
+        assert isinstance(versions, dict) and isinstance(versions.get("tox"), str) and versions.get("tox"), environment
+        tox_command = commands.get("tox") if isinstance(commands, dict) else None
+        assert isinstance(tox_command, dict), environment
+        executable = tox_command.get("executable")
+        assert isinstance(executable, str) and executable, tox_command
+        assert tox_command.get("argv") == [executable, "--version"], tox_command
+        assert isinstance(run_command, list) and run_command[0] == executable, (tox_command, run_command)
+        assert "/.tox/" not in executable.replace("\\", "/").casefold(), executable
+
+
+@then("the proof summary should retain the canonical GraalPy runtime evidence")
+def proof_summary_retains_canonical_graalpy_runtime(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    graalpy = [environment for environment in environments if environment.get("runtime") == "GraalPy"]
+    assert graalpy, environments
+    assert all(environment.get("runtime") == "GraalPy" for environment in graalpy), graalpy
+
+
+@then("optional integration proof should be separated from core support groups")
+def optional_proof_is_separate_from_core_groups(proof_aggregation: ProofAggregationContext) -> None:
+    optional = [item for item in proof_aggregation.artifacts if item.job == "optional-integrations"]
+    assert optional, "the inventory must declare optional integration proof cells"
+    optional_environments = {item.tox_environment for item in optional}
+    groups = _group_records(proof_aggregation)
+    optional_group = groups.get("optional")
+    assert isinstance(optional_group, dict), groups
+    assert optional_group.get("outcome") == "passed", optional_group
+    assert optional_group.get("expectedEnvironmentCount") == len(optional), optional_group
+    assert optional_group.get("environmentCount") == len(optional), optional_group
+    assert set(optional_group.get("environments", [])) == optional_environments, optional_group
+    for group_name in set(groups) - {"optional"}:
+        report = groups[group_name]
+        assert not optional_environments.intersection(report.get("environments", [])), (group_name, report)
 
 
 @then("the proof summary should preserve Linux Windows and macOS runner evidence")
@@ -952,6 +1195,101 @@ def proof_summary_preserves_live_formatter_system_tool_versions(
         assert uv_command.get("argv") == [uv_executable, "--version"], uv_command
 
 
+@then("it should preserve Node npm npx Allure CLI and tox-local uv evidence for browser reports")
+def proof_summary_preserves_browser_report_system_tool_evidence(
+    proof_aggregation: ProofAggregationContext,
+) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    records = [
+        environment
+        for environment in environments
+        if isinstance(environment, dict)
+        and environment.get("job") == "browser-report"
+        and environment.get("tox_environment") == "py314-pytestlatest-playwright-report"
+    ]
+    assert len(records) == 1, records
+    record = records[0]
+    versions = record.get("system_tool_versions")
+    assert isinstance(versions, dict), record
+    for tool in _FORMATTER_SYSTEM_TOOL_VERSION_KEYS:
+        assert isinstance(versions.get(tool), str) and versions[tool], (tool, record)
+    commands = record.get("system_tool_commands")
+    assert isinstance(commands, dict), record
+    assert commands["allure-cli"] == {
+        "executable": commands["npx"]["executable"],
+        "argv": [commands["npx"]["executable"], "--yes", "allure@3.20.0", "--version"],
+    }, commands
+    uv_command = commands.get("uv")
+    assert isinstance(uv_command, dict), record
+    uv_executable = uv_command.get("executable")
+    assert isinstance(uv_executable, str), record
+    expected_suffix = f"/.tox/{record['tox_environment']}/bin/uv"
+    assert uv_executable.replace("\\", "/").casefold().endswith(expected_suffix.casefold()), (
+        uv_executable,
+        expected_suffix,
+    )
+    assert uv_command.get("argv") == [uv_executable, "--version"], uv_command
+
+
+@then("core CPython and GraalPy coverage evidence should omit tox-local uv")
+def proof_summary_core_coverage_omits_tox_local_uv(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    expected_environments = {
+        "py314-pytestlatest-coverage-lin",
+        "graalpy253-pytestlatest-coverage-lin",
+    }
+    records = {
+        environment.get("tox_environment"): environment
+        for environment in environments
+        if isinstance(environment, dict) and environment.get("tox_environment") in expected_environments
+    }
+    assert set(records) == expected_environments, records
+    for name, environment in records.items():
+        versions = environment.get("system_tool_versions")
+        commands = environment.get("system_tool_commands")
+        assert isinstance(versions, dict) and versions.get("uv") is None, (name, versions)
+        assert isinstance(commands, dict) and commands.get("uv") is None, (name, commands)
+
+
+@then("the proof summary should preserve Node npm npx and Allure CLI evidence for optional Allure")
+def proof_summary_preserves_optional_allure_system_tool_evidence(
+    proof_aggregation: ProofAggregationContext,
+) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    records = [
+        environment
+        for environment in environments
+        if isinstance(environment, dict)
+        and environment.get("job") == "optional-integrations"
+        and "allure" in environment.get("tox_environment", "")
+    ]
+    assert len(records) == 1, records
+    versions = records[0].get("system_tool_versions")
+    assert isinstance(versions, dict), records[0]
+    for tool in ("node", "npm", "npx", "allure-cli"):
+        assert isinstance(versions.get(tool), str) and versions[tool], (tool, records[0])
+    commands = records[0].get("system_tool_commands")
+    assert isinstance(commands, dict), records[0]
+    assert commands["allure-cli"] == {
+        "executable": commands["npx"]["executable"],
+        "argv": [commands["npx"]["executable"], "--yes", "allure@3.20.0", "--version"],
+    }, commands
+
+
+@then("the proof summary should fail for missing optional Allure CLI evidence")
+def proof_summary_fails_for_missing_optional_allure_cli_evidence(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "optional-integrations" in proof_aggregation_result.stderr
+    assert "system tool 'allure-cli'" in proof_aggregation_result.stderr
+
+
 @then("the proof summary should fail for missing live formatter system tool versions")
 def proof_summary_fails_for_missing_live_formatter_system_tool_versions(
     proof_aggregation: ProofAggregationContext,
@@ -960,6 +1298,17 @@ def proof_summary_fails_for_missing_live_formatter_system_tool_versions(
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "requires system tool 'node' with an actual version" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for missing host tox evidence")
+def proof_summary_fails_for_missing_host_tox_evidence(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'tox' with an actual version" in proof_aggregation_result.stderr
+    assert "requires system tool 'tox' with its resolved version command" in proof_aggregation_result.stderr
 
 
 @then("the proof summary should fail for a missing live formatter uv version diagnostic")
@@ -982,14 +1331,18 @@ def proof_summary_fails_for_live_formatter_uv_outside_tox_environment(
     assert "requires system tool 'uv' with its resolved version command" in proof_aggregation_result.stderr
 
 
-@then("the proof summary should fail with actionable full-matrix coverage uv diagnostics")
-def proof_summary_fails_for_missing_full_matrix_coverage_uv_evidence(
+@then("the proof summary should fail with actionable acceptance uv diagnostics")
+def proof_summary_fails_for_missing_acceptance_uv_evidence(
     proof_aggregation: ProofAggregationContext,
     proof_aggregation_result: subprocess.CompletedProcess[str],
 ) -> None:
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
-    version_artifact, command_artifact = _full_matrix_coverage_artifacts(proof_aggregation)[:2]
+    version_artifact = _tox_environment_artifact(proof_aggregation, "pypy312-pytestlatest-coverage-lin")
+    command_artifact = _tox_environment_artifact(
+        proof_aggregation,
+        "py314-pytestlatest-gherkin33-xdist-coverage-lin",
+    )
     stderr = proof_aggregation_result.stderr
     version_prefix = (
         f"{version_artifact.job}/{version_artifact.cell}/{version_artifact.tox_environment} "
@@ -1091,6 +1444,7 @@ def capture_live_formatter_system_tool_versions(request: Any, tmp_path: Path, mo
     monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
     runner = importlib.import_module("run_env_matrix_cell")
     executable_paths = {
+        "tox": r"C:\host\Python\Scripts\tox.exe",
         "node": r"C:\Program Files\nodejs\node.exe",
         "npm": r"C:\Program Files\nodejs\npm.cmd",
         "npx": r"C:\Program Files\nodejs\npx.cmd",
@@ -1098,6 +1452,7 @@ def capture_live_formatter_system_tool_versions(request: Any, tmp_path: Path, mo
     monkeypatch.setattr(runner.shutil, "which", executable_paths.get)
     calls: list[tuple[list[str], dict[str, Any]]] = []
     outputs = {
+        ("tox", ("--version",)): "4.25.0 from C:\\host\\Python\\Lib\\site-packages\\tox\\__init__.py\n",
         ("node", ("--version",)): "v22.20.0\n",
         ("npm", ("--version",)): "10.9.3\n",
         ("npx", ("--version",)): "10.9.3\n",
@@ -1121,10 +1476,11 @@ def capture_live_formatter_system_tool_versions(request: Any, tmp_path: Path, mo
     return {"versions": versions, "commands": commands, "calls": calls, "tox_uv": tox_uv}
 
 
-@then("it should record Node npm npx Allure CLI and tox-local uv versions using resolved argv commands")
+@then("it should record host tox Node npm npx Allure CLI and tox-local uv versions using resolved argv commands")
 def formatter_runner_records_required_versions_with_argv(formatter_tool_capture: dict[str, Any]) -> None:
     versions = formatter_tool_capture["versions"]
     assert versions == {
+        "tox": "4.25.0",
         "node": "v22.20.0",
         "npm": "10.9.3",
         "npx": "10.9.3",
@@ -1136,6 +1492,7 @@ def formatter_runner_records_required_versions_with_argv(formatter_tool_capture:
     }
     commands = formatter_tool_capture["commands"]
     for tool, expected_executable in (
+        ("tox", r"C:\host\Python\Scripts\tox.exe"),
         ("node", r"C:\Program Files\nodejs\node.exe"),
         ("npm", r"C:\Program Files\nodejs\npm.cmd"),
         ("npx", r"C:\Program Files\nodejs\npx.cmd"),
@@ -1158,6 +1515,7 @@ def formatter_runner_records_required_versions_with_argv(formatter_tool_capture:
         for command, _kwargs in calls
     }
     assert ("node.exe", ("--version",)) in invoked_commands, invoked_commands
+    assert ("tox.exe", ("--version",)) in invoked_commands, invoked_commands
     assert ("npm.cmd", ("--version",)) in invoked_commands, invoked_commands
     assert ("npx.cmd", ("--version",)) in invoked_commands, invoked_commands
     assert ("npx.cmd", ("--yes", "allure@3.20.0", "--version")) in invoked_commands, invoked_commands
@@ -1174,11 +1532,16 @@ def capture_native_parser_toolchain_evidence(request: Any, monkeypatch: Any) -> 
     monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
     runner = importlib.import_module("run_env_matrix_cell")
     tool_paths = {
-        "linux": {"go": "/usr/local/go/bin/go", "cc": "/usr/bin/cc"},
-        "darwin": {"go": "/usr/local/go/bin/go", "cc": "/usr/bin/cc"},
-        "win32": {"go": r"C:\Go\bin\go.exe", "gcc": r"C:\msys64\mingw64\bin\gcc.exe"},
+        "linux": {"tox": "/usr/local/bin/tox", "go": "/usr/local/go/bin/go", "cc": "/usr/bin/cc"},
+        "darwin": {"tox": "/opt/homebrew/bin/tox", "go": "/usr/local/go/bin/go", "cc": "/usr/bin/cc"},
+        "win32": {
+            "tox": r"C:\host\Python\Scripts\tox.exe",
+            "go": r"C:\Go\bin\go.exe",
+            "gcc": r"C:\msys64\mingw64\bin\gcc.exe",
+        },
     }
     outputs = {
+        ("tox", ("--version",)): "4.25.0 from /host/python/lib/site-packages/tox/__init__.py\n",
         ("go", ("version",)): "go version go1.24.2 linux/amd64\n",
         ("cc", ("--version",)): "cc (GCC) 14.2.0\n",
         ("gcc", ("--version",)): "x86_64-w64-mingw32-gcc.exe (GCC) 14.2.0\n",
@@ -1210,6 +1573,8 @@ def native_runner_records_toolchain_versions_and_commands(native_toolchain_captu
     for platform_name, evidence in native_toolchain_capture.items():
         versions = evidence["versions"]
         commands = evidence["commands"]
+        assert versions["tox"] == "4.25.0", (platform_name, versions)
+        assert commands["tox"]["argv"][1:] == ["--version"], (platform_name, commands)
         assert versions["go"] == "go1.24.2", (platform_name, versions)
         assert versions["native-compiler"] == "14.2.0", (platform_name, versions)
         assert commands["go"]["argv"][1:] == ["version"], (platform_name, commands)
@@ -1264,14 +1629,17 @@ def _capture_matrix_runner_with_non_ascii_evidence_path(
         },
     )
     monkeypatch.setattr(runner, "_python_in_tox_environment", lambda *_args: tmp_path / "python")
-    monkeypatch.setattr(runner, "_system_tool_evidence", lambda *_args, **_kwargs: ({}, {}))
     monkeypatch.setattr(runner.platform, "platform", lambda: "synthetic-platform")
     parent_stdout_bytes = io.BytesIO()
     parent_stdout = io.TextIOWrapper(parent_stdout_bytes, encoding="cp1252", errors="strict")
     monkeypatch.setattr(runner.sys, "stdout", parent_stdout)
     tox_calls: list[dict[str, Any]] = []
+    tox_version_calls: list[list[str]] = []
 
     def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if command[1:] == ["--version"]:
+            tox_version_calls.append(command)
+            return subprocess.CompletedProcess(command, 0, stdout="4.25.0 from synthetic tox\n", stderr="")
         tox_calls.append({"command": command, "returncode": tox_returncode, **kwargs})
         result_json = Path(command[command.index("--result-json") + 1])
         result_json.parent.mkdir(parents=True, exist_ok=True)
@@ -1302,6 +1670,7 @@ def _capture_matrix_runner_with_non_ascii_evidence_path(
     return {
         "returncode": result,
         "tox_calls": tox_calls,
+        "tox_version_calls": tox_version_calls,
         "output_path": output_path,
         "stdout": parent_stdout_bytes.getvalue().decode("cp1252"),
     }
@@ -1354,6 +1723,12 @@ def matrix_runner_preserves_evidence_when_parent_stdout_is_cp1252(
     evidence = json.loads(output_path.read_text(encoding="utf-8"))
     assert evidence["outcome"] == "passed", evidence
     assert evidence["environments"][0]["returncode"] == 0, evidence
+    assert evidence["environments"][0]["system_tool_versions"]["tox"] == "4.25.0", evidence
+    assert evidence["environments"][0]["system_tool_commands"]["tox"] == {
+        "executable": "tox",
+        "argv": ["tox", "--version"],
+    }, evidence
+    assert matrix_runner_cp1252_capture["tox_version_calls"] == [["tox", "--version"]]
     assert "Unicode smoke: café, \\u0416" in matrix_runner_cp1252_capture["stdout"]
     assert "доказательства" not in matrix_runner_cp1252_capture["stdout"]
     assert (
@@ -1690,6 +2065,56 @@ def proof_summary_fails_for_missing_tox_result_command(
     assert "command evidence" in proof_aggregation_result.stderr
 
 
+@then("the proof summary should fail with a missing architecture diagnostic")
+def proof_summary_fails_without_architecture(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "reports architecture None" in proof_aggregation_result.stderr, proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with an invalid architecture diagnostic")
+def proof_summary_fails_with_invalid_architecture(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "reports architecture '../unknown'" in proof_aggregation_result.stderr, proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with a missing workflow job link diagnostic")
+def proof_summary_fails_without_job_link(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "missing a valid workflow job link" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with an exact interpreter version diagnostic")
+def proof_summary_fails_for_wrong_exact_interpreter_version(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "inventory expects '3.15.0'" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with a mismatched workflow run link diagnostic")
+def proof_summary_fails_with_mismatched_workflow_links(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "job and run links do not identify the same workflow run" in proof_aggregation_result.stderr
+
+
 def _run_selected_matrix_environment(
     request: Any,
     tmp_path: Path,
@@ -1727,11 +2152,14 @@ def _run_selected_matrix_environment(
         },
     )
     monkeypatch.setattr(runner, "_python_in_tox_environment", lambda *_args: tmp_path / "python")
-    monkeypatch.setattr(runner, "_system_tool_evidence", lambda *_args, **_kwargs: ({}, {}))
     monkeypatch.setattr(runner.platform, "platform", lambda: "synthetic-platform")
     tox_calls: list[dict[str, Any]] = []
+    tox_version_calls: list[list[str]] = []
 
     def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if command[1:] == ["--version"]:
+            tox_version_calls.append(command)
+            return subprocess.CompletedProcess(command, 0, stdout="4.25.0 from synthetic tox\n", stderr="")
         tox_calls.append({"command": command, **kwargs})
         result_json = Path(command[command.index("--result-json") + 1])
         result_json.parent.mkdir(parents=True, exist_ok=True)
@@ -1762,6 +2190,7 @@ def _run_selected_matrix_environment(
     return {
         "returncode": returncode,
         "tox_calls": tox_calls,
+        "tox_version_calls": tox_version_calls,
         "output_path": output_path,
         "cell": cell,
         "requested_environment": requested_environment,
@@ -1789,6 +2218,7 @@ def run_matrix_runner_for_one_selected_environment(
 def selected_matrix_environment_has_canonical_evidence(selected_matrix_environment_run: dict[str, Any]) -> None:
     capture = selected_matrix_environment_run
     assert capture["returncode"] == 0, capture
+    assert capture["tox_version_calls"] == [["tox", "--version"]], capture
     calls = capture["tox_calls"]
     assert len(calls) == 1, calls
     command = calls[0]["command"]

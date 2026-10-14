@@ -59,12 +59,8 @@ class Matcher:
         self._undefined_parameter_type_causes = []
         self.last_matches = ()
         step_type = self.step.type
-        if isinstance(step_type, StepType):
-            step_type_str = step_type.value.lower()
-        elif step_type is not None:
-            step_type_str = str(step_type).lower()
-        else:
-            step_type_str = ""
+        step_type_name = getattr(step_type, "name", None) or getattr(step_type, "value", step_type)
+        step_type_str = str(step_type_name).rsplit(".", maxsplit=1)[-1].casefold() if step_type is not None else ""
 
         if step_type_str in ("context", "given"):
             step_type = StepType.context
@@ -174,8 +170,10 @@ class Matcher:
                         self._undefined_parameter_types[key] = error if isinstance(error, BaseException) else None
                     captured_diagnostic = True
 
-            if captured_diagnostic and isinstance(error, BaseException) and all(
-                error is not cause for cause in self._undefined_parameter_type_causes
+            if (
+                captured_diagnostic
+                and isinstance(error, BaseException)
+                and all(error is not cause for cause in self._undefined_parameter_type_causes)
             ):
                 self._undefined_parameter_type_causes.append(error)
 

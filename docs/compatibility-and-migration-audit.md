@@ -10,8 +10,8 @@ configuration or a legacy tox INI file.
 The project matrix is configured in `pyproject.toml`:
 
     [tool.pytest-cuke.compatibility]
-    python-factors = ["3.10", "3.11", "3.12", "3.13", "3.14"]
-    pytest-factors = ["7.0", "8.0", "9.0", "latest"]
+    python-factors = ["3.11", "3.12", "3.13", "3.14", "3.15"]
+    pytest-factors = ["7.4", "8.4", "9.0", "latest"]
     execution-targets = ["lin", "mac", "win"]
     tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
     compatibility-source = "pytest-official-policy-and-release-notes"
@@ -119,17 +119,18 @@ diagnostic text.
 ## Supported environment inventory and acceptance
 
 `config/env-matrix.yaml` is the source for the supported runtime, platform,
-optional-capability and CI-cell inventory. It records each cell's concrete tox
-environments, CI selector, prerequisites and runnable carrier. Unsupported
-combinations include a source-backed reason. The checker compares these entries
-with the resolved tox listing and GitHub Actions selectors. Its support ledger
-pins the historical repository revision, retains all twelve frozen #149
-workflow cells, and records a source-backed origin and required or manual
-disposition for each active tox environment. The independent BDD baseline
-retains 68 historical tox expansions: 46 required, 7 manual, and 15 excluded.
-The exclusions cover pytest 7.0–7.2 on Python 3.12 and pytest 8.0–8.1 on
-Python 3.13 across Linux, macOS, and Windows. An environment name alone does
-not establish that a lane ran. The fast PR selector excludes
+optional-capability and CI-cell inventory. Required runtime cells are CPython
+3.11–3.15 on Linux, macOS and Windows, plus PyPy 3.12 and GraalPy 25.3 on Linux
+x86_64. CPython 3.11/Linux also runs latest pytest 7.4.x; CPython 3.12/Linux
+also runs latest pytest 8.4.x. Every required tox environment installs the
+package, runs the core suite and executes the standalone `examples/tutorial`
+project. The inventory records upstream availability, installability, product
+support, required CI, measured results and exclusions separately; unsupported
+combinations include a source-backed reason. The checker compares those entries
+with the resolved tox listing and GitHub Actions selectors. Optional Allure,
+xdist, browser, native parser, formatter and documentation-generation lanes stay
+separate from core runtime acceptance. An environment name alone does not
+establish that a lane ran. The fast PR selector excludes
 `slow`, `e2e`, `external`, `typecheck` and `doc_gen`; full runtime tox commands
 exclude `e2e`, `external`, `typecheck` and `doc_gen`. The required
 `py314-doc-gen` quality lane runs the documentation test with its optional
@@ -137,10 +138,13 @@ Python dependencies and Pandoc. Dedicated browser, native and remote jobs
 install or verify their own prerequisites. xdist proof is reported as
 `parallel`, separately from serial runtime proof.
 
-The runtime tox environments install `uv>=0.8` because collected feature
-acceptance uses it to build and install isolated consumer projects. Each
-coverage environment records the version and resolved executable from its own
-tox environment; the aggregate rejects ambient uv paths or missing evidence.
+Core runtime environments use tox's package installer directly; the GraalPy
+cell keeps its bundled pip and does not install uv. Optional consumer and
+formatter lanes install `uv>=0.8` where their isolated-consumer contracts need
+it. Each coverage environment records its full Python and pytest versions, OS,
+architecture, commit SHA, resolved tox command, selected/passed test counts,
+outcome and workflow URLs. Full proof is valid only when every expected record
+matches the requested commit SHA and passes.
 
 Live formatter acceptance has dedicated Linux, macOS and Windows cells. The
 portable Linux invocation is:
@@ -152,8 +156,9 @@ Node.js, installs uv, and verifies npx by running the Allure CLI. This Linux
 invocation provides Linux evidence only. Proof runs each formatter environment's
 local `.tox/<environment>/bin/uv` or `.tox/<environment>/Scripts/uv.exe`, records
 the actual `uv --version` output and resolved executable path, and rejects
-evidence that points to a uv outside that tox environment. The Windows and macOS CPython 3.12
-support lanes retain their existing manual evidence disposition.
+evidence that points to a uv outside that tox environment. Required CPython
+3.11–3.15 cells on Linux, macOS and Windows run through the inventory-selected
+full matrix; no CPython runtime platform cell is manual-only evidence.
 
 Install the development and inventory tools, inspect resolved tox environments,
 and validate the inventory from the repository root:
@@ -169,22 +174,37 @@ with a diagnostic and remedy:
     cuke compatibility --check-environments --inventory config/env-matrix.yaml --lane optional-dependency-probe --json
     cuke compatibility --check-environments --inventory config/env-matrix.yaml --lane browser-report --json
 
+The full-runtime selector emits one row per tox environment without a second
+hand-maintained cell list:
+
+    python scripts/env_matrix.py --job full-matrix --split-tox-envs
+
+For local exact-version reruns, CPython 3.15 uses the pinned interpreter on all
+platforms, and the older pytest lines have dedicated Linux lanes:
+
+    tox run -e py315-pytestlatest-coverage-lin,py315-pytestlatest-coverage-mac,py315-pytestlatest-coverage-win
+    tox run -e py311-pytest74-coverage-lin,py312-pytest84-coverage-lin
+
 For a full acceptance run, execute the inventory-selected jobs on a push or
 workflow dispatch. The `full-supported-proof-<sha>` artifact contains the
 aggregate summary, each environment's exact SHA, tox environment, installed
 versions, resolved command, selected and passed test counts and result, and the
-source evidence JSON from each matrix cell. Aggregation fails if a cell is missing or
-duplicated, the SHA differs, the actual interpreter or pytest version conflicts
-with the inventory/tox factor, a declared environment fails, or a test lane
-selects no tests. Quality tool lanes are recorded without pretending that a
-pytest test count applies to them. Remote socket, via, and SSH records also
-preserve the runtime, Python, pytest, and pytest-xdist versions reported by both
-actual workers in complete and interrupted runs.
+source evidence JSON and direct Actions job link from each matrix cell.
+Aggregation fails if a cell is missing or duplicated, the SHA differs, the
+actual interpreter or pytest version conflicts with the inventory/tox factor, a
+declared environment fails, or a test lane selects no tests. Quality tool lanes
+are recorded without pretending that a pytest test count applies to them.
+Optional Allure conversion and xdist worker consolidation run in their own
+inventory-selected matrix and aggregate group, separate from core runtime
+claims. Remote socket, via, and SSH records also preserve the runtime, Python,
+pytest, and pytest-xdist versions reported by both actual workers in complete
+and interrupted runs.
 
-`tox run` executes the complete declared tox environment list. To run the two
-manual CPython 3.12 platform lanes explicitly:
+`tox run` executes the complete declared tox environment list. Optional Allure
+and xdist contracts can be rerun with their dedicated environments:
 
-    tox run -e py312-pytest73-coverage-mac,py312-pytest74-coverage-mac,py312-pytest80-coverage-mac,py312-pytest81-coverage-mac,py312-pytest73-coverage-win,py312-pytest74-coverage-win,py312-pytest80-coverage-win,py312-pytest81-coverage-win
+    tox run -e py313-pytest84-allure-coverage-lin
+    tox run -e py314-pytestlatest-gherkin33-xdist-coverage-lin,py314-pytestlatest-gherkinlatest-xdist-coverage-lin
 
 The historical Windows remote-worker lanes also remain manually runnable:
 

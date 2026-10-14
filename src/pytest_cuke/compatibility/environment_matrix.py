@@ -72,8 +72,10 @@ def check_environment_inventory(
     valid_lanes = [lane for lane in lanes if isinstance(lane, dict)]
     valid_cells = [cell for cell in workflow_cells if isinstance(cell, dict)]
     diagnostics.extend(_validate_inventory_records(valid_lanes, valid_cells))
+    runtime_policy_summary, runtime_policy_diagnostics = _validate_runtime_policy(document, valid_lanes, valid_cells)
+    diagnostics.extend(runtime_policy_diagnostics)
 
-    tox_result, tox_environments = _list_tox_environments(project_root)
+    tox_result, tox_listing = _list_tox_environments(project_root)
     if tox_result is None:
         diagnostics.append(
             _diagnostic(
@@ -84,7 +86,7 @@ def check_environment_inventory(
                 "or install tox>=4.2, then retry.",
             )
         )
-        tox_environments = []
+        tox_listing = []
     elif tox_result.returncode != 0:
         detail = (tox_result.stderr or tox_result.stdout).strip()
         diagnostics.append(
@@ -96,6 +98,9 @@ def check_environment_inventory(
             )
         )
 
+    tox_environments, tox_selector_fragments, tox_listing_diagnostics = _classify_tox_listing(document, tox_listing)
+    diagnostics.extend(tox_listing_diagnostics)
+
     support_ledger_summary, support_ledger_diagnostics = _validate_support_ledger(
         document,
         valid_lanes,
@@ -105,6 +110,19 @@ def check_environment_inventory(
     diagnostics.extend(support_ledger_diagnostics)
     capability_exclusions, capability_exclusion_diagnostics = _validate_capability_exclusions(document, valid_lanes)
     diagnostics.extend(capability_exclusion_diagnostics)
+    historical_capability_exclusions, historical_capability_diagnostics = _validate_historical_capability_exclusions(
+        document,
+        valid_lanes,
+    )
+    diagnostics.extend(historical_capability_diagnostics)
+    support_ledger_summary["historicalCapabilityExclusionCount"] = historical_capability_exclusions["count"]
+
+    optional_integration_summary, optional_integration_diagnostics = _validate_optional_integration_inventory(
+        document,
+        valid_lanes,
+        valid_cells,
+    )
+    diagnostics.extend(optional_integration_diagnostics)
 
     cell_index = _index_cells(valid_cells, diagnostics)
     workflow_results = _check_workflow_jobs(project_root, valid_cells, diagnostics)
@@ -133,13 +151,23 @@ def check_environment_inventory(
         "inventory": {
             "path": _display_inventory_path(selected_path),
             "requiredLaneCount": sum(_status(lane) == "required" for lane in valid_lanes),
-            "toxEnvironments": tox_environments,
+            "toxEnvironments": tox_listing,
+            "configuredToxEnvironments": tox_environments,
+            "toxSelectorFragments": tox_selector_fragments,
             "workflowCells": valid_cells,
             "supportLedger": support_ledger_summary,
             "capabilityExclusions": capability_exclusions,
+            "historicalCapabilityExclusions": historical_capability_exclusions,
+            "runtimePolicy": runtime_policy_summary,
+            "optionalIntegrations": optional_integration_summary,
         },
         "proof": {
-            "tox": {"command": list(TOX_LIST_COMMAND), "environments": tox_environments},
+            "tox": {
+                "command": list(TOX_LIST_COMMAND),
+                "environments": tox_listing,
+                "configuredEnvironments": tox_environments,
+                "selectorFragments": tox_selector_fragments,
+            },
             "lanes": proof_lanes,
             "activeEnvironment": _active_environment(),
         },
@@ -343,6 +371,563 @@ def _validate_inventory_records(
     return diagnostics
 
 
+_RUNTIME_POLICY_EVIDENCE_FIELDS = {
+    "python",
+    "pytest",
+    "platform",
+    "architecture",
+    "git_sha",
+    "command",
+    "selected_tests",
+    "passed_tests",
+    "outcome",
+    "job_url",
+    "run_url",
+}
+
+
+def _expected_runtime_cell_keys() -> set[tuple[str, str, str, str]]:
+    expected = {
+        ("cpython", f"3.{minor}", platform_name, "runner-native")
+        for minor in range(11, 16)
+        for platform_name in ("linux", "macos", "windows")
+    }
+    expected.update({("pypy", "3.12", "linux", "x86_64"), ("graalpy", "3.13.14", "linux", "x86_64")})
+    return expected
+
+
+def _runtime_cell_key(cell: dict[str, Any]) -> tuple[str, str, str, str]:
+    return tuple(str(cell.get(key, "")).strip().casefold() for key in ("runtime", "python", "platform", "architecture"))  # type: ignore[return-value]
+
+
+def _validate_runtime_policy(
+    document: dict[str, Any],
+    lanes: list[dict[str, Any]],
+    cells: list[dict[str, Any]],
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    """Validate current product runtime policy independently from its history."""
+    diagnostics: list[dict[str, str]] = []
+    policy = document.get("runtime_policy")
+    if not isinstance(policy, dict):
+        return (
+            {"requiredCellCount": 0, "exclusionCount": 0, "pytestMinimum": None, "latestPytest": None},
+            [
+                _diagnostic(
+                    "runtime-policy",
+                    "runtime-policy-missing",
+                    "inventory must declare the active runtime_policy separately from historical support data",
+                    "Add canonical required runtime cells and source-backed runtime exclusions to the inventory.",
+                )
+            ],
+        )
+
+    pytest_policy = policy.get("pytest")
+    if not isinstance(pytest_policy, dict):
+        pytest_policy = {}
+        diagnostics.append(
+            _diagnostic(
+                "runtime-policy",
+                "runtime-policy-pytest-missing",
+                "runtime_policy must declare its pytest minimum and latest required line",
+                "Declare pytest minimum >=7.0 and the current latest pytest 9.x line.",
+            )
+        )
+    pytest_minimum = pytest_policy.get("minimum")
+    latest_pytest = pytest_policy.get("latest")
+    if pytest_minimum != ">=7.0" or latest_pytest != "9.x":
+        diagnostics.append(
+            _diagnostic(
+                "runtime-policy",
+                "runtime-policy-pytest-range-invalid",
+                f"runtime_policy pytest range is {pytest_minimum!r} through {latest_pytest!r}; expected >=7.0 and 9.x",
+                "Keep pytest >=7 support and require the latest pytest 9.x line on each CPython runtime cell.",
+            )
+        )
+    project = document.get("project")
+    if isinstance(project, dict) and project.get("python_requirement") != ">=3.11":
+        diagnostics.append(
+            _diagnostic(
+                "runtime-policy",
+                "runtime-policy-python-minimum-mismatch",
+                f"project Python requirement {project.get('python_requirement')!r} does not match >=3.11",
+                "Align the environment inventory's project Python requirement with the active runtime policy.",
+            )
+        )
+    if policy.get("python_requirement") != ">=3.11":
+        diagnostics.append(
+            _diagnostic(
+                "runtime-policy",
+                "runtime-policy-python-minimum-invalid",
+                f"runtime policy Python requirement is {policy.get('python_requirement')!r}; expected >=3.11",
+                "Declare the current supported product minimum as Python >=3.11.",
+            )
+        )
+
+    required_cells = policy.get("required_cells")
+    if not isinstance(required_cells, list) or not required_cells:
+        diagnostics.append(
+            _diagnostic(
+                "runtime-policy",
+                "runtime-policy-cells-missing",
+                "runtime_policy.required_cells must be a non-empty canonical runtime matrix",
+                "Add CPython 3.11-3.15 on all three platforms plus PyPy 3.12 and GraalPy 25.3 on Linux x86_64.",
+            )
+        )
+        required_cells = []
+
+    keyed_cells: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+    duplicate_keys: set[tuple[str, str, str, str]] = set()
+    cell_ids: set[str] = set()
+    workflow_by_id = {_cell_id(cell): cell for cell in cells if _cell_id(cell)}
+    for value in required_cells:
+        if not isinstance(value, dict):
+            diagnostics.append(
+                _diagnostic(
+                    "runtime-policy",
+                    "runtime-policy-cell-invalid",
+                    "a required runtime cell is not an object",
+                    "Declare each cell with runtime, Python, platform, architecture, CI selector, "
+                    "and evidence contract.",
+                )
+            )
+            continue
+        cell = value
+        cell_id = str(cell.get("id") or "runtime-policy")
+        key = _runtime_cell_key(cell)
+        if (key[0] == "cpython" and key[1] == "3.10") or (key[0] == "pypy" and key[1] in {"3.10", "3.11"}):
+            diagnostics.append(
+                _diagnostic(
+                    cell_id,
+                    "runtime-policy-obsolete-active-runtime",
+                    f"historical runtime cell {key[:3]!r} is still marked as required support",
+                    "Retain CPython 3.10 and PyPy 3.10/3.11 in source-backed exclusion history only; active runtime "
+                    "cells are CPython 3.11-3.15 and PyPy 3.12.",
+                )
+            )
+        if cell_id in cell_ids:
+            diagnostics.append(
+                _diagnostic(
+                    cell_id,
+                    "runtime-policy-cell-id-duplicate",
+                    f"runtime cell ID {cell_id!r} is duplicated",
+                    "Keep runtime cell IDs unique.",
+                )
+            )
+        cell_ids.add(cell_id)
+        if key in keyed_cells:
+            duplicate_keys.add(key)
+        keyed_cells[key] = cell
+
+        missing_dimensions = [
+            name for name, part in zip(("runtime", "python", "platform", "architecture"), key, strict=True) if not part
+        ]
+        if missing_dimensions:
+            diagnostics.append(
+                _diagnostic(
+                    cell_id,
+                    "runtime-policy-cell-dimensions-missing",
+                    f"required runtime cell is missing: {', '.join(missing_dimensions)}",
+                    "Declare the exact runtime, Python version, platform, and architecture for each cell.",
+                )
+            )
+
+        for field in ("upstream_availability", "installability", "product_support", "required_ci", "measured_evidence"):
+            if not isinstance(cell.get(field), dict):
+                diagnostics.append(
+                    _diagnostic(
+                        cell_id,
+                        "runtime-policy-dimension-missing",
+                        f"required runtime cell is missing its {field} record",
+                        "Keep upstream availability, installability, product support, required CI, "
+                        "and measured evidence separate.",
+                    )
+                )
+
+        availability = cell.get("upstream_availability")
+        if isinstance(availability, dict) and (
+            availability.get("status") != "available" or not _has_source_evidence(availability.get("source_evidence"))
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    cell_id,
+                    "runtime-policy-upstream-evidence-invalid",
+                    "a required runtime must have upstream availability status and HTTP(S) source evidence",
+                    "Cite the upstream runtime's official supported downloads or release page.",
+                )
+            )
+
+        installability = cell.get("installability")
+        if isinstance(installability, dict):
+            acceptance = installability.get("acceptance")
+            if (
+                installability.get("status") != "required-acceptance"
+                or not isinstance(acceptance, list)
+                or not {
+                    "core-install",
+                    "core-tests",
+                    "examples",
+                }
+                <= set(acceptance)
+            ):
+                diagnostics.append(
+                    _diagnostic(
+                        cell_id,
+                        "runtime-policy-installability-incomplete",
+                        "required runtime cells must install the core package and accept core tests and examples",
+                        "Declare core-install, core-tests, and examples in installability.acceptance "
+                        "for every required cell.",
+                    )
+                )
+
+        product_support = cell.get("product_support")
+        if isinstance(product_support, dict) and product_support.get("status") != "supported":
+            diagnostics.append(
+                _diagnostic(
+                    cell_id,
+                    "runtime-policy-product-support-invalid",
+                    "required runtime cell is not marked as product-supported",
+                    "Use product_support.status: supported only for active product runtime cells.",
+                )
+            )
+
+        required_ci = cell.get("required_ci")
+        if isinstance(required_ci, dict):
+            selector = required_ci.get("workflow_cell")
+            workflow_cell = workflow_by_id.get(str(selector)) if selector else None
+            tox_envs = required_ci.get("tox_envs")
+            if required_ci.get("status") != "required" or not isinstance(tox_envs, list) or not tox_envs:
+                diagnostics.append(
+                    _diagnostic(
+                        cell_id,
+                        "runtime-policy-required-ci-invalid",
+                        "required runtime cell must declare its active workflow selector and tox environments",
+                        "Set required_ci.status to required and list its canonical workflow cell and tox environments.",
+                    )
+                )
+            elif workflow_cell is None:
+                diagnostics.append(
+                    _diagnostic(
+                        cell_id,
+                        "runtime-policy-workflow-cell-unresolved",
+                        f"required CI selector {selector!r} is not present in workflow_cells",
+                        "Add the matching canonical workflow cell or correct required_ci.workflow_cell.",
+                    )
+                )
+            else:
+                workflow_key = _runtime_cell_key(workflow_cell)
+                if workflow_key != key:
+                    diagnostics.append(
+                        _diagnostic(
+                            cell_id,
+                            "runtime-policy-workflow-cell-mismatch",
+                            f"workflow cell {selector!r} does not match runtime dimensions {key!r}",
+                            "Keep one workflow cell per canonical runtime, Python, platform, and architecture tuple.",
+                        )
+                    )
+                setup = cell.get("setup_python")
+                if isinstance(setup, dict) and (
+                    workflow_cell.get("setup_python_input") != setup.get("input")
+                    or workflow_cell.get("expected_interpreter") != setup.get("expected_interpreter")
+                ):
+                    diagnostics.append(
+                        _diagnostic(
+                            cell_id,
+                            "runtime-policy-workflow-setup-mismatch",
+                            f"workflow cell {selector!r} does not carry the canonical setup-python contract",
+                            "Copy setup_python.input and setup_python.expected_interpreter into "
+                            "the workflow cell fields.",
+                        )
+                    )
+                if cell.get("runtime_version") is not None and workflow_cell.get("runtime_version") != cell.get(
+                    "runtime_version"
+                ):
+                    diagnostics.append(
+                        _diagnostic(
+                            cell_id,
+                            "runtime-policy-workflow-runtime-version-mismatch",
+                            f"workflow cell {selector!r} does not carry runtime version "
+                            f"{cell.get('runtime_version')!r}",
+                            "Keep runtime_version identical in the canonical policy and workflow cell.",
+                        )
+                    )
+                selected_envs = workflow_cell.get("tox_envs")
+                if not isinstance(selected_envs, list) or set(tox_envs) != set(selected_envs):
+                    diagnostics.append(
+                        _diagnostic(
+                            cell_id,
+                            "runtime-policy-tox-selection-mismatch",
+                            f"workflow cell {selector!r} does not have the canonical runtime cell tox environment set",
+                            "Keep required_ci.tox_envs identical to the matching workflow cell tox_envs.",
+                        )
+                    )
+                matching_lanes = [
+                    lane
+                    for lane in lanes
+                    if _status(lane) == "required"
+                    and _runtime_cell_key(lane)[:3] == key[:3]
+                    and str(lane.get("workflow_selector")) == str(selector)
+                    and set(_split_tox_envs(lane.get("tox_env"))) & set(tox_envs)
+                ]
+                represented_envs = {
+                    environment for lane in matching_lanes for environment in _split_tox_envs(lane.get("tox_env"))
+                }
+                if not set(tox_envs) <= represented_envs:
+                    diagnostics.append(
+                        _diagnostic(
+                            cell_id,
+                            "runtime-policy-lane-unresolved",
+                            "one or more required runtime tox environments have no matching required lane",
+                            "Represent each required runtime acceptance environment in an active required lane.",
+                        )
+                    )
+
+        setup_python = cell.get("setup_python")
+        if (
+            not isinstance(setup_python, dict)
+            or not setup_python.get("input")
+            or not setup_python.get("expected_interpreter")
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    cell_id,
+                    "runtime-policy-setup-python-missing",
+                    "required runtime cell must declare setup-python input and expected interpreter",
+                    "Set setup_python.input and setup_python.expected_interpreter for every required cell.",
+                )
+            )
+
+        required_pytest_lines = cell.get("required_pytest_lines")
+        if key[0] == "cpython" and (not isinstance(required_pytest_lines, list) or "9.x" not in required_pytest_lines):
+            diagnostics.append(
+                _diagnostic(
+                    cell_id,
+                    "runtime-policy-latest-pytest-missing",
+                    "every required CPython cell must test the latest pytest 9.x line",
+                    "Add 9.x to required_pytest_lines for every CPython 3.11-3.15 platform cell.",
+                )
+            )
+
+        measured_evidence = cell.get("measured_evidence")
+        if isinstance(measured_evidence, dict):
+            fields = measured_evidence.get("fields")
+            missing_fields = (
+                _RUNTIME_POLICY_EVIDENCE_FIELDS - set(fields)
+                if isinstance(fields, list)
+                else _RUNTIME_POLICY_EVIDENCE_FIELDS
+            )
+            if measured_evidence.get("status") != "per-run" or missing_fields:
+                diagnostics.append(
+                    _diagnostic(
+                        cell_id,
+                        "runtime-policy-evidence-fields-missing",
+                        f"measured evidence is missing fields: {', '.join(sorted(missing_fields))}",
+                        "Require Python, pytest, platform, architecture, SHA, command, selected/passed counts, "
+                        "outcome, and job/run URLs.",
+                    )
+                )
+
+    expected_keys = _expected_runtime_cell_keys()
+    actual_keys = set(keyed_cells)
+    if duplicate_keys or actual_keys != expected_keys:
+        missing_keys = sorted(expected_keys - actual_keys)
+        extra_keys = sorted(actual_keys - expected_keys)
+        diagnostics.append(
+            _diagnostic(
+                "runtime-policy",
+                "runtime-policy-canonical-cells-invalid",
+                f"required runtime cells do not match the canonical support matrix; missing={missing_keys!r}, "
+                f"extra={extra_keys!r}, duplicates={sorted(duplicate_keys)!r}",
+                "Require CPython 3.11-3.15 on Linux, macOS, and Windows, PyPy 3.12 on Linux x86_64, "
+                "and GraalPy 25.3/Python 3.13.14 on Linux x86_64.",
+            )
+        )
+
+    expected_floor_lines = {
+        ("cpython", "3.11", "linux", "runner-native"): "7.4.x",
+        ("cpython", "3.12", "linux", "runner-native"): "8.4.x",
+    }
+    for key, floor_line in expected_floor_lines.items():
+        floor_cell = keyed_cells.get(key)
+        if floor_cell is not None and floor_line not in floor_cell.get("required_pytest_lines", []):
+            diagnostics.append(
+                _diagnostic(
+                    str(floor_cell.get("id") or "runtime-policy"),
+                    "runtime-policy-pytest-floor-missing",
+                    f"required CPython {key[1]} Linux pytest floor {floor_line} is missing",
+                    "Include pytest 7.4.x on CPython 3.11 Linux and pytest 8.4.x on CPython 3.12 Linux.",
+                )
+            )
+
+    special_setup = {
+        ("graalpy", "3.13.14", "linux", "x86_64"): ("graalpy-25.3", "3.13.14"),
+        **{
+            ("cpython", "3.15", platform_name, "runner-native"): ("3.15.0", "3.15.0")
+            for platform_name in ("linux", "macos", "windows")
+        },
+    }
+    for key, (setup_input, interpreter) in special_setup.items():
+        setup_cell = keyed_cells.get(key)
+        setup = setup_cell.get("setup_python") if setup_cell else None
+        if setup_cell is not None and (
+            not isinstance(setup, dict)
+            or setup.get("input") != setup_input
+            or setup.get("expected_interpreter") != interpreter
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    str(setup_cell.get("id") or "runtime-policy"),
+                    "runtime-policy-setup-python-mismatch",
+                    f"setup-python must use input {setup_input!r} and expect interpreter {interpreter!r}",
+                    "Pin GraalPy 25.3 and CPython 3.15.0 explicitly in the canonical runtime inventory.",
+                )
+            )
+        if key[0] == "graalpy" and cell is not None and cell.get("runtime_version") != "25.3":
+            diagnostics.append(
+                _diagnostic(
+                    str(cell.get("id") or "runtime-policy"),
+                    "runtime-policy-graalpy-version-mismatch",
+                    f"GraalPy runtime version is {cell.get('runtime_version')!r}; expected 25.3",
+                    "Set runtime_version to 25.3 and Python to 3.13.14 for the GraalPy cell.",
+                )
+            )
+
+    for lane in lanes:
+        key = _runtime_cell_key(lane)
+        if _status(lane) != "unsupported" and (
+            (key[0] == "cpython" and key[1] == "3.10") or (key[0] == "pypy" and key[1] in {"3.10", "3.11"})
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    _lane_id(lane) or "runtime-policy",
+                    "runtime-policy-obsolete-active-runtime",
+                    f"historical runtime lane {key[:3]!r} is still marked active",
+                    "Retain CPython 3.10 and PyPy 3.10/3.11 in the historical ledger only; "
+                    "keep current lanes at CPython 3.11-3.15 and PyPy 3.12.",
+                )
+            )
+
+    exclusions = policy.get("exclusions")
+    if not isinstance(exclusions, list) or not exclusions:
+        diagnostics.append(
+            _diagnostic(
+                "runtime-policy",
+                "runtime-policy-exclusions-missing",
+                "runtime_policy.exclusions must retain reasoned runtime exclusions",
+                "Record unsupported runtime tuples with a reason and upstream or issue source evidence.",
+            )
+        )
+        exclusions = []
+    exclusion_ids: set[str] = set()
+    for exclusion in exclusions:
+        if not isinstance(exclusion, dict):
+            diagnostics.append(
+                _diagnostic(
+                    "runtime-policy",
+                    "runtime-policy-exclusion-invalid",
+                    "a runtime policy exclusion is not an object",
+                    "Declare ID, runtime, Python, reason, and source evidence for each excluded tuple.",
+                )
+            )
+            continue
+        exclusion_id = exclusion.get("id")
+        if (
+            not isinstance(exclusion_id, str)
+            or not exclusion_id
+            or exclusion_id in exclusion_ids
+            or not exclusion.get("runtime")
+            or not exclusion.get("python")
+            or not isinstance(exclusion.get("reason"), str)
+            or not exclusion["reason"].strip()
+            or not _has_source_evidence(exclusion.get("source_evidence"))
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    str(exclusion_id or "runtime-policy"),
+                    "runtime-policy-exclusion-invalid",
+                    "runtime exclusions need a unique ID, runtime tuple, reason, and HTTP(S) source evidence",
+                    "Keep every unsupported runtime exclusion reasoned and linked to an upstream or issue source.",
+                )
+            )
+        if isinstance(exclusion_id, str):
+            exclusion_ids.add(exclusion_id)
+        availability = exclusion.get("upstream_availability")
+        support = exclusion.get("product_support")
+        if (
+            not isinstance(availability, dict)
+            or availability.get("status") not in {"available", "unavailable", "unknown"}
+            or not _has_source_evidence(availability.get("source_evidence"))
+            or not isinstance(support, dict)
+            or support.get("status") != "unsupported"
+            or not support.get("reason")
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    str(exclusion_id or "runtime-policy"),
+                    "runtime-policy-exclusion-dimensions-invalid",
+                    "an excluded runtime must distinguish upstream availability from product support",
+                    "Declare upstream_availability with source evidence and "
+                    "product_support.status: unsupported with a reason.",
+                )
+            )
+        exclusion_key = (
+            str(exclusion.get("runtime", "")).casefold(),
+            str(exclusion.get("python", "")).casefold(),
+            str(exclusion.get("platform", "")).casefold(),
+            str(exclusion.get("architecture", "")).casefold(),
+        )
+        if (
+            exclusion_key in expected_keys
+            and (exclusion_key[0], exclusion_key[1], exclusion_key[2], exclusion_key[3]) in actual_keys
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    str(exclusion_id or "runtime-policy"),
+                    "runtime-policy-exclusion-conflict",
+                    f"excluded runtime tuple {exclusion_key!r} is also an active required cell",
+                    "Remove the active runtime cell or correct the exclusion tuple.",
+                )
+            )
+
+    expected_exclusion_keys = {
+        ("cpython", "3.10", "all", "all"),
+        ("pypy", "3.10", "all", "all"),
+        ("pypy", "3.11", "all", "all"),
+    }
+    actual_exclusion_keys = {
+        (
+            str(exclusion.get("runtime", "")).casefold(),
+            str(exclusion.get("python", "")).casefold(),
+            str(exclusion.get("platform", "")).casefold(),
+            str(exclusion.get("architecture", "")).casefold(),
+        )
+        for exclusion in exclusions
+        if isinstance(exclusion, dict)
+    }
+    if actual_exclusion_keys != expected_exclusion_keys:
+        diagnostics.append(
+            _diagnostic(
+                "runtime-policy",
+                "runtime-policy-canonical-exclusions-invalid",
+                "runtime exclusions must retain CPython 3.10 below the product floor and retired PyPy 3.10/3.11; "
+                f"missing={sorted(expected_exclusion_keys - actual_exclusion_keys)!r}, "
+                f"extra={sorted(actual_exclusion_keys - expected_exclusion_keys)!r}",
+                "Keep CPython 3.10 and PyPy 3.10/3.11 as source-backed unsupported policy rows while active support "
+                "uses CPython 3.11-3.15 and PyPy 3.12.",
+            )
+        )
+
+    return (
+        {
+            "requiredCellCount": len(keyed_cells),
+            "exclusionCount": len(exclusions),
+            "pytestMinimum": pytest_minimum,
+            "latestPytest": latest_pytest,
+            "evidenceFields": sorted(_RUNTIME_POLICY_EVIDENCE_FIELDS),
+        },
+        diagnostics,
+    )
+
+
 def _validate_support_ledger(
     document: dict[str, Any],
     lanes: list[dict[str, Any]],
@@ -396,11 +981,6 @@ def _validate_support_ledger(
             )
         )
         historical_cells = historical_cells if isinstance(historical_cells, list) else []
-    workflow_tuples = {
-        (str(cell.get("runtime")), str(cell.get("python")), str(cell.get("platform")))
-        for cell in cells
-        if isinstance(cell, dict)
-    }
     for item in historical_cells:
         if not isinstance(item, dict):
             diagnostics.append(
@@ -438,15 +1018,6 @@ def _validate_support_ledger(
                 )
             )
         historical_cell_keys.add(key)
-        if key not in workflow_tuples:
-            diagnostics.append(
-                _diagnostic(
-                    str(item.get("id") or "support-ledger"),
-                    "historical-cell-not-retained",
-                    f"frozen historical cell {key!r} is not present in workflow_cells",
-                    "Restore the historical workflow cell or document an explicit product decision to change it.",
-                )
-            )
 
     lane_by_id = {_lane_id(lane): lane for lane in lanes if _lane_id(lane)}
     active_env_lanes: dict[str, list[dict[str, Any]]] = {}
@@ -853,6 +1424,296 @@ def _validate_capability_exclusions(
     return {"count": len(entries), "entries": entries}, diagnostics
 
 
+def _validate_historical_capability_exclusions(
+    document: dict[str, Any],
+    lanes: list[dict[str, Any]],
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    """Keep retired-runtime capability exclusions auditable without treating them as active lanes."""
+    diagnostics: list[dict[str, str]] = []
+    ledger = document.get("support_ledger")
+    exclusions = ledger.get("historical_capability_exclusions") if isinstance(ledger, dict) else None
+    if not isinstance(exclusions, list):
+        return (
+            {"count": 0, "entries": []},
+            [
+                _diagnostic(
+                    "support-ledger",
+                    "historical-capability-exclusions-missing",
+                    "support_ledger.historical_capability_exclusions must preserve retired-runtime capability records",
+                    "Move source-backed capability exclusions for retired runtimes out of the active capability list "
+                    "and into the historical support ledger.",
+                )
+            ],
+        )
+
+    expected_keys = {
+        ("pypy", "3.10", "windows", "debug-mcp"),
+        ("pypy", "3.11", "windows", "debug-mcp"),
+    }
+    active_runtime_dimensions = {
+        (
+            str(lane.get("runtime", "")).casefold(),
+            str(lane.get("python", "")).casefold(),
+            str(lane.get("platform", "")).casefold(),
+        )
+        for lane in lanes
+        if _status(lane) in {"required", "optional"}
+    }
+    seen_ids: set[str] = set()
+    actual_keys: set[tuple[str, str, str, str]] = set()
+    entries: list[dict[str, Any]] = []
+    for item in exclusions:
+        if not isinstance(item, dict):
+            diagnostics.append(
+                _diagnostic(
+                    "support-ledger",
+                    "historical-capability-exclusion-invalid",
+                    "a historical capability exclusion is not an object",
+                    "Declare source-backed runtime dimensions, capability, retired-runtime status, and reason.",
+                )
+            )
+            continue
+        exclusion_id = item.get("id")
+        runtime = item.get("runtime")
+        python = item.get("python")
+        platform_name = item.get("platform")
+        capability = item.get("capability")
+        key = (
+            str(runtime or "").casefold(),
+            str(python or "").casefold(),
+            str(platform_name or "").casefold(),
+            str(capability or "").casefold(),
+        )
+        if (
+            not isinstance(exclusion_id, str)
+            or not exclusion_id
+            or exclusion_id in seen_ids
+            or item.get("status") != "unsupported"
+            or item.get("historical_status") != "retired-runtime"
+            or not isinstance(item.get("basis"), str)
+            or not item["basis"].strip()
+            or not isinstance(item.get("reason"), str)
+            or not item["reason"].strip()
+            or not _has_source_evidence(item.get("source_evidence"))
+            or not all(key_part for key_part in key)
+        ):
+            diagnostics.append(
+                _diagnostic(
+                    str(exclusion_id or "support-ledger"),
+                    "historical-capability-exclusion-invalid",
+                    "historical capability exclusions require a unique ID, retired-runtime status, reason, and "
+                    "HTTP(S) source evidence",
+                    "Retain the exact old runtime/capability tuple with status: unsupported and "
+                    "historical_status: retired-runtime.",
+                )
+            )
+            continue
+        seen_ids.add(exclusion_id)
+        actual_keys.add(key)
+        if key[:3] in active_runtime_dimensions:
+            diagnostics.append(
+                _diagnostic(
+                    exclusion_id,
+                    "historical-capability-exclusion-runtime-active",
+                    f"historical capability tuple {key!r} still has an active base runtime lane",
+                    "Move this record back to the active capability exclusions only if the runtime is still "
+                    "supported; otherwise remove the active base lane.",
+                )
+            )
+        entries.append(
+            {
+                "id": exclusion_id,
+                "runtime": runtime,
+                "python": python,
+                "platform": platform_name,
+                "capability": capability,
+                "status": "unsupported",
+                "historicalStatus": "retired-runtime",
+                "basis": item["basis"],
+                "reason": item["reason"],
+                "sourceEvidence": item["source_evidence"],
+            }
+        )
+
+    if actual_keys != expected_keys:
+        diagnostics.append(
+            _diagnostic(
+                "support-ledger",
+                "historical-capability-exclusions-invalid",
+                "historical Debug MCP exclusions must retain PyPy 3.10 and 3.11 on Windows; "
+                f"missing={sorted(expected_keys - actual_keys)!r}, extra={sorted(actual_keys - expected_keys)!r}",
+                "Preserve the source-backed PyPy 3.10/3.11 Windows Debug MCP constraints as historical rows after "
+                "retiring those runtimes.",
+            )
+        )
+    return {"count": len(entries), "entries": entries}, diagnostics
+
+
+def _validate_optional_integration_inventory(
+    document: dict[str, Any],
+    lanes: list[dict[str, Any]],
+    cells: list[dict[str, Any]],
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    """Keep optional-package acceptance isolated from the required runtime matrix."""
+    diagnostics: list[dict[str, str]] = []
+    expected_environments = {
+        "py313-pytest84-allure-coverage-lin",
+        *{
+            f"py314-pytestlatest-{gherkin}-xdist-coverage-{platform_suffix}"
+            for gherkin in ("gherkin33", "gherkinlatest")
+            for platform_suffix in ("lin", "mac", "win")
+        },
+    }
+    project = document.get("project")
+    evidence = project.get("evidence") if isinstance(project, dict) else None
+    groups = evidence.get("aggregate_groups") if isinstance(evidence, dict) else None
+    if not isinstance(groups, list) or "optional" not in groups:
+        diagnostics.append(
+            _diagnostic(
+                "optional-integrations",
+                "optional-evidence-group-missing",
+                "project.evidence.aggregate_groups must include the separate optional group",
+                "Add optional as its own evidence aggregation group for optional integration acceptance.",
+            )
+        )
+
+    optional_cells = [cell for cell in cells if cell.get("job") == "optional-integrations"]
+    environments = [
+        environment
+        for cell in optional_cells
+        for environment in cell.get("tox_envs", [])
+        if isinstance(environment, str)
+    ]
+    if set(environments) != expected_environments or len(environments) != len(set(environments)):
+        diagnostics.append(
+            _diagnostic(
+                "optional-integrations",
+                "optional-workflow-environments-invalid",
+                "optional-integrations cells must select exactly one isolated Allure lane and six Gherkin/xdist lanes; "
+                f"missing={sorted(expected_environments - set(environments))!r}, "
+                f"extra={sorted(set(environments) - expected_environments)!r}, duplicates="
+                f"{sorted(environment for environment in environments if environments.count(environment) > 1)!r}",
+                "Keep the Allure and Gherkin/xdist environments in the optional-integrations workflow job with one "
+                "tox environment per cell.",
+            )
+        )
+    if any(len(cell.get("tox_envs", [])) != 1 for cell in optional_cells):
+        diagnostics.append(
+            _diagnostic(
+                "optional-integrations",
+                "optional-workflow-cell-not-isolated",
+                "every optional integration workflow cell must contain exactly one tox environment",
+                "Split optional integration cells by tox environment so each row has unique evidence identity.",
+            )
+        )
+
+    required_runtime_environments = {
+        environment
+        for runtime_cell in document.get("runtime_policy", {}).get("required_cells", [])
+        if isinstance(runtime_cell, dict)
+        for environment in runtime_cell.get("required_ci", {}).get("tox_envs", [])
+        if isinstance(environment, str)
+    }
+    overlap = sorted(set(environments) & required_runtime_environments)
+    if overlap:
+        diagnostics.append(
+            _diagnostic(
+                "optional-integrations",
+                "optional-workflow-overlaps-required-runtime",
+                "optional integration environments are included in required runtime acceptance: " + ", ".join(overlap),
+                "Keep optional extras and Gherkin/xdist variants separate from the required core runtime matrix.",
+            )
+        )
+
+    cell_by_environment = {
+        environment: cell
+        for cell in optional_cells
+        for environment in cell.get("tox_envs", [])
+        if isinstance(environment, str)
+    }
+    lane_by_environment: dict[str, list[dict[str, Any]]] = {}
+    for lane in lanes:
+        if _status(lane) == "unsupported":
+            continue
+        for environment in _split_tox_envs(lane.get("tox_env")):
+            lane_by_environment.setdefault(environment, []).append(lane)
+
+    for environment in sorted(expected_environments):
+        cell = cell_by_environment.get(environment)
+        candidates = lane_by_environment.get(environment, [])
+        matching_lanes = [
+            lane
+            for lane in candidates
+            if _status(lane) == "required"
+            and cell is not None
+            and str(lane.get("workflow_selector")) == str(cell.get("id"))
+        ]
+        if len(matching_lanes) != 1:
+            diagnostics.append(
+                _diagnostic(
+                    "optional-integrations",
+                    "optional-workflow-lane-unresolved",
+                    f"optional tox environment {environment!r} must have one required lane selecting its workflow cell",
+                    "Add a required acceptance lane linked to the matching optional-integrations cell.",
+                )
+            )
+            continue
+        lane = matching_lanes[0]
+        extras = lane.get("extras", [])
+        prerequisites = lane.get("prerequisites", [])
+        package_requirements = (
+            {
+                str(item.get("name")): item
+                for item in prerequisites
+                if isinstance(item, dict) and item.get("type") == "python-package"
+            }
+            if isinstance(prerequisites, list)
+            else {}
+        )
+        if "allure" in environment:
+            allure = package_requirements.get("allure-python-commons-test")
+            if extras != ["allure"] or not isinstance(allure, dict) or allure.get("version") != "2.16.0":
+                diagnostics.append(
+                    _diagnostic(
+                        str(lane.get("id") or "optional-integrations"),
+                        "optional-allure-prerequisites-invalid",
+                        "the Allure acceptance lane must declare the allure extra and "
+                        "allure-python-commons-test 2.16.0",
+                        "Declare extras: [allure] and the pinned Allure test dependency on the isolated lane.",
+                    )
+                )
+        else:
+            xdist = package_requirements.get("pytest-xdist")
+            gherkin = package_requirements.get("gherkin-official")
+            expected_gherkin = "gherkin-official>=33,<34" if "gherkin33" in environment else "gherkin-official"
+            if (
+                extras != []
+                or not isinstance(xdist, dict)
+                or xdist.get("version") != "<4"
+                or not isinstance(gherkin, dict)
+                or gherkin.get("requirement") != expected_gherkin
+            ):
+                diagnostics.append(
+                    _diagnostic(
+                        str(lane.get("id") or "optional-integrations"),
+                        "optional-xdist-prerequisites-invalid",
+                        f"the Gherkin/xdist lane {environment!r} must declare pytest-xdist<4 and {expected_gherkin}",
+                        "Keep pytest-xdist and the selected Gherkin dependency as explicit "
+                        "isolated-lane prerequisites.",
+                    )
+                )
+
+    return (
+        {
+            "cellCount": len(optional_cells),
+            "environmentCount": len(environments),
+            "environments": sorted(environments),
+            "aggregateGroup": "optional" if isinstance(groups, list) and "optional" in groups else None,
+        },
+        diagnostics,
+    )
+
+
 def _has_source_evidence(value: Any) -> bool:
     if not isinstance(value, list) or not value:
         return False
@@ -923,6 +1784,81 @@ def _list_tox_environments(project_root: Path) -> tuple[subprocess.CompletedProc
         if line.strip() and not line.strip().startswith("All environments:")
     ]
     return result, names
+
+
+def _classify_tox_listing(
+    document: dict[str, Any],
+    tox_listing: list[str],
+) -> tuple[list[str], list[str], list[dict[str, str]]]:
+    """Separate concrete tox environments from bare conditional-factor labels."""
+    diagnostics: list[dict[str, str]] = []
+    project = document.get("project")
+    configured_fragments = project.get("tox_selector_fragments") if isinstance(project, dict) else None
+    if not isinstance(configured_fragments, list) or any(
+        not isinstance(fragment, str) or not fragment.strip() for fragment in configured_fragments
+    ):
+        diagnostics.append(
+            _diagnostic(
+                "tox-inventory",
+                "tox-selector-fragments-invalid",
+                "project.tox_selector_fragments must list bare tox factor labels separately from environments",
+                "Declare conditional labels such as pytest70 and allure as selector fragments, not tox lanes.",
+            )
+        )
+        configured_fragments = []
+
+    selector_fragments = [str(fragment).strip() for fragment in configured_fragments]
+    if len(selector_fragments) != len(set(selector_fragments)):
+        diagnostics.append(
+            _diagnostic(
+                "tox-inventory",
+                "tox-selector-fragments-duplicate",
+                "project.tox_selector_fragments contains duplicate labels",
+                "Keep each conditional tox factor label once in the selector fragment list.",
+            )
+        )
+
+    active_environment_names = {
+        environment
+        for lane in document.get("lanes", [])
+        if isinstance(lane, dict) and _status(lane) != "unsupported"
+        for environment in _split_tox_envs(lane.get("tox_env"))
+    }
+    active_environment_names.update(
+        environment
+        for cell in document.get("workflow_cells", [])
+        if isinstance(cell, dict)
+        for environment in cell.get("tox_envs", [])
+        if isinstance(environment, str)
+    )
+    fragments_used_as_environments = sorted(set(selector_fragments) & active_environment_names)
+    if fragments_used_as_environments:
+        diagnostics.append(
+            _diagnostic(
+                "tox-inventory",
+                "tox-selector-fragment-used-as-environment",
+                "bare tox factor labels are declared as active environments: "
+                + ", ".join(fragments_used_as_environments),
+                "Keep only concrete configured env_list entries or expanded tox environments "
+                "in workflow cells and lanes.",
+            )
+        )
+
+    raw_names = set(tox_listing)
+    concrete_names = [name for name in tox_listing if name not in set(selector_fragments)]
+    undeclared_names = sorted(raw_names - active_environment_names - set(selector_fragments))
+    if undeclared_names:
+        diagnostics.append(
+            _diagnostic(
+                "tox-inventory",
+                "tox-listing-entry-unclassified",
+                "tox list includes entries that are not declared as concrete environments or selector fragments: "
+                + ", ".join(undeclared_names),
+                "Add each concrete environment to the inventory, or declare bare conditional factor labels in "
+                "project.tox_selector_fragments.",
+            )
+        )
+    return concrete_names, selector_fragments, diagnostics
 
 
 def _check_workflow_jobs(
