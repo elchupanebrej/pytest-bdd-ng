@@ -878,7 +878,7 @@ def expose_node_and_npm_without_cucumber_for_usage_json(consumer: Any) -> None:
 @then("missing Cucumber package diagnostics should stop the Usage JSON run before the marker scenario")
 def missing_cucumber_usage_json_preflights(consumer: Any) -> None:
     output = _require_diagnostic_failure(consumer, "@cucumber/cucumber")
-    assert "npm install" in output.lower(), output
+    assert "npm install @cucumber/cucumber" in output.lower(), output
 
 
 @given("the usage-json consumer prepares a passing marker scenario for package resolution")
