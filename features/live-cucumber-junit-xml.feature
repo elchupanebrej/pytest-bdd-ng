@@ -73,7 +73,7 @@ Feature: Live message-driven Cucumber JUnit XML formatter
     Given the consumer installs the pinned official Cucumber JUnit runtime
     And the Cucumber JUnit consumer installs a Node preload that fails during XML finalization
     When I run installed pytest in the Cucumber JUnit workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-junit=artifacts/finalization.xml -q --color=no"
-    Then the Cucumber JUnit backend failure should be visible without publishing a partial report
+    Then the Cucumber JUnit backend failure should be visible without publishing or printing a partial report
 
   Scenario: Node without npm fails the Cucumber JUnit preflight before scenario execution
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

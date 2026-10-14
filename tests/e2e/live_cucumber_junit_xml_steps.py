@@ -1054,13 +1054,17 @@ def install_cucumber_junit_finalization_preload(consumer: Any) -> None:
     consumer.env["NODE_OPTIONS"] = f'--require="{preload.as_posix()}"'
 
 
-@then("the Cucumber JUnit backend failure should be visible without publishing a partial report")
+@then("the Cucumber JUnit backend failure should be visible without publishing or printing a partial report")
 def cucumber_junit_backend_finalization_failure_is_visible(consumer: Any) -> None:
     result = consumer.cucumber_junit_result
     output = _junit_output(consumer)
     assert result is not None and result.returncode != 0, output
     assert "Cucumber JUnit finalization failure sentinel" in output, output
     assert re.search(r"\b1 passed\b", output), output
+    for stream_name, stream in (("stdout", result.stdout), ("stderr", result.stderr)):
+        assert not re.search(r"<\?xml\b|<testsuites?\b", stream, re.IGNORECASE), (
+            f"partial Cucumber JUnit XML appeared on {stream_name}:\n{stream}"
+        )
     assert not (consumer._cucumber_junit_workspace / "artifacts/finalization.xml").exists(), output
 
 
