@@ -1077,7 +1077,7 @@ def expose_node_and_npm_without_cucumber(consumer: Any) -> None:
 @then("missing Cucumber package diagnostics should stop the Cucumber JSON run before the marker scenario")
 def missing_cucumber_package_preflights(consumer: Any) -> None:
     output = _require_preflight_failure(consumer, "@cucumber/cucumber")
-    assert "npm install" in output.lower(), output
+    assert "npm install @cucumber/cucumber" in output.lower(), output
 
 
 @given("the Cucumber JSON consumer installs a Node preload that fails during JSON finalization")
@@ -1097,4 +1097,6 @@ def cucumber_json_backend_finalization_failure_is_visible(consumer: Any) -> None
     assert result.returncode != 0, output
     assert "Cucumber JSON finalization failure sentinel" in output, output
     assert re.search(r"\b1 passed\b", output), output
+    assert '"elements"' not in result.stdout, result.stdout
+    assert '"elements"' not in result.stderr, result.stderr
     assert not (consumer._cucumber_json_workspace / "artifacts/finalization.json").exists(), output
