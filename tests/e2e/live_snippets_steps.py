@@ -368,6 +368,15 @@ def _assert_official_js_snippets(
     assert "function (" in snippet_output and "return 'pending';" in snippet_output, (
         f"the real Cucumber runtime did not emit JavaScript snippet bodies:\n{snippet_output}"
     )
+    customer_name_binding_match = re.search(
+        r"Given\('a customer named \{string\} is registered', function \(string\) \{(?P<body>.*?)\}\s*\);",
+        snippet_output,
+        re.DOTALL,
+    )
+    assert customer_name_binding_match is not None and "return 'pending';" in customer_name_binding_match.group("body"), (
+        "the pinned official Cucumber runtime did not emit the documented JavaScript binding shape:\n"
+        f"{snippet_output}"
+    )
     assert "def " not in snippet_output, (
         f"the snippets should use the official JavaScript output language:\n{snippet_output}"
     )
