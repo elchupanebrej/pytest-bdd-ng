@@ -24,8 +24,9 @@
 * Then Report "out.ndjson" parsable into messages
 * Then Messages report file "out.ndjson" contains one complete successful run with one scenario and one passed step
 
-## Scenario: HTML report could be produced on the feature run
+## Scenario: HTML report could be produced when npm resolves to its platform command
     Dummy reporter based on [@cucumber/html-formatter](https://github.com/cucumber/html-formatter)
+    On Windows, npm is resolved through its `npm.CMD` command script.
 
 * Given Install npm packages
     | packages | @cucumber/html-formatter |

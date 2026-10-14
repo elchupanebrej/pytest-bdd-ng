@@ -652,7 +652,7 @@ Feature: Preventive guard for all-unmatched scenarios
       """
     When I run installed pytest twice in one process with arguments "--rootdir=first --cuke-no-autoload --cuke-parser=python --cuke-features-dir=features -q first/tests/test_first_registry.py" and then "--rootdir=second --cuke-no-autoload --cuke-parser=python --cuke-features-dir=features -q second/tests/test_second_registry.py"
     Then consumer repeated pytest sessions should exit with codes "0,4"
-    And pytest output should include "UsageError"
+    And pytest output should include "ERROR: Explicit scenarios with steps but no matching step definitions were found"
     And pytest output should identify source "second/features/session-registry.feature" at the line containing "Given the session registry step is shared" in consumer feature "second/features/session-registry.feature"
     And pytest output should include "the session registry step is shared"
     And consumer marker file "first-session-step-calls.txt" should contain lines "first-session"

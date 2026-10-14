@@ -1,6 +1,6 @@
 @e2e
-Feature: PyPy 3.11 executes installed pytest-cuke scenarios
-  The PyPy 3.11 lane runs a real installed consumer scenario with a pytest fixture
+Feature: PyPy 3.12 executes installed pytest-cuke scenarios
+  The PyPy 3.12 lane runs a real installed consumer scenario with a pytest fixture
   and records a complete Cucumber Messages report.
 
   Scenario: A PyPy consumer runs a fixture-backed scenario and reports it
@@ -38,7 +38,7 @@ Feature: PyPy 3.11 executes installed pytest-cuke scenarios
           When I add 2 to the total
           Then the reported result is 42
       """
-    Then the installed consumer should use the current PyPy 3.11 interpreter
+    Then the installed consumer should use the current PyPy 3.12 interpreter
     When I run installed pytest with arguments "--rootdir=. --cuke-features-dir=features --cuke-autoload --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios

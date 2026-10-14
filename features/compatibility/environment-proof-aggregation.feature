@@ -1,3 +1,4 @@
+@e2e
 Feature: Aggregate the full supported environment proof
   The final proof includes every environment declared by the checked-in inventory.
   It fails when expected evidence is absent, empty, mislabeled, or tied to another SHA.
@@ -6,9 +7,88 @@ Feature: Aggregate the full supported environment proof
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
     When I run the full environment proof aggregator
     Then the proof summary should pass and include every inventory environment
-    And the proof summary should report serial parallel e2e external and quality groups
+    And the proof summary should report serial parallel e2e external quality and optional groups
     And the proof summary should preserve actual evidence for every environment
     And the proof summary should preserve Linux Windows and macOS runner evidence
+
+  Scenario: A complete proof preserves actual architecture and workflow links
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And the proof summary should preserve architecture and actual job and run links
+
+  Scenario: Every environment records the host tox executable used by its run command
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And host tox evidence should match each environment's resolved tox run command
+
+  Scenario: Core CPython and GraalPy coverage evidence omits tox-local uv
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And core CPython and GraalPy coverage evidence should omit tox-local uv
+
+  Scenario: The aggregator rejects required runtime evidence without its architecture
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one required runtime environment omits its architecture
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a missing architecture diagnostic
+
+  Scenario: The aggregator rejects required runtime evidence with an invalid architecture
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one required runtime environment reports an invalid architecture
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with an invalid architecture diagnostic
+
+  Scenario: The aggregator rejects required runtime evidence without its workflow job link
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one required runtime environment omits its workflow job link
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a missing workflow job link diagnostic
+
+  Scenario: The aggregator rejects environment evidence without host tox version and command
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one environment omits its host tox version and resolved command
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for missing host tox evidence
+
+  Scenario: The aggregator enforces an exact interpreter patch version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And CPython 3.15.0 reports a different patch version
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with an exact interpreter version diagnostic
+
+  Scenario: The aggregator rejects workflow links that identify different runs
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one environment records a job link from another workflow run
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a mismatched workflow run link diagnostic
+
+  Scenario: GraalPy evidence accepts GraalVM as tox implementation identity
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And GraalPy tox results identify their implementation as GraalVM
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And the proof summary should retain the canonical GraalPy runtime evidence
+
+  Scenario: Optional integration environments have a separate aggregate proof group
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And optional integration proof should be separated from core support groups
+
+  Scenario: The optional Allure environment records Node and CLI evidence
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And the proof summary should preserve Node npm npx and Allure CLI evidence for optional Allure
+
+  Scenario: The aggregator rejects optional Allure evidence without its Allure CLI version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the optional Allure environment omits its Allure CLI version
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for missing optional Allure CLI evidence
 
   Scenario: Live formatter acceptance outcomes appear in the aggregate proof
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
@@ -16,6 +96,12 @@ Feature: Aggregate the full supported environment proof
     Then the proof summary should pass and include every inventory environment
     And it should preserve passed live formatter acceptance outcomes for Linux macOS and Windows
     And it should preserve actual Node npm npx Allure CLI and tox-local uv evidence for live formatters
+
+  Scenario: Browser report evidence preserves its external and tox-local system tools
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should pass and include every inventory environment
+    And it should preserve Node npm npx Allure CLI and tox-local uv evidence for browser reports
 
   Scenario: The aggregator rejects live formatter evidence without a required Node.js version
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
@@ -35,15 +121,15 @@ Feature: Aggregate the full supported environment proof
     When I run the full environment proof aggregator
     Then the proof summary should fail for a uv command outside its tox environment diagnostic
 
-  Scenario: The aggregator rejects full-matrix coverage evidence without tox-local uv proof
+  Scenario: The aggregator rejects acceptance coverage evidence without tox-local uv proof
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
-    And one full-matrix coverage environment omits its tox-local uv version and another omits its uv command
+    And PyPy acceptance omits its tox-local uv version and xdist omits its uv command
     When I run the full environment proof aggregator
-    Then the proof summary should fail with actionable full-matrix coverage uv diagnostics
+    Then the proof summary should fail with actionable acceptance uv diagnostics
 
   Scenario: The live formatter runner captures versions through Windows command shims
     When the live formatter runner captures required system tool versions
-    Then it should record Node npm npx Allure CLI and tox-local uv versions using resolved argv commands
+    Then it should record host tox Node npm npx Allure CLI and tox-local uv versions using resolved argv commands
 
   Scenario: Native parser proof preserves Go and compiler versions and commands on every platform
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
@@ -199,9 +285,9 @@ Feature: Aggregate the full supported environment proof
     When I run the full environment proof aggregator
     Then the proof summary should fail with runtime Python and platform mismatch diagnostics
 
-  Scenario: The aggregator rejects a parallel environment without pytest-xdist
+  Scenario: The aggregator rejects an optional xdist environment without pytest-xdist
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
-    And one parallel environment is missing its required pytest-xdist package
+    And one optional xdist environment is missing its pytest-xdist package
     When I run the full environment proof aggregator
     Then the proof summary should fail with a missing pytest-xdist diagnostic
 

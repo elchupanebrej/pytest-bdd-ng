@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from argparse import ArgumentTypeError
 from collections import deque
@@ -172,6 +173,13 @@ def step_registry() -> Registry:
 
 
 step_registry.__pytest_cuke_step_registry__ = __registry  # type: ignore[attr-defined]  # The collector reads this dynamic marker from the fixture function.
+for _fixture_function in (
+    getattr(step_registry, "_fixture_function", None),
+    getattr(getattr(step_registry, "__pytest_wrapped__", None), "obj", None),
+):
+    if _fixture_function is not None:
+        # Preserve metadata on FixtureDef.func across pytest versions.
+        _fixture_function.__pytest_cuke_step_registry__ = __registry
 
 
 @pytest.fixture
@@ -399,6 +407,29 @@ def _item_fixture_definitions(item: Any, name: str) -> Any:
     return get_fixture_definitions(name, node) or ()
 
 
+def _fixture_step_registry(fixture_definition: Any) -> Registry | None:
+    """Return the static registry attached to a pytest fixture, if available."""
+    fixture_function = getattr(fixture_definition, "func", None)
+    candidates = (
+        fixture_function,
+        getattr(fixture_function, "_fixture_function", None),
+        getattr(getattr(fixture_function, "__pytest_wrapped__", None), "obj", None),
+    )
+    for candidate in candidates:
+        registry = getattr(candidate, "__pytest_cuke_step_registry__", None)
+        if isinstance(registry, Registry):
+            return registry
+    return None
+
+
+def _has_uninspectable_step_registry(item: Any) -> bool:
+    """Return whether a user fixture may construct step definitions at runtime."""
+    return any(
+        _fixture_step_registry(fixture_definition) is None
+        for fixture_definition in _item_fixture_definitions(item, "step_registry")
+    )
+
+
 def _collection_step_registry(item: Any) -> Registry:
     """Build the item's applicable step registry without setting up fixtures."""
 
@@ -408,9 +439,8 @@ def _collection_step_registry(item: Any) -> Registry:
         registries.append(module_registry)
 
     for fixture_definition in reversed(_item_fixture_definitions(item, "step_registry")):
-        fixture_function = getattr(fixture_definition, "func", None)
-        registry = getattr(fixture_function, "__pytest_cuke_step_registry__", None)
-        if isinstance(registry, Registry) and all(registry is not existing for existing in registries):
+        registry = _fixture_step_registry(fixture_definition)
+        if registry is not None and all(registry is not existing for existing in registries):
             registries.append(registry)
 
     definitions: OrderedSet[Any] = OrderedSet()
@@ -444,6 +474,9 @@ def _scenario_has_matching_step(config: Config, item: Any, feature: Feature, sce
     steps_to_check = execution_steps(feature, scenario)
     if not steps_to_check:
         return False
+    if _has_uninspectable_step_registry(item):
+        # A custom fixture may add definitions at setup time; collection must not reject it as empty.
+        return True
 
     matcher = Matcher(config)
     request = _CollectionMatchRequest(
@@ -509,13 +542,9 @@ def _zero_match_skip_reason(feature: Feature, scenario: Scenario) -> str:
     )
 
 
-@pytest.hookimpl(hookwrapper=True, tryfirst=True)
-def pytest_collection_modifyitems(config: Config, items: list[Any]) -> Generator[Any, Any, None]:
+@pytest.hookimpl(trylast=True)
+def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     """Validate explicit bindings after pytest has applied item selection."""
-    outcome = yield
-    if outcome.excinfo is not None:
-        return
-
     if (
         _generation_mode_enabled(config)
         or bool(getattr(config.option, "keyword", None))
@@ -800,10 +829,67 @@ def _place_session_finish_adapter(config: Config) -> None:
 
 
 def pytest_collection_finish(session: Any) -> None:
-    """Return the runtime root to its explicit inactive state after collection."""
-    run_context = RunContext.find_in_config(session.config)
-    if run_context is not None:
-        run_context.clear_active()
+    """Validate the selected autoload root and return the runtime root to inactive."""
+    try:
+        _validate_explicit_autoload_root(session)
+    finally:
+        run_context = RunContext.find_in_config(session.config)
+        if run_context is not None:
+            run_context.clear_active()
+
+
+def _validate_explicit_autoload_root(session: Any) -> None:
+    """Reject a missing explicitly configured autoload root unless a binding has its own source."""
+    config = session.config
+    autoload = config.getoption("cuke_autoload")
+    if autoload is None:
+        autoload = config.getini("cuke_autoload")
+    if not autoload:
+        return
+
+    configured_root = config.getoption("cuke_features_dir", default=None)
+    setting_name = "--cuke-features-dir"
+    if configured_root is None:
+        ini_values = getattr(config, "inicfg", {})
+        if "cuke_features_dir" not in ini_values:
+            return
+        configured_root = config.getini("cuke_features_dir")
+        setting_name = "cuke_features_dir"
+    if not isinstance(configured_root, str) or not configured_root.strip():
+        return
+
+    feature_root = resolve_feature_sources(config).features_base_dir
+    if feature_root.is_dir() or _has_valid_explicit_feature_binding(session.items, config):
+        return
+
+    raise pytest.UsageError(f"Selected feature root from {setting_name} does not exist: {feature_root}")
+
+
+def _has_valid_explicit_feature_binding(items: Iterable[Any], config: Config) -> bool:
+    """Return whether a collected explicit scenario uses its own existing local feature root."""
+    for item in items:
+        binding = _bound_scenario(item)
+        if binding is None:
+            continue
+        marker = item.get_closest_marker("scenarios")
+        if marker is None:
+            continue
+        features_base_dir = marker.kwargs.get("features_base_dir")
+        if features_base_dir is None:
+            continue
+
+        feature, _scenario = binding
+        if feature.filename is None:
+            continue
+        bound_root = resolve_feature_sources(config, features_base_dir=features_base_dir).features_base_dir
+        if not bound_root.is_dir():
+            continue
+        try:
+            Path(feature.filename).resolve().relative_to(bound_root)
+        except ValueError:
+            continue
+        return True
+    return False
 
 
 def pytest_sessionfinish(session: Any, exitstatus: int) -> None:
@@ -966,12 +1052,21 @@ def _build_scenario_param(feature: Feature, scenario: Scenario, config: Config) 
         tag_marks = config.hook.pytest_cuke_convert_tag_to_marks(feature=feature, scenario=scenario, tag=tag)
         if tag_marks is not None:
             marks.extend(tag_marks)
+    feature_source = _normalize_xdist_rsync_root(feature.uri or feature.filename or "feature")
     return pytest.param(
         feature,
         scenario,
-        id=f"{feature.uri or feature.filename or 'feature'}-{feature.name}-{scenario.name}",
+        id=f"{feature_source}-{feature.name}-{scenario.name}",
         marks=marks,
     )
+
+
+_XDIST_RSYNC_ROOT = re.compile(r"(?<=[:/\\])_remote-\d+-[^/\\]+(?=[/\\]|$)")
+
+
+def _normalize_xdist_rsync_root(source: str) -> str:
+    """Keep worker-specific rsync temp roots out of parametrized scenario IDs."""
+    return _XDIST_RSYNC_ROOT.sub("_remote", source)
 
 
 def _feature_scenario_identity(feature: Feature, scenario: Scenario) -> tuple[Any, ...] | None:
@@ -1065,9 +1160,9 @@ def _pytest_collect_file(parent: Collector, file_path: Any = None) -> FeatureFil
 
     feature_root = resolve_feature_sources(config).features_base_dir
     if not feature_root.is_dir():
-        raise pytest.UsageError(
-            f"Feature root {str(feature_root)!r}, selected by --cuke-features-dir or cuke_features_dir, does not exist."
-        )
+        # An explicit binding can provide its own valid root even when the
+        # autoload root is missing; its locator reports errors for paths it uses.
+        return None
     try:
         file_path.resolve().relative_to(feature_root.resolve())
     except ValueError:

@@ -6,6 +6,7 @@ from pytest_cuke.compatibility.runtime_compat import (
     PYTEST_COMPATIBILITY_BOUNDS,
     REASON_COMPATIBLE,
     REASON_EOL_PYTHON,
+    REASON_EOL_PYTEST,
     REASON_PYTEST_UNAVAILABLE,
     REASON_PYTHON_UNAVAILABLE,
     CompatibilityMatrixEntry,
@@ -19,14 +20,14 @@ from pytest_cuke.compatibility.runtime_compat import (
 
 
 def test_matrix_bounds_and_constants() -> None:
-    assert MIN_SUPPORTED_PYTHON == (3, 10)
+    assert MIN_SUPPORTED_PYTHON == (3, 11)
     assert MIN_SUPPORTED_PYTEST == (7, 0, 0)
     assert "80" in PYTEST_COMPATIBILITY_BOUNDS
 
 
 def test_matrix_entry_and_migration_summary() -> None:
     entry = CompatibilityMatrixEntry(
-        python_version="3.10", pytest_version="8.0", is_compatible=True, is_supported=True, reason_code="compatible"
+        python_version="3.11", pytest_version="8.0", is_compatible=True, is_supported=True, reason_code="compatible"
     )
     assert entry.is_compatible is True
 
@@ -52,11 +53,14 @@ def test_parse_and_format_versions() -> None:
 
 
 def test_is_pair_compatible() -> None:
-    assert is_pair_compatible("310", "80") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("310", "80") == (False, REASON_EOL_PYTHON)
+    assert is_pair_compatible("311", "74") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("312", "74") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("314", "84") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("314", "90") == (True, REASON_COMPATIBLE)
+    assert is_pair_compatible("315", "latest") == (True, REASON_COMPATIBLE)
     assert is_pair_compatible("39", "80") == (False, REASON_EOL_PYTHON)
+    assert is_pair_compatible("310", "62") == (False, REASON_EOL_PYTEST)
     assert is_pair_compatible("313", "80")[0] is False
     assert is_pair_compatible("invalid", "80") == (False, REASON_PYTHON_UNAVAILABLE)
     assert is_pair_compatible("310", "unknown") == (False, REASON_PYTEST_UNAVAILABLE)

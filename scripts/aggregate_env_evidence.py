@@ -8,6 +8,7 @@ import re
 import sys
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 from environment_evidence import (
@@ -28,6 +29,84 @@ def _version_pair(value: Any) -> tuple[int, int] | None:
         return None
     match = re.match(r"^(\d+)\.(\d+)(?:\.|[-+]|$)", value)
     return (int(match.group(1)), int(match.group(2))) if match else None
+
+
+def _version_triplet(value: Any) -> tuple[int, int, int] | None:
+    if not isinstance(value, str):
+        return None
+    match = re.match(r"^(\d+)\.(\d+)\.(\d+)$", value)
+    return tuple(int(part) for part in match.groups()) if match else None
+
+
+def _interpreter_version_matches(expected: str, actual: Any) -> bool:
+    if not isinstance(actual, str):
+        return False
+    if expected.endswith(".*"):
+        return actual.startswith(expected[:-1])
+    return actual == expected
+
+
+def _normalized_runtime(value: Any) -> Any:
+    """Normalize the implementation name used by tox on GraalPy."""
+    return "GraalPy" if value == "GraalVM" else value
+
+
+def _normalized_architecture(value: Any) -> str | None:
+    if not isinstance(value, str) or not value:
+        return None
+    normalized = value.casefold().replace("-", "_")
+    return {
+        "amd64": "x86_64",
+        "x64": "x86_64",
+        "arm64": "aarch64",
+    }.get(normalized, normalized)
+
+
+def _architecture_matches(expected: str, observed: Any) -> bool:
+    actual_architecture = _normalized_architecture(observed)
+    if actual_architecture is None or not re.fullmatch(r"[a-z0-9_]+", actual_architecture):
+        return False
+    if expected == "runner-native":
+        return True
+    return actual_architecture == _normalized_architecture(expected)
+
+
+def _workflow_link_identity(value: Any, *, job_link: bool) -> tuple[str, str, str] | None:
+    identity = None
+    if isinstance(value, str) and value:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        if (
+            parsed.scheme == "https"
+            and hostname
+            and not parsed.username
+            and not parsed.password
+            and not parsed.query
+            and not parsed.fragment
+        ):
+            parts = [part for part in parsed.path.split("/") if part]
+            try:
+                runs_index = parts.index("runs")
+            except ValueError:
+                runs_index = -1
+            if runs_index >= 3 and parts[runs_index - 1] == "actions":
+                run_id = parts[runs_index + 1] if len(parts) > runs_index + 1 else ""
+                valid_job_suffix = (
+                    len(parts) == runs_index + 4
+                    and parts[runs_index + 2] == "job"
+                    and parts[runs_index + 3].isdecimal()
+                )
+                valid_run_suffix = len(parts) == runs_index + 2
+                if run_id.isdecimal() and (valid_job_suffix if job_link else valid_run_suffix):
+                    repository_path = "/".join(parts[: runs_index - 1])
+                    identity = hostname.casefold(), repository_path.casefold(), run_id
+    return identity
+
+
+def _workflow_links_match(job_url: Any, run_url: Any) -> bool:
+    job_identity = _workflow_link_identity(job_url, job_link=True)
+    run_identity = _workflow_link_identity(run_url, job_link=False)
+    return job_identity is not None and job_identity == run_identity
 
 
 def _pytest_factor(tox_environment: str) -> str | None:
@@ -94,11 +173,19 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
                 key = (job, cell_id, name)
                 if key in expected:
                     raise RuntimeError(f"inventory repeats environment {job}/{cell_id}/{name}")
+                expected_architecture = cell.get("architecture", "runner-native")
+                if not isinstance(expected_architecture, str) or not expected_architecture:
+                    raise RuntimeError(f"inventory cell {cell_id!r} contains an invalid architecture")
+                expected_interpreter = cell.get("expected_interpreter")
+                if not isinstance(expected_interpreter, str) or not expected_interpreter:
+                    expected_interpreter = f"{python}.*" if _version_pair(python) is not None else python
                 expected[key] = {
                     "group": evidence_group(job, name),
                     "runtime": runtime,
                     "python": python,
                     "platform": platform_name,
+                    "architecture": expected_architecture,
+                    "expected_interpreter": expected_interpreter,
                 }
     return expected
 
@@ -218,18 +305,28 @@ def _system_tool_command_matches(
     return path_parts[-len(expected_suffix) :] == expected_suffix
 
 
+def _tox_version_command_matches_run_command(version_command: Any, run_command: Any) -> bool:
+    if not isinstance(version_command, dict) or not isinstance(run_command, list) or not run_command:
+        return False
+    executable = version_command.get("executable")
+    argv = version_command.get("argv")
+    return isinstance(executable, str) and run_command[0] == executable and argv == [executable, "--version"]
+
+
 def _system_tool_installation_hint(tool: str, platform_name: str) -> str:
-    if tool == "uv":
-        return "ensure the tox environment installs uv>=0.8 and its local uv --version succeeds"
-    if tool == "pandoc":
-        return "install Pandoc before running the documentation tox environment"
-    if tool == "go":
-        return "install Go and ensure `go version` succeeds"
-    if tool == "native-compiler" and platform_name == "win32":
-        return "install MinGW-w64 and ensure `gcc --version` succeeds"
-    if tool == "native-compiler":
-        return "install the platform C toolchain and ensure `cc --version` succeeds"
-    return "install Node.js with npm/npx and ensure `npx --yes allure@3.20.0 --version` succeeds"
+    fallback = "install Node.js with npm/npx and ensure `npx --yes allure@3.20.0 --version` succeeds"
+    hints = {
+        "tox": "install tox>=4.2 in the runner Python environment and ensure `tox --version` succeeds",
+        "uv": "ensure the tox environment installs uv>=0.8 and its local uv --version succeeds",
+        "pandoc": "install Pandoc before running the documentation tox environment",
+        "go": "install Go and ensure `go version` succeeds",
+        "native-compiler": (
+            "install MinGW-w64 and ensure `gcc --version` succeeds"
+            if platform_name == "win32"
+            else "install the platform C toolchain and ensure `cc --version` succeeds"
+        ),
+    }
+    return hints.get(tool, fallback)
 
 
 def _remote_worker_evidence_errors(
@@ -401,11 +498,34 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                 f"inventory expects {specification['python']!r}"
             )
             invalid_groups.add(expected_group)
+        if not _interpreter_version_matches(specification["expected_interpreter"], record.get("python")):
+            errors.append(
+                f"{job}/{cell}/{tox_environment} reports interpreter {record.get('python')!r}; "
+                f"inventory expects {specification['expected_interpreter']!r}"
+            )
+            invalid_groups.add(expected_group)
         if not _platform_matches(specification["platform"], record.get("platform_name")):
             errors.append(
                 f"{job}/{cell}/{tox_environment} reports platform {record.get('platform_name')!r}; "
                 f"inventory expects {specification['platform']!r}"
             )
+            invalid_groups.add(expected_group)
+        if not _architecture_matches(specification["architecture"], record.get("architecture")):
+            errors.append(
+                f"{job}/{cell}/{tox_environment} reports architecture {record.get('architecture')!r}; "
+                f"inventory expects {specification['architecture']!r}"
+            )
+            invalid_groups.add(expected_group)
+        job_link_identity = _workflow_link_identity(record.get("job_url"), job_link=True)
+        run_link_identity = _workflow_link_identity(record.get("run_url"), job_link=False)
+        if job_link_identity is None:
+            errors.append(f"{job}/{cell}/{tox_environment} is missing a valid workflow job link")
+            invalid_groups.add(expected_group)
+        if run_link_identity is None:
+            errors.append(f"{job}/{cell}/{tox_environment} is missing a valid workflow run link")
+            invalid_groups.add(expected_group)
+        if job_link_identity is not None and run_link_identity is not None and job_link_identity != run_link_identity:
+            errors.append(f"{job}/{cell}/{tox_environment} job and run links do not identify the same workflow run")
             invalid_groups.add(expected_group)
         if not _tox_command_matches(record.get("command"), tox_environment):
             errors.append(f"{job}/{cell}/{tox_environment} is missing a resolved tox command")
@@ -487,22 +607,45 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                     f"{command_hint}"
                 )
                 invalid_groups.add(expected_group)
+        if not _tox_version_command_matches_run_command(
+            recorded_system_tool_commands.get("tox"),
+            record.get("command"),
+        ):
+            errors.append(
+                f"{job}/{cell}/{tox_environment} must capture host tox --version from the same resolved executable "
+                "used by its tox run command"
+            )
+            invalid_groups.add(expected_group)
         if tox_result_entry is not None:
             tox_python = tox_result_entry.get("python")
             tox_version_info = tox_python.get("version_info") if isinstance(tox_python, dict) else None
             tox_python_pair = None
+            tox_python_triplet = None
             if (
                 isinstance(tox_version_info, list)
                 and len(tox_version_info) >= 2
                 and all(isinstance(value, int) and not isinstance(value, bool) for value in tox_version_info[:2])
             ):
                 tox_python_pair = (tox_version_info[0], tox_version_info[1])
-            if not isinstance(tox_python, dict) or tox_python.get("implementation") != record.get("runtime"):
+                if (
+                    len(tox_version_info) >= 3
+                    and isinstance(tox_version_info[2], int)
+                    and not isinstance(tox_version_info[2], bool)
+                ):
+                    tox_python_triplet = (tox_version_info[0], tox_version_info[1], tox_version_info[2])
+            if not isinstance(tox_python, dict) or _normalized_runtime(tox_python.get("implementation")) != record.get(
+                "runtime"
+            ):
                 errors.append(f"{job}/{cell}/{tox_environment} tox result runtime disagrees with runtime evidence")
                 invalid_groups.add(expected_group)
             if tox_python_pair != _version_pair(record.get("python")):
                 errors.append(
                     f"{job}/{cell}/{tox_environment} tox result Python version disagrees with runtime evidence"
+                )
+                invalid_groups.add(expected_group)
+            if tox_python_triplet != _version_triplet(record.get("python")):
+                errors.append(
+                    f"{job}/{cell}/{tox_environment} tox result exact Python version disagrees with runtime evidence"
                 )
                 invalid_groups.add(expected_group)
             if tox_python.get("sysplatform") != record.get("platform_name"):
@@ -559,11 +702,7 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
         expected_count = sum(1 for value in expected.values() if value["group"] == group)
         observed_count = len(grouped)
         groups[group] = {
-            "outcome": (
-                "passed"
-                if observed_count == expected_count and expected_count > 0 and group not in invalid_groups
-                else "failed"
-            ),
+            "outcome": ("passed" if observed_count == expected_count and group not in invalid_groups else "failed"),
             "environmentCount": observed_count,
             "expectedEnvironmentCount": expected_count,
             "environments": [record.get("tox_environment") for record in grouped],
@@ -585,6 +724,9 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                     "tox_environment",
                     "runtime",
                     "python",
+                    "architecture",
+                    "job_url",
+                    "run_url",
                     "pytest",
                     "optional_versions",
                     "system_tool_versions",

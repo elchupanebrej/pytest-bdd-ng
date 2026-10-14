@@ -7,6 +7,7 @@ import json
 import os
 import platform
 import re
+import runpy
 import shlex
 import shutil
 import subprocess
@@ -18,8 +19,6 @@ from typing import Any
 
 import pytest
 import yaml
-from packaging.markers import default_environment
-from packaging.requirements import Requirement
 from pytest_cuke import given, then, when
 from pytest_cuke.compatibility.environment_matrix import _collected_count, check_environment_inventory
 from pytest_cuke.compatibility.runtime_compat import is_pair_compatible
@@ -70,6 +69,23 @@ def _lanes(context: EnvironmentInventoryContext) -> list[dict[str, Any]]:
     assert isinstance(lanes, list) and lanes, "config/env-matrix.yaml must contain a non-empty lanes list"
     assert all(isinstance(lane, dict) for lane in lanes), lanes
     return lanes
+
+
+def _runtime_policy(context: EnvironmentInventoryContext) -> dict[str, Any]:
+    policy = context.document.get("runtime_policy")
+    assert isinstance(policy, dict), "config/env-matrix.yaml must declare runtime_policy"
+    return policy
+
+
+def _required_runtime_cells(context: EnvironmentInventoryContext) -> list[dict[str, Any]]:
+    cells = _runtime_policy(context).get("required_cells")
+    assert isinstance(cells, list) and cells, "runtime_policy.required_cells must be a non-empty list"
+    assert all(isinstance(cell, dict) for cell in cells), cells
+    return cells
+
+
+def _runtime_cell_key(cell: dict[str, Any]) -> tuple[str, str, str, str]:
+    return tuple(str(cell.get(key, "")).casefold() for key in ("runtime", "python", "platform", "architecture"))  # type: ignore[return-value]
 
 
 def _lane_text(lane: dict[str, Any]) -> str:
@@ -392,39 +408,34 @@ def unsupported_lanes_have_evidence_without_active_selectors(consumer: Any) -> N
         assert not lane.get("workflow_selector") and not lane.get("tox_env"), lane
 
 
-@then("CPython 3.12 Windows and macOS lanes should remain optional manual entries")
-def cpython_312_windows_macos_are_manual_optional_lanes(consumer: Any) -> None:
+@then("CPython 3.12 Windows and macOS lanes should be required full-matrix cells")
+def cpython_312_windows_macos_are_required_runtime_cells(consumer: Any) -> None:
     context = _context(consumer)
     lanes = _lanes(context)
-    manual_lanes = {
+    required_lanes = {
         str(lane.get("platform")): lane
         for lane in lanes
-        if _lane_id(lane) in {"py312-windows-manual", "py312-macos-manual"}
-    }
-    assert set(manual_lanes) == {"windows", "macos"}, manual_lanes
-    for platform_name, lane in manual_lanes.items():
-        assert _status(lane) == "optional", lane
-        assert "#149" in str(lane.get("reason", "")), lane
-        assert any("issues/149" in str(source) for source in lane.get("source_evidence", [])), lane
-        assert lane.get("workflow_selector") is None, lane
-        assert "py312-pytest73-coverage" in str(lane.get("tox_env", "")), lane
-        assert not any(
-            cell.get("runtime") == "CPython"
-            and str(cell.get("python")) == "3.12"
-            and cell.get("platform") == platform_name
-            for cell in context.document.get("workflow_cells", [])
-            if isinstance(cell, dict)
-        ), lane
-
-    excluded = [
-        lane
-        for lane in lanes
-        if _status(lane) == "unsupported"
-        and lane.get("runtime") == "CPython"
+        if lane.get("runtime") == "CPython"
         and str(lane.get("python")) == "3.12"
         and lane.get("platform") in {"windows", "macos"}
-    ]
-    assert not excluded, excluded
+        and lane.get("capability") == "core-runtime-acceptance"
+    }
+    assert set(required_lanes) == {"windows", "macos"}, required_lanes
+    workflow_cells = {
+        str(cell.get("id")): cell
+        for cell in context.document.get("workflow_cells", [])
+        if isinstance(cell, dict) and cell.get("job") == "full-matrix"
+    }
+    for platform_name, lane in required_lanes.items():
+        assert _status(lane) == "required", lane
+        selector = lane.get("workflow_selector")
+        assert selector in workflow_cells, (lane, workflow_cells)
+        cell = workflow_cells[str(selector)]
+        assert cell.get("runtime") == "CPython", cell
+        assert str(cell.get("python")) == "3.12", cell
+        assert cell.get("platform") == platform_name, cell
+        lane_environments = [part.strip() for part in str(lane.get("tox_env", "")).split(",") if part.strip()]
+        assert lane_environments == cell.get("tox_envs"), (lane, cell)
 
 
 @when("I run the project environment inventory check in JSON mode")
@@ -486,6 +497,45 @@ def tox_listing_proof_matches_real_tox(consumer: Any) -> None:
     assert isinstance(proof_names, list) and proof_names, proof
     assert set(proof_names) == actual_names, (proof_names, actual_names)
     assert isinstance(inventory_names, list) and set(inventory_names) == actual_names, inventory_names
+    configured_names = report.get("inventory", {}).get("configuredToxEnvironments")
+    selector_fragments = report.get("inventory", {}).get("toxSelectorFragments")
+    proof_configured_names = proof.get("configuredEnvironments")
+    proof_selector_fragments = proof.get("selectorFragments")
+    assert isinstance(configured_names, list) and isinstance(selector_fragments, list), report
+    assert isinstance(proof_configured_names, list) and isinstance(proof_selector_fragments, list), proof
+    assert set(proof_selector_fragments) == set(selector_fragments), proof
+    assert set(configured_names) == set(proof_configured_names), (configured_names, proof_configured_names)
+    actual_fragments = actual_names - set(configured_names)
+    assert actual_fragments <= set(selector_fragments), (actual_fragments, selector_fragments)
+    assert "allure" in selector_fragments, selector_fragments
+
+
+@then("tox selector fragments should remain separate from configured environments")
+def tox_selector_fragments_remain_separate_from_configured_environments(consumer: Any) -> None:
+    context = _context(consumer)
+    report = _report(context)
+    inventory = report.get("inventory", {})
+    configured_names = inventory.get("configuredToxEnvironments")
+    selector_fragments = inventory.get("toxSelectorFragments")
+    resolved_names = inventory.get("toxEnvironments")
+    assert isinstance(configured_names, list) and configured_names, inventory
+    assert isinstance(selector_fragments, list) and selector_fragments, inventory
+    assert isinstance(resolved_names, list) and resolved_names, inventory
+    assert set(configured_names).isdisjoint(selector_fragments), (configured_names, selector_fragments)
+    assert set(configured_names) <= set(resolved_names), (resolved_names, configured_names)
+    assert set(resolved_names) - set(configured_names) <= set(selector_fragments), (
+        resolved_names,
+        configured_names,
+        selector_fragments,
+    )
+    active_environments = {
+        environment
+        for lane in _lanes(context)
+        if _status(lane) != "unsupported"
+        for environment in str(lane.get("tox_env", "")).split(",")
+        if environment
+    }
+    assert not (set(selector_fragments) & active_environments), (selector_fragments, active_environments)
 
 
 @then("every required lane should have resolved command and CI selection proof")
@@ -527,53 +577,276 @@ def active_lane_proof_records_actual_versions(consumer: Any) -> None:
     assert str(active.get("platform", "")).casefold() in actual_platforms, active
 
 
-@then("required lanes should include CPython 3.14 and PyPy 3.11")
-def required_lanes_include_current_python_targets(consumer: Any) -> None:
-    required = [lane for lane in _lanes(_context(consumer)) if _status(lane) == "required"]
-    assert any(
-        "cpython" in str(lane["runtime"]).casefold() and str(lane["python"]).startswith("3.14") for lane in required
+@then("active runtime policy should require CPython 3.11 through 3.15 on Linux macOS and Windows")
+def active_runtime_policy_requires_current_cpython_cells(consumer: Any) -> None:
+    context = _context(consumer)
+    cells = _required_runtime_cells(context)
+    expected = {
+        ("cpython", f"3.{minor}", platform_name, "runner-native")
+        for minor in range(11, 16)
+        for platform_name in ("linux", "macos", "windows")
+    }
+    actual = {_runtime_cell_key(cell) for cell in cells if str(cell.get("runtime", "")).casefold() == "cpython"}
+    assert actual == expected, (sorted(expected - actual), sorted(actual - expected))
+
+
+@then("active runtime policy should require PyPy 3.12 and GraalPy 25.3 on Linux x86_64")
+def active_runtime_policy_requires_alternative_runtimes(consumer: Any) -> None:
+    actual = {_runtime_cell_key(cell) for cell in _required_runtime_cells(_context(consumer))}
+    expected = {
+        ("pypy", "3.12", "linux", "x86_64"),
+        ("graalpy", "3.13.14", "linux", "x86_64"),
+    }
+    assert expected <= actual, (sorted(expected - actual), sorted(actual - expected))
+    graalpy = next(
+        cell
+        for cell in _required_runtime_cells(_context(consumer))
+        if str(cell.get("runtime", "")).casefold() == "graalpy"
     )
-    assert any(
-        "pypy" in str(lane["runtime"]).casefold() and str(lane["python"]).startswith("3.11") for lane in required
-    )
+    assert graalpy.get("runtime_version") == "25.3", graalpy
 
 
-@then("required lanes should exercise compatible pytest 7 8 and 9 versions")
-def required_lanes_exercise_supported_pytest_majors(consumer: Any) -> None:
-    required = [lane for lane in _lanes(_context(consumer)) if _status(lane) == "required"]
-    majors = {major for lane in required for major in _majors(lane["pytest"])}
-    assert {7, 8, 9} <= majors, majors
+@then("GraalPy and CPython 3.15 cells should pin their setup-python inputs and expected interpreters")
+def special_runtimes_pin_setup_python_inputs(consumer: Any) -> None:
+    context = _context(consumer)
+    cells = _required_runtime_cells(context)
+    workflow_cells = context.document.get("workflow_cells")
+    assert isinstance(workflow_cells, list), workflow_cells
+    workflow_by_id = {str(cell.get("id")): cell for cell in workflow_cells if isinstance(cell, dict)}
+    graalpy = next(cell for cell in cells if str(cell.get("runtime", "")).casefold() == "graalpy")
+    assert graalpy.get("setup_python") == {"input": "graalpy-25.3", "expected_interpreter": "3.13.14"}, graalpy
+    graalpy_workflow = workflow_by_id.get(str(graalpy.get("id")))
+    assert isinstance(graalpy_workflow, dict), graalpy_workflow
+    assert graalpy_workflow.get("setup_python_input") == "graalpy-25.3", graalpy_workflow
+    assert graalpy_workflow.get("expected_interpreter") == "3.13.14", graalpy_workflow
+    cpython_315 = [
+        cell
+        for cell in cells
+        if str(cell.get("runtime", "")).casefold() == "cpython" and str(cell.get("python")) == "3.15"
+    ]
+    assert len(cpython_315) == 3, cpython_315
+    for cell in cpython_315:
+        assert cell.get("setup_python") == {"input": "3.15.0", "expected_interpreter": "3.15.0"}, cell
+        workflow_cell = workflow_by_id.get(str(cell.get("id")))
+        assert isinstance(workflow_cell, dict), workflow_cell
+        assert workflow_cell.get("setup_python_input") == "3.15.0", workflow_cell
+        assert workflow_cell.get("expected_interpreter") == "3.15.0", workflow_cell
 
 
-@then("the older viable pytest minors should use compatible Python lanes")
-def older_pytest_minors_use_compatible_python_lanes(consumer: Any) -> None:
-    required = [lane for lane in _lanes(_context(consumer)) if _status(lane) == "required"]
-    pair_pattern = re.compile(r"^py(?P<python>\d+)-pytest(?P<pytest>\d+)")
-    pairs: set[tuple[str, str]] = set()
-    for lane in required:
-        tox_environments = str(lane.get("tox_env", "")).split(",")
-        for environment in tox_environments:
-            match = pair_pattern.match(environment.strip())
-            if match is None:
+@then("required CPython cells should use latest pytest 9 with the specified pytest 7 and 8 floor cells")
+def required_cpython_cells_use_latest_and_compatible_floor_pytest(consumer: Any) -> None:
+    context = _context(consumer)
+    policy = _runtime_policy(context)
+    pytest_policy = policy.get("pytest")
+    assert isinstance(pytest_policy, dict), pytest_policy
+    assert pytest_policy.get("minimum") == ">=7.0", pytest_policy
+    assert pytest_policy.get("latest") == "9.x", pytest_policy
+    cells = _required_runtime_cells(context)
+    for cell in cells:
+        if str(cell.get("runtime", "")).casefold() != "cpython":
+            continue
+        required_lines = cell.get("required_pytest_lines")
+        assert isinstance(required_lines, list) and "9.x" in required_lines, cell
+    by_key = {_runtime_cell_key(cell): cell for cell in cells}
+    expected_floor_lines = {
+        ("cpython", "3.11", "linux", "runner-native"): "7.4.x",
+        ("cpython", "3.12", "linux", "runner-native"): "8.4.x",
+    }
+    for key, floor in expected_floor_lines.items():
+        cell = by_key.get(key)
+        assert cell is not None, key
+        assert floor in cell.get("required_pytest_lines", []), (key, cell)
+
+
+@then("every required runtime cell should include core install and example acceptance")
+def every_required_runtime_cell_accepts_core_install_and_examples(consumer: Any) -> None:
+    context = _context(consumer)
+    workflow_cells = context.document.get("workflow_cells")
+    assert isinstance(workflow_cells, list), workflow_cells
+    workflow_by_id = {str(cell.get("id")): cell for cell in workflow_cells if isinstance(cell, dict)}
+    for cell in _required_runtime_cells(context):
+        cell_id = str(cell.get("id", ""))
+        installability = cell.get("installability")
+        assert isinstance(installability, dict) and installability.get("status") == "required-acceptance", (
+            cell_id,
+            cell,
+        )
+        acceptance = installability.get("acceptance")
+        assert isinstance(acceptance, list) and {"core-install", "core-tests", "examples"} <= set(acceptance), cell
+        required_ci = cell.get("required_ci")
+        assert isinstance(required_ci, dict) and required_ci.get("status") == "required", cell
+        selector = required_ci.get("workflow_cell")
+        assert selector == cell_id and selector in workflow_by_id, (cell, workflow_by_id.keys())
+
+
+@then("optional extras should remain separate from required runtime acceptance")
+def optional_extras_remain_separate_from_runtime_acceptance(consumer: Any) -> None:
+    optional_extra_markers = ("allure", "playwright", "native", "remote", "formatter", "browser")
+    for cell in _required_runtime_cells(_context(consumer)):
+        installability = cell.get("installability")
+        assert isinstance(installability, dict), cell
+        acceptance = installability.get("acceptance")
+        assert acceptance == ["core-install", "core-tests", "examples"], (cell.get("id"), acceptance)
+        required_ci = cell.get("required_ci")
+        assert isinstance(required_ci, dict), cell
+        tox_envs = required_ci.get("tox_envs")
+        assert isinstance(tox_envs, list) and tox_envs, cell
+        assert not any(
+            marker in str(environment).casefold() for environment in tox_envs for marker in optional_extra_markers
+        ), (cell.get("id"), tox_envs)
+
+
+@then(
+    "every required runtime cell should declare upstream availability installability product support required CI and measured evidence separately"
+)
+def every_required_runtime_cell_separates_policy_dimensions(consumer: Any) -> None:
+    required_keys = {
+        "upstream_availability",
+        "installability",
+        "product_support",
+        "required_ci",
+        "measured_evidence",
+    }
+    for cell in _required_runtime_cells(_context(consumer)):
+        missing = required_keys - cell.keys()
+        assert not missing, (cell.get("id"), sorted(missing))
+        availability = cell["upstream_availability"]
+        support = cell["product_support"]
+        measured = cell["measured_evidence"]
+        assert isinstance(availability, dict) and availability.get("status") == "available", cell
+        assert _has_http_sources(availability.get("source_evidence")), cell
+        assert isinstance(support, dict) and support.get("status") == "supported", cell
+        assert isinstance(measured, dict) and measured.get("status") == "per-run", cell
+
+
+@then(
+    "every required cell should require measured Python pytest platform architecture SHA command selected and passed tests outcome and workflow URLs"
+)
+def every_required_cell_requires_complete_measured_evidence(consumer: Any) -> None:
+    fields = {
+        "python",
+        "pytest",
+        "platform",
+        "architecture",
+        "git_sha",
+        "command",
+        "selected_tests",
+        "passed_tests",
+        "outcome",
+        "job_url",
+        "run_url",
+    }
+    for cell in _required_runtime_cells(_context(consumer)):
+        measured = cell.get("measured_evidence")
+        assert isinstance(measured, dict), cell
+        declared_fields = measured.get("fields")
+        assert isinstance(declared_fields, list) and fields <= set(declared_fields), (cell.get("id"), declared_fields)
+
+
+@then("historical support rows should remain history and must not be active support")
+def historical_rows_remain_outside_active_support(consumer: Any) -> None:
+    context = _context(consumer)
+    historical = context.document.get("support_ledger", {}).get("historical_cells")
+    assert isinstance(historical, list) and len(historical) == 12, historical
+    current_cells = {_runtime_cell_key(cell) for cell in _required_runtime_cells(context)}
+    assert all(key[0] != "pypy" or key[1] != "3.11" for key in current_cells), current_cells
+    assert all(key[0] != "cpython" or key[1] != "3.10" for key in current_cells), current_cells
+    active_lanes = [lane for lane in _lanes(context) if _status(lane) != "unsupported"]
+    assert all(
+        not (str(lane.get("runtime", "")).casefold() == "pypy" and str(lane.get("python")) == "3.11")
+        and not (str(lane.get("runtime", "")).casefold() == "cpython" and str(lane.get("python")) == "3.10")
+        for lane in active_lanes
+    ), active_lanes
+
+
+@then("PyPy 3.10 and 3.11 exclusions should remain source-backed historical runtime records")
+def retired_pypy_runtime_and_capability_exclusions_remain_historical(consumer: Any) -> None:
+    context = _context(consumer)
+    policy_exclusions = _runtime_policy(context).get("exclusions")
+    assert isinstance(policy_exclusions, list), policy_exclusions
+    pypy_runtime_exclusions = {
+        str(item.get("python")): item
+        for item in policy_exclusions
+        if isinstance(item, dict) and str(item.get("runtime", "")).casefold() == "pypy"
+    }
+    assert set(pypy_runtime_exclusions) == {"3.10", "3.11"}, pypy_runtime_exclusions
+    for version, exclusion in pypy_runtime_exclusions.items():
+        assert exclusion.get("reason") and exclusion.get("source_evidence"), (version, exclusion)
+
+    assert context.document.get("capability_exclusions") == []
+    historical_exclusions = context.document.get("support_ledger", {}).get("historical_capability_exclusions")
+    assert isinstance(historical_exclusions, list), historical_exclusions
+    historical_pypy = {
+        str(item.get("python")): item
+        for item in historical_exclusions
+        if isinstance(item, dict)
+        and str(item.get("runtime", "")).casefold() == "pypy"
+        and item.get("capability") == "debug-mcp"
+        and item.get("platform") == "windows"
+    }
+    assert set(historical_pypy) == {"3.10", "3.11"}, historical_pypy
+    assert all(item.get("historical_status") == "retired-runtime" for item in historical_pypy.values())
+    assert all(item.get("reason") and item.get("source_evidence") for item in historical_pypy.values())
+
+
+@then("pytest 7 support should cover every Python pairing allowed by upstream constraints")
+def every_upstream_compatible_pairing_retains_pytest_7_support(consumer: Any) -> None:
+    from pytest_cuke.compatibility.runtime_compat import PYTEST_COMPATIBILITY_BOUNDS
+
+    python_versions = {
+        str(cell["python"])
+        for cell in _required_runtime_cells(_context(consumer))
+        if str(cell.get("runtime", "")).casefold() == "cpython"
+    }
+    for python_version in python_versions:
+        python_tuple = tuple(int(part) for part in python_version.split("."))
+        python_factor = python_version.replace(".", "")
+        for pytest_factor, (minimum_python, maximum_python) in PYTEST_COMPATIBILITY_BOUNDS.items():
+            upstream_allows_pair = python_tuple >= minimum_python and (
+                maximum_python is None or python_tuple <= maximum_python
+            )
+            if not upstream_allows_pair:
                 continue
-            python_factor = match.group("python")
-            pytest_factor = match.group("pytest")
             compatible, reason = is_pair_compatible(python_factor, pytest_factor)
-            assert compatible, f"{environment!r} is not a supported pair: {reason}"
-            pairs.add((python_factor, pytest_factor))
+            assert compatible, (
+                f"Python {python_version} and pytest {pytest_factor} are permitted upstream, "
+                f"but product compatibility reports {reason}"
+            )
 
-    expected = {("310", "70"), ("310", "71"), ("311", "72"), ("312", "80"), ("312", "81")}
-    assert expected <= pairs, f"older viable pytest tox pairings are missing: {sorted(expected - pairs)!r}"
+
+@then("each unsupported runtime or pytest pairing should have upstream evidence and a reason")
+def unsupported_pairs_have_upstream_evidence_and_reason(consumer: Any) -> None:
+    context = _context(consumer)
+    exclusions = _runtime_policy(context).get("exclusions")
+    assert isinstance(exclusions, list) and exclusions, exclusions
+    for exclusion in exclusions:
+        assert isinstance(exclusion, dict), exclusion
+        assert exclusion.get("reason"), exclusion
+        assert _has_http_sources(exclusion.get("source_evidence")), exclusion
+        availability = exclusion.get("upstream_availability")
+        product_support = exclusion.get("product_support")
+        assert isinstance(availability, dict) and availability.get("status") in {
+            "available",
+            "unavailable",
+            "unknown",
+        }, exclusion
+        assert _has_http_sources(availability.get("source_evidence")), exclusion
+        assert isinstance(product_support, dict) and product_support.get("status") == "unsupported", exclusion
+        assert product_support.get("reason"), exclusion
+    historical_pairings = context.document.get("support_ledger", {}).get("exclusions")
+    assert isinstance(historical_pairings, list) and historical_pairings, historical_pairings
+    for exclusion in historical_pairings:
+        assert isinstance(exclusion, dict), exclusion
+        assert exclusion.get("reason") and exclusion.get("basis"), exclusion
+        assert _has_http_sources(exclusion.get("source_evidence")), exclusion
 
 
-@then("Python 3.9 and pytest versions below 7 should be explicitly unsupported and unselected")
-def obsolete_runtime_and_pytest_pairs_are_excluded(consumer: Any) -> None:
-    unsupported = [lane for lane in _lanes(_context(consumer)) if _status(lane) == "unsupported"]
-    assert any(str(lane["python"]).startswith("3.9") for lane in unsupported), unsupported
-    assert any(any(major < 7 for major in _majors(lane["pytest"])) for lane in unsupported), unsupported
-    active = [lane for lane in _lanes(_context(consumer)) if _status(lane) != "unsupported"]
-    assert all(not str(lane["python"]).startswith("3.9") for lane in active), active
-    assert all(all(major >= 7 for major in _majors(lane["pytest"])) for lane in active), active
+def _has_http_sources(value: Any) -> bool:
+    return (
+        isinstance(value, list)
+        and bool(value)
+        and all(isinstance(source, str) and source.startswith(("https://", "http://")) for source in value)
+    )
 
 
 @then("the pre-commit lane should resolve to a tox command that runs pre-commit")
@@ -848,6 +1121,91 @@ def optional_capability_carriers_are_declared(consumer: Any) -> None:
             assert carrier_proof.get("kind") in (None, carrier.get("kind")), (lane, carrier_proof)
 
 
+@then("optional integration cells should provide isolated Allure and xdist acceptance")
+def optional_integration_cells_are_isolated_from_core_runtime_acceptance(consumer: Any) -> None:
+    context = _context(consumer)
+    cells = [
+        cell
+        for cell in context.document.get("workflow_cells", [])
+        if isinstance(cell, dict) and cell.get("job") == "optional-integrations"
+    ]
+    expected_environments = {"py313-pytest84-allure-coverage-lin"} | {
+        f"py314-pytestlatest-{gherkin}-xdist-coverage-{platform_suffix}"
+        for gherkin in ("gherkin33", "gherkinlatest")
+        for platform_suffix in ("lin", "mac", "win")
+    }
+    actual_environments = [environment for cell in cells for environment in cell.get("tox_envs", [])]
+    assert set(actual_environments) == expected_environments, actual_environments
+    assert len(actual_environments) == len(set(actual_environments)) == 7, actual_environments
+    assert all(len(cell.get("tox_envs", [])) == 1 for cell in cells), cells
+    assert all(cell.get("architecture") == "runner-native" for cell in cells), cells
+
+    required_runtime_environments = {
+        environment
+        for cell in _required_runtime_cells(context)
+        for environment in cell.get("required_ci", {}).get("tox_envs", [])
+    }
+    assert not (expected_environments & required_runtime_environments), required_runtime_environments
+    evidence = context.document.get("project", {}).get("evidence", {})
+    aggregate_groups = evidence.get("aggregate_groups") if isinstance(evidence, dict) else None
+    assert isinstance(aggregate_groups, list) and "optional" in aggregate_groups, aggregate_groups
+
+
+@then("optional integration cells should declare their extra markers and package requirements")
+def optional_integration_lanes_declare_extras_and_package_constraints(consumer: Any) -> None:
+    context = _context(consumer)
+    cells = [
+        cell
+        for cell in context.document.get("workflow_cells", [])
+        if isinstance(cell, dict) and cell.get("job") == "optional-integrations"
+    ]
+    lanes_by_environment = {
+        environment: lane
+        for lane in _lanes(context)
+        if _status(lane) != "unsupported"
+        for environment in str(lane.get("tox_env", "")).split(",")
+        if environment
+    }
+    assert len(cells) == 7, cells
+    for cell in cells:
+        environment = cell["tox_envs"][0]
+        lane = lanes_by_environment.get(environment)
+        assert lane is not None, (cell, lanes_by_environment)
+        assert _status(lane) == "required", lane
+        assert lane.get("workflow_selector") == cell.get("id"), (lane, cell)
+        prerequisites = _prerequisite_entries(lane)
+        packages = {item.get("name"): item for item in prerequisites if item.get("type") == "python-package"}
+
+        if "allure" in environment:
+            assert lane.get("extras") == ["allure"], lane
+            assert packages.get("allure-python-commons-test", {}).get("version") == "2.16.0", packages
+            continue
+
+        assert lane.get("extras") == [], lane
+        assert packages.get("pytest-xdist", {}).get("version") == "<4", packages
+        gherkin = packages.get("gherkin-official")
+        assert gherkin is not None, packages
+        if "gherkin33" in environment:
+            assert gherkin.get("requirement") == "gherkin-official>=33,<34", gherkin
+        else:
+            assert gherkin.get("requirement") == "gherkin-official", gherkin
+
+
+@then("optional integration evidence should use its own aggregate group")
+def optional_integration_evidence_has_separate_aggregate_group(consumer: Any) -> None:
+    context = _context(consumer)
+    groups = context.document.get("project", {}).get("evidence", {}).get("aggregate_groups")
+    assert isinstance(groups, list) and "optional" in groups, groups
+    workflow_cells = context.document.get("workflow_cells", [])
+    assert any(isinstance(cell, dict) and cell.get("job") == "optional-integrations" for cell in workflow_cells), (
+        workflow_cells
+    )
+    inventory_summary = _report(context).get("inventory", {}).get("optionalIntegrations")
+    assert isinstance(inventory_summary, dict), inventory_summary
+    assert inventory_summary.get("cellCount") == 7, inventory_summary
+    assert inventory_summary.get("environmentCount") == 7, inventory_summary
+
+
 @when("I probe a declared optional capability lane")
 def probe_declared_optional_capability_lane(consumer: Any) -> None:
     context = _context(consumer)
@@ -1081,6 +1439,128 @@ def native_parser_tox_environment_installs_uv(consumer: Any) -> None:
     )
 
 
+@then("local uv evidence should match the tox acceptance environments that install uv")
+def local_uv_evidence_matches_tox_acceptance_environments(
+    request: pytest.FixtureRequest,
+    consumer: Any,
+) -> None:
+    repository_root = Path(request.config.rootpath)
+    evidence_rules = runpy.run_path(str(repository_root / "scripts" / "environment_evidence.py"))
+    required_system_tool_versions = evidence_rules["required_system_tool_versions"]
+    expected_uv_environments = {
+        "pypy312-pytestlatest-coverage-lin",
+        "py313-pytest84-allure-coverage-lin",
+        "py314-pytestlatest-gherkin33-xdist-coverage-lin",
+        "py314-pytestlatest-gherkinlatest-xdist-coverage-lin",
+        "py314-pytestlatest-gherkin33-xdist-coverage-mac",
+        "py314-pytestlatest-gherkin33-xdist-coverage-win",
+        "py314-pytestlatest-gherkinlatest-xdist-coverage-mac",
+        "py314-pytestlatest-gherkinlatest-xdist-coverage-win",
+        "py314-pytestlatest-playwright-report",
+        "py313-live-formatters-acceptance-lin",
+        "py313-live-formatters-acceptance-mac",
+        "py313-live-formatters-acceptance-win",
+        "native-go-parser",
+        "py314-pytestlatest-mypy",
+    }
+    tox_environments = _list_tox_environment_names(
+        consumer.path,
+        environment=_inventory_command_environment(consumer),
+    )[1]
+    actual_uv_environments = {
+        environment for environment in tox_environments if "uv" in required_system_tool_versions(environment)
+    }
+    assert actual_uv_environments == expected_uv_environments, (
+        "local uv evidence should be required only for tox environments that install uv and run isolated "
+        "consumer acceptance; ordinary CPython and GraalPy coverage, pytest90-mypy, mypy-messages, doc-gen, "
+        "pre-commit, and remote xdist environments must not require it; "
+        f"missing={sorted(expected_uv_environments - actual_uv_environments)}, "
+        f"unexpected={sorted(actual_uv_environments - expected_uv_environments)}"
+    )
+
+    expected_system_tools = {environment: {"tox"} for environment in tox_environments}
+    for environment in expected_uv_environments:
+        expected_system_tools[environment].add("uv")
+    expected_system_tools["py313-pytest84-allure-coverage-lin"].update(
+        {"node", "npm", "npx", "allure-cli"}
+    )
+    expected_system_tools["py314-pytestlatest-playwright-report"].update(
+        {"node", "npm", "npx", "allure-cli"}
+    )
+    expected_system_tools["py314-doc-gen"].add("pandoc")
+    expected_system_tools["native-go-parser"].update({"go", "native-compiler"})
+    for environment in (
+        "py313-live-formatters-acceptance-lin",
+        "py313-live-formatters-acceptance-mac",
+        "py313-live-formatters-acceptance-win",
+    ):
+        expected_system_tools[environment].update({"node", "npm", "npx", "allure-cli"})
+    actual_system_tools = {
+        environment: set(required_system_tool_versions(environment))
+        for environment in tox_environments
+        if required_system_tool_versions(environment)
+    }
+    assert actual_system_tools == expected_system_tools, (
+        "the evidence collector should record only the system tools used by each acceptance lane, including "
+        "Node/npm/npx/Allure CLI and tox-local uv for browser reports; "
+        f"missing={expected_system_tools.keys() - actual_system_tools.keys()}, "
+        f"unexpected={actual_system_tools.keys() - expected_system_tools.keys()}, "
+        f"mismatched={{{', '.join(f'{name}: expected {sorted(expected_system_tools[name])}, got {sorted(actual_system_tools[name])}' for name in expected_system_tools.keys() & actual_system_tools.keys() if expected_system_tools[name] != actual_system_tools[name])}}}"
+    )
+
+    config_result = subprocess.run(
+        ["tox", "config", "-e", "ALL", "-k", "deps"],
+        cwd=consumer.path,
+        env=_inventory_command_environment(consumer),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert config_result.returncode == 0, (
+        f"tox config failed while checking local uv dependencies: {config_result.stdout}\n{config_result.stderr}"
+    )
+    dependencies_by_environment: dict[str, set[str]] = {}
+    active_environment: str | None = None
+    collecting_dependencies = False
+    for line in config_result.stdout.splitlines():
+        section = re.fullmatch(r"\[testenv:([^]]+)\]", line)
+        if section:
+            active_environment = section.group(1)
+            dependencies_by_environment[active_environment] = set()
+            collecting_dependencies = False
+            continue
+        if active_environment is None:
+            continue
+        if line.startswith("deps ="):
+            collecting_dependencies = True
+            inline_dependency = line.partition("=")[2].strip()
+            if inline_dependency:
+                dependencies_by_environment[active_environment].add(
+                    re.split(r"[<>=!~;\s\[]", inline_dependency, maxsplit=1)[0].casefold()
+                )
+            continue
+        if collecting_dependencies and line.startswith("  "):
+            dependency = line.strip()
+            if dependency:
+                dependencies_by_environment[active_environment].add(
+                    re.split(r"[<>=!~;\s\[]", dependency, maxsplit=1)[0].casefold()
+                )
+            continue
+        collecting_dependencies = False
+
+    missing_dependencies = sorted(
+        environment
+        for environment in tox_environments
+        if ("uv" in required_system_tool_versions(environment))
+        != ("uv" in dependencies_by_environment.get(environment, set()))
+    )
+    assert not missing_dependencies, (
+        "the environment evidence collector must require tox-local uv exactly where resolved tox dependencies "
+        f"install uv; mismatched environments={missing_dependencies}, "
+        f"resolved dependencies={{{', '.join(f'{name}: {sorted(dependencies_by_environment.get(name, set()))}' for name in missing_dependencies)}}}"
+    )
+
+
 @then("the messages schema tox command should use the fixture for the installed Cucumber Messages release")
 def messages_schema_tox_command_uses_installed_schema_fixture(request: pytest.FixtureRequest) -> None:
     repository_root = Path(request.config.rootpath)
@@ -1162,83 +1642,6 @@ def messages_schema_inventory_uses_installed_schema_fixture(request: pytest.Fixt
         f"messages-schema inventory must use --source-dir {source_directory!r} for cucumber-messages {release}; "
         f"configured={configured_source_directories!r}"
     )
-
-
-@then("installed package metadata should cap dependencies for PyPy 3.10 and remain open for newer runtimes")
-def installed_metadata_caps_only_legacy_pypy_dependencies(consumer: Any) -> None:
-    metadata_script = (
-        "import json; from importlib.metadata import distribution; "
-        "print(json.dumps(distribution('pytest-cuke').metadata.get_all('Requires-Dist') or []))"
-    )
-    result = subprocess.run(
-        [str(consumer.python), "-c", metadata_script],
-        cwd=consumer.path,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, f"could not read installed pytest-cuke metadata: {result.stderr}"
-    requirement_lines = json.loads(result.stdout)
-    assert isinstance(requirement_lines, list), requirement_lines
-    requirements = [Requirement(line) for line in requirement_lines]
-
-    def active_requirements(package: str, implementation: str, python_version: str) -> list[Requirement]:
-        marker_environment = default_environment()
-        is_pypy = implementation == "PyPy"
-        marker_environment.update(
-            {
-                "implementation_name": "pypy" if is_pypy else "cpython",
-                "platform_python_implementation": implementation,
-                "python_version": python_version,
-                "python_full_version": f"{python_version}.0",
-                "extra": "",
-            }
-        )
-        normalized_name = re.sub(r"[-_.]+", "-", package).casefold()
-        return [
-            requirement
-            for requirement in requirements
-            if re.sub(r"[-_.]+", "-", requirement.name).casefold() == normalized_name
-            and (requirement.marker is None or requirement.marker.evaluate(marker_environment))
-        ]
-
-    def allows(selected: list[Requirement], version: str) -> bool:
-        return all(requirement.specifier.contains(version, prereleases=True) for requirement in selected)
-
-    observed: dict[str, dict[str, list[str]]] = {}
-    for implementation, python_version in (
-        ("PyPy", "3.10"),
-        ("CPython", "3.10"),
-        ("CPython", "3.14"),
-        ("PyPy", "3.11"),
-    ):
-        observed[f"{implementation} {python_version}"] = {
-            package: [
-                str(requirement.specifier)
-                for requirement in active_requirements(package, implementation, python_version)
-            ]
-            for package in ("pydantic", "rpds-py")
-        }
-
-    legacy_pydantic = active_requirements("pydantic", "PyPy", "3.10")
-    legacy_rpds = active_requirements("rpds-py", "PyPy", "3.10")
-    failures = []
-    if not legacy_pydantic or not allows(legacy_pydantic, "2.12.5") or allows(legacy_pydantic, "2.13.0"):
-        failures.append("PyPy 3.10 must allow pydantic 2.12.5 and exclude 2.13.0")
-    if not legacy_rpds or not allows(legacy_rpds, "0.27.0") or allows(legacy_rpds, "0.28.0"):
-        failures.append("PyPy 3.10 must allow rpds-py 0.27.0 and exclude 0.28.0")
-    for implementation, python_version in (
-        ("CPython", "3.10"),
-        ("CPython", "3.14"),
-        ("PyPy", "3.11"),
-    ):
-        pydantic = active_requirements("pydantic", implementation, python_version)
-        rpds = active_requirements("rpds-py", implementation, python_version)
-        if not pydantic or not allows(pydantic, "2.13.0"):
-            failures.append(f"{implementation} {python_version} must keep pydantic 2.13.0 available")
-        if not allows(rpds, "0.28.0"):
-            failures.append(f"{implementation} {python_version} must keep rpds-py 0.28.0 available")
-    assert not failures, f"; ".join(failures) + f"; installed metadata specifiers: {observed!r}"
 
 
 @given(
@@ -1480,15 +1883,22 @@ def check_inventory_omitting_resolved_tox_environment(
     temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
 ) -> None:
     context = temporary_environment_inventory
-    environment_name = "py312-pytest73-coverage-lin"
     _, tox_names = _list_tox_environment_names(context.project_root)
-    assert environment_name in tox_names, f"expected a real resolved tox environment, got {tox_names!r}"
-
-    lane = next(
-        candidate for candidate in context.document["lanes"] if _lane_id(candidate) == "cpython-312-linux-pytest7"
+    lane_and_names = next(
+        (
+            (candidate, names)
+            for candidate in context.document["lanes"]
+            if isinstance(candidate, dict) and _status(candidate) == "required"
+            for names in (
+                [part.strip() for part in str(candidate.get("tox_env", "")).split(",") if part.strip()],
+            )
+            if len([name for name in names if name in tox_names]) > 1
+        ),
+        None,
     )
-    environment_names = [part.strip() for part in str(lane["tox_env"]).split(",") if part.strip()]
-    assert environment_name in environment_names, lane
+    assert lane_and_names is not None, f"expected a required lane with multiple resolved tox environments: {tox_names!r}"
+    lane, environment_names = lane_and_names
+    environment_name = next(name for name in environment_names if name in tox_names)
     environment_names.remove(environment_name)
     lane["tox_env"] = ",".join(environment_names)
     lane_id = _lane_id(lane)
@@ -1573,7 +1983,7 @@ def _full_matrix_workflow_context(
     context: TemporaryEnvironmentInventoryContext,
 ) -> tuple[dict[str, Any], dict[str, Any], Path]:
     cell = next(
-        candidate for candidate in context.document["workflow_cells"] if candidate.get("id") == "cpython-310-linux"
+        candidate for candidate in context.document["workflow_cells"] if candidate.get("id") == "cpython-311-linux"
     )
     assert cell.get("job") == "full-matrix", cell
     lane = next(
@@ -1642,10 +2052,7 @@ def remove_github_output_flag_from_selector_step(
     context = temporary_environment_inventory
     cell, lane, workflow_path = _full_matrix_workflow_context(context)
     content = workflow_path.read_text(encoding="utf-8")
-    selected_command = (
-        "scripts/env_matrix.py --job full-matrix --split-cells "
-        "cpython-312-linux cpython-313-linux cpython-313-macos cpython-313-windows --github-output"
-    )
+    selected_command = "scripts/env_matrix.py --job full-matrix --split-tox-envs --github-output"
     command_without_export = selected_command.removesuffix(" --github-output")
     assert content.count(selected_command) == 1, (
         f"expected exactly one full-matrix output-producing step in {workflow_path}, "
@@ -1691,14 +2098,32 @@ def missing_matrix_export_fails_actionably(
 
 
 @when(
-    "I expand the selected long full-matrix cells into tox environment rows",
+    "I expand every full-matrix cell into tox environment rows",
     target_fixture="expanded_full_matrix_rows",
 )
 def expand_selected_full_matrix_cells(
     request: Any,
     temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
 ) -> dict[str, Any]:
-    context = temporary_environment_inventory
+    return _expand_workflow_job_tox_envs(request, temporary_environment_inventory, "full-matrix")
+
+
+@when(
+    "I expand every optional integration cell into tox environment rows",
+    target_fixture="expanded_optional_integration_rows",
+)
+def expand_optional_integration_cells(
+    request: Any,
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> dict[str, Any]:
+    return _expand_workflow_job_tox_envs(request, temporary_environment_inventory, "optional-integrations")
+
+
+def _expand_workflow_job_tox_envs(
+    request: Any,
+    context: TemporaryEnvironmentInventoryContext,
+    job_id: str,
+) -> dict[str, Any]:
     repository_root = Path(request.config.rootpath)
     inventory = context.document
     workflow_relative_path = inventory.get("project", {}).get("workflow")
@@ -1708,20 +2133,11 @@ def expand_selected_full_matrix_cells(
     selector_commands = [
         step.get("run", "")
         for step in selector_steps
-        if isinstance(step, dict) and "scripts/env_matrix.py --job full-matrix" in str(step.get("run", ""))
+        if isinstance(step, dict) and f"scripts/env_matrix.py --job {job_id}" in str(step.get("run", ""))
     ]
     assert len(selector_commands) == 1, selector_commands
     selector_tokens = shlex.split(selector_commands[0])
-    assert "--split-cells" in selector_tokens and "--github-output" in selector_tokens, selector_tokens
-    split_index = selector_tokens.index("--split-cells")
-    output_index = selector_tokens.index("--github-output")
-    selected_ids = tuple(selector_tokens[split_index + 1 : output_index])
-    assert selected_ids == (
-        "cpython-312-linux",
-        "cpython-313-linux",
-        "cpython-313-macos",
-        "cpython-313-windows",
-    ), selected_ids
+    assert "--split-tox-envs" in selector_tokens and "--github-output" in selector_tokens, selector_tokens
     selector_path = context.project_root / "scripts" / "env_matrix.py"
     selector_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(repository_root / "scripts" / "env_matrix.py", selector_path)
@@ -1729,9 +2145,8 @@ def expand_selected_full_matrix_cells(
         sys.executable,
         str(selector_path),
         "--job",
-        "full-matrix",
-        "--split-cells",
-        *selected_ids,
+        job_id,
+        "--split-tox-envs",
         "--inventory",
         str(context.inventory_path),
     ]
@@ -1745,45 +2160,53 @@ def expand_selected_full_matrix_cells(
     assert result.returncode == 0, f"full-matrix expansion failed:\n{result.stdout}\n{result.stderr}"
     rows = json.loads(result.stdout)
     assert isinstance(rows, list) and all(isinstance(row, dict) for row in rows), rows
-    return {"rows": rows, "selected_ids": selected_ids, "inventory": inventory}
+    return {"rows": rows, "inventory": inventory, "job_id": job_id}
 
 
-@then("each selected tox environment should appear exactly once with canonical cell metadata")
-def expanded_full_matrix_rows_cover_selected_environments_once(
+@then("every full-matrix tox environment should appear exactly once with canonical cell metadata")
+def expanded_full_matrix_rows_cover_every_environment_once(
     expanded_full_matrix_rows: dict[str, Any],
 ) -> None:
-    inventory = expanded_full_matrix_rows["inventory"]
-    rows = expanded_full_matrix_rows["rows"]
-    selected_ids = set(expanded_full_matrix_rows["selected_ids"])
+    _assert_expanded_workflow_rows_match_cells(expanded_full_matrix_rows, "full-matrix")
+
+
+@then("every optional integration tox environment should appear exactly once with canonical cell metadata")
+def expanded_optional_integration_rows_cover_every_environment_once(
+    expanded_optional_integration_rows: dict[str, Any],
+) -> None:
+    _assert_expanded_workflow_rows_match_cells(expanded_optional_integration_rows, "optional-integrations")
+
+
+def _assert_expanded_workflow_rows_match_cells(expansion: dict[str, Any], job_id: str) -> None:
+    inventory = expansion["inventory"]
+    rows = expansion["rows"]
+    assert expansion["job_id"] == job_id, expansion
     inventory_cells = inventory.get("workflow_cells")
     assert isinstance(inventory_cells, list), inventory_cells
-    full_matrix_cells = [
-        cell for cell in inventory_cells if isinstance(cell, dict) and cell.get("job") == "full-matrix"
-    ]
-    expected_cells = {str(cell["id"]): cell for cell in full_matrix_cells}
-    assert selected_ids <= expected_cells.keys(), (selected_ids, expected_cells.keys())
-
+    job_cells = [cell for cell in inventory_cells if isinstance(cell, dict) and cell.get("job") == job_id]
+    assert job_cells, f"the canonical inventory has no {job_id!r} cells"
+    expected_cells = {str(cell["id"]): cell for cell in job_cells}
     expected_environments: list[str] = []
-    for cell_id in selected_ids:
-        tox_envs = expected_cells[cell_id].get("tox_envs")
-        assert isinstance(tox_envs, list) and tox_envs, expected_cells[cell_id]
+    for cell in expected_cells.values():
+        tox_envs = cell.get("tox_envs")
+        assert isinstance(tox_envs, list) and tox_envs, cell
         expected_environments.extend(str(tox_env) for tox_env in tox_envs)
 
-    actual_environments = [row.get("tox_environment") for row in rows if row.get("id") in selected_ids]
+    actual_environments = [row.get("tox_environment") for row in rows]
     assert sorted(actual_environments) == sorted(expected_environments), actual_environments
     assert len(actual_environments) == len(set(actual_environments)), actual_environments
+    assert len(rows) == len(expected_environments), rows
 
-    for cell in full_matrix_cells:
+    for cell in job_cells:
         cell_id = str(cell["id"])
         matching_rows = [row for row in rows if row.get("id") == cell_id]
-        if cell_id in selected_ids:
-            assert len(matching_rows) == len(cell["tox_envs"]), (cell_id, matching_rows)
-            for row in matching_rows:
-                assert row.get("tox_environment") in cell["tox_envs"], row
-                for key in ("id", "runtime", "python", "platform", "runner"):
-                    assert row.get(key) == cell.get(key), (key, cell, row)
-        else:
-            assert matching_rows == [cell], (cell, matching_rows)
+        assert len(matching_rows) == len(cell["tox_envs"]), (cell_id, matching_rows)
+        assert len({row.get("tox_environment") for row in matching_rows}) == len(matching_rows), matching_rows
+        for row in matching_rows:
+            assert row.get("tox_environment") in cell["tox_envs"], row
+            for key, value in cell.items():
+                if key != "tox_envs":
+                    assert row.get(key) == value, (key, cell, row)
 
 
 @when("I add an unsupported Windows lane overlapping the optional Windows lane")
@@ -1795,13 +2218,13 @@ def add_overlapping_unsupported_windows_lane(
         (
             lane
             for lane in context.document["lanes"]
-            if _lane_id(lane) == "py312-windows-manual" and _status(lane) == "optional"
+            if _lane_id(lane) == "remote-socket-windows-manual" and _status(lane) == "optional"
         ),
         None,
     )
-    assert optional_lane is not None, "the temporary inventory has no optional CPython 3.12 Windows lane"
+    assert optional_lane is not None, "the temporary inventory has no optional Windows remote-socket lane"
     optional_lane_id = _lane_id(optional_lane)
-    unsupported_lane_id = "py312-windows-pytest73-74-unsupported-conflict"
+    unsupported_lane_id = "remote-socket-windows-unsupported-conflict"
     existing_lane_ids = {_lane_id(lane) for lane in context.document["lanes"]}
     assert unsupported_lane_id not in existing_lane_ids, existing_lane_ids
 
@@ -1810,10 +2233,9 @@ def add_overlapping_unsupported_windows_lane(
         {
             "id": unsupported_lane_id,
             "status": "unsupported",
-            "pytest": "7.3-7.4",
             "tox_env": None,
             "workflow_selector": None,
-            "reason": "The acceptance fixture intentionally overlaps an optional runtime lane.",
+            "reason": "The acceptance fixture intentionally overlaps an optional capability lane.",
             "source_evidence": ["tests/e2e/environment_inventory_steps.py"],
         }
     )
@@ -1853,7 +2275,7 @@ def conflicting_lane_statuses_fail_actionably(
     diagnostic = matching[0]
     message = str(diagnostic.get("message", "")).casefold()
     remedy = str(diagnostic.get("remedy", "")).casefold()
-    assert all(dimension in message for dimension in ("cpython", "3.12", "windows", "manual-tox-coverage")), diagnostic
-    assert "7.3" in message and "7.4" in message, diagnostic
+    assert all(dimension in message for dimension in ("cpython", "3.14", "windows", "xdist-remote-socket")), diagnostic
+    assert "latest" in message, diagnostic
     assert "optional" in message and "unsupported" in message, diagnostic
     assert remedy and any(action in remedy for action in ("align", "merge", "change", "remove")), diagnostic

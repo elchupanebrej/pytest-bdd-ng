@@ -319,7 +319,13 @@ class _FormatterProcess:
 
     def _write_input(self) -> None:
         process = self._process
-        if process is None or process.stdin is None:
+        if process is None:
+            self._record_failure(
+                FormatterRuntimeError(f"{self.label.capitalize()} {self.request.name!r} has no stdin pipe.")
+            )
+            return
+        stdin = process.stdin
+        if stdin is None:
             self._record_failure(
                 FormatterRuntimeError(f"{self.label.capitalize()} {self.request.name!r} has no stdin pipe.")
             )
@@ -333,14 +339,13 @@ class _FormatterProcess:
                     raise ValueError("formatter input queue received a non-byte message")
                 remaining = memoryview(entry)
                 while remaining:
-                    written = process.stdin.write(remaining)
+                    written = stdin.write(remaining)
                     if written is None or written <= 0:
                         raise BrokenPipeError("formatter stdin accepted no bytes")
                     remaining = remaining[written:]
         except (BrokenPipeError, OSError, ValueError) as error:
-            process = self._process
             return_code = None
-            if isinstance(error, OSError) and error.errno == errno.EINVAL and process is not None:
+            if isinstance(error, OSError) and error.errno == errno.EINVAL:
                 return_code = process.poll()
                 if return_code is None:
                     with suppress(subprocess.TimeoutExpired):
@@ -359,7 +364,7 @@ class _FormatterProcess:
             self._record_failure(failure)
         finally:
             with suppress(OSError):
-                process.stdin.close()
+                stdin.close()
 
     def _read_stdout(self) -> None:
         process = self._process

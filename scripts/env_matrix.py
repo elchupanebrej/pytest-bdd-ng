@@ -72,6 +72,11 @@ def main() -> int:
         help="expand each named cell into one matrix row per tox environment",
     )
     parser.add_argument(
+        "--split-tox-envs",
+        action="store_true",
+        help="expand every selected cell into one matrix row per tox environment",
+    )
+    parser.add_argument(
         "--inventory",
         type=Path,
         default=Path("config/env-matrix.yaml"),
@@ -85,6 +90,13 @@ def main() -> int:
     args = parser.parse_args()
     try:
         cells = load_cells(args.inventory, args.job)
+        if args.split_cells and args.split_tox_envs:
+            raise RuntimeError("--split-cells and --split-tox-envs cannot be used together")
+        if args.split_tox_envs:
+            cells = split_cell_environments(
+                cells,
+                [str(cell["id"]) for cell in cells],
+            )
         if args.split_cells:
             if args.job != "full-matrix":
                 raise RuntimeError("--split-cells is supported only for the full-matrix job")

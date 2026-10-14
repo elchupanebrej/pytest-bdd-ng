@@ -2,18 +2,19 @@ Feature: Debug MCP failure inspection
   An installed consumer can leave ordinary failures alone by default and opt in to a
   real MCP inspection session that retains BDD context until an external client releases it.
 
-  Scenario: PyPy Windows keeps the base lane while excluding only the Debug MCP capability
+  @e2e
+  Scenario: The required PyPy 3.12 Linux lane does not exclude Debug MCP
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     And the repository environment inventory is loaded
     When I run the project environment inventory check in JSON mode
     Then the environment inventory check should pass
-    And required PyPy Windows base lanes should record only the source-backed Debug MCP exclusion
-    And the Debug MCP install guard should exclude only PyPy on Windows
+    And the required PyPy 3.12 Linux runtime should not exclude Debug MCP
 
-  Scenario: The Debug MCP extra installs with PyPy 3.10 compatible cryptography
+  @e2e
+  Scenario: The Debug MCP extra installs under the required PyPy 3.12 Linux policy
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer has the optional debug MCP extra installed
-    Then the installed debug MCP extra should be importable, PyPy 3.10 compatible, and resolve a supported MCP SDK version
+    Then the installed debug MCP extra should be importable on PyPy 3.12 Linux and resolve a supported MCP SDK version
 
   Scenario: MCP stays inert when failure inspection is not selected
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
