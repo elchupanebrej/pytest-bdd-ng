@@ -881,6 +881,7 @@ def selected_summary_without_package_fails_before_execution(consumer: Any) -> No
     assert result.returncode != 0, f"selected summary unexpectedly passed without its npm package:\n{output}"
     assert "cucumber-summary" in output.lower(), output
     assert "@cucumber/cucumber" in output, output
+    assert "npm install @cucumber/cucumber" in output, output
     assert any(
         marker in output.lower() for marker in ("requires", "cannot find", "not found", "err_module_not_found")
     ), output
