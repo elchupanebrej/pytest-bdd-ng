@@ -1381,7 +1381,7 @@ def missing_usage_package_preflight(consumer: Any) -> None:
     assert any(
         text in output.lower() for text in ("requires npm package", "cannot find package", "module_not_found")
     ), output
-    assert "npm install" in output.lower(), output
+    assert "npm install @cucumber/cucumber" in output.lower(), output
     root = getattr(consumer, "_usage_workspace", _consumer_root(consumer))
     package = root / "node_modules" / "@cucumber" / "cucumber"
     package_metadata = json.loads((package / "package.json").read_text(encoding="utf-8"))
