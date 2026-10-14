@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
 import pytest
+from packaging.requirements import Requirement
 from packaging.version import Version
 from pytest import fixture
 
@@ -102,14 +103,13 @@ def _normalized_path_text(value: str) -> str:
 
 
 _DEBUG_MCP_PYPY_WINDOWS_SKIP_REASON = (
-    "Debug MCP is unsupported for PyPy on Windows under #300: MCP SDK v1.x requires pywin32>=310 on Windows "
-    "for Python <3.14, and published pywin32 wheels target CPython only; see capability_exclusions in "
-    "config/env-matrix.yaml."
+    "Debug MCP is unsupported for PyPy on Windows: MCP SDK v1.x requires pywin32>=310 on Windows "
+    "for Python <3.14, and published pywin32 wheels target CPython only."
 )
 
 
 def _debug_mcp_capability_skip_reason(implementation: str, sys_platform: str) -> str | None:
-    """Return the declared upstream-compatibility exclusion for the one unsupported pair."""
+    """Return the upstream-compatibility exclusion for PyPy on Windows."""
     if implementation.casefold() == "pypy" and sys_platform.casefold() == "win32":
         return _DEBUG_MCP_PYPY_WINDOWS_SKIP_REASON
     return None
@@ -311,7 +311,7 @@ def _pytest_cuke_artifacts(request, tmp_path_factory):
 @fixture(scope="session")
 def _pytest_cuke_environments(_pytest_cuke_artifacts, tmp_path_factory):
     environment_root = tmp_path_factory.mktemp("pytest-cuke-venvs")
-    assert sys.version_info >= (3, 10), "the installed-consumer contract requires Python 3.10 or newer"
+    assert sys.version_info >= (3, 11), "the installed-consumer contract requires Python 3.11 or newer"
     consumer_interpreter = sys.executable
     uv_executable = shutil.which("uv")
     assert uv_executable, "the installed-consumer contract requires uv to create isolated environments"
@@ -344,7 +344,7 @@ def _pytest_cuke_environments(_pytest_cuke_artifacts, tmp_path_factory):
 @fixture(scope="session")
 def _pytest_cuke_typing_environments(_pytest_cuke_artifacts, tmp_path_factory):
     environment_root = tmp_path_factory.mktemp("pytest-cuke-typing-venvs")
-    assert sys.version_info >= (3, 10), "the installed-consumer contract requires Python 3.10 or newer"
+    assert sys.version_info >= (3, 11), "the installed-consumer contract requires Python 3.11 or newer"
     consumer_interpreter = sys.executable
     uv_executable = shutil.which("uv")
     assert uv_executable, "the installed-consumer contract requires uv to create isolated environments"
@@ -540,7 +540,7 @@ def install_host_built_native_consumer(tmp_path_factory):
 
     uv_executable = shutil.which("uv")
     assert uv_executable, "the installed-consumer contract requires uv to create isolated environments"
-    assert sys.version_info >= (3, 10), "the installed-consumer contract requires Python 3.10 or newer"
+    assert sys.version_info >= (3, 11), "the installed-consumer contract requires Python 3.11 or newer"
     consumer_interpreter = sys.executable
 
     project_path = tmp_path_factory.mktemp("pytest-cuke-native-consumer")
@@ -7987,7 +7987,7 @@ def compatibility_pair_reports_project_support(support: str, consumer: ConsumerP
 def consumer_with_default_and_alternate_compatibility_configs(consumer: ConsumerProject) -> None:
     _write_compatibility_pyproject(
         consumer,
-        python_factors=("310", "311"),
+        python_factors=("311",),
         pytest_factors=("80", "latest"),
         execution_targets=("lin", "win"),
     )
@@ -8023,19 +8023,19 @@ def run_compatibility_tox_expansion_twice(consumer: ConsumerProject) -> None:
     consumer.command_result = runs[-1]
 
 
-@then("the tox expansion should be deterministic and include all factor combinations")
+@then("the tox expansion should be deterministic and include all supported factor combinations")
 def tox_expansion_is_deterministic_and_complete(consumer: ConsumerProject) -> None:
     runs = getattr(consumer, "_compatibility_expansion_runs", None)
     assert runs is not None and len(runs) == 2, "the repeated compatibility expansion has not run"
     assert all(run.returncode == 0 for run in runs), [(run.stdout, run.stderr) for run in runs]
     assert runs[0].stdout == runs[1].stdout, "repeated tox expansion changed its JSON output"
     names = json.loads(runs[-1].stdout)["toxEnvNames"]
-    assert len(names) == 8 and len(set(names)) == 8, names
+    assert len(names) == 4 and len(set(names)) == 4, names
     assert set(names) == {
-        f"py{python}-pytest{pytest}-{target}"
-        for python in ("310", "311")
-        for pytest in ("80", "latest")
-        for target in ("lin", "win")
+        "py311-pytest80-lin",
+        "py311-pytest80-win",
+        "py311-pytestlatest-lin",
+        "py311-pytestlatest-win",
     }
 
 
@@ -11184,84 +11184,64 @@ def install_debug_mcp_extra(consumer: ConsumerProject) -> None:
     )
 
 
-@then("the Debug MCP install guard should exclude only PyPy on Windows")
-def debug_mcp_install_guard_excludes_only_pypy_windows() -> None:
-    with pytest.raises(pytest.skip.Exception) as outcome:
-        _require_debug_mcp_capability("PyPy", "win32")
-    assert str(outcome.value) == _DEBUG_MCP_PYPY_WINDOWS_SKIP_REASON
-    _require_debug_mcp_capability("PyPy", "linux")
-    _require_debug_mcp_capability("CPython", "win32")
-    _require_debug_mcp_capability("CPython", "linux")
-
-
-@then("required PyPy Windows base lanes should record only the source-backed Debug MCP exclusion")
-def pypy_windows_base_lanes_remain_required_with_debug_mcp_exclusion(consumer: ConsumerProject) -> None:
+@then("the required PyPy 3.12 Linux runtime should not exclude Debug MCP")
+def required_pypy_312_linux_runtime_does_not_exclude_debug_mcp(consumer: ConsumerProject) -> None:
     context = getattr(consumer, "_environment_inventory_context", None)
     assert context is not None, "the repository environment inventory has not been loaded"
     document = context.document
-    lanes = document.get("lanes")
-    assert isinstance(lanes, list), lanes
-    base_lanes = {
-        str(lane.get("python")): lane
-        for lane in lanes
-        if isinstance(lane, dict)
-        and lane.get("runtime") == "PyPy"
-        and lane.get("platform") == "windows"
-        and lane.get("status") == "required"
-    }
-    assert set(base_lanes) == {"3.10", "3.11"}, base_lanes
+    runtime_policy = document.get("runtime_policy")
+    assert isinstance(runtime_policy, dict), "the environment inventory has no runtime policy"
+    required_cells = runtime_policy.get("required_cells")
+    assert isinstance(required_cells, list), required_cells
+    required_pypy_linux = [
+        cell
+        for cell in required_cells
+        if isinstance(cell, dict)
+        and cell.get("runtime") == "PyPy"
+        and cell.get("python") == "3.12"
+        and cell.get("platform") == "linux"
+    ]
+    assert len(required_pypy_linux) == 1, required_pypy_linux
+    cell = required_pypy_linux[0]
+    assert cell.get("architecture") == "x86_64", cell
+    assert cell.get("product_support", {}).get("status") == "supported", cell
+    assert cell.get("installability", {}).get("status") == "required-acceptance", cell
+    required_ci = cell.get("required_ci")
+    assert isinstance(required_ci, dict) and required_ci.get("status") == "required", cell
+    assert "pypy312-pytestlatest-coverage-lin" in required_ci.get("tox_envs", []), cell
 
     exclusions = document.get("capability_exclusions")
     assert isinstance(exclusions, list), exclusions
-    pypy_windows_debug_mcp = [
+    pypy_linux_debug_mcp = [
         item
         for item in exclusions
         if isinstance(item, dict)
         and item.get("runtime") == "PyPy"
-        and item.get("platform") == "windows"
+        and item.get("python") == "3.12"
+        and item.get("platform") == "linux"
         and item.get("capability") == "debug-mcp"
     ]
-    pypy_windows_exclusions = [
-        item
-        for item in exclusions
-        if isinstance(item, dict) and item.get("runtime") == "PyPy" and item.get("platform") == "windows"
-    ]
-    assert len(pypy_windows_exclusions) == 2, pypy_windows_exclusions
-    assert all(item.get("capability") == "debug-mcp" for item in pypy_windows_exclusions), pypy_windows_exclusions
-    assert {str(item.get("python")) for item in pypy_windows_debug_mcp} == {"3.10", "3.11"}, pypy_windows_debug_mcp
-    assert len(pypy_windows_debug_mcp) == 2, pypy_windows_debug_mcp
-    for item in pypy_windows_debug_mcp:
-        reason = str(item.get("reason", "")).casefold()
-        sources = item.get("source_evidence")
-        assert item.get("status") == "unsupported", item
-        assert item.get("basis") == "upstream-dependency-wheel-availability", item
-        assert "pywin32" in reason and "cpython" in reason, item
-        assert isinstance(sources, list) and any("modelcontextprotocol/python-sdk" in source for source in sources), item
-        assert any("pypi.org/project/pywin32/310" in source for source in sources), item
-
-    report = getattr(context, "report", None)
-    assert isinstance(report, dict), "the environment inventory check has not returned JSON"
-    summary = report.get("inventory", {}).get("capabilityExclusions")
-    assert isinstance(summary, dict) and summary.get("count") == 2, summary
-    assert {entry.get("id") for entry in summary.get("entries", []) if isinstance(entry, dict)} >= {
-        "pypy-310-windows-debug-mcp",
-        "pypy-311-windows-debug-mcp",
-    }, summary
+    assert not pypy_linux_debug_mcp, pypy_linux_debug_mcp
 
 
-@then("the installed debug MCP extra should be importable, PyPy 3.10 compatible, and resolve a supported MCP SDK version")
+@then("the installed debug MCP extra should be importable on PyPy 3.12 Linux and resolve a supported MCP SDK version")
 def installed_debug_mcp_extra_is_compatible(consumer: ConsumerProject) -> None:
     probe = (
         "import importlib, json, platform, sys\n"
-        "from importlib.metadata import version\n"
+        "from importlib.metadata import requires, version\n"
+        "from packaging.markers import default_environment\n"
         "for module in ('cryptography', 'mcp', 'mcp_pdb.main', 'uvicorn'):\n"
         "    importlib.import_module(module)\n"
         "import cryptography\n"
         "print(json.dumps({\n"
         "    'implementation': platform.python_implementation(),\n"
         "    'python': list(sys.version_info[:2]),\n"
+        "    'platform': sys.platform,\n"
+        "    'architecture': platform.machine(),\n"
         "    'cryptography': cryptography.__version__,\n"
         "    'mcp': version('mcp'),\n"
+        "    'requirements': requires('pytest-cuke') or [],\n"
+        "    'marker_environment': default_environment(),\n"
         "}))\n"
     )
     result = subprocess.run(
@@ -11279,21 +11259,37 @@ def installed_debug_mcp_extra_is_compatible(consumer: ConsumerProject) -> None:
     )
     resolved = json.loads(result.stdout)
     assert isinstance(resolved, dict), f"invalid runtime probe output: {result.stdout!r}"
+    assert resolved.get("implementation") == "PyPy", resolved
+    assert resolved.get("python") == [3, 12], resolved
+    assert resolved.get("platform") == "linux", resolved
+    assert str(resolved.get("architecture", "")).casefold() in {"x86_64", "amd64"}, resolved
     assert isinstance(resolved.get("cryptography"), str), f"missing cryptography version: {resolved!r}"
     assert isinstance(resolved.get("mcp"), str), f"missing mcp version: {resolved!r}"
+    requirement_lines = resolved.get("requirements")
+    assert isinstance(requirement_lines, list) and all(isinstance(line, str) for line in requirement_lines), resolved
+    marker_environment = resolved.get("marker_environment")
+    assert isinstance(marker_environment, dict), resolved
+    assert marker_environment.get("implementation_name") == "pypy", marker_environment
+    assert marker_environment.get("python_version") == "3.12", marker_environment
+    assert marker_environment.get("sys_platform") == "linux", marker_environment
+    marker_environment = {**marker_environment, "extra": "debug-mcp"}
+    debug_mcp_requirements = [
+        requirement
+        for requirement in (Requirement(line) for line in requirement_lines)
+        if requirement.marker is None or requirement.marker.evaluate(marker_environment)
+    ]
+    cryptography_requirements = [
+        requirement for requirement in debug_mcp_requirements if requirement.name.casefold() == "cryptography"
+    ]
+    assert all(
+        all(specifier.operator != "<" for specifier in requirement.specifier)
+        for requirement in cryptography_requirements
+    ), cryptography_requirements
     mcp_version = Version(resolved["mcp"])
     assert Version("1.24") <= mcp_version < Version("2"), (
         f"the Debug MCP SDK requires mcp>=1.24,<2, but resolved {mcp_version}:\n"
         f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     )
-    if resolved.get("implementation") == "PyPy" and resolved.get("python") == [3, 10]:
-        version = Version(resolved["cryptography"])
-        assert version < Version("46"), (
-            f"PyPy 3.10 requires a cryptography version with published wheels below 46, "
-            f"but resolved {version}:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
-
-
 @when(re.compile(r'I start installed pytest for MCP inspection with arguments "(?P<arguments>[^"]*)"'))
 def start_consumer_pytest_for_mcp_inspection(arguments: str, consumer: ConsumerProject) -> None:
     cli_arguments = _split_consumer_arguments(arguments)
@@ -14024,7 +14020,43 @@ def install_concurrent_xdist_debugger_failures(consumer: ConsumerProject) -> Non
             import time
             from pathlib import Path
 
+            import pytest
             from pytest_cuke import given, when
+
+            @pytest.hookimpl(tryfirst=True)
+            def pytest_cuke_message_batch(config, batch):
+                del config
+                messages = []
+                for envelope in batch.get("envelopes", []):
+                    if not isinstance(envelope, dict):
+                        continue
+                    payloads = [
+                        (kind, payload)
+                        for kind, payload in envelope.items()
+                        if kind != "meta" and isinstance(payload, dict)
+                    ]
+                    if not payloads:
+                        continue
+                    kind, payload = payloads[0]
+                    message = {"payload_kind": kind}
+                    if kind == "stepDefinition":
+                        message["step_definition_id"] = payload.get("id")
+                    elif kind == "testCase":
+                        test_steps = payload.get("testSteps", [])
+                        message["test_case_step_definition_ids"] = [
+                            test_step.get("stepDefinitionIds", [])
+                            for test_step in test_steps
+                            if isinstance(test_step, dict)
+                        ]
+                    messages.append(message)
+                record = {
+                    "worker_id": batch.get("worker_id"),
+                    "sequence": batch.get("sequence"),
+                    "messages": messages,
+                }
+                with Path("worker-message-batches.jsonl").open("a", encoding="utf-8") as trace:
+                    trace.write(json.dumps(record, ensure_ascii=False) + "\\n")
+                    trace.flush()
 
             def pytest_configure(config):
                 config.addinivalue_line(
@@ -16957,3 +16989,41 @@ def consumer_reporting_spine_preserves_run_hook_lifecycle(
         < after_finish
         < envelopes.index(next(envelope for envelope in envelopes if "testRunFinished" in envelope))
     )
+
+
+@when("I run the tutorial example as its own pytest project", target_fixture="tutorial_pytest_result")
+def run_tutorial_example_as_own_pytest_project() -> subprocess.CompletedProcess[str]:
+    repository_root = Path(__file__).resolve().parents[2]
+    command = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "-c",
+        "examples/tutorial/pyproject.toml",
+        "--rootdir=examples/tutorial",
+        "--cuke-autoload",
+        "--cuke-features-dir=features",
+        "-q",
+        "examples/tutorial",
+    ]
+    return subprocess.run(
+        command,
+        cwd=repository_root,
+        env=_consumer_environment(),
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+
+
+@then("the tutorial acceptance should pass one autoloaded scenario")
+def tutorial_acceptance_passes_one_autoloaded_scenario(
+    tutorial_pytest_result: subprocess.CompletedProcess[str],
+) -> None:
+    output = tutorial_pytest_result.stdout + tutorial_pytest_result.stderr
+    assert tutorial_pytest_result.returncode == 0, (
+        f"tutorial pytest exited with {tutorial_pytest_result.returncode}\n"
+        f"command output:\n{output}"
+    )
+    assert re.search(r"(?m)^1 passed(?:,|\s|$)", output), output

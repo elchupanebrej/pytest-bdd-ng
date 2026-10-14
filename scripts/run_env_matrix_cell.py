@@ -54,8 +54,10 @@ def _installed_versions(python: Path) -> dict[str, Any]:
             f"names = {package_names}",
             "installed = {dist.metadata['Name'].casefold(): dist.version for dist in metadata.distributions()}",
             "versions = {name: installed.get(name.casefold()) for name in names}",
+            "implementation = platform.python_implementation()",
+            "runtime = 'GraalPy' if implementation == 'GraalVM' else implementation",
             "payload = {'python': platform.python_version(),",
-            "'runtime': platform.python_implementation(), 'packages': versions}",
+            "'runtime': runtime, 'packages': versions}",
             "print(json.dumps(payload))",
         )
     )
@@ -66,6 +68,61 @@ def _installed_versions(python: Path) -> dict[str, Any]:
     if result.returncode:
         raise RuntimeError(f"cannot inspect tox environment with {python}: {result.stderr.strip()}")
     return json.loads(result.stdout)
+
+
+def _normalized_architecture(value: str) -> str:
+    normalized = value.casefold().replace("-", "_")
+    return {
+        "amd64": "x86_64",
+        "x64": "x86_64",
+        "arm64": "aarch64",
+    }.get(normalized, normalized)
+
+
+def _normalized_runtime(value: str) -> str:
+    return "GraalPy" if value == "GraalVM" else value
+
+
+def _verify_selected_runtime(cell: dict[str, Any]) -> list[str]:
+    """Fail before tox if setup-python did not select the runtime described by the inventory."""
+    expected_runtime = cell.get("runtime")
+    expected_python = cell.get("expected_interpreter")
+    expected_platform = cell.get("platform")
+    expected_architecture = cell.get("architecture")
+    if not all(isinstance(value, str) and value for value in (expected_runtime, expected_python, expected_platform)):
+        return []
+
+    problems: list[str] = []
+    actual_runtime = _normalized_runtime(platform.python_implementation())
+    if actual_runtime != expected_runtime:
+        problems.append(f"runtime={actual_runtime!r}, expected {expected_runtime!r}")
+
+    actual_python = platform.python_version()
+    if expected_python.endswith(".*"):
+        matches_python = actual_python.startswith(expected_python[:-1])
+    else:
+        matches_python = actual_python == expected_python
+    if not matches_python:
+        problems.append(f"python={actual_python!r}, expected {expected_python!r}")
+
+    actual_platform = {"linux": "linux", "macos": "darwin", "windows": "win32"}.get(expected_platform)
+    if actual_platform is None or sys.platform != actual_platform:
+        problems.append(f"platform={sys.platform!r}, expected {expected_platform!r}")
+
+    actual_architecture = _normalized_architecture(platform.machine())
+    if expected_architecture not in {None, "runner-native"} and actual_architecture != expected_architecture:
+        problems.append(f"architecture={actual_architecture!r}, expected {expected_architecture!r}")
+    return problems
+
+
+def _workflow_urls() -> tuple[str | None, str | None]:
+    server_url = os.environ.get("GITHUB_SERVER_URL")
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    run_url = (
+        f"{server_url.rstrip('/')}/{repository}/actions/runs/{run_id}" if server_url and repository and run_id else None
+    )
+    return os.environ.get("PYTEST_CUKE_JOB_URL"), run_url
 
 
 def _system_tool_evidence(
@@ -104,7 +161,7 @@ def _system_tool_evidence(
 
 
 def _tox_uv_executable(project_root: Path, tox_environment: str, platform_name: str) -> str | None:
-    """Resolve uv only from the formatter environment whose evidence is being recorded."""
+    """Resolve uv only from the tox environment whose evidence is being recorded."""
     environment_root = project_root / ".tox" / tox_environment
     if platform_name in {"win32", "windows"}:
         candidate = environment_root / "Scripts" / "uv.exe"
@@ -136,15 +193,15 @@ def _python_in_tox_environment(project_root: Path, env_name: str) -> Path:
 
 
 def _test_counts(output: str) -> dict[str, int] | None:
-    for line in reversed(output.splitlines()):
+    summary: dict[str, int] = {}
+    for line in output.splitlines():
+        if not re.search(r"\bin\s+\d+(?:\.\d+)?s\b", line):
+            continue
         counts = re.findall(r"\b(\d+)\s+(passed|failed|errors?|skipped|xfailed|xpassed)\b", line)
-        if counts:
-            summary: dict[str, int] = {}
-            for count, outcome in counts:
-                key = "error" if outcome in {"error", "errors"} else outcome
-                summary[key] = summary.get(key, 0) + int(count)
-            return summary
-    return None
+        for count, outcome in counts:
+            key = "error" if outcome in {"error", "errors"} else outcome
+            summary[key] = summary.get(key, 0) + int(count)
+    return summary or None
 
 
 def main() -> int:
@@ -160,35 +217,39 @@ def main() -> int:
     parser.add_argument("--sha", default=os.environ.get("GITHUB_SHA"))
     args = parser.parse_args()
 
-    if not args.sha:
-        _write_console_text(
-            "run-env-matrix: pass --sha or set GITHUB_SHA so evidence is tied to an exact commit",
-            stream=sys.stderr,
-        )
-        return 2
+    error_message: str | None = None
+    error_code = 2
+    selected: dict[str, Any] | None = None
     tox = shutil.which("tox")
-    if tox is None:
-        _write_console_text(
-            "run-env-matrix: tox is not installed; run `python -m pip install 'pytest-cuke[env-matrix]'`",
-            stream=sys.stderr,
-        )
-        return 2
+    if not args.sha:
+        error_message = "pass --sha or set GITHUB_SHA so evidence is tied to an exact commit"
+    elif tox is None:
+        error_message = "tox is not installed; run `python -m pip install 'pytest-cuke[env-matrix]'`"
+    else:
+        try:
+            cells = load_cells(args.inventory, args.job)
+        except RuntimeError as error:
+            error_message = str(error)
+        else:
+            selected = next((cell for cell in cells if cell.get("id") == args.cell), None)
+            if selected is None:
+                error_message = f"cell {args.cell!r} is not part of job {args.job!r}"
+            elif args.tox_env and args.tox_env not in selected["tox_envs"]:
+                error_message = f"tox environment {args.tox_env!r} is not part of cell {args.cell!r}"
+            else:
+                runtime_problems = _verify_selected_runtime(selected)
+                if runtime_problems:
+                    error_message = f"selected runtime does not match inventory cell {args.cell!r}: " + "; ".join(
+                        runtime_problems
+                    )
+                    error_code = 1
+    if error_message is not None:
+        _write_console_text(f"run-env-matrix: {error_message}", stream=sys.stderr)
+        return error_code
 
-    try:
-        cells = load_cells(args.inventory, args.job)
-    except RuntimeError as error:
-        _write_console_text(f"run-env-matrix: {error}", stream=sys.stderr)
-        return 2
-    selected = next((cell for cell in cells if cell.get("id") == args.cell), None)
-    if selected is None:
-        _write_console_text(f"run-env-matrix: cell {args.cell!r} is not part of job {args.job!r}", stream=sys.stderr)
-        return 2
-    if args.tox_env and args.tox_env not in selected["tox_envs"]:
-        _write_console_text(
-            f"run-env-matrix: tox environment {args.tox_env!r} is not part of cell {args.cell!r}",
-            stream=sys.stderr,
-        )
-        return 2
+    assert args.sha
+    assert selected is not None
+    assert tox is not None
     tox_environments = [args.tox_env] if args.tox_env else selected["tox_envs"]
 
     project_root = args.inventory.resolve().parent.parent
@@ -198,6 +259,7 @@ def main() -> int:
     tox_results_dir.mkdir(parents=True, exist_ok=True)
     environment_records: list[dict[str, Any]] = []
     overall_status = "passed"
+    job_url, run_url = _workflow_urls()
     for env_name in tox_environments:
         result_json = tox_results_dir / f"{env_name}.json"
         remote_runtime_path = tox_results_dir / f"{env_name}.remote-workers.json"
@@ -268,6 +330,9 @@ def main() -> int:
             "returncode": run.returncode,
             "platform": platform.platform(),
             "platform_name": sys.platform,
+            "architecture": _normalized_architecture(platform.machine()),
+            "job_url": job_url,
+            "run_url": run_url,
             "result_json": result_json.as_posix(),
         }
         if args.job == "remote":

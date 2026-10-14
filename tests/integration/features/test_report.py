@@ -48,6 +48,19 @@ def matchreport(
     return values[0]
 
 
+def assert_legacy_report_fields(actual, expected):
+    """Check stable report fields while runtime metadata is asserted by unit tests."""
+    actual_legacy = {
+        **{key: actual[key] for key in expected if key not in {"feature", "steps"}},
+        "feature": {key: actual["feature"][key] for key in expected["feature"]},
+        "steps": [
+            {key: step[key] for key in expected_step}
+            for step, expected_step in zip(actual["steps"], expected["steps"], strict=True)
+        ],
+    }
+    assert actual_legacy == expected
+
+
 def test_step_trace(testdir):
     """Test step trace."""
     testdir.makefile(
@@ -163,7 +176,7 @@ def test_step_trace(testdir):
         "tags": ["scenario-passing-tag"],
     }
 
-    assert report == expected
+    assert_legacy_report_fields(report, expected)
 
     report = matchreport(
         result,
@@ -201,7 +214,7 @@ def test_step_trace(testdir):
         ],
         "tags": ["scenario-failing-tag"],
     }
-    assert report == expected
+    assert_legacy_report_fields(report, expected)
 
     report = matchreport(
         result,
@@ -220,7 +233,7 @@ def test_step_trace(testdir):
             "tags": ["feature-tag"],
         },
         "line_number": 14,
-        "name": "Outlined",
+        "name": "Outlined[table_rows:[line: 21]]",
         "steps": [
             {
                 "duration": OfType(float),
@@ -249,7 +262,7 @@ def test_step_trace(testdir):
         ],
         "tags": [],
     }
-    assert report == expected
+    assert_legacy_report_fields(report, expected)
 
     report = matchreport(
         result,
@@ -268,7 +281,7 @@ def test_step_trace(testdir):
             "tags": ["feature-tag"],
         },
         "line_number": 14,
-        "name": "Outlined",
+        "name": "Outlined[table_rows:[line: 22]]",
         "steps": [
             {
                 "duration": OfType(float),
@@ -297,7 +310,53 @@ def test_step_trace(testdir):
         ],
         "tags": [],
     }
-    assert report == expected
+    assert_legacy_report_fields(report, expected)
+
+
+def test_pytest_test_body_assertion_is_in_scenario_report(testdir):
+    testdir.makeini(
+        """\
+        [pytest]
+        cuke_autoload = false
+        """
+    )
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        test="""\
+            Feature: Report assertion failures from a pytest scenario body
+
+                Scenario: Assertion failure after a passing step
+                    Given a passing step
+            """,
+    )
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_cuke import given
+
+        @given("a passing step")
+        def a_passing_step():
+            return "passed"
+        """
+    )
+    testdir.makepyfile(
+        # language=python
+        """\
+        from pytest_cuke import scenario
+
+        @scenario("test.feature", "Assertion failure after a passing step")
+        def test_scenario_body():
+            assert 1 == 2, "body assertion sentinel"
+        """
+    )
+
+    result = testdir.inline_run("-vvl")
+
+    assert result.ret == pytest.ExitCode.TESTS_FAILED
+    report = matchreport(result, when="call").scenario
+    assert report["steps"][-1]["failed"] is True
+    assert "body assertion sentinel" in report["steps"][-1]["error_message"]
 
 
 def test_complex_types(testdir, pytestconfig):

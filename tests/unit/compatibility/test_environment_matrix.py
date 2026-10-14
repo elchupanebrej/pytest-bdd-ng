@@ -1,0 +1,304 @@
+from __future__ import annotations
+
+from typing import Any
+
+from pytest_cuke.compatibility.environment_matrix import (
+    _validate_historical_capability_exclusions,
+    _validate_runtime_policy,
+)
+
+
+_EVIDENCE_FIELDS = [
+    "python",
+    "pytest",
+    "platform",
+    "architecture",
+    "git_sha",
+    "command",
+    "selected_tests",
+    "passed_tests",
+    "outcome",
+    "job_url",
+    "run_url",
+]
+
+
+def _runtime_cell_records() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    required_cells: list[dict[str, Any]] = []
+    workflow_cells: list[dict[str, Any]] = []
+    lanes: list[dict[str, Any]] = []
+
+    targets = [
+        ("CPython", f"3.{minor}", platform_name, "runner-native")
+        for minor in range(11, 16)
+        for platform_name in ("linux", "macos", "windows")
+    ]
+    targets.extend(
+        [
+            ("PyPy", "3.12", "linux", "x86_64"),
+            ("GraalPy", "3.13.14", "linux", "x86_64"),
+        ]
+    )
+    for runtime, python_version, platform_name, architecture in targets:
+        if runtime == "CPython":
+            cell_id = f"cpython-{python_version.replace('.', '')}-{platform_name}"
+            tox_env = f"py{python_version.replace('.', '')}-pytestlatest-coverage-{_tox_platform(platform_name)}"
+            pytest_lines = ["9.x"]
+            if python_version == "3.11" and platform_name == "linux":
+                tox_env = f"{tox_env},py311-pytest74-coverage-lin"
+                pytest_lines.append("7.4.x")
+            if python_version == "3.12" and platform_name == "linux":
+                tox_env = f"{tox_env},py312-pytest84-coverage-lin"
+                pytest_lines.append("8.4.x")
+            setup_input = "3.15.0" if python_version == "3.15" else python_version
+            expected_interpreter = "3.15.0" if python_version == "3.15" else f"{python_version}.*"
+        elif runtime == "PyPy":
+            cell_id = "pypy-312-linux"
+            tox_env = "pypy312-pytestlatest-coverage-lin"
+            pytest_lines = ["9.x"]
+            setup_input = "pypy3.12"
+            expected_interpreter = "3.12.*"
+        else:
+            cell_id = "graalpy-253-linux"
+            tox_env = "graalpy253-pytestlatest-coverage-lin"
+            pytest_lines = ["9.x"]
+            setup_input = "graalpy-25.3"
+            expected_interpreter = "3.13.14"
+
+        environment_names = tox_env.split(",")
+        upstream_url = {
+            "CPython": "https://www.python.org/downloads/",
+            "PyPy": "https://www.pypy.org/download.html",
+            "GraalPy": "https://www.graalvm.org/python/",
+        }[runtime]
+        required_cells.append(
+            {
+                "id": cell_id,
+                "runtime": runtime,
+                "python": python_version,
+                "platform": platform_name,
+                "architecture": architecture,
+                "setup_python": {"input": setup_input, "expected_interpreter": expected_interpreter},
+                "upstream_availability": {"status": "available", "source_evidence": [upstream_url]},
+                "installability": {
+                    "status": "required-acceptance",
+                    "acceptance": ["core-install", "core-tests", "examples"],
+                },
+                "product_support": {"status": "supported"},
+                "required_ci": {
+                    "status": "required",
+                    "workflow_cell": cell_id,
+                    "tox_envs": environment_names,
+                },
+                "required_pytest_lines": pytest_lines,
+                "measured_evidence": {"status": "per-run", "fields": list(_EVIDENCE_FIELDS)},
+                **({"runtime_version": "25.3"} if runtime == "GraalPy" else {}),
+            }
+        )
+        workflow_cells.append(
+            {
+                "id": cell_id,
+                "job": "full-matrix",
+                "runtime": runtime,
+                "python": python_version,
+                "platform": platform_name,
+                "architecture": architecture,
+                "runner": {"linux": "ubuntu-latest", "macos": "macos-latest", "windows": "windows-latest"}[
+                    platform_name
+                ],
+                "setup_python_input": setup_input,
+                "expected_interpreter": expected_interpreter,
+                "tox_envs": environment_names,
+                **({"runtime_version": "25.3"} if runtime == "GraalPy" else {}),
+            }
+        )
+        lanes.append(
+            {
+                "id": cell_id,
+                "runtime": runtime,
+                "python": python_version,
+                "platform": platform_name,
+                "capability": "core-runtime-acceptance",
+                "status": "required",
+                "tox_env": tox_env,
+                "workflow_selector": cell_id,
+            }
+        )
+
+    return required_cells, workflow_cells, lanes
+
+
+def _tox_platform(platform_name: str) -> str:
+    return {"linux": "lin", "macos": "mac", "windows": "win"}[platform_name]
+
+
+def _policy_document() -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
+    required_cells, workflow_cells, lanes = _runtime_cell_records()
+    document = {
+        "runtime_policy": {
+            "python_requirement": ">=3.11",
+            "pytest": {"minimum": ">=7.0", "latest": "9.x"},
+            "required_cells": required_cells,
+            "exclusions": [
+                {
+                    "id": "cpython-310-product-excluded",
+                    "runtime": "CPython",
+                    "python": "3.10",
+                    "platform": "all",
+                    "architecture": "all",
+                    "upstream_availability": {
+                        "status": "available",
+                        "source_evidence": ["https://www.python.org/downloads/"],
+                    },
+                    "product_support": {
+                        "status": "unsupported",
+                        "reason": "The product minimum is Python 3.11.",
+                    },
+                    "reason": "The current runtime support policy starts at CPython 3.11.",
+                    "source_evidence": ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/300"],
+                },
+                {
+                    "id": "pypy-310-product-excluded",
+                    "runtime": "PyPy",
+                    "python": "3.10",
+                    "platform": "all",
+                    "architecture": "all",
+                    "upstream_availability": {
+                        "status": "available",
+                        "source_evidence": ["https://www.pypy.org/download.html"],
+                    },
+                    "product_support": {
+                        "status": "unsupported",
+                        "reason": "The product minimum is Python 3.11.",
+                    },
+                    "reason": "PyPy 3.10 is below the product minimum of Python 3.11.",
+                    "source_evidence": ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/300"],
+                },
+                {
+                    "id": "pypy-311-product-excluded",
+                    "runtime": "PyPy",
+                    "python": "3.11",
+                    "platform": "all",
+                    "architecture": "all",
+                    "upstream_availability": {
+                        "status": "available",
+                        "source_evidence": ["https://www.pypy.org/download.html"],
+                    },
+                    "product_support": {
+                        "status": "unsupported",
+                        "reason": "The runtime policy selects PyPy 3.12 on Linux x86_64.",
+                    },
+                    "reason": "The current runtime support policy selects PyPy 3.12.",
+                    "source_evidence": ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/300"],
+                },
+            ],
+        },
+        "project": {"python_requirement": ">=3.11"},
+    }
+    return document, lanes, workflow_cells
+
+
+def test_runtime_policy_accepts_the_canonical_required_cells() -> None:
+    document, lanes, workflow_cells = _policy_document()
+
+    summary, diagnostics = _validate_runtime_policy(document, lanes, workflow_cells)
+
+    assert diagnostics == []
+    assert summary["requiredCellCount"] == 17
+    assert summary["pytestMinimum"] == ">=7.0"
+
+
+def test_runtime_policy_rejects_historical_runtime_rows_as_active_support() -> None:
+    document, lanes, workflow_cells = _policy_document()
+    stale_cell = document["runtime_policy"]["required_cells"][0].copy()
+    stale_cell.update(
+        {
+            "id": "cpython-310-linux",
+            "python": "3.10",
+            "required_ci": {"status": "required", "workflow_cell": "cpython-310-linux", "tox_envs": []},
+        }
+    )
+    document["runtime_policy"]["required_cells"].append(stale_cell)
+
+    _, diagnostics = _validate_runtime_policy(document, lanes, workflow_cells)
+
+    assert any(item["code"] == "runtime-policy-canonical-cells-invalid" for item in diagnostics)
+    assert any(item["code"] == "runtime-policy-obsolete-active-runtime" for item in diagnostics)
+
+
+def test_runtime_policy_rejects_a_missing_retired_pypy_exclusion() -> None:
+    document, lanes, workflow_cells = _policy_document()
+    document["runtime_policy"]["exclusions"] = [
+        item for item in document["runtime_policy"]["exclusions"] if item["runtime"] != "PyPy" or item["python"] != "3.11"
+    ]
+
+    _, diagnostics = _validate_runtime_policy(document, lanes, workflow_cells)
+
+    assert any(item["code"] == "runtime-policy-canonical-exclusions-invalid" for item in diagnostics)
+
+
+def test_historical_capability_exclusions_are_source_backed_and_outside_active_policy() -> None:
+    document = {
+        "support_ledger": {
+            "historical_capability_exclusions": [
+                {
+                    "id": f"pypy-{python}-windows-debug-mcp",
+                    "runtime": "PyPy",
+                    "python": python,
+                    "platform": "windows",
+                    "capability": "debug-mcp",
+                    "status": "unsupported",
+                    "historical_status": "retired-runtime",
+                    "basis": "upstream-dependency-wheel-availability",
+                    "reason": "pywin32 wheels only target CPython.",
+                    "source_evidence": ["https://pypi.org/project/pywin32/310/"],
+                }
+                for python in ("3.10", "3.11")
+            ]
+        },
+        "lanes": [],
+    }
+
+    summary, diagnostics = _validate_historical_capability_exclusions(document, [])
+
+    assert diagnostics == []
+    assert summary["count"] == 2
+    assert {item["python"] for item in summary["entries"]} == {"3.10", "3.11"}
+
+
+def test_historical_capability_exclusion_cannot_claim_an_active_runtime() -> None:
+    document = {
+        "support_ledger": {
+            "historical_capability_exclusions": [
+                {
+                    "id": f"pypy-{python}-windows-debug-mcp",
+                    "runtime": "PyPy",
+                    "python": python,
+                    "platform": "windows",
+                    "capability": "debug-mcp",
+                    "status": "unsupported",
+                    "historical_status": "retired-runtime",
+                    "basis": "upstream-dependency-wheel-availability",
+                    "reason": "pywin32 wheels only target CPython.",
+                    "source_evidence": ["https://pypi.org/project/pywin32/310/"],
+                }
+                for python in ("3.10", "3.11")
+            ]
+        },
+        "lanes": [
+            {"id": "pypy-311-windows", "runtime": "PyPy", "python": "3.11", "platform": "windows", "status": "required"}
+        ],
+    }
+
+    _, diagnostics = _validate_historical_capability_exclusions(document, document["lanes"])
+
+    assert any(item["code"] == "historical-capability-exclusion-runtime-active" for item in diagnostics)
+
+
+def test_runtime_policy_rejects_missing_measured_evidence_fields() -> None:
+    document, lanes, workflow_cells = _policy_document()
+    document["runtime_policy"]["required_cells"][0]["measured_evidence"]["fields"].remove("architecture")
+
+    _, diagnostics = _validate_runtime_policy(document, lanes, workflow_cells)
+
+    assert any(item["code"] == "runtime-policy-evidence-fields-missing" for item in diagnostics)

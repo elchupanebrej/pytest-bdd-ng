@@ -42,13 +42,13 @@ def _messages_envelopes(relative_path: str, consumer: Any) -> list[dict[str, Any
     return _jsonl_artifact_rows(relative_path, consumer, "Messages artifact")
 
 
-@then("the installed consumer should use the current PyPy 3.11 interpreter")
-def installed_consumer_uses_current_pypy_311_interpreter(consumer: Any) -> None:
+@then("the installed consumer should use the current PyPy 3.12 interpreter")
+def installed_consumer_uses_current_pypy_312_interpreter(consumer: Any) -> None:
     expected_runtime = {
         "implementation": platform.python_implementation(),
         "version": [sys.version_info.major, sys.version_info.minor],
     }
-    assert expected_runtime == {"implementation": "PyPy", "version": [3, 11]}, expected_runtime
+    assert expected_runtime == {"implementation": "PyPy", "version": [3, 12]}, expected_runtime
 
     probe = (
         "import json, platform, sys; "

@@ -10,7 +10,7 @@ Feature: Supported environment inventory and acceptance proof
     Then each lane should declare runtime Python pytest platform capability and status
     And required lanes should declare tox environment workflow selector command prerequisites and carrier
     And unsupported lanes should have a source-backed reason and no active selector
-    And CPython 3.12 Windows and macOS lanes should remain optional manual entries
+    And CPython 3.12 Windows and macOS lanes should be required full-matrix cells
 
   Scenario: Required lanes agree with resolved tox and workflow selections
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
@@ -20,14 +20,27 @@ Feature: Supported environment inventory and acceptance proof
     And its tox listing proof should match the real tox environment list
     And every required lane should have resolved command and CI selection proof
     And the active lane proof should record actual runtime Python pytest and platform versions
+    And tox selector fragments should remain separate from configured environments
 
-  Scenario: The inventory preserves viable runtimes and pytest pairings
+  Scenario: Active runtime policy and required cells match the current support contract
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     Given the repository environment inventory is loaded
-    Then required lanes should include CPython 3.14 and PyPy 3.11
-    And required lanes should exercise compatible pytest 7 8 and 9 versions
-    And the older viable pytest minors should use compatible Python lanes
-    And Python 3.9 and pytest versions below 7 should be explicitly unsupported and unselected
+    Then active runtime policy should require CPython 3.11 through 3.15 on Linux macOS and Windows
+    And active runtime policy should require PyPy 3.12 and GraalPy 25.3 on Linux x86_64
+    And GraalPy and CPython 3.15 cells should pin their setup-python inputs and expected interpreters
+    And required CPython cells should use latest pytest 9 with the specified pytest 7 and 8 floor cells
+    And every required runtime cell should include core install and example acceptance
+    And optional extras should remain separate from required runtime acceptance
+    And every required runtime cell should declare upstream availability installability product support required CI and measured evidence separately
+    And every required cell should require measured Python pytest platform architecture SHA command selected and passed tests outcome and workflow URLs
+
+  Scenario: Historical rows and unsupported pairings remain reasoned without claiming active support
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    Given the repository environment inventory is loaded
+    Then historical support rows should remain history and must not be active support
+    And pytest 7 support should cover every Python pairing allowed by upstream constraints
+    And each unsupported runtime or pytest pairing should have upstream evidence and a reason
+    And PyPy 3.10 and 3.11 exclusions should remain source-backed historical runtime records
 
   Scenario: The pre-commit environment resolves to the lint command
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
@@ -73,13 +86,22 @@ Feature: Supported environment inventory and acceptance proof
     Given the repository environment inventory is loaded
     Then the native parser tox environment should install uv
 
+  Scenario: Local uv evidence matches lanes that install uv for acceptance consumers
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    Then local uv evidence should match the tox acceptance environments that install uv
+
   Scenario: The messages schema tox environment uses the current Cucumber Messages fixture
     Then the messages schema tox command should use the fixture for the installed Cucumber Messages release
     And the messages schema inventory carrier should use the fixture for the installed Cucumber Messages release
 
-  Scenario: Installed metadata caps PyPy 3.10 dependencies without limiting other runtimes
+  Scenario: Optional integration acceptance stays outside the required runtime matrix
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
-    Then installed package metadata should cap dependencies for PyPy 3.10 and remain open for newer runtimes
+    Given the repository environment inventory is loaded
+    When I run the project environment inventory check in JSON mode
+    Then optional integration cells should provide isolated Allure and xdist acceptance
+    And optional integration cells should declare their extra markers and package requirements
+    And optional integration evidence should use its own aggregate group
 
   Scenario: Live formatter acceptance uses inventory selected lanes on every platform
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
@@ -125,10 +147,15 @@ Feature: Supported environment inventory and acceptance proof
     When I wire a workflow job to a different matrix selection output
     Then the inventory check should fail with a scoped matrix output diagnostic
 
-  Scenario: Long full-matrix cells including macOS expand into canonical per-environment rows
+  Scenario: Every full-matrix tox environment expands into its own canonical row
     Given the repository environment inventory is copied to a temporary project
-    When I expand the selected long full-matrix cells into tox environment rows
-    Then each selected tox environment should appear exactly once with canonical cell metadata
+    When I expand every full-matrix cell into tox environment rows
+    Then every full-matrix tox environment should appear exactly once with canonical cell metadata
+
+  Scenario: Optional integration environments expand into isolated evidence rows
+    Given the repository environment inventory is copied to a temporary project
+    When I expand every optional integration cell into tox environment rows
+    Then every optional integration tox environment should appear exactly once with canonical cell metadata
 
   Scenario: Selector steps export the matrix output consumed by workflow jobs
     Given the repository environment inventory is copied to a temporary project

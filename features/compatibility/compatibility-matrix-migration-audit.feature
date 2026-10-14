@@ -42,7 +42,7 @@ Feature: Installed compatibility matrix and migration audit
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     And the consumer has active TOML and alternate INI and TOML compatibility configurations
     When I run cuke compatibility tox expansion twice in the consumer project
-    Then the tox expansion should be deterministic and include all factor combinations
+    Then the tox expansion should be deterministic and include all supported factor combinations
     When I run cuke compatibility from outside the consumer with config "alternate.ini" and arguments "--expand-tox --json"
     Then the command should exit with code 0
     And the command JSON should include:

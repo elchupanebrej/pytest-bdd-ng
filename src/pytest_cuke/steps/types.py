@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Collection, Mapping
 from inspect import getfile, getsourcelines
-from typing import TYPE_CHECKING, Any, TypeAlias, cast
-
-from typing_extensions import Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, cast
 
 from pytest_cuke.model.message_extension import StepDefinitionPatternType
 

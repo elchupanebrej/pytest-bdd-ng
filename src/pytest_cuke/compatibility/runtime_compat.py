@@ -19,7 +19,7 @@ PYTEST_COMPATIBILITY_BOUNDS: dict[str, tuple[tuple[int, int], tuple[int, int] | 
     "latest": ((3, 10), None),
 }
 
-MIN_SUPPORTED_PYTHON: tuple[int, int] = (3, 10)
+MIN_SUPPORTED_PYTHON: tuple[int, int] = (3, 11)
 MIN_SUPPORTED_PYTEST: tuple[int, int, int] = (7, 0, 0)
 
 REASON_COMPATIBLE = "compatible"
@@ -93,9 +93,6 @@ def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, st
     py = _parse_python_factor(python_factor)
     if py is None:
         return False, REASON_PYTHON_UNAVAILABLE
-    if py < MIN_SUPPORTED_PYTHON:
-        return False, REASON_EOL_PYTHON
-
     pytest_version = _parse_pytest_factor(pytest_factor)
     if pytest_version is not None and pytest_version < MIN_SUPPORTED_PYTEST:
         return False, REASON_EOL_PYTEST
@@ -103,6 +100,8 @@ def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, st
     compatible = _is_python_version_supported_by_pytest(py, pytest_factor)
     if compatible is None:
         return False, REASON_PYTEST_UNAVAILABLE
+    if py < MIN_SUPPORTED_PYTHON:
+        return False, REASON_EOL_PYTHON
     if not compatible:
         return False, REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST
     return True, REASON_COMPATIBLE

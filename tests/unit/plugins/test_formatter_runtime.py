@@ -447,35 +447,71 @@ def test_formatter_output_rollback_reports_staged_output_cleanup_failure(
 
 def test_formatter_broken_pipe_is_reported_and_child_is_cleaned_up(tmp_path: Path) -> None:
     output = tmp_path / "formatter-output.txt"
+    child_ready = tmp_path / "child-ready"
+    child_read = tmp_path / "child-read"
+    code = """
+from pathlib import Path
+import sys
+import time
+messages = sys.stdin.buffer
+messages.readline()
+Path(sys.argv[1]).touch()
+while not Path(sys.argv[2]).exists():
+    time.sleep(0.001)
+messages.read(1024)
+"""
     session = FormatterSession(
         _config(),
-        (_request(tmp_path, "import sys; sys.stdin.buffer.readline()", output=output.name),),
+        (
+            _request(
+                tmp_path,
+                code,
+                output=output.name,
+                command=(sys.executable, "-c", code, str(child_ready), str(child_read)),
+            ),
+        ),
     )
     session.start()
-    session.pytest_cuke_message_validated(_config(), _started_message())
-    session._write_envelope(
-        {
-            "source": {
-                "uri": "features/large.feature",
-                "data": "Feature: " + ("x" * 1_000_000),
-                "mediaType": "text/x.cucumber.gherkin+plain",
-            }
-        }
-    )
-    formatter = session._processes[0]
-    deadline = time.monotonic() + 2
-    while formatter.failure is None and time.monotonic() < deadline:
-        time.sleep(0.01)
 
-    assert formatter.failure is not None
-    assert any(
-        message in str(formatter.failure)
-        for message in (
-            "stopped reading Messages",
-            "exited before the Messages stream finished",
+    formatter = session._processes[0]
+    process = formatter._process
+    assert process is not None and process.stdin is not None
+
+    try:
+        session.pytest_cuke_message_validated(_config(), _started_message())
+        deadline = time.monotonic() + 2
+        while not child_ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert child_ready.exists(), "formatter child did not consume its first Messages envelope"
+
+        session._write_envelope(
+            {
+                "source": {
+                    "uri": "features/large.feature",
+                    "data": "Feature: " + ("x" * 1_000_000),
+                    "mediaType": "text/x.cucumber.gherkin+plain",
+                }
+            }
         )
-    ), formatter.failure
-    session.abort()
+
+        child_read.touch()
+        assert process.wait(timeout=2) == 0
+
+        deadline = time.monotonic() + 2
+        while formatter.failure is None and time.monotonic() < deadline:
+            time.sleep(0.01)
+
+        assert formatter.failure is not None
+        assert any(
+            message in str(formatter.failure)
+            for message in (
+                "stopped reading Messages",
+                "exited before the Messages stream finished",
+            )
+        ), formatter.failure
+    finally:
+        child_read.touch()
+        session.abort()
 
     assert formatter._process is not None and formatter._process.poll() is not None
     assert not output.exists()
