@@ -4,7 +4,7 @@ Feature: Debug MCP failure inspection
 
   Scenario: Debug MCP retains its explicit PyPy Windows dependency guard
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
-    And the Debug MCP install guard should exclude only PyPy on Windows
+    Then the Debug MCP install guard should exclude only PyPy on Windows
 
   Scenario: The Debug MCP extra installs on supported CPython
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
