@@ -84,8 +84,8 @@ class StepDefinitionManager:
             caller_locals = get_caller_module_locals(stacklevel=stacklevel)
             caller_locals[convert_str_to_python_name(f"step_{step_type or ''}_{step_parserlike}_{uuid4()}")] = step_func
             for fn in step_definition.fixtures_mapped_from_step_definition:
-                if not fn.startswith("pytest_"):
-                    caller_locals.setdefault(fn, _none_fixture(fn))
+                if not fn.startswith("pytest_") and fn not in caller_locals:
+                    caller_locals[fn] = _none_fixture(fn)
             return step_func
 
         return decorator

@@ -18,6 +18,7 @@ from environment_evidence import (
     SYSTEM_TOOL_VERSION_KEYS,
     TEST_EVIDENCE_GROUPS,
     evidence_group,
+    normalize_architecture,
     required_optional_versions,
     required_system_tool_versions,
     system_tool_version_command,
@@ -51,24 +52,15 @@ def _normalized_runtime(value: Any) -> Any:
     return "GraalPy" if value == "GraalVM" else value
 
 
-def _normalized_architecture(value: Any) -> str | None:
-    if not isinstance(value, str) or not value:
-        return None
-    normalized = value.casefold().replace("-", "_")
-    return {
-        "amd64": "x86_64",
-        "x64": "x86_64",
-        "arm64": "aarch64",
-    }.get(normalized, normalized)
-
-
 def _architecture_matches(expected: str, observed: Any) -> bool:
-    actual_architecture = _normalized_architecture(observed)
-    if actual_architecture is None or not re.fullmatch(r"[a-z0-9_]+", actual_architecture):
+    if not isinstance(observed, str) or not observed:
+        return False
+    actual_architecture = normalize_architecture(observed)
+    if not re.fullmatch(r"[a-z0-9_]+", actual_architecture):
         return False
     if expected == "runner-native":
         return True
-    return actual_architecture == _normalized_architecture(expected)
+    return actual_architecture == normalize_architecture(expected)
 
 
 def _workflow_link_identity(value: Any, *, job_link: bool) -> tuple[str, str, str] | None:

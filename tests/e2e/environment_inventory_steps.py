@@ -2018,6 +2018,19 @@ def live_formatter_acceptance_carriers_match_tox_features(consumer: Any) -> None
         )
 
 
+@then("live formatter acceptance should emit per-scenario progress to workflow logs")
+def live_formatter_acceptance_emits_per_scenario_progress(consumer: Any) -> None:
+    context = _context(consumer)
+    tox_config = configparser.ConfigParser(interpolation=None)
+    tox_path = context.repository_root / "tox.ini"
+    assert tox_config.read(tox_path, encoding="utf-8"), f"could not read tox configuration: {tox_path}"
+    tox_section = "testenv:py313-live-formatters-acceptance-{lin,mac,win}"
+    command = tox_config.get(tox_section, "commands")
+    command_tokens = shlex.split(command)
+    assert "-vv" in command_tokens, command
+    assert "--durations=20" in command_tokens, command
+
+
 @then("the aggregate proof job should require and download live formatter acceptance evidence")
 def aggregate_proof_requires_live_formatter_acceptance_evidence(consumer: Any) -> None:
     context = _context(consumer)

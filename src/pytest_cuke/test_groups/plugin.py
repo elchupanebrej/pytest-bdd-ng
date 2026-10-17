@@ -91,14 +91,18 @@ class TestGroupPlugin:
 
         yield
 
-        items[:] = sorted(
-            items,
+    @pytest.hookimpl(trylast=True)
+    def pytest_collection_finish(self, session: Any) -> None:
+        """Order selected groups after collection hooks, then publish xdist assignments."""
+        if not self.group_configuration.enabled:
+            return
+
+        session.items[:] = sorted(
+            session.items,
             key=lambda item: self._assignment_for(item).ordinal,
         )
 
-    def pytest_collection_finish(self, session: Any) -> None:
-        """Publish selected assignments once xdist marker filtering has completed."""
-        if not self.group_configuration.enabled or not self._worker:
+        if not self._worker:
             return
 
         assignments = [self._assignment_for(item) for item in session.items]

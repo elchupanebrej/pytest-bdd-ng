@@ -7,18 +7,9 @@
     https://docs.pytest.org/en/latest/explanation/goodpractices.html#test-discovery
 """
 
-import sys
-from pathlib import Path
-
 from pytest import fixture
 
-# The tutorial's step module uses package-relative imports. Make the repository
-# root importable so the module has the same package name from either cwd.
-_repository_root = str(Path(__file__).resolve().parents[2])
-if _repository_root not in sys.path:
-    sys.path.insert(0, _repository_root)
-
-from examples.tutorial.tests.steps.library_steps import (  # noqa: E402
+from tests.steps.library_steps import (
     a_search_type_is_performed_for_search_term,
     only_these_books_will_be_returned,
     these_books_in_the_catalog,
