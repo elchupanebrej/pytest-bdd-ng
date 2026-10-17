@@ -246,7 +246,13 @@ def parse_error_to_envelope(error: FeatureConcreteParseError) -> messages.Envelo
     )
 
 
-def step_to_pickle_step(step: Step, default_id: str = "", *, force_generated_id: bool = False) -> messages.PickleStep:
+def step_to_pickle_step(
+    step: Step,
+    default_id: str = "",
+    *,
+    force_generated_id: bool = False,
+    ast_node_id: str | None = None,
+) -> messages.PickleStep:
     st_id = default_id if force_generated_id else (step.id or default_id)
     arg: messages.PickleStepArgument | None = None
     if step.doc_string:
@@ -270,9 +276,50 @@ def step_to_pickle_step(step: Step, default_id: str = "", *, force_generated_id:
     return cucumber_messages.PickleStep(
         id=st_id,
         text=step.name,
-        ast_node_ids=[step.id] if step.id else [],
+        ast_node_ids=[step.id or ast_node_id] if step.id or ast_node_id else [],
         argument=arg,
     )
+
+
+def _execution_step_ast_node_ids(feature: Feature | None, scenario: Scenario, uri: str) -> tuple[str | None, ...]:
+    """Match executed steps to the IDs emitted for their Gherkin AST nodes."""
+    scenario_id = scenario_message_id(scenario, uri=uri)
+    feature_id = feature.id or "feature-1" if feature is not None else "feature-1"
+    backgrounds: list[tuple[Background, str]] = []
+    seen_background_ids: set[str] = set()
+
+    for background in (feature.background if feature is not None else None, scenario.background):
+        if background is None:
+            continue
+        if any(background is seen for seen, _ in backgrounds):
+            continue
+        if background.id is not None and background.id in seen_background_ids:
+            continue
+
+        background_id = background.id
+        if background_id is None and feature is not None and background is feature.background:
+            background_id = f"{feature_id}-bg"
+        if background_id is None and feature is not None:
+            for index, rule in enumerate(feature.rules):
+                if rule.background is not background or not any(item is scenario for item in rule.scenarios):
+                    continue
+                rule_id = rule.id or f"{feature_id}-rl-{index}"
+                background_id = f"{rule_id}-bg"
+                break
+        if background_id is None:
+            background_id = f"{scenario_id}-background"
+
+        backgrounds.append((background, background_id))
+        if background.id is not None:
+            seen_background_ids.add(background.id)
+
+    ast_node_ids = [
+        step.id or f"{background_id}-step-{index}"
+        for background, background_id in backgrounds
+        for index, step in enumerate(background.steps)
+    ]
+    ast_node_ids.extend(step.id or f"{scenario_id}-step-{index}" for index, step in enumerate(scenario.steps))
+    return tuple(ast_node_ids)
 
 
 def scenario_to_pickle(
@@ -283,15 +330,22 @@ def scenario_to_pickle(
     feature: Feature | None = None,
 ) -> messages.Pickle:
     sc_id = scenario_pickle_id(scenario, uri=uri, default_id=default_id)
+    execution = execution_steps(feature, scenario) if feature is not None else scenario.all_steps
+    ast_node_ids = _execution_step_ast_node_ids(feature, scenario, uri)
     steps = [
-        step_to_pickle_step(s, f"{sc_id}-step-{i}", force_generated_id=True)
-        for i, s in enumerate(execution_steps(feature, scenario) if feature is not None else scenario.all_steps)
+        step_to_pickle_step(
+            step,
+            f"{sc_id}-step-{index}",
+            force_generated_id=True,
+            ast_node_id=ast_node_ids[index] if index < len(ast_node_ids) else None,
+        )
+        for index, step in enumerate(execution)
     ]
     tags = [messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in scenario.tags]
-    ast_node_ids = list(scenario.source_ast_node_ids) or [scenario_message_id(scenario, uri=uri)]
+    scenario_ast_node_ids = list(scenario.source_ast_node_ids) or [scenario_message_id(scenario, uri=uri)]
     external_row_id = scenario.external_example_source.row_id if scenario.external_example_source else None
-    if external_row_id and external_row_id not in ast_node_ids:
-        ast_node_ids.append(external_row_id)
+    if external_row_id and external_row_id not in scenario_ast_node_ids:
+        scenario_ast_node_ids.append(external_row_id)
     return messages.Pickle(
         id=sc_id,
         uri=uri,
@@ -299,7 +353,7 @@ def scenario_to_pickle(
         language="en",
         steps=steps,
         tags=tags,
-        ast_node_ids=ast_node_ids,
+        ast_node_ids=scenario_ast_node_ids,
     )
 
 

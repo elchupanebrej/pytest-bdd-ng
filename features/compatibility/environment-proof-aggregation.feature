@@ -291,6 +291,12 @@ Feature: Aggregate the full supported environment proof
     When I run the full environment proof aggregator
     Then the proof summary should fail with a pytest tox factor mismatch diagnostic
 
+  Scenario: The aggregator rejects pytest 8 evidence for a latest pytest tox factor
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the latest pytest environment py314-pytestlatest-coverage-lin records pytest 8 consistently
+    When I run the full environment proof aggregator
+    Then the proof summary should reject pytest 8 for a latest pytest tox factor
+
   Scenario: The aggregator rejects actual runtime Python and platform that disagree with inventory
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
     And one environment records runtime Python and platform that disagree with inventory
@@ -302,6 +308,52 @@ Feature: Aggregate the full supported environment proof
     And one optional xdist environment is missing its pytest-xdist package
     When I run the full environment proof aggregator
     Then the proof summary should fail with a missing pytest-xdist diagnostic
+
+  Scenario: Optional StructBDD acceptance records its installed loader versions
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should preserve installed StructBDD loader versions
+
+  Scenario: Optional Debug MCP acceptance records its installed package versions
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should preserve installed Debug MCP package versions
+
+  Scenario: The aggregator rejects Debug MCP evidence without its MCP package
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the optional Debug MCP environment is missing its MCP package
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a missing Debug MCP package diagnostic
+
+  Scenario: The aggregator rejects StructBDD evidence without its JSON5 loader
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the optional StructBDD environment is missing its JSON5 loader
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a missing StructBDD loader diagnostic
+
+  Scenario: StructBDD acceptance records its tox-local uv version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should preserve installed StructBDD loader versions
+    And it should preserve the tox-local uv version for StructBDD
+
+  Scenario: Debug MCP acceptance records its tox-local uv version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    When I run the full environment proof aggregator
+    Then the proof summary should preserve installed Debug MCP package versions
+    And it should preserve the tox-local uv version for Debug MCP
+
+  Scenario: The aggregator rejects StructBDD evidence without its tox-local uv version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the optional StructBDD environment omits its required tox-local uv version
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for missing StructBDD uv version evidence
+
+  Scenario: The aggregator rejects Debug MCP evidence without its tox-local uv version
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the optional Debug MCP environment omits its required tox-local uv version
+    When I run the full environment proof aggregator
+    Then the proof summary should fail for missing Debug MCP uv version evidence
 
   Scenario: The aggregator rejects an environment without its matching successful tox result entry
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory

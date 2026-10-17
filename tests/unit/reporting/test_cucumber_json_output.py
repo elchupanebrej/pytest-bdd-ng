@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
+
+import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -16,6 +18,8 @@ pytestmark = mark.unit
 
 
 def test_log_bdd_cucumber_json_lifecycle_and_output(tmp_path: Path) -> None:
+    pytest.importorskip("pydantic")
+
     out_file = tmp_path / "subdir" / "cucumber.json"
     logger = LogBDDCucumberJSON(str(out_file))
     logger.pytest_sessionstart()

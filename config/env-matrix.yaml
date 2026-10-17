@@ -586,6 +586,20 @@ support_ledger:
     disposition: required
     source_evidence:
     - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: inventory-tox-py314-struct-bdd
+    lane_id: struct-bdd-py314-linux
+    tox_env: py314-struct-bdd
+    origin: added
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: inventory-tox-py314-debug-mcp
+    lane_id: debug-mcp-py314-linux
+    tox_env: py314-debug-mcp
+    origin: added
+    disposition: required
+    source_evidence:
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
   - id: inventory-tox-py314-pre-commit-lin
     lane_id: pre-commit
     tox_env: py314-pre-commit-lin
@@ -1169,7 +1183,7 @@ workflow_cells:
   architecture: runner-native
   runner: ubuntu-latest
   setup_python_input: '3.14'
-  expected_interpreter: 3.14.*
+  expected_interpreter: '3.14.*'
   tox_envs:
   - py314-pytestlatest-coverage-lin
 - id: cpython-314-macos
@@ -1261,6 +1275,28 @@ workflow_cells:
   expected_interpreter: 3.13.*
   tox_envs:
   - py313-pytest84-allure-coverage-lin
+- id: struct-bdd-py314-linux
+  job: optional-integrations
+  runtime: CPython
+  python: '3.14'
+  platform: linux
+  architecture: runner-native
+  runner: ubuntu-latest
+  setup_python_input: '3.14'
+  expected_interpreter: '3.14.*'
+  tox_envs:
+  - py314-struct-bdd
+- id: debug-mcp-py314-linux
+  job: optional-integrations
+  runtime: CPython
+  python: '3.14'
+  platform: linux
+  architecture: runner-native
+  runner: ubuntu-latest
+  setup_python_input: '3.14'
+  expected_interpreter: '3.14.*'
+  tox_envs:
+  - py314-debug-mcp
 - id: gherkin33-linux
   job: optional-integrations
   runtime: CPython
@@ -1651,10 +1687,85 @@ lanes:
     name: allure-python-commons-test
     version: 2.16.0
     remedy: install the Allure integration tox dependencies
+  - type: command
+    name: uv
+    remedy: install uv>=0.8 for isolated consumer package setup
   expected_carrier:
     kind: pytest
     path: features/allure-message-conversion.feature
     command: pytest features/allure-message-conversion.feature
+- id: struct-bdd-py314-linux
+  status: required
+  runtime: CPython
+  python: '3.14'
+  pytest: latest
+  platform: linux
+  capability: optional-struct-bdd-acceptance
+  tox_env: py314-struct-bdd
+  workflow_selector: struct-bdd-py314-linux
+  command: tox run -e py314-struct-bdd
+  extras:
+  - struct-bdd
+  prerequisites:
+  - type: python-package
+    name: hjson
+    version: latest
+    remedy: install the StructBDD extra in the tox environment
+  - type: python-package
+    name: json5
+    version: latest
+    remedy: install the StructBDD extra in the tox environment
+  - type: python-package
+    name: pyhocon
+    version: latest
+    remedy: install the StructBDD extra in the tox environment
+  - type: python-package
+    name: PyYAML
+    version: latest
+    remedy: install the StructBDD extra in the tox environment
+  - type: command
+    name: uv
+    remedy: install uv>=0.8 for the StructBDD acceptance consumer
+  expected_carrier:
+    kind: pytest
+    path: features/struct-bdd-discovery/struct-bdd-autoload-discovery.feature
+    command: python -m pytest --cuke-autoload --cuke-features-dir=features features/struct-bdd-discovery/struct-bdd-autoload-discovery.feature -m e2e -q
+- id: debug-mcp-py314-linux
+  status: required
+  runtime: CPython
+  python: '3.14'
+  pytest: latest
+  platform: linux
+  capability: optional-debug-mcp-acceptance
+  tox_env: py314-debug-mcp
+  workflow_selector: debug-mcp-py314-linux
+  command: tox run -e py314-debug-mcp
+  extras:
+  - debug-mcp
+  prerequisites:
+  - type: python-package
+    name: mcp-pdb
+    version: '>=0.6,<0.7'
+    remedy: install the Debug MCP extra in the tox environment
+  - type: python-package
+    name: mcp
+    version: '>=1.24,<2'
+    remedy: install the Debug MCP extra in the tox environment
+  - type: python-package
+    name: uvicorn
+    version: '>=0.34'
+    remedy: install the Debug MCP extra in the tox environment
+  - type: python-package
+    name: pydantic
+    version: '>=2.0.3'
+    remedy: install the Debug MCP extra in the tox environment
+  - type: command
+    name: uv
+    remedy: install uv>=0.8 for the Debug MCP acceptance consumer
+  expected_carrier:
+    kind: pytest
+    path: features/debug-mcp-failure-inspection.feature
+    command: python -m pytest --cuke-autoload --cuke-features-dir=features features/debug-mcp-failure-inspection.feature -m e2e -q
 - id: optional-gherkin33-linux
   status: required
   runtime: CPython

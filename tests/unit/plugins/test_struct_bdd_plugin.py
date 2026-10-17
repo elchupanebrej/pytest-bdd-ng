@@ -5,6 +5,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+pytest.importorskip("pydantic")
+
 from pytest_cuke.exceptions import FeatureConcreteParseError
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.model import Feature, Scenario, Step

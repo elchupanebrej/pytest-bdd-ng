@@ -429,10 +429,9 @@ Feature: Invocation-level feature source selection
     And consumer file "test_shared_url_source.py" contains:
       """python
       from pytest_cuke import scenarios
-      from pytest_cuke.scenario import FeaturePathType
 
 
-      test_shared_url_source = scenarios("shared.feature", features_path_type=FeaturePathType.URL)
+      test_shared_url_source = scenarios("shared.feature", features_path_type="url")
       """
     When I run installed pytest in two independent URL-base sessions with the local HTTP fixture and arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-base-url={local_http_base_url}/first -q test_shared_url_source.py" and then "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-features-base-url={local_http_base_url}/second -q test_shared_url_source.py"
     Then both independent URL-base sessions should execute only their selected URL source

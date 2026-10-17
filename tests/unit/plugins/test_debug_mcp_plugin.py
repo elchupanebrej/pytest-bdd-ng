@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("pydantic")
+
 from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp import plugin as debug_mcp_plugin
 from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin, _artifact_root, _cache_discovery_path

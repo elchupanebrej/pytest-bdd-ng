@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path  # noqa: TCH003
 
+import pytest
+
+pytest.importorskip("pydantic")
+
 from pytest_cuke.struct_bdd.parser import StructBDDParser
 
 from pytest import mark, raises

@@ -116,9 +116,30 @@ Feature: Supported environment inventory and acceptance proof
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     Given the repository environment inventory is loaded
     When I run the project environment inventory check in JSON mode
-    Then optional integration cells should provide isolated Allure and xdist acceptance
+    Then optional integration cells should provide isolated optional acceptance
     And optional integration cells should declare their extra markers and package requirements
     And optional integration evidence should use its own aggregate group
+
+  Scenario: StructBDD stays outside core runtimes and has isolated optional acceptance
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    Then required runtime tox environments should not install the StructBDD extra
+    And the optional StructBDD integration cell should install and run its acceptance feature
+
+  Scenario: The optional integration policy accepts the isolated StructBDD lane
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    When I run the project environment inventory check in JSON mode
+    Then the environment inventory check should pass
+    And optional integration evidence should include the StructBDD environment
+
+  Scenario: Debug MCP acceptance uses an isolated CPython lane
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    When I run the project environment inventory check in JSON mode
+    Then the environment inventory check should pass
+    And the optional Debug MCP integration cell should install and run its acceptance feature
+    And optional integration evidence should include the Debug MCP environment
 
   Scenario: Live formatter acceptance uses inventory selected lanes on every platform
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project

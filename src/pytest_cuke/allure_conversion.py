@@ -10,11 +10,10 @@ import re
 import tempfile
 from base64 import b64decode
 from dataclasses import dataclass
+from importlib import import_module
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
-
-from pydantic import ValidationError
 
 from pytest_cuke.model.message_converter import envelope_from_dict
 from pytest_cuke.model.message_extension import PAYLOAD_KINDS, get_payload_kind
@@ -125,7 +124,7 @@ def _read_envelopes(
         normalized = _without_exception_stack_trace(payload)
         try:
             envelope = envelope_from_dict(normalized.validation_payload)
-        except (TypeError, ValueError, ValidationError) as exc:
+        except _message_validation_errors() as exc:
             detail = _validation_summary(exc)
             raise AllureConversionError(
                 f"invalid Cucumber message in {input_path} at line {line_number}: {detail}"
@@ -161,6 +160,17 @@ def _read_envelopes(
     if not envelopes:
         raise AllureConversionError(f"input contains no Cucumber messages: {input_path}")
     return _ParsedMessages(envelopes, exception_traces, run_finished_trace, raw_extensions, run_hook_traces)
+
+
+def _message_validation_errors() -> tuple[type[BaseException], ...]:
+    """Include Pydantic's constructor error only when the optional package exists."""
+    try:
+        pydantic = import_module("pydantic")
+    except ModuleNotFoundError as error:
+        if error.name != "pydantic":
+            raise
+        return (TypeError, ValueError)
+    return (TypeError, ValueError, cast("type[BaseException]", pydantic.ValidationError))
 
 
 def _known_payload_names() -> set[str]:
