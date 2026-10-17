@@ -25,8 +25,6 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlsplit
 
 import pytest
-from packaging.requirements import Requirement
-from packaging.version import Version
 from pytest import fixture
 
 try:
@@ -432,10 +430,20 @@ def install_pytest_cuke_consumer(
 
 @given("the consumer installs pytest-cuke with its Allure extra in an isolated environment")
 def install_pytest_cuke_allure_extra_in_isolated_environment(consumer: ConsumerProject) -> None:
-    """Give native Allure acceptance an optional-dependency environment without changing shared base envs."""
+    """Install the Allure extra without changing shared base consumer environments."""
+    _install_pytest_cuke_extra_in_isolated_environment(consumer, "allure")
+
+
+@given("the consumer installs pytest-cuke with its StructBDD extra in an isolated environment")
+def install_pytest_cuke_struct_bdd_extra_in_isolated_environment(consumer: ConsumerProject) -> None:
+    """Install the complete structured BDD capability without changing shared base environments."""
+    _install_pytest_cuke_extra_in_isolated_environment(consumer, "struct-bdd")
+
+
+def _install_pytest_cuke_extra_in_isolated_environment(consumer: ConsumerProject, extra: str) -> None:
     uv_executable = shutil.which("uv")
-    assert uv_executable, "the native Allure consumer contract requires uv to create an isolated environment"
-    environment_path = consumer.path / ".venv-allure"
+    assert uv_executable, f"the {extra} consumer contract requires uv to create an isolated environment"
+    environment_path = consumer.path / f".venv-{extra}"
     create_environment = subprocess.run(
         [uv_executable, "venv", "--python", sys.executable, str(environment_path)],
         cwd=consumer.path,
@@ -445,7 +453,7 @@ def install_pytest_cuke_allure_extra_in_isolated_environment(consumer: ConsumerP
         text=True,
     )
     assert create_environment.returncode == 0, (
-        f"could not create Allure consumer environment:\n{create_environment.stdout}\n{create_environment.stderr}"
+        f"could not create {extra} consumer environment:\n{create_environment.stdout}\n{create_environment.stderr}"
     )
 
     binary_dir = _consumer_binary_dir(environment_path)
@@ -457,7 +465,7 @@ def install_pytest_cuke_allure_extra_in_isolated_environment(consumer: ConsumerP
             "install",
             "--python",
             str(python_path),
-            f"pytest-cuke[allure] @ {consumer.artifact.resolve().as_uri()}",
+            f"pytest-cuke[{extra}] @ {consumer.artifact.resolve().as_uri()}",
         ],
         cwd=consumer.path,
         env=consumer.env,
@@ -466,7 +474,7 @@ def install_pytest_cuke_allure_extra_in_isolated_environment(consumer: ConsumerP
         text=True,
     )
     assert install.returncode == 0, (
-        f"could not install pytest-cuke with its Allure extra:\n{install.stdout}\n{install.stderr}"
+        f"could not install pytest-cuke with its {extra} extra:\n{install.stdout}\n{install.stderr}"
     )
     consumer.python = python_path
     consumer.pytest = _consumer_executable(binary_dir, "pytest")
@@ -1342,6 +1350,63 @@ def consumer_messages_artifact(relative_path, scenario_count, step_count, consum
     run_finished = [message for message in messages if isinstance(message, TestRunFinished)]
     assert len(run_finished) == 1
     assert run_finished[0].success is True
+
+
+@then(
+    re.compile(
+        r'the structured YAML source is omitted from Cucumber Messages in artifact "(?P<relative_path>[^"]+)"'
+    )
+)
+def structured_yaml_source_is_omitted_from_messages(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = [
+        json.loads(line)
+        for line in (consumer.path / relative_path).read_text(encoding="utf-8").splitlines()
+    ]
+    assert not any("source" in envelope for envelope in envelopes), envelopes
+
+
+@then(
+    re.compile(
+        r'every Pickle step in artifact "(?P<relative_path>[^"]+)" refers to a Gherkin AST step'
+    )
+)
+def pickle_steps_reference_gherkin_ast_steps(relative_path: str, consumer: ConsumerProject) -> None:
+    envelopes = [
+        json.loads(line)
+        for line in (consumer.path / relative_path).read_text(encoding="utf-8").splitlines()
+    ]
+    gherkin_documents = [envelope["gherkinDocument"] for envelope in envelopes if "gherkinDocument" in envelope]
+    pickle_steps = [
+        step
+        for envelope in envelopes
+        if "pickle" in envelope
+        for step in envelope["pickle"].get("steps", [])
+    ]
+
+    def collect_step_ids(node: object) -> set[str]:
+        identifiers: set[str] = set()
+        if isinstance(node, dict):
+            steps = node.get("steps")
+            if isinstance(steps, list):
+                identifiers.update(
+                    step["id"]
+                    for step in steps
+                    if isinstance(step, dict) and isinstance(step.get("id"), str) and step["id"]
+                )
+            for value in node.values():
+                identifiers.update(collect_step_ids(value))
+        elif isinstance(node, list):
+            for value in node:
+                identifiers.update(collect_step_ids(value))
+        return identifiers
+
+    gherkin_step_ids = set().union(*(collect_step_ids(document) for document in gherkin_documents))
+    assert gherkin_documents, envelopes
+    assert pickle_steps, envelopes
+    for pickle_step in pickle_steps:
+        ast_node_ids = pickle_step.get("astNodeIds")
+        assert isinstance(ast_node_ids, list) and ast_node_ids, pickle_step
+        assert set(ast_node_ids).issubset(gherkin_step_ids), (pickle_step, gherkin_step_ids)
 
 
 def _local_xdist_messages_artifact(
@@ -6274,29 +6339,9 @@ def _struct_bdd_result_items(
     return items
 
 
-@given("the consumer installs the optional StructBDD loaders")
-def install_optional_struct_bdd_loaders(consumer: ConsumerProject) -> None:
-    uv_executable = shutil.which("uv")
-    assert uv_executable, "installing optional StructBDD loaders requires uv"
-    result = subprocess.run(
-        [
-            uv_executable,
-            "pip",
-            "install",
-            "--python",
-            str(consumer.python),
-            "PyYAML",
-            "hjson",
-            "json5",
-            "pyhocon",
-        ],
-        cwd=consumer.path,
-        env=consumer.env,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, f"could not install the StructBDD loaders:\n{result.stdout}\n{result.stderr}"
+@given("the consumer installs pytest-cuke with its StructBDD extra")
+def install_pytest_cuke_struct_bdd_extra_in_consumer_environment(consumer: ConsumerProject) -> None:
+    _install_pytest_cuke_extra_in_isolated_environment(consumer, "struct-bdd")
 
 
 @given("the consumer has one runnable feature for every supported StructBDD suffix")
@@ -11250,112 +11295,7 @@ def install_debug_mcp_extra(consumer: ConsumerProject) -> None:
     )
 
 
-@then("the required PyPy 3.12 Linux runtime should not exclude Debug MCP")
-def required_pypy_312_linux_runtime_does_not_exclude_debug_mcp(consumer: ConsumerProject) -> None:
-    context = getattr(consumer, "_environment_inventory_context", None)
-    assert context is not None, "the repository environment inventory has not been loaded"
-    document = context.document
-    runtime_policy = document.get("runtime_policy")
-    assert isinstance(runtime_policy, dict), "the environment inventory has no runtime policy"
-    required_cells = runtime_policy.get("required_cells")
-    assert isinstance(required_cells, list), required_cells
-    required_pypy_linux = [
-        cell
-        for cell in required_cells
-        if isinstance(cell, dict)
-        and cell.get("runtime") == "PyPy"
-        and cell.get("python") == "3.12"
-        and cell.get("platform") == "linux"
-    ]
-    assert len(required_pypy_linux) == 1, required_pypy_linux
-    cell = required_pypy_linux[0]
-    assert cell.get("architecture") == "x86_64", cell
-    assert cell.get("product_support", {}).get("status") == "supported", cell
-    assert cell.get("installability", {}).get("status") == "required-acceptance", cell
-    required_ci = cell.get("required_ci")
-    assert isinstance(required_ci, dict) and required_ci.get("status") == "required", cell
-    assert "pypy312-pytestlatest-coverage-lin" in required_ci.get("tox_envs", []), cell
 
-    exclusions = document.get("capability_exclusions")
-    assert isinstance(exclusions, list), exclusions
-    pypy_linux_debug_mcp = [
-        item
-        for item in exclusions
-        if isinstance(item, dict)
-        and item.get("runtime") == "PyPy"
-        and item.get("python") == "3.12"
-        and item.get("platform") == "linux"
-        and item.get("capability") == "debug-mcp"
-    ]
-    assert not pypy_linux_debug_mcp, pypy_linux_debug_mcp
-
-
-@then("the installed debug MCP extra should be importable on PyPy 3.12 Linux and resolve a supported MCP SDK version")
-def installed_debug_mcp_extra_is_compatible(consumer: ConsumerProject) -> None:
-    probe = (
-        "import importlib, json, platform, sys\n"
-        "from importlib.metadata import requires, version\n"
-        "from packaging.markers import default_environment\n"
-        "for module in ('cryptography', 'mcp', 'mcp_pdb.main', 'uvicorn'):\n"
-        "    importlib.import_module(module)\n"
-        "import cryptography\n"
-        "print(json.dumps({\n"
-        "    'implementation': platform.python_implementation(),\n"
-        "    'python': list(sys.version_info[:2]),\n"
-        "    'platform': sys.platform,\n"
-        "    'architecture': platform.machine(),\n"
-        "    'cryptography': cryptography.__version__,\n"
-        "    'mcp': version('mcp'),\n"
-        "    'requirements': requires('pytest-cuke') or [],\n"
-        "    'marker_environment': default_environment(),\n"
-        "}))\n"
-    )
-    result = subprocess.run(
-        [str(consumer.python), "-c", probe],
-        cwd=consumer.path,
-        env=consumer.env,
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=60,
-    )
-    assert result.returncode == 0, (
-        "the installed debug-mcp dependencies could not be imported:\n"
-        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-    )
-    resolved = json.loads(result.stdout)
-    assert isinstance(resolved, dict), f"invalid runtime probe output: {result.stdout!r}"
-    assert resolved.get("implementation") == "PyPy", resolved
-    assert resolved.get("python") == [3, 12], resolved
-    assert resolved.get("platform") == "linux", resolved
-    assert str(resolved.get("architecture", "")).casefold() in {"x86_64", "amd64"}, resolved
-    assert isinstance(resolved.get("cryptography"), str), f"missing cryptography version: {resolved!r}"
-    assert isinstance(resolved.get("mcp"), str), f"missing mcp version: {resolved!r}"
-    requirement_lines = resolved.get("requirements")
-    assert isinstance(requirement_lines, list) and all(isinstance(line, str) for line in requirement_lines), resolved
-    marker_environment = resolved.get("marker_environment")
-    assert isinstance(marker_environment, dict), resolved
-    assert marker_environment.get("implementation_name") == "pypy", marker_environment
-    assert marker_environment.get("python_version") == "3.12", marker_environment
-    assert marker_environment.get("sys_platform") == "linux", marker_environment
-    marker_environment = {**marker_environment, "extra": "debug-mcp"}
-    debug_mcp_requirements = [
-        requirement
-        for requirement in (Requirement(line) for line in requirement_lines)
-        if requirement.marker is None or requirement.marker.evaluate(marker_environment)
-    ]
-    cryptography_requirements = [
-        requirement for requirement in debug_mcp_requirements if requirement.name.casefold() == "cryptography"
-    ]
-    assert all(
-        all(specifier.operator != "<" for specifier in requirement.specifier)
-        for requirement in cryptography_requirements
-    ), cryptography_requirements
-    mcp_version = Version(resolved["mcp"])
-    assert Version("1.24") <= mcp_version < Version("2"), (
-        f"the Debug MCP SDK requires mcp>=1.24,<2, but resolved {mcp_version}:\n"
-        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-    )
 @when(re.compile(r'I start installed pytest for MCP inspection with arguments "(?P<arguments>[^"]*)"'))
 def start_consumer_pytest_for_mcp_inspection(arguments: str, consumer: ConsumerProject) -> None:
     cli_arguments = _split_consumer_arguments(arguments)
@@ -12394,10 +12334,12 @@ def _debug_mcp_debugger_continuation_client_script() -> str:
             async def _bounded(self, operation, awaitable):
                 stage = f"{self._label} {operation}"
                 mark(self._stage_path, stage)
+                # mcp-pdb may spend 9 seconds polling continue, then fetch location context.
+                timeout = 20 if self._label == "debugger" and operation == "call_tool send_pdb_command" else 10
                 try:
-                    return await asyncio.wait_for(awaitable, timeout=10)
+                    return await asyncio.wait_for(awaitable, timeout=timeout)
                 except asyncio.TimeoutError as error:
-                    raise TimeoutError(f"{stage} timed out after 10 seconds") from error
+                    raise TimeoutError(f"{stage} timed out after {timeout} seconds") from error
 
             async def initialize(self, *args, **kwargs):
                 return await self._bounded("initialize", super().initialize(*args, **kwargs))

@@ -16,13 +16,20 @@ TEST_EVIDENCE_GROUPS = frozenset(("serial", "parallel", "e2e", "external", "opti
 OPTIONAL_VERSION_KEYS = (
     "allure-pytest",
     "gherkin-official",
+    "hjson",
+    "json5",
+    "mcp",
+    "mcp-pdb",
     "pandoc",
     "panflute",
     "playwright",
     "pycmarkgfm",
+    "pydantic",
     "pypandoc",
+    "pyhocon",
     "pytest-xdist",
     "PyYAML",
+    "uvicorn",
 )
 SYSTEM_TOOL_VERSION_KEYS = ("tox", "node", "npm", "npx", "allure-cli", "uv", "pandoc", "go", "native-compiler")
 
@@ -37,6 +44,11 @@ def normalize_architecture(value: str) -> str:
     }.get(normalized, normalized)
 
 
+def normalize_runtime_name(value: object) -> object:
+    """Normalize interpreter implementation names to the public runtime inventory."""
+    return "GraalPy" if value == "GraalVM" else value
+
+
 def required_optional_versions(tox_environment: str) -> tuple[str, ...]:
     """Return optional packages whose presence is part of this environment's contract."""
     required: list[str] = []
@@ -44,6 +56,10 @@ def required_optional_versions(tox_environment: str) -> tuple[str, ...]:
     is_doc_generation = "doc-gen" in tox_environment
     if is_doc_generation:
         required.extend(("pandoc", "panflute", "pycmarkgfm", "pypandoc"))
+    if "struct-bdd" in tox_environment:
+        required.extend(("hjson", "json5", "pyhocon", "PyYAML"))
+    if "debug-mcp" in tox_environment:
+        required.extend(("mcp", "mcp-pdb", "pydantic", "uvicorn"))
     if "allure" in tox_environment or is_playwright_report:
         required.append("allure-pytest")
     if "gherkin33" in tox_environment or "gherkinlatest" in tox_environment or is_playwright_report:
@@ -65,6 +81,8 @@ def required_system_tool_versions(tox_environment: str) -> tuple[str, ...]:
     is_runtime_coverage = "-coverage-" in tox_environment
     is_native_parser_acceptance = "native-go-parser" in tox_environment
     is_installed_consumer_typing = tox_environment == "py314-pytestlatest-mypy"
+    is_struct_bdd_acceptance = tox_environment == "py314-struct-bdd"
+    is_debug_mcp_acceptance = tox_environment == "py314-debug-mcp"
 
     if any(
         (
@@ -73,6 +91,8 @@ def required_system_tool_versions(tox_environment: str) -> tuple[str, ...]:
             is_runtime_coverage,
             is_native_parser_acceptance,
             is_installed_consumer_typing,
+            is_struct_bdd_acceptance,
+            is_debug_mcp_acceptance,
         )
     ):
         required.append("uv")

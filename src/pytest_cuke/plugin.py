@@ -55,10 +55,9 @@ from pytest_cuke.cucumber_usage_json import add_options as add_cucumber_usage_js
 from pytest_cuke.cucumber_usage_json import selected_usage_json_formatter_requests
 from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp.options import add_options as add_debug_mcp_options
-from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin
 from pytest_cuke.feature_sources import resolve_feature_sources
 from pytest_cuke.message_plugin import MessagePlugin, MessageSessionFinishHookAdapter, message_session_finish_hook
-from pytest_cuke.mimetypes import Mimetype
+from pytest_cuke.mimetypes import Mimetype, struct_bdd_format_for_mimetype, struct_bdd_format_for_path
 from pytest_cuke.model import Feature, Scenario
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.session_run import RunContext
@@ -722,6 +721,14 @@ def pytest_configure(config: Config) -> None:
     if config.getini("cuke_test_group_order"):
         config.pluginmanager.register(TestGroupPlugin(config), name="pytest_cuke_test_groups")
     if debug_mcp_options.enabled:
+        try:
+            from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin  # noqa: PLC0415 -- Load the optional Pydantic-backed integration only when selected.
+        except ModuleNotFoundError as error:
+            if error.name != "pydantic":
+                raise
+            raise pytest.UsageError(
+                "Debug MCP requires Pydantic; install pytest-cuke[debug-mcp]."
+            ) from error
         config.pluginmanager.register(
             DebugMcpPlugin(config, debug_mcp_options),
             name="pytest_cuke_debug_mcp",
@@ -1211,6 +1218,8 @@ def pytest_cuke_match_step_definition_to_step(request: FixtureRequest, run: RunC
 
 
 def pytest_cuke_get_mimetype(config: Config, path: Path) -> str | None:
+    if format_ := struct_bdd_format_for_path(path):
+        return format_.mimetype.value
     name = path.name.casefold()
     if name.endswith((".gherkin", ".feature")):
         return Mimetype.gherkin_plain.value
@@ -1220,6 +1229,8 @@ def pytest_cuke_get_mimetype(config: Config, path: Path) -> str | None:
 
 
 def pytest_cuke_get_parser(config: Config, mimetype: str) -> Any:
+    if struct_bdd_format_for_mimetype(mimetype) is not None and not STRUCT_BDD_INSTALLED:
+        raise _structured_bdd_dependency_error()
     return {
         Mimetype.gherkin_plain.value: GherkinParser,
         Mimetype.markdown.value: MarkdownGherkinParser,
@@ -1227,7 +1238,18 @@ def pytest_cuke_get_parser(config: Config, mimetype: str) -> Any:
 
 
 def pytest_cuke_is_collectible(config: Config, path: Path) -> bool | None:
+    if struct_bdd_format_for_path(path) is not None:
+        if not STRUCT_BDD_INSTALLED:
+            raise _structured_bdd_dependency_error()
+        return True
     suffixes = {".gherkin", ".feature", ".url", ".desktop", ".webloc"}
     if any(suffix.casefold() in suffixes for suffix in path.suffixes):
         return True
     return None
+
+
+def _structured_bdd_dependency_error() -> pytest.UsageError:
+    return pytest.UsageError(
+        "Structured BDD features require the optional structured-data dependencies; "
+        "install pytest-cuke[struct-bdd]."
+    )

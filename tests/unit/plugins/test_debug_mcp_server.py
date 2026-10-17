@@ -4,6 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
+pytest.importorskip("pydantic")
+
 from pytest_cuke.debug_mcp.server import DebugMcpDependencyError, InspectionMcpServer
 
 

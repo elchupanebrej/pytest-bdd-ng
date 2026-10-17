@@ -26,14 +26,25 @@ _TEST_GROUPS = frozenset(("serial", "parallel", "e2e", "external", "optional"))
 _OPTIONAL_VERSION_KEYS = (
     "allure-pytest",
     "gherkin-official",
+    "hjson",
+    "json5",
+    "mcp",
+    "mcp-pdb",
     "pandoc",
     "panflute",
     "playwright",
     "pycmarkgfm",
+    "pydantic",
     "pypandoc",
+    "pyhocon",
     "pytest-xdist",
     "PyYAML",
+    "uvicorn",
 )
+_DEBUG_MCP_ENV = "py314-debug-mcp"
+_DEBUG_MCP_PACKAGES = ("mcp", "mcp-pdb", "pydantic", "uvicorn")
+_STRUCT_BDD_ENV = "py314-struct-bdd"
+_STRUCT_BDD_PACKAGES = ("hjson", "json5", "pyhocon", "PyYAML")
 _PLAYWRIGHT_REPORT_ENV = "py314-pytestlatest-playwright-report"
 _PLAYWRIGHT_REPORT_PACKAGES = ("allure-pytest", "pytest-xdist", "gherkin-official", "playwright")
 _DOC_GENERATION_PACKAGES = ("pandoc", "panflute", "pycmarkgfm", "pypandoc")
@@ -110,16 +121,25 @@ def _optional_versions(tox_environment: str) -> dict[str, str | None]:
     is_playwright_report = tox_environment == _PLAYWRIGHT_REPORT_ENV
     is_doc_generation = "doc-gen" in tox_environment
     has_gherkin_factor = "gherkin33" in tox_environment or "gherkinlatest" in tox_environment
+    is_debug_mcp = tox_environment == _DEBUG_MCP_ENV
+    is_struct_bdd = tox_environment == _STRUCT_BDD_ENV
     return {
         "allure-pytest": "2.16.2" if "allure" in tox_environment or is_playwright_report else None,
         "gherkin-official": "33.0.0" if has_gherkin_factor or is_playwright_report else "29.0.0",
+        "hjson": "3.1.0" if is_struct_bdd else None,
+        "json5": "0.15.0" if is_struct_bdd else None,
+        "mcp": "1.24.2" if is_debug_mcp else None,
+        "mcp-pdb": "0.6.2" if is_debug_mcp else None,
         "pandoc": "2.4.1" if is_doc_generation else None,
         "panflute": "2.3.0" if is_doc_generation else None,
         "playwright": "1.63.0" if "playwright" in tox_environment else None,
         "pycmarkgfm": "1.2.0" if is_doc_generation else None,
+        "pydantic": "2.12.5" if is_debug_mcp else None,
         "pypandoc": "1.15" if is_doc_generation else None,
+        "pyhocon": "0.3.63" if is_struct_bdd else None,
         "pytest-xdist": "3.8.0" if "xdist" in tox_environment or is_playwright_report else None,
-        "PyYAML": "6.0.3",
+        "PyYAML": "6.0.3" if is_struct_bdd else None,
+        "uvicorn": "0.34.0" if is_debug_mcp else None,
     }
 
 
@@ -693,6 +713,32 @@ def assign_pytest_version_mismatching_tox_factor(proof_aggregation: ProofAggrega
     _mutate_environment(artifact, lambda environment: environment.__setitem__("pytest", "0.0.0"))
 
 
+@given("the latest pytest environment py314-pytestlatest-coverage-lin records pytest 8 consistently")
+def assign_consistent_pytest_8_to_latest_tox_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _tox_environment_artifact(proof_aggregation, "py314-pytestlatest-coverage-lin")
+
+    def mutate(environment: dict[str, Any]) -> None:
+        pytest_version = "8.4.2"
+        environment["pytest"] = pytest_version
+        tox_result = environment.get("tox_result")
+        assert isinstance(tox_result, dict), environment
+        testenvs = tox_result.get("testenvs")
+        assert isinstance(testenvs, dict), tox_result
+        result = testenvs.get(artifact.tox_environment)
+        assert isinstance(result, dict), testenvs
+        installed_packages = result.get("installed_packages")
+        assert isinstance(installed_packages, list), result
+        pytest_packages = [
+            index
+            for index, package in enumerate(installed_packages)
+            if isinstance(package, str) and package.partition("==")[0].casefold() == "pytest"
+        ]
+        assert len(pytest_packages) == 1, installed_packages
+        installed_packages[pytest_packages[0]] = f"pytest=={pytest_version}"
+
+    _mutate_environment(artifact, mutate)
+
+
 @given("one environment records runtime Python and platform that disagree with inventory")
 def assign_runtime_python_and_platform_mismatches(proof_aggregation: ProofAggregationContext) -> None:
     artifact = _first_test_artifact(proof_aggregation)
@@ -723,6 +769,84 @@ def remove_pytest_xdist_from_optional_environment(proof_aggregation: ProofAggreg
             for package in tox_entry["installed_packages"]
             if package.partition("==")[0].casefold() != "pytest-xdist"
         ]
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("the optional StructBDD environment is missing its JSON5 loader")
+def remove_json5_from_optional_struct_bdd_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = next(
+        (item for item in proof_aggregation.artifacts if item.tox_environment == _STRUCT_BDD_ENV),
+        None,
+    )
+    assert artifact is not None, f"the inventory must contain {_STRUCT_BDD_ENV}"
+
+    def mutate(environment: dict[str, Any]) -> None:
+        optional_versions = environment["optional_versions"]
+        assert isinstance(optional_versions.get("json5"), str) and optional_versions["json5"], optional_versions
+        optional_versions["json5"] = None
+        tox_result = environment["tox_result"]
+        tox_entry = tox_result["testenvs"][artifact.tox_environment]
+        tox_entry["installed_packages"] = [
+            package
+            for package in tox_entry["installed_packages"]
+            if re.sub(r"[-_.]+", "-", package.partition("==")[0]).casefold() != "json5"
+        ]
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("the optional StructBDD environment omits its required tox-local uv version")
+def remove_uv_from_optional_struct_bdd_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = next(
+        (item for item in proof_aggregation.artifacts if item.tox_environment == _STRUCT_BDD_ENV),
+        None,
+    )
+    assert artifact is not None, f"the inventory must contain {_STRUCT_BDD_ENV}"
+
+    def mutate(environment: dict[str, Any]) -> None:
+        versions = environment["system_tool_versions"]
+        assert isinstance(versions.get("uv"), str) and versions["uv"], versions
+        versions["uv"] = None
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("the optional Debug MCP environment is missing its MCP package")
+def remove_mcp_from_optional_debug_mcp_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = next(
+        (item for item in proof_aggregation.artifacts if item.tox_environment == _DEBUG_MCP_ENV),
+        None,
+    )
+    assert artifact is not None, f"the inventory must contain {_DEBUG_MCP_ENV}"
+
+    def mutate(environment: dict[str, Any]) -> None:
+        optional_versions = environment["optional_versions"]
+        assert isinstance(optional_versions.get("mcp"), str) and optional_versions["mcp"], optional_versions
+        optional_versions["mcp"] = None
+        tox_result = environment["tox_result"]
+        tox_entry = tox_result["testenvs"][artifact.tox_environment]
+        tox_entry["installed_packages"] = [
+            package
+            for package in tox_entry["installed_packages"]
+            if re.sub(r"[-_.]+", "-", package.partition("==")[0]).casefold() != "mcp"
+        ]
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("the optional Debug MCP environment omits its required tox-local uv version")
+def remove_uv_from_optional_debug_mcp_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = next(
+        (item for item in proof_aggregation.artifacts if item.tox_environment == _DEBUG_MCP_ENV),
+        None,
+    )
+    assert artifact is not None, f"the inventory must contain {_DEBUG_MCP_ENV}"
+
+    def mutate(environment: dict[str, Any]) -> None:
+        versions = environment["system_tool_versions"]
+        assert isinstance(versions.get("uv"), str) and versions["uv"], versions
+        versions["uv"] = None
 
     _mutate_environment(artifact, mutate)
 
@@ -1126,6 +1250,124 @@ def optional_proof_is_separate_from_core_groups(proof_aggregation: ProofAggregat
     for group_name in set(groups) - {"optional"}:
         report = groups[group_name]
         assert not optional_environments.intersection(report.get("environments", [])), (group_name, report)
+
+
+@then("the proof summary should preserve installed StructBDD loader versions")
+def proof_summary_preserves_struct_bdd_loader_versions(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    records = [item for item in environments if item.get("tox_environment") == _STRUCT_BDD_ENV]
+    assert len(records) == 1, records
+    optional_versions = records[0].get("optional_versions")
+    assert isinstance(optional_versions, dict), records[0]
+    for package in _STRUCT_BDD_PACKAGES:
+        assert isinstance(optional_versions.get(package), str) and optional_versions[package], optional_versions
+
+
+@then("it should preserve the tox-local uv version for StructBDD")
+def proof_summary_preserves_struct_bdd_uv_version(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    records = [item for item in environments if item.get("tox_environment") == _STRUCT_BDD_ENV]
+    assert len(records) == 1, records
+    record = records[0]
+    versions = record.get("system_tool_versions")
+    assert isinstance(versions, dict) and isinstance(versions.get("uv"), str) and versions["uv"], record
+    commands = record.get("system_tool_commands")
+    assert isinstance(commands, dict), record
+    uv_command = commands.get("uv")
+    assert isinstance(uv_command, dict), record
+    uv_executable = uv_command.get("executable")
+    assert isinstance(uv_executable, str) and uv_executable, uv_command
+    expected_suffix = f"/.tox/{_STRUCT_BDD_ENV}/bin/uv"
+    assert uv_executable.replace("\\", "/").casefold().endswith(expected_suffix.casefold()), (
+        uv_executable,
+        expected_suffix,
+    )
+    assert uv_command.get("argv") == [uv_executable, "--version"], uv_command
+
+
+@then("the proof summary should preserve installed Debug MCP package versions")
+def proof_summary_preserves_debug_mcp_package_versions(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    records = [item for item in environments if item.get("tox_environment") == _DEBUG_MCP_ENV]
+    assert len(records) == 1, records
+    optional_versions = records[0].get("optional_versions")
+    assert isinstance(optional_versions, dict), records[0]
+    for package in _DEBUG_MCP_PACKAGES:
+        assert isinstance(optional_versions.get(package), str) and optional_versions[package], optional_versions
+
+
+@then("it should preserve the tox-local uv version for Debug MCP")
+def proof_summary_preserves_debug_mcp_uv_version(proof_aggregation: ProofAggregationContext) -> None:
+    environments = _summary(proof_aggregation).get("environments")
+    assert isinstance(environments, list), environments
+    records = [item for item in environments if item.get("tox_environment") == _DEBUG_MCP_ENV]
+    assert len(records) == 1, records
+    record = records[0]
+    versions = record.get("system_tool_versions")
+    assert isinstance(versions, dict) and isinstance(versions.get("uv"), str) and versions["uv"], record
+    commands = record.get("system_tool_commands")
+    assert isinstance(commands, dict), record
+    uv_command = commands.get("uv")
+    assert isinstance(uv_command, dict), record
+    uv_executable = uv_command.get("executable")
+    assert isinstance(uv_executable, str) and uv_executable, uv_command
+    expected_suffix = f"/.tox/{_DEBUG_MCP_ENV}/bin/uv"
+    assert uv_executable.replace("\\", "/").casefold().endswith(expected_suffix.casefold()), (
+        uv_executable,
+        expected_suffix,
+    )
+    assert uv_command.get("argv") == [uv_executable, "--version"], uv_command
+
+
+@then("the proof summary should fail with a missing StructBDD loader diagnostic")
+def proof_summary_fails_for_missing_struct_bdd_loader(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    artifact = next(item for item in proof_aggregation.artifacts if item.tox_environment == _STRUCT_BDD_ENV)
+    document = json.loads(artifact.path.read_text(encoding="utf-8"))
+    environment = document["environments"][0]
+    assert environment["optional_versions"]["json5"] is None, environment
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires installed optional package 'json5'" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for missing StructBDD uv version evidence")
+def proof_summary_fails_for_missing_struct_bdd_uv_version(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'uv' with an actual version" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with a missing Debug MCP package diagnostic")
+def proof_summary_fails_for_missing_debug_mcp_package(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    artifact = next(item for item in proof_aggregation.artifacts if item.tox_environment == _DEBUG_MCP_ENV)
+    document = json.loads(artifact.path.read_text(encoding="utf-8"))
+    environment = document["environments"][0]
+    assert environment["optional_versions"]["mcp"] is None, environment
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires installed optional package 'mcp'" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail for missing Debug MCP uv version evidence")
+def proof_summary_fails_for_missing_debug_mcp_uv_version(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires system tool 'uv' with an actual version" in proof_aggregation_result.stderr
 
 
 @then("the proof summary should preserve Linux Windows and macOS runner evidence")
@@ -1930,6 +2172,17 @@ def proof_summary_fails_for_pytest_tox_factor_mismatch(
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "tox factor requires" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should reject pytest 8 for a latest pytest tox factor")
+def proof_summary_rejects_pytest_8_for_latest_tox_factor(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "py314-pytestlatest-coverage-lin" in proof_aggregation_result.stderr
+    assert "pytestlatest tox factor requires pytest 9.x" in proof_aggregation_result.stderr
 
 
 @then("the proof summary should fail with runtime Python and platform mismatch diagnostics")

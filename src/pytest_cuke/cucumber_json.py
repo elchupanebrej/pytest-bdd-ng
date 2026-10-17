@@ -7,12 +7,10 @@ import math
 import os
 import time
 from argparse import ArgumentTypeError
-from enum import Enum
+from importlib import import_module
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
-
-from pydantic import BaseModel, ConfigDict
 
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.reporting import ScenarioReport
@@ -31,6 +29,40 @@ if TYPE_CHECKING:  # pragma: no cover
 
 DEFAULT_CUCUMBER_JSON_PATH = "cucumber.json"
 CUCUMBER_JSON_BACKENDS = ("cucumber", "native")
+_MODEL_NAMES = {
+    "Argument",
+    "CucumberJson",
+    "DataTableRow",
+    "DocString",
+    "Element",
+    "ElementType",
+    "ExternalExamplesRowSource",
+    "Feature",
+    "Hook",
+    "Match",
+    "Result",
+    "Status",
+    "Step",
+    "Tag",
+}
+
+
+def __getattr__(name: str) -> Any:
+    """Keep direct model imports compatible while loading Pydantic only on demand."""
+    if name not in _MODEL_NAMES:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    return getattr(_cucumber_json_models(), name)
+
+
+def _cucumber_json_models() -> Any:
+    try:
+        return import_module("pytest_cuke.cucumber_json_models")
+    except ModuleNotFoundError as error:
+        if error.name != "pydantic":
+            raise
+        raise ImportError(
+            "the native Cucumber JSON backend requires Pydantic; install pytest-cuke[cucumber-json]"
+        ) from error
 
 
 def add_options(parser: Parser) -> None:
@@ -113,6 +145,7 @@ def configure(config: Config | BaseConfig) -> None:
         return
     if configured_cucumber_json_backend(config) != "native":
         return
+    _require_native_json_dependency()
     cucumber_json_path = configured_cucumber_json_output_path(config)
     # prevent opening json log on worker nodes (xdist)
     if cucumber_json_path and not hasattr(config, "workerinput"):
@@ -126,151 +159,6 @@ def unconfigure(config: Config | BaseConfig) -> None:
         _config = cast("Config", config)
         del _config._bddcucumberjson
         config.pluginmanager.unregister(xml)
-
-
-class ElementType(str, Enum):
-    background = "background"
-    scenario = "scenario"
-
-
-class Argument(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    value: str | None = None
-    offset: float | None = None
-
-
-class Status(str, Enum):
-    passed = "passed"
-    failed = "failed"
-    skipped = "skipped"
-    undefined = "undefined"
-    pending = "pending"
-    unknown = "unknown"
-
-
-class DocString(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    line: float | None = None
-    value: str | None = None
-    content_type: str | None = None
-
-
-class DataTableRow(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    cells: list[str]
-
-
-class Tag(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    name: str
-    line: float | None = None
-
-
-class Match(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    location: str | None = None
-    arguments: list[Argument] | None = None
-
-
-class Result(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    duration: float | None = None
-    status: Status
-    error_message: str | None = None
-
-
-class ExternalExamplesRowSource(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-
-    path: str
-    marker_line: int
-    section_index: int
-    row_index: int
-    source_line: int
-
-
-class Step(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    keyword: str | None = None
-    line: float | None = None
-    match: Match | None = None
-    name: str | None = None
-    result: Result | None = None
-    doc_string: DocString | None = None
-    rows: list[DataTableRow] | None = None
-
-
-class Hook(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    match: Match | None = None
-    result: Result
-
-
-class Element(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    start_timestamp: str | None = None
-    line: float | None = None
-    id: str | None = None
-    type: ElementType | None = None
-    keyword: str | None = None
-    name: str | None = None
-    description: str | None = None
-    before: list[Hook] | None = None
-    steps: list[Step] | None = None
-    after: list[Hook] | None = None
-    tags: list[Tag] | None = None
-    external_examples_source: ExternalExamplesRowSource | None = None
-
-
-class Feature(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    uri: str | None = None
-    id: str | None = None
-    line: float | None = None
-    keyword: str | None = None
-    name: str | None = None
-    description: str | None = None
-    elements: list[Element] | None = None
-    tags: list[Tag] | None = None
-
-
-class CucumberJson(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-        populate_by_name=True,
-    )
-    implementation: str | None = None
-    features: list[Feature] | None = None
 
 
 class LogBDDCucumberJSON:
@@ -429,8 +317,17 @@ class LogBDDCucumberJSON:
         Path(self.logfile).parent.mkdir(parents=True, exist_ok=True)
         with open(self.logfile, "w", encoding="utf-8") as logfile:
             for feature in self.features.values():
-                Feature.model_validate(feature)
+                _cucumber_json_models().Feature.model_validate(feature)
             logfile.write(json.dumps(list(self.features.values())))
 
     def pytest_terminal_summary(self, terminalreporter: TerminalReporter) -> None:
         terminalreporter.write_sep("-", f"generated json file: {self.logfile}")
+
+
+def _require_native_json_dependency() -> None:
+    try:
+        _cucumber_json_models()
+    except ImportError as error:
+        from pytest import UsageError  # noqa: PLC0415 -- pytest is only needed for a selected live backend.
+
+        raise UsageError(str(error)) from error

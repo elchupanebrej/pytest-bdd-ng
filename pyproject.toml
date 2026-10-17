@@ -66,7 +66,6 @@ dependencies = [
   "parse_type>=0.6.0",
   "pathvalidate",
   "py",
-  "pydantic>=2.0.3",
   "referencing>=0.30",
   "pytest>=7.0",
   "cucumber-tag-expressions",
@@ -120,7 +119,11 @@ testtypes = [
 test = [
   "pytest>=7.0.0",
   "attrs>=22.2.0",
-  "pytest-httpserver>=1.1.5"
+  "pytest-httpserver>=1.1.5",
+  "PyYAML==6.0.3"
+]
+test-pydantic = [
+  "pydantic>=2.0.3"
 ]
 env-matrix = [
   "PyYAML==6.0.3",
@@ -134,12 +137,14 @@ mutation = [
 ]
 allure = [
   "allure-python-commons",
-  "allure-pytest"
+  "allure-pytest",
+  "pydantic>=2.0.3"
 ]
 debug-mcp = [
   "mcp-pdb>=0.6,<0.7",
   "mcp>=1.24,<2",
-  "uvicorn>=0.34"
+  "uvicorn>=0.34",
+  "pydantic>=2.0.3"
 ]
 doc-gen = [
   'docopt-ng',
@@ -152,8 +157,12 @@ struct-bdd = [
   "hjson",
   "json5",
   "pyhocon",
+  "pydantic>=2.0.3",
   "PyYAML",
   "types-PyYAML"
+]
+cucumber-json = [
+  "pydantic>=2.0.3"
 ]
 
 [tool.ruff]
