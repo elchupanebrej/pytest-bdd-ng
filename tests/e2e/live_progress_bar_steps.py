@@ -123,14 +123,14 @@ Feature: TTY progress-bar failure reporting
 
 _UNSELECTED_PROGRESS_FEATURE = """\
 Feature: Default-off progress bar
-  Scenario: The first Pickle passes without an opt-in
+  Scenario Outline: The <pickles> Pickle passes without an opt-in
     Given a progress-bar scenario records execution
 
-  Scenario: The second Pickle passes without an opt-in
-    Given a progress-bar scenario records execution
-
-  Scenario: The third Pickle passes without an opt-in
-    Given a progress-bar scenario records execution
+    Examples:
+      | pickles |
+      | first   |
+      | second  |
+      | third   |
 """
 
 _BACKEND_FAILURE_FEATURE = """\
