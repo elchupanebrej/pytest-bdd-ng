@@ -629,19 +629,21 @@ class MessagePlugin:
                 if feature_is_set and feature.uri not in feature_registry:
                     feature_registry.add(feature.uri)
                     if feature.source_content is not None:
-                        config.hook.pytest_cuke_message(
-                            config=config,
-                            message=Message(
-                                source=Source(
-                                    uri=feature.uri or feature.filename or "",
-                                    data=feature.source_content,
-                                    media_type=cast(
-                                        "SourceMediaType",
-                                        feature.source_media_type or "text/x.cucumber.gherkin+plain",
-                                    ),
-                                )
-                            ),
-                        )
+                        source_media_type = feature.source_media_type or "text/x.cucumber.gherkin+plain"
+                        if source_media_type in {
+                            "text/x.cucumber.gherkin+plain",
+                            "text/x.cucumber.gherkin+markdown",
+                        }:
+                            config.hook.pytest_cuke_message(
+                                config=config,
+                                message=Message(
+                                    source=Source(
+                                        uri=feature.uri or feature.filename or "",
+                                        data=feature.source_content,
+                                        media_type=cast("SourceMediaType", source_media_type),
+                                    )
+                                ),
+                            )
                     config.hook.pytest_cuke_message(
                         config=config,
                         message=Message(

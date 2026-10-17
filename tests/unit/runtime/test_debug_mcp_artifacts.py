@@ -4,6 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
+
+pytest.importorskip("pydantic")
+
 from pydantic import ValidationError
 
 from pytest_cuke.debug_mcp.artifacts import ArtifactSink

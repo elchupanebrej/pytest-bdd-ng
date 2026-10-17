@@ -19,6 +19,7 @@ from environment_evidence import (
     TEST_EVIDENCE_GROUPS,
     evidence_group,
     normalize_architecture,
+    normalize_runtime_name,
     required_optional_versions,
     required_system_tool_versions,
     system_tool_version_command,
@@ -45,11 +46,6 @@ def _interpreter_version_matches(expected: str, actual: Any) -> bool:
     if expected.endswith(".*"):
         return actual.startswith(expected[:-1])
     return actual == expected
-
-
-def _normalized_runtime(value: Any) -> Any:
-    """Normalize the implementation name used by tox on GraalPy."""
-    return "GraalPy" if value == "GraalVM" else value
 
 
 def _architecture_matches(expected: str, observed: Any) -> bool:
@@ -93,12 +89,6 @@ def _workflow_link_identity(value: Any, *, job_link: bool) -> tuple[str, str, st
                     repository_path = "/".join(parts[: runs_index - 1])
                     identity = hostname.casefold(), repository_path.casefold(), run_id
     return identity
-
-
-def _workflow_links_match(job_url: Any, run_url: Any) -> bool:
-    job_identity = _workflow_link_identity(job_url, job_link=True)
-    run_identity = _workflow_link_identity(run_url, job_link=False)
-    return job_identity is not None and job_identity == run_identity
 
 
 def _pytest_factor(tox_environment: str) -> str | None:
@@ -625,9 +615,10 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                     and not isinstance(tox_version_info[2], bool)
                 ):
                     tox_python_triplet = (tox_version_info[0], tox_version_info[1], tox_version_info[2])
-            if not isinstance(tox_python, dict) or _normalized_runtime(tox_python.get("implementation")) != record.get(
-                "runtime"
-            ):
+            tox_result_runtime = (
+                normalize_runtime_name(tox_python.get("implementation")) if isinstance(tox_python, dict) else None
+            )
+            if tox_result_runtime != record.get("runtime"):
                 errors.append(f"{job}/{cell}/{tox_environment} tox result runtime disagrees with runtime evidence")
                 invalid_groups.add(expected_group)
             if tox_python_pair != _version_pair(record.get("python")):
@@ -666,7 +657,13 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
         if requires_pytest and actual_pytest_pair is None:
             errors.append(f"{job}/{cell}/{tox_environment} is missing an actual pytest version")
             invalid_groups.add(expected_group)
-        if (
+        if actual_pytest_pair is not None and declared_pytest_factor == "latest" and actual_pytest_pair[0] != 9:
+            errors.append(
+                f"{job}/{cell}/{tox_environment} reports pytest {pytest_version!r}; "
+                "pytestlatest tox factor requires pytest 9.x"
+            )
+            invalid_groups.add(expected_group)
+        elif (
             actual_pytest_pair is not None
             and declared_pytest_pair is not None
             and actual_pytest_pair != declared_pytest_pair

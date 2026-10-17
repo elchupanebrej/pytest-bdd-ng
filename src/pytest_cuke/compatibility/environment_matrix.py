@@ -1580,6 +1580,8 @@ def _validate_optional_integration_inventory(
     diagnostics: list[dict[str, str]] = []
     expected_environments = {
         "py313-pytest84-allure-coverage-lin",
+        "py314-debug-mcp",
+        "py314-struct-bdd",
         *{
             f"py314-pytestlatest-{gherkin}-xdist-coverage-{platform_suffix}"
             for gherkin in ("gherkin33", "gherkinlatest")
@@ -1611,12 +1613,13 @@ def _validate_optional_integration_inventory(
             _diagnostic(
                 "optional-integrations",
                 "optional-workflow-environments-invalid",
-                "optional-integrations cells must select exactly one isolated Allure lane and six Gherkin/xdist lanes; "
+                "optional-integrations cells must select one isolated Allure lane, Debug MCP lane, StructBDD lane, "
+                "and six Gherkin/xdist lanes; "
                 f"missing={sorted(expected_environments - set(environments))!r}, "
                 f"extra={sorted(set(environments) - expected_environments)!r}, duplicates="
                 f"{sorted(environment for environment in environments if environments.count(environment) > 1)!r}",
-                "Keep the Allure and Gherkin/xdist environments in the optional-integrations workflow job with one "
-                "tox environment per cell.",
+                "Keep each Allure, Debug MCP, StructBDD, and Gherkin/xdist environment in its isolated "
+                "optional-integrations workflow cell.",
             )
         )
     if any(len(cell.get("tox_envs", [])) != 1 for cell in optional_cells):
@@ -1685,23 +1688,73 @@ def _validate_optional_integration_inventory(
         prerequisites = lane.get("prerequisites", [])
         package_requirements = (
             {
-                str(item.get("name")): item
+                re.sub(r"[-_.]+", "-", str(item.get("name", "")).casefold()): item
                 for item in prerequisites
                 if isinstance(item, dict) and item.get("type") == "python-package"
             }
             if isinstance(prerequisites, list)
             else {}
         )
+        command_requirements = {
+            str(item.get("name", "")).casefold()
+            for item in prerequisites
+            if isinstance(item, dict) and item.get("type") == "command"
+        } if isinstance(prerequisites, list) else set()
         if "allure" in environment:
             allure = package_requirements.get("allure-python-commons-test")
-            if extras != ["allure"] or not isinstance(allure, dict) or allure.get("version") != "2.16.0":
+            if (
+                extras != ["allure"]
+                or not isinstance(allure, dict)
+                or allure.get("version") != "2.16.0"
+                or "uv" not in command_requirements
+            ):
                 diagnostics.append(
                     _diagnostic(
                         str(lane.get("id") or "optional-integrations"),
                         "optional-allure-prerequisites-invalid",
                         "the Allure acceptance lane must declare the allure extra and "
-                        "allure-python-commons-test 2.16.0",
-                        "Declare extras: [allure] and the pinned Allure test dependency on the isolated lane.",
+                        "allure-python-commons-test 2.16.0, plus uv for isolated consumer installs",
+                        "Declare extras: [allure], the pinned Allure test dependency, and uv on the isolated lane.",
+                    )
+                )
+        elif "struct-bdd" in environment:
+            required_loaders = {"hjson", "json5", "pyhocon", "pyyaml"}
+            missing_loaders = sorted(required_loaders - package_requirements.keys())
+            if extras != ["struct-bdd"] or missing_loaders or "uv" not in command_requirements:
+                diagnostics.append(
+                    _diagnostic(
+                        str(lane.get("id") or "optional-integrations"),
+                        "optional-struct-bdd-prerequisites-invalid",
+                        "the StructBDD acceptance lane must declare the struct-bdd extra, all four loader packages, "
+                        f"and uv as a command prerequisite; missing loaders={missing_loaders!r}, "
+                        f"uv declared={'uv' in command_requirements}",
+                        "Declare extras: [struct-bdd], hjson/json5/pyhocon/PyYAML package prerequisites, and uv "
+                        "for isolated consumer installs.",
+                    )
+                )
+        elif "debug-mcp" in environment:
+            required_packages = {
+                "mcp-pdb": ">=0.6,<0.7",
+                "mcp": ">=1.24,<2",
+                "uvicorn": ">=0.34",
+                "pydantic": ">=2.0.3",
+            }
+            missing_or_mismatched = {
+                package: requirement
+                for package, requirement in required_packages.items()
+                if not isinstance(package_requirements.get(package), dict)
+                or package_requirements[package].get("version") != requirement
+            }
+            if extras != ["debug-mcp"] or missing_or_mismatched or "uv" not in command_requirements:
+                diagnostics.append(
+                    _diagnostic(
+                        str(lane.get("id") or "optional-integrations"),
+                        "optional-debug-mcp-prerequisites-invalid",
+                        "the Debug MCP acceptance lane must declare the debug-mcp extra, its supported MCP package "
+                        f"requirements, and uv as a command prerequisite; invalid packages={missing_or_mismatched!r}, "
+                        f"uv declared={'uv' in command_requirements}",
+                        "Declare extras: [debug-mcp], mcp-pdb>=0.6,<0.7, mcp>=1.24,<2, uvicorn>=0.34, "
+                        "pydantic>=2.0.3, and uv for isolated consumer installs.",
                     )
                 )
         else:

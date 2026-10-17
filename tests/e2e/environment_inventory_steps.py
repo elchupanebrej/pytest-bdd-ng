@@ -34,6 +34,7 @@ class EnvironmentInventoryContext:
     check_result: subprocess.CompletedProcess[str] | None = None
     report: dict[str, Any] | None = None
     tox_result: subprocess.CompletedProcess[str] | None = None
+    tox_configurations: dict[str, dict[str, list[str]]] | None = None
 
 
 @dataclass
@@ -156,6 +157,51 @@ def _tox_configured_commands(consumer: Any, environment_name: str) -> list[str]:
             else:
                 break
     return commands
+
+
+def _resolved_tox_configurations(context: EnvironmentInventoryContext) -> dict[str, dict[str, list[str]]]:
+    if context.tox_configurations is not None:
+        return context.tox_configurations
+
+    consumer = context.consumer
+    result = subprocess.run(
+        ["tox", "config", "-e", "ALL", "-k", "deps", "extras", "commands"],
+        cwd=consumer.path,
+        env=_inventory_command_environment(consumer),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, f"tox config failed for all environments: {result.stdout}\n{result.stderr}"
+
+    configurations: dict[str, dict[str, list[str]]] = {}
+    environment_name: str | None = None
+    current_field: str | None = None
+    for line in result.stdout.splitlines():
+        section = re.fullmatch(r"\[testenv:([^]]+)\]", line)
+        if section is not None:
+            environment_name = section.group(1)
+            configurations[environment_name] = {"deps": [], "extras": [], "commands": []}
+            current_field = None
+            continue
+        if environment_name is None:
+            continue
+        field_match = re.match(r"^(deps|extras|commands)\s*=\s*(.*)$", line)
+        if field_match is not None:
+            current_field = field_match.group(1)
+            inline_value = field_match.group(2).strip()
+            if inline_value:
+                configurations[environment_name][current_field].append(inline_value)
+            continue
+        if current_field is not None and line.startswith("  "):
+            value = line.strip()
+            if value:
+                configurations[environment_name][current_field].append(value)
+            continue
+        current_field = None
+
+    context.tox_configurations = configurations
+    return configurations
 
 
 def _run_environment_check(
@@ -907,7 +953,7 @@ def every_required_runtime_cell_accepts_core_install_and_examples(consumer: Any)
 
 @then("optional extras should remain separate from required runtime acceptance")
 def optional_extras_remain_separate_from_runtime_acceptance(consumer: Any) -> None:
-    optional_extra_markers = ("allure", "playwright", "native", "remote", "formatter", "browser")
+    optional_extra_markers = ("allure", "playwright", "native", "remote", "formatter", "browser", "struct-bdd")
     for cell in _required_runtime_cells(_context(consumer)):
         installability = cell.get("installability")
         assert isinstance(installability, dict), cell
@@ -1377,7 +1423,7 @@ def optional_capability_carriers_are_declared(consumer: Any) -> None:
             assert carrier_proof.get("kind") in (None, carrier.get("kind")), (lane, carrier_proof)
 
 
-@then("optional integration cells should provide isolated Allure and xdist acceptance")
+@then("optional integration cells should provide isolated optional acceptance")
 def optional_integration_cells_are_isolated_from_core_runtime_acceptance(consumer: Any) -> None:
     context = _context(consumer)
     cells = [
@@ -1385,14 +1431,14 @@ def optional_integration_cells_are_isolated_from_core_runtime_acceptance(consume
         for cell in context.document.get("workflow_cells", [])
         if isinstance(cell, dict) and cell.get("job") == "optional-integrations"
     ]
-    expected_environments = {"py313-pytest84-allure-coverage-lin"} | {
+    expected_environments = {"py313-pytest84-allure-coverage-lin", "py314-debug-mcp", "py314-struct-bdd"} | {
         f"py314-pytestlatest-{gherkin}-xdist-coverage-{platform_suffix}"
         for gherkin in ("gherkin33", "gherkinlatest")
         for platform_suffix in ("lin", "mac", "win")
     }
     actual_environments = [environment for cell in cells for environment in cell.get("tox_envs", [])]
     assert set(actual_environments) == expected_environments, actual_environments
-    assert len(actual_environments) == len(set(actual_environments)) == 7, actual_environments
+    assert len(actual_environments) == len(set(actual_environments)) == 9, actual_environments
     assert all(len(cell.get("tox_envs", [])) == 1 for cell in cells), cells
     assert all(cell.get("architecture") == "runner-native" for cell in cells), cells
 
@@ -1422,7 +1468,7 @@ def optional_integration_lanes_declare_extras_and_package_constraints(consumer: 
         for environment in str(lane.get("tox_env", "")).split(",")
         if environment
     }
-    assert len(cells) == 7, cells
+    assert len(cells) == 9, cells
     for cell in cells:
         environment = cell["tox_envs"][0]
         lane = lanes_by_environment.get(environment)
@@ -1430,11 +1476,58 @@ def optional_integration_lanes_declare_extras_and_package_constraints(consumer: 
         assert _status(lane) == "required", lane
         assert lane.get("workflow_selector") == cell.get("id"), (lane, cell)
         prerequisites = _prerequisite_entries(lane)
-        packages = {item.get("name"): item for item in prerequisites if item.get("type") == "python-package"}
+        packages = {
+            re.sub(r"[-_.]+", "-", str(item.get("name", "")).casefold()): item
+            for item in prerequisites
+            if item.get("type") == "python-package"
+        }
 
         if "allure" in environment:
             assert lane.get("extras") == ["allure"], lane
             assert packages.get("allure-python-commons-test", {}).get("version") == "2.16.0", packages
+            assert any(
+                item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites
+            ), prerequisites
+            commands = _resolved_tox_configurations(context).get(environment, {}).get("commands", [])
+            assert any("features/compatibility/optional-struct-bdd-extra.feature" in command for command in commands), (
+                environment,
+                commands,
+            )
+            continue
+
+        if "struct-bdd" in environment:
+            assert lane.get("extras") == ["struct-bdd"], lane
+            assert {"hjson", "json5", "pyhocon", "pyyaml"} <= packages.keys(), packages
+            assert any(
+                item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites
+            ), prerequisites
+            commands = _resolved_tox_configurations(context).get(environment, {}).get("commands", [])
+            assert any("features/compatibility/optional-struct-bdd-extra.feature" in command for command in commands), (
+                environment,
+                commands,
+            )
+            continue
+
+        if "debug-mcp" in environment:
+            assert lane.get("extras") == ["debug-mcp"], lane
+            expected_packages = {
+                "mcp-pdb": ">=0.6,<0.7",
+                "mcp": ">=1.24,<2",
+                "uvicorn": ">=0.34",
+                "pydantic": ">=2.0.3",
+            }
+            assert all(packages.get(name, {}).get("version") == version for name, version in expected_packages.items()), (
+                packages,
+                expected_packages,
+            )
+            assert any(
+                item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites
+            ), prerequisites
+            commands = _resolved_tox_configurations(context).get(environment, {}).get("commands", [])
+            assert any(
+                "features/debug-mcp-failure-inspection.feature" in command and "-m e2e" in command
+                for command in commands
+            ), (environment, commands)
             continue
 
         assert lane.get("extras") == [], lane
@@ -1458,8 +1551,150 @@ def optional_integration_evidence_has_separate_aggregate_group(consumer: Any) ->
     )
     inventory_summary = _report(context).get("inventory", {}).get("optionalIntegrations")
     assert isinstance(inventory_summary, dict), inventory_summary
-    assert inventory_summary.get("cellCount") == 7, inventory_summary
-    assert inventory_summary.get("environmentCount") == 7, inventory_summary
+    assert inventory_summary.get("cellCount") == 9, inventory_summary
+    assert inventory_summary.get("environmentCount") == 9, inventory_summary
+
+
+@then("optional integration evidence should include the StructBDD environment")
+def optional_integration_evidence_includes_struct_bdd(consumer: Any) -> None:
+    environments = _report(_context(consumer)).get("inventory", {}).get("optionalIntegrations", {}).get("environments")
+    assert isinstance(environments, list), environments
+    assert "py314-struct-bdd" in environments, environments
+
+
+@then("optional integration evidence should include the Debug MCP environment")
+def optional_integration_evidence_includes_debug_mcp(consumer: Any) -> None:
+    environments = _report(_context(consumer)).get("inventory", {}).get("optionalIntegrations", {}).get("environments")
+    assert isinstance(environments, list), environments
+    assert "py314-debug-mcp" in environments, environments
+
+
+@then("required runtime tox environments should not install the StructBDD extra")
+def required_runtime_tox_environments_omit_struct_bdd_extra(consumer: Any) -> None:
+    context = _context(consumer)
+    tox_configurations = _resolved_tox_configurations(context)
+    required_environments = {
+        str(environment)
+        for cell in _required_runtime_cells(context)
+        for environment in cell.get("required_ci", {}).get("tox_envs", [])
+    }
+    assert required_environments, "the inventory must declare required core runtime tox environments"
+
+    violations = {
+        environment: configuration
+        for environment in sorted(required_environments)
+        if (configuration := tox_configurations.get(environment)) is None
+        or any("struct-bdd" in value.casefold() for field in ("deps", "extras") for value in configuration[field])
+    }
+    assert not violations, (
+        "required core runtime tox environments must keep the optional StructBDD extra out of their install set; "
+        f"resolved violations={violations!r}"
+    )
+
+
+@then("the optional StructBDD integration cell should install and run its acceptance feature")
+def optional_struct_bdd_cell_installs_and_runs_acceptance_feature(consumer: Any) -> None:
+    context = _context(consumer)
+    cell_id = "struct-bdd-py314-linux"
+    environment_name = "py314-struct-bdd"
+    feature_path = "features/struct-bdd-discovery/struct-bdd-autoload-discovery.feature"
+    isolated_extra_feature_path = "features/compatibility/optional-struct-bdd-extra.feature"
+    cells = [
+        cell
+        for cell in context.document.get("workflow_cells", [])
+        if isinstance(cell, dict) and cell.get("id") == cell_id
+    ]
+    assert len(cells) == 1, f"the workflow inventory must declare exactly one {cell_id!r} cell: {cells!r}"
+    cell = cells[0]
+    assert cell.get("job") == "optional-integrations", cell
+    assert cell.get("platform") == "linux" and cell.get("python") == "3.14", cell
+    assert cell.get("tox_envs") == [environment_name], cell
+
+    lanes = [lane for lane in _lanes(context) if _lane_id(lane) == cell_id]
+    assert len(lanes) == 1, f"the environment inventory must declare exactly one {cell_id!r} lane: {lanes!r}"
+    lane = lanes[0]
+    assert _status(lane) == "required", lane
+    assert lane.get("tox_env") == environment_name, lane
+    assert lane.get("workflow_selector") == cell_id, lane
+    assert lane.get("extras") == ["struct-bdd"], lane
+
+    prerequisites = _prerequisite_entries(lane)
+    package_names = {
+        re.sub(r"[-_.]+", "-", str(item.get("name", "")).casefold())
+        for item in prerequisites
+        if item.get("type") == "python-package"
+    }
+    assert {"hjson", "json5", "pyhocon", "pyyaml"} <= package_names, prerequisites
+    assert any(
+        item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites
+    ), prerequisites
+
+    carrier = _carrier(lane)
+    assert carrier.get("kind") == "pytest" and carrier.get("path") == feature_path, carrier
+    assert "-m e2e" in str(carrier.get("command", "")), carrier
+
+    configurations = _resolved_tox_configurations(context)
+    configuration = configurations.get(environment_name)
+    assert configuration is not None, f"tox does not resolve the optional StructBDD environment {environment_name!r}"
+    resolved_install_inputs = [*configuration["deps"], *configuration["extras"]]
+    assert any("struct-bdd" in value.casefold() for value in resolved_install_inputs), configuration
+    assert any(value.casefold().startswith("uv>=0.8") for value in configuration["deps"]), configuration
+    resolved_commands = "\n".join(configuration["commands"])
+    assert feature_path in resolved_commands and "-m e2e" in resolved_commands, configuration
+    assert isolated_extra_feature_path in resolved_commands, configuration
+
+
+@then("the optional Debug MCP integration cell should install and run its acceptance feature")
+def optional_debug_mcp_cell_installs_and_runs_acceptance_feature(consumer: Any) -> None:
+    context = _context(consumer)
+    cell_id = "debug-mcp-py314-linux"
+    environment_name = "py314-debug-mcp"
+    feature_path = "features/debug-mcp-failure-inspection.feature"
+    cells = [
+        cell
+        for cell in context.document.get("workflow_cells", [])
+        if isinstance(cell, dict) and cell.get("id") == cell_id
+    ]
+    assert len(cells) == 1, f"the workflow inventory must declare exactly one {cell_id!r} cell: {cells!r}"
+    cell = cells[0]
+    assert cell.get("job") == "optional-integrations", cell
+    assert cell.get("platform") == "linux" and cell.get("python") == "3.14", cell
+    assert cell.get("tox_envs") == [environment_name], cell
+
+    lanes = [lane for lane in _lanes(context) if _lane_id(lane) == cell_id]
+    assert len(lanes) == 1, f"the environment inventory must declare exactly one {cell_id!r} lane: {lanes!r}"
+    lane = lanes[0]
+    assert _status(lane) == "required", lane
+    assert lane.get("tox_env") == environment_name, lane
+    assert lane.get("workflow_selector") == cell_id, lane
+    assert lane.get("extras") == ["debug-mcp"], lane
+
+    prerequisites = _prerequisite_entries(lane)
+    package_requirements = {
+        re.sub(r"[-_.]+", "-", str(item.get("name", "")).casefold()): item.get("version")
+        for item in prerequisites
+        if item.get("type") == "python-package"
+    }
+    assert package_requirements == {
+        "mcp-pdb": ">=0.6,<0.7",
+        "mcp": ">=1.24,<2",
+        "uvicorn": ">=0.34",
+        "pydantic": ">=2.0.3",
+    }, prerequisites
+    assert any(item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites), prerequisites
+
+    carrier = _carrier(lane)
+    assert carrier.get("kind") == "pytest" and carrier.get("path") == feature_path, carrier
+    assert "-m e2e" in str(carrier.get("command", "")), carrier
+
+    configurations = _resolved_tox_configurations(context)
+    configuration = configurations.get(environment_name)
+    assert configuration is not None, f"tox does not resolve the optional Debug MCP environment {environment_name!r}"
+    resolved_install_inputs = [*configuration["deps"], *configuration["extras"]]
+    assert any("debug-mcp" in value.casefold() for value in resolved_install_inputs), configuration
+    assert any(value.casefold().startswith("uv>=0.8") for value in configuration["deps"]), configuration
+    resolved_commands = "\n".join(configuration["commands"])
+    assert feature_path in resolved_commands and "-m e2e" in resolved_commands, configuration
 
 
 @when("I probe a declared optional capability lane")
@@ -1711,6 +1946,8 @@ def local_uv_evidence_matches_tox_acceptance_environments(
     expected_uv_environments.update(
         {
             "py314-pytestlatest-playwright-report",
+            "py314-debug-mcp",
+            "py314-struct-bdd",
             "py313-live-formatters-acceptance-lin",
             "py313-live-formatters-acceptance-mac",
             "py313-live-formatters-acceptance-win",

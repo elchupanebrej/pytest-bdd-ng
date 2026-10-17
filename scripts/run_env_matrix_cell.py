@@ -20,6 +20,7 @@ from environment_evidence import (
     TEST_EVIDENCE_GROUPS,
     evidence_group,
     normalize_architecture,
+    normalize_runtime_name,
     required_optional_versions,
     required_system_tool_versions,
     system_tool_version_command,
@@ -90,9 +91,8 @@ def _installed_versions(python: Path) -> dict[str, Any]:
             "installed = {dist.metadata['Name'].casefold(): dist.version for dist in metadata.distributions()}",
             "versions = {name: installed.get(name.casefold()) for name in names}",
             "implementation = platform.python_implementation()",
-            "runtime = 'GraalPy' if implementation == 'GraalVM' else implementation",
             "payload = {'python': platform.python_version(),",
-            "'runtime': runtime, 'packages': versions}",
+            "'runtime': implementation, 'packages': versions}",
             "print(json.dumps(payload))",
         )
     )
@@ -102,11 +102,9 @@ def _installed_versions(python: Path) -> dict[str, Any]:
     )
     if result.returncode:
         raise RuntimeError(f"cannot inspect tox environment with {python}: {result.stderr.strip()}")
-    return json.loads(result.stdout)
-
-
-def _normalized_runtime(value: str) -> str:
-    return "GraalPy" if value == "GraalVM" else value
+    payload = json.loads(result.stdout)
+    payload["runtime"] = normalize_runtime_name(payload.get("runtime"))
+    return payload
 
 
 def _verify_selected_runtime(cell: dict[str, Any]) -> list[str]:
@@ -119,7 +117,7 @@ def _verify_selected_runtime(cell: dict[str, Any]) -> list[str]:
         return []
 
     problems: list[str] = []
-    actual_runtime = _normalized_runtime(platform.python_implementation())
+    actual_runtime = normalize_runtime_name(platform.python_implementation())
     if actual_runtime != expected_runtime:
         problems.append(f"runtime={actual_runtime!r}, expected {expected_runtime!r}")
 

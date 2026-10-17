@@ -9,7 +9,6 @@ import pytest
 from attr import asdict
 from attr.exceptions import NotAnAttrsClassError
 from pluggy import HookimplMarker
-from pydantic import BaseModel as PydanticBaseModel
 
 from pytest_cuke.compatibility.allure import ALLURE_INSTALLED
 from pytest_cuke.compatibility.pytest import PYTEST81
@@ -25,6 +24,16 @@ if TYPE_CHECKING:
 
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
+
+
+def _is_pydantic_model(value: object) -> bool:
+    try:
+        from pydantic import BaseModel
+    except ModuleNotFoundError as error:
+        if error.name == "pydantic":
+            return False
+        raise
+    return isinstance(value, BaseModel)
 
 
 class _StepDecorator(Protocol):
@@ -182,7 +191,7 @@ class AllurePytestBDD:
     def report_result(self, result: Any) -> Iterator[None]:
         def patched_asdict(*args: Any, recurse: bool = True, value_serializer: Any = None, **kwargs: Any) -> Any:
             def patched_value_serializer(instance: Any, field: Any, value: Any) -> Any:
-                if isinstance(value, PydanticBaseModel):
+                if _is_pydantic_model(value):
                     # Maybe possible to speedup; Some values are not serialized when used value.dict()
                     return json.loads(value.model_dump_json())
                 if value_serializer is not patched_value_serializer:

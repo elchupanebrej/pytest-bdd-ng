@@ -6,6 +6,7 @@ import pytest
 
 from pytest_cuke.compatibility.environment_matrix import (
     _validate_historical_capability_exclusions,
+    _validate_optional_integration_inventory,
     _validate_runtime_policy,
 )
 
@@ -352,3 +353,103 @@ def test_runtime_policy_rejects_missing_measured_evidence_fields() -> None:
     _, diagnostics = _validate_runtime_policy(document, lanes, workflow_cells)
 
     assert any(item["code"] == "runtime-policy-evidence-fields-missing" for item in diagnostics)
+
+
+def _optional_integration_records() -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
+    environments = [
+        "py313-pytest84-allure-coverage-lin",
+        *(
+            f"py314-pytestlatest-{gherkin}-xdist-coverage-{platform_suffix}"
+            for gherkin in ("gherkin33", "gherkinlatest")
+            for platform_suffix in ("lin", "mac", "win")
+        ),
+        "py314-debug-mcp",
+        "py314-struct-bdd",
+    ]
+    workflow_cells = [
+        {
+            "id": environment,
+            "job": "optional-integrations",
+            "tox_envs": [environment],
+        }
+        for environment in environments
+    ]
+    lanes: list[dict[str, Any]] = []
+    for cell in workflow_cells:
+        environment = cell["tox_envs"][0]
+        lane: dict[str, Any] = {
+            "id": environment,
+            "status": "required",
+            "workflow_selector": environment,
+            "tox_env": environment,
+            "extras": [],
+            "prerequisites": [],
+        }
+        if "allure" in environment:
+            lane["extras"] = ["allure"]
+            lane["prerequisites"] = [
+                {"type": "python-package", "name": "allure-python-commons-test", "version": "2.16.0"}
+            ] + [{"type": "command", "name": "uv"}]
+        elif "debug-mcp" in environment:
+            lane["extras"] = ["debug-mcp"]
+            lane["prerequisites"] = [
+                {"type": "python-package", "name": package, "version": requirement}
+                for package, requirement in (
+                    ("mcp-pdb", ">=0.6,<0.7"),
+                    ("mcp", ">=1.24,<2"),
+                    ("uvicorn", ">=0.34"),
+                    ("pydantic", ">=2.0.3"),
+                )
+            ] + [{"type": "command", "name": "uv"}]
+        elif "struct-bdd" in environment:
+            lane["extras"] = ["struct-bdd"]
+            lane["prerequisites"] = [
+                {"type": "python-package", "name": package, "version": "latest"}
+                for package in ("hjson", "json5", "pyhocon", "PyYAML")
+            ] + [{"type": "command", "name": "uv"}]
+        else:
+            gherkin = "gherkin-official>=33,<34" if "gherkin33" in environment else "gherkin-official"
+            lane["prerequisites"] = [
+                {"type": "python-package", "name": "pytest-xdist", "version": "<4"},
+                {"type": "python-package", "name": "gherkin-official", "requirement": gherkin},
+            ]
+        lanes.append(lane)
+
+    document = {"project": {"evidence": {"aggregate_groups": ["optional"]}}, "runtime_policy": {"required_cells": []}}
+    return document, lanes, workflow_cells
+
+
+def test_optional_integration_policy_accepts_an_isolated_struct_bdd_lane() -> None:
+    document, lanes, workflow_cells = _optional_integration_records()
+
+    summary, diagnostics = _validate_optional_integration_inventory(document, lanes, workflow_cells)
+
+    assert diagnostics == []
+    assert summary["cellCount"] == 9
+    assert summary["environmentCount"] == 9
+    assert "py314-debug-mcp" in summary["environments"]
+    assert "py314-struct-bdd" in summary["environments"]
+
+
+def test_optional_integration_policy_requires_struct_bdd_packages_and_uv() -> None:
+    document, lanes, workflow_cells = _optional_integration_records()
+    struct_bdd_lane = next(lane for lane in lanes if lane["id"] == "py314-struct-bdd")
+    struct_bdd_lane["prerequisites"] = [
+        item for item in struct_bdd_lane["prerequisites"] if item.get("name") not in {"json5", "uv"}
+    ]
+
+    _, diagnostics = _validate_optional_integration_inventory(document, lanes, workflow_cells)
+
+    assert any(item["code"] == "optional-struct-bdd-prerequisites-invalid" for item in diagnostics)
+
+
+def test_optional_integration_policy_requires_debug_mcp_packages_and_uv() -> None:
+    document, lanes, workflow_cells = _optional_integration_records()
+    debug_mcp_lane = next(lane for lane in lanes if lane["id"] == "py314-debug-mcp")
+    debug_mcp_lane["prerequisites"] = [
+        item for item in debug_mcp_lane["prerequisites"] if item.get("name") not in {"mcp", "uv"}
+    ]
+
+    _, diagnostics = _validate_optional_integration_inventory(document, lanes, workflow_cells)
+
+    assert any(item["code"] == "optional-debug-mcp-prerequisites-invalid" for item in diagnostics)

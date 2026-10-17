@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import importlib.util
 from unittest.mock import MagicMock
+
+import pytest
 
 from pytest_cuke.cucumber_json import (
     LogBDDCucumberJSON,
@@ -34,6 +37,12 @@ def test_configure_and_unconfigure() -> None:
     config.option.cuke_json = "report.json"
     config.option.cuke_json_backend = "native"
     del config.workerinput  # simulate master process
+
+    if importlib.util.find_spec("pydantic") is None:
+        with pytest.raises(pytest.UsageError, match=r"install pytest-cuke\[cucumber-json\]"):
+            configure(config)
+        config.pluginmanager.register.assert_not_called()
+        return
 
     configure(config)
     assert hasattr(config, "_bddcucumberjson")

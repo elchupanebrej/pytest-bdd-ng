@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
+pytest.importorskip("pydantic")
+
 from pytest_cuke.debug_mcp.discovery import DiscoveryPublisher
 from pytest_cuke.debug_mcp.plugin import _outline_context
 from pytest_cuke.debug_mcp.xdist import XdistDiscoveryIndex
