@@ -4440,7 +4440,7 @@ def _(testdir: "Testdir", step):
     yield testdir.run(shutil.which("npm"), "install", "--silent", *options_dict.get("packages", []))
 
 
-@step("pytest outcome must contain tests with statuses:")
+@then("pytest outcome must contain tests with statuses:")
 def check_pytest_test_statuses(pytest_result, step):
     outcomes_kwargs = map(attrgetter("value"), step.data_table.rows[0].cells)
     outcomes_kwargs_values = map(compose(int, attrgetter("value")), step.data_table.rows[1].cells)
