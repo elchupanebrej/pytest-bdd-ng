@@ -9,7 +9,7 @@ Feature: Historical environment policy ledger
     And the pinned R support baseline is loaded
     When I run the project environment inventory check in JSON mode
     Then the environment inventory check should pass
-    And the live support ledger should preserve the pinned workflow cells and viable tox environments
+    And the live support ledger should retain the pinned cells and classify retired cells with source-backed policy exclusions
     And historical incompatible tox environments should remain source-backed exclusions
 
   Scenario: The independent baseline detects a viable lane removed from inventory and tox

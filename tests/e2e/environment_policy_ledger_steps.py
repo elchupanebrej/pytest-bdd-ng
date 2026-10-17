@@ -109,6 +109,62 @@ def _cell_source(cell: dict[str, Any]) -> Any:
     return cell.get("source_evidence", cell.get("source"))
 
 
+def _historical_tox_coordinates(tox_env: str) -> tuple[str, str, str] | None:
+    parts = tox_env.split("-")
+    if len(parts) < 2:
+        return None
+    factor = parts[0]
+    if factor.startswith("pypy"):
+        runtime = "PyPy"
+        version_digits = factor.removeprefix("pypy")
+    elif factor.startswith("py"):
+        runtime = "CPython"
+        version_digits = factor.removeprefix("py")
+    else:
+        return None
+    if len(version_digits) < 2 or not version_digits.isdigit():
+        return None
+    platform = {"lin": "linux", "mac": "macos", "win": "windows"}.get(parts[-1])
+    if platform is None:
+        return None
+    python = f"{version_digits[0]}.{version_digits[1:]}"
+    return runtime, python, platform
+
+
+def _current_policy_exclusion(
+    document: dict[str, Any],
+    runtime: str,
+    python: str,
+    platform: str,
+    subject: str,
+    gaps: list[str],
+) -> dict[str, Any] | None:
+    runtime_inventory = document.get("runtime_inventory")
+    exclusions = runtime_inventory.get("exclusions") if isinstance(runtime_inventory, dict) else None
+    if not isinstance(exclusions, list):
+        gaps.append("runtime_inventory.exclusions is missing or is not a list")
+        return None
+    matches = [
+        row
+        for row in exclusions
+        if isinstance(row, dict)
+        and row.get("runtime") == runtime
+        and str(row.get("python")) == python
+        and row.get("platform") in {platform, "all", "any"}
+    ]
+    if len(matches) > 1:
+        gaps.append(f"multiple current runtime exclusions cover {subject}: {[row.get('id') for row in matches]!r}")
+        return None
+    if not matches:
+        return None
+    exclusion = matches[0]
+    evidence = exclusion.get("evidence")
+    source = evidence.get("source") if isinstance(evidence, dict) else None
+    if not str(exclusion.get("exclusion_reason", "")).strip() or not _contains_url(source):
+        gaps.append(f"current runtime exclusion lacks a source-backed reason for {subject}: {exclusion.get('id')!r}")
+    return exclusion
+
+
 def _tox_environment_names(consumer: Any) -> set[str]:
     environment = consumer.env.copy()
     python_directory = str(Path(consumer.python).resolve().parent)
@@ -207,7 +263,24 @@ def _baseline_gaps(
     else:
         gaps.append("workflow_cells is missing or is not a list")
     for key, expected in expected_cell_map.items():
-        if len(workflow_cell_map.get(key, [])) != 1:
+        runtime, python, platform = key
+        exclusion = _current_policy_exclusion(
+            document,
+            runtime,
+            python,
+            platform,
+            f"historical workflow cell {expected.get('id', key)!r}",
+            gaps,
+        )
+        current_workflow_cells = workflow_cell_map.get(key, [])
+        if exclusion is not None:
+            if current_workflow_cells:
+                gaps.append(
+                    f"retired historical workflow cell remains selected by current policy: {key!r}; "
+                    f"exclusion={exclusion.get('id')!r}"
+                )
+            continue
+        if len(current_workflow_cells) != 1:
             gaps.append(
                 f"workflow selector inventory does not preserve historical cell {key!r}; source={_evidence_text(expected.get('source_evidence', []))}"
             )
@@ -242,6 +315,24 @@ def _baseline_gaps(
         source = _evidence_text(expected["source_evidence"])
         disposition = expected["disposition"]
         matches = provenance_by_tox.get(tox_env, [])
+        coordinates = _historical_tox_coordinates(tox_env)
+        exclusion = (
+            _current_policy_exclusion(
+                document,
+                *coordinates,
+                f"historical tox environment {row_id} ({tox_env})",
+                gaps,
+            )
+            if coordinates is not None
+            else None
+        )
+        if disposition == "required" and exclusion is not None:
+            if tox_env in tox_names or matches or tox_env in workflow_tox_names:
+                gaps.append(
+                    f"retired historical tox environment remains active: {row_id} ({tox_env}); "
+                    f"exclusion={exclusion.get('id')!r}; source={source}"
+                )
+            continue
         if disposition == "excluded":
             if tox_env in tox_names:
                 gaps.append(f"excluded historical tox environment is active: {row_id} ({tox_env}); source={source}")
@@ -369,8 +460,8 @@ def pinned_r_support_baseline_is_loaded(request: Any, consumer: Any) -> Historic
     return HistoricalEnvironmentBaselineContext(consumer, baseline, baseline_path)
 
 
-@then("the live support ledger should preserve the pinned workflow cells and viable tox environments")
-def live_support_ledger_preserves_pinned_matrix(
+@then("the live support ledger should retain the pinned cells and classify retired cells with source-backed policy exclusions")
+def live_support_ledger_retains_historical_cells_and_current_exclusions(
     historical_environment_baseline: HistoricalEnvironmentBaselineContext,
 ) -> None:
     context = historical_environment_baseline
