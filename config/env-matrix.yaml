@@ -2756,15 +2756,15 @@ lanes:
   expected_carrier:
     kind: none
     path: pyproject.toml
-  reason: The distribution requires Python >=3.10; pytest environments on Python 3.9 cannot be installed as product-supported
+  reason: The distribution requires Python >=3.11; pytest environments on Python 3.9 cannot be installed as product-supported
     lanes.
   source_evidence:
-  - 'pyproject.toml: project.requires-python >=3.10'
-  - https://github.com/elchupanebrej/pytest-bdd-ng/issues/200
+  - 'pyproject.toml: project.requires-python >=3.11'
+  - https://github.com/elchupanebrej/pytest-bdd-ng/issues/319
 - id: pytest6-unsupported
   status: unsupported
   runtime: CPython
-  python: '3.10'
+  python: '3.11'
   pytest: 6.2.5
   platform: linux
   capability: pytest-floor-exclusion
