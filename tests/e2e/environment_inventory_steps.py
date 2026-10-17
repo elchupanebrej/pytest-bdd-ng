@@ -1485,9 +1485,9 @@ def optional_integration_lanes_declare_extras_and_package_constraints(consumer: 
         if "allure" in environment:
             assert lane.get("extras") == ["allure"], lane
             assert packages.get("allure-python-commons-test", {}).get("version") == "2.16.0", packages
-            assert any(
-                item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites
-            ), prerequisites
+            assert any(item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites), (
+                prerequisites
+            )
             commands = _resolved_tox_configurations(context).get(environment, {}).get("commands", [])
             assert any("features/compatibility/optional-struct-bdd-extra.feature" in command for command in commands), (
                 environment,
@@ -1498,9 +1498,9 @@ def optional_integration_lanes_declare_extras_and_package_constraints(consumer: 
         if "struct-bdd" in environment:
             assert lane.get("extras") == ["struct-bdd"], lane
             assert {"hjson", "json5", "pyhocon", "pyyaml"} <= packages.keys(), packages
-            assert any(
-                item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites
-            ), prerequisites
+            assert any(item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites), (
+                prerequisites
+            )
             commands = _resolved_tox_configurations(context).get(environment, {}).get("commands", [])
             assert any("features/compatibility/optional-struct-bdd-extra.feature" in command for command in commands), (
                 environment,
@@ -1516,16 +1516,22 @@ def optional_integration_lanes_declare_extras_and_package_constraints(consumer: 
                 "uvicorn": ">=0.34",
                 "pydantic": ">=2.0.3",
             }
-            assert all(packages.get(name, {}).get("version") == version for name, version in expected_packages.items()), (
+            assert all(
+                packages.get(name, {}).get("version") == version for name, version in expected_packages.items()
+            ), (
                 packages,
                 expected_packages,
             )
-            assert any(
-                item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites
-            ), prerequisites
+            assert any(item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites), (
+                prerequisites
+            )
             commands = _resolved_tox_configurations(context).get(environment, {}).get("commands", [])
             assert any(
                 "features/debug-mcp-failure-inspection.feature" in command and "-m e2e" in command
+                for command in commands
+            ), (environment, commands)
+            assert any(
+                "features/debug-mcp-xdist-worker-discovery.feature" in command and "-m e2e" in command
                 for command in commands
             ), (environment, commands)
             continue
@@ -1625,9 +1631,7 @@ def optional_struct_bdd_cell_installs_and_runs_acceptance_feature(consumer: Any)
         if item.get("type") == "python-package"
     }
     assert {"hjson", "json5", "pyhocon", "pyyaml"} <= package_names, prerequisites
-    assert any(
-        item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites
-    ), prerequisites
+    assert any(item.get("type") == "command" and item.get("name") == "uv" for item in prerequisites), prerequisites
 
     carrier = _carrier(lane)
     assert carrier.get("kind") == "pytest" and carrier.get("path") == feature_path, carrier
@@ -1650,6 +1654,7 @@ def optional_debug_mcp_cell_installs_and_runs_acceptance_feature(consumer: Any) 
     cell_id = "debug-mcp-py314-linux"
     environment_name = "py314-debug-mcp"
     feature_path = "features/debug-mcp-failure-inspection.feature"
+    worker_feature_path = "features/debug-mcp-xdist-worker-discovery.feature"
     cells = [
         cell
         for cell in context.document.get("workflow_cells", [])
@@ -1685,7 +1690,8 @@ def optional_debug_mcp_cell_installs_and_runs_acceptance_feature(consumer: Any) 
 
     carrier = _carrier(lane)
     assert carrier.get("kind") == "pytest" and carrier.get("path") == feature_path, carrier
-    assert "-m e2e" in str(carrier.get("command", "")), carrier
+    carrier_command = str(carrier.get("command", ""))
+    assert "-m e2e" in carrier_command and worker_feature_path in carrier_command, carrier
 
     configurations = _resolved_tox_configurations(context)
     configuration = configurations.get(environment_name)
@@ -1694,7 +1700,9 @@ def optional_debug_mcp_cell_installs_and_runs_acceptance_feature(consumer: Any) 
     assert any("debug-mcp" in value.casefold() for value in resolved_install_inputs), configuration
     assert any(value.casefold().startswith("uv>=0.8") for value in configuration["deps"]), configuration
     resolved_commands = "\n".join(configuration["commands"])
-    assert feature_path in resolved_commands and "-m e2e" in resolved_commands, configuration
+    assert (
+        feature_path in resolved_commands and worker_feature_path in resolved_commands and "-m e2e" in resolved_commands
+    ), configuration
 
 
 @when("I probe a declared optional capability lane")

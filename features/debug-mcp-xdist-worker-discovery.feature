@@ -1,3 +1,4 @@
+@e2e
 Feature: Debug MCP xdist worker discovery
   An xdist controller advertises each worker's active failure through its own MCP endpoints.
 

@@ -1,3 +1,4 @@
+@e2e
 Feature: Live Cucumber Pretty formatter
   The optional Cucumber PrettyPrinter follows pytest selection, output, and
   lifecycle behavior while rendering a live installed-consumer run.
