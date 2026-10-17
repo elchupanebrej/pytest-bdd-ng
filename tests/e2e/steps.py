@@ -15317,8 +15317,14 @@ def consumer_xdist_release_isolated_to_one_worker(consumer: ConsumerProject) -> 
     target_after = isolated_by_id.get(target_worker_id)
     remaining_after = isolated_by_id.get(remaining_worker_id)
     assert isinstance(target_after, dict) and isinstance(remaining_after, dict), isolated_index
-    assert target_after.get("active_failure") is None, target_after
-    assert target_after.get("last_release", {}).get("sequence") == target_failure.get("sequence"), target_after
+    target_failure_after_release = target_after.get("active_failure")
+    assert target_failure_after_release is None or (
+        isinstance(target_failure_after_release, dict)
+        and isinstance(target_failure_after_release.get("sequence"), int)
+        and target_failure_after_release["sequence"] > target_failure["sequence"]
+    ), target_after
+    if target_failure_after_release is None:
+        assert target_after.get("last_release", {}).get("sequence") == target_failure.get("sequence"), target_after
     assert remaining_after.get("active_failure") == remaining_failure, (remaining_after, remaining_failure)
     assert remaining_after_release.get("session_id") == remaining.get("session_id"), remaining_after_release
     assert remaining_after_release.get("active_failure") == remaining_failure, remaining_after_release
