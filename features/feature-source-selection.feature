@@ -151,6 +151,24 @@ Feature: Invocation-level feature source selection
     And pytest output should include "missing-features"
     And pytest output should include "does not exist"
 
+  Scenario: An invalid INI feature root reports its targeted error without explicit bindings
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And pytest configuration:
+      """toml
+      [tool.pytest.ini_options]
+      cuke_autoload = true
+      cuke_features_dir = "missing-features"
+      """
+    And consumer file "test_plain.py" contains:
+      """python
+      def test_plain_consumer():
+          pass
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=python -q"
+    Then pytest should exit with a non-zero code
+    And pytest output should include "Selected feature root from cuke_features_dir does not exist"
+    And pytest output should include "missing-features"
+
   Scenario: A valid explicit binding keeps its source when the autoload root is missing
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And consumer file "conftest.py" contains:
@@ -176,6 +194,42 @@ Feature: Invocation-level feature source selection
       test_explicit_source = scenarios("binding.feature", features_base_dir="binding-features")
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=missing-features -q"
+    Then pytest should exit with code 0
+    And the test outcome should have 1 passed scenarios
+
+  Scenario: An explicitly rooted scenario uses its root when the autoload INI root is missing
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And pytest configuration:
+      """toml
+      [tool.pytest.ini_options]
+      cuke_autoload = true
+      cuke_features_dir = "missing-features"
+      """
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+
+      @given("the imperative explicit feature is available")
+      def imperative_explicit_feature_is_available():
+          pass
+      """
+    And consumer file "features/explicit.feature" contains:
+      """gherkin
+      Feature: Imperative explicit binding source
+        Scenario: The explicit feature root is used
+          Given the imperative explicit feature is available
+      """
+    And consumer file "test_imperative_explicit_source.py" contains:
+      """python
+      from pytest_cuke import scenario
+
+
+      @scenario("explicit.feature", "The explicit feature root is used", features_base_dir="features")
+      def test_explicit_source():
+          pass
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=python -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
 

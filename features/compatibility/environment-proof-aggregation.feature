@@ -23,11 +23,11 @@ Feature: Aggregate the full supported environment proof
     Then the proof summary should pass and include every inventory environment
     And host tox evidence should match each environment's resolved tox run command
 
-  Scenario: Core CPython and GraalPy coverage evidence omits tox-local uv
+  Scenario: Core CPython and GraalPy coverage evidence includes tox-local uv
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
     When I run the full environment proof aggregator
     Then the proof summary should pass and include every inventory environment
-    And core CPython and GraalPy coverage evidence should omit tox-local uv
+    And core CPython and GraalPy coverage evidence should include tox-local uv
 
   Scenario: The aggregator rejects required runtime evidence without its architecture
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory

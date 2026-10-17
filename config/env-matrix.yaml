@@ -216,6 +216,7 @@ runtime_policy:
       platform: linux
       architecture: x86_64
       setup_python: {input: pypy3.12, expected_interpreter: "3.12.*"}
+      tox_base_python: pypy3.12
       upstream_availability: *pypy_source
       installability: *core_installability
       product_support: *product_supported
@@ -229,10 +230,11 @@ runtime_policy:
       platform: linux
       architecture: x86_64
       setup_python: {input: graalpy-25.3, expected_interpreter: "3.13.14"}
+      tox_base_python: graalpy
       upstream_availability: *graalpy_source
       installability: *core_installability
       product_support: *product_supported
-      required_ci: {status: required, workflow_cell: graalpy-253-linux, tox_envs: [graalpy253-pytestlatest-coverage-lin]}
+      required_ci: {status: required, workflow_cell: graalpy-253-linux, tox_envs: [graalpy-253-pytestlatest-coverage-lin]}
       required_pytest_lines: ["9.x"]
       measured_evidence: {status: per-run, fields: *runtime_evidence_fields}
   exclusions:
@@ -245,9 +247,21 @@ runtime_policy:
       status: available
       source_evidence:
       - https://www.python.org/downloads/
+    installability:
+      status: incompatible
+      reason: The package metadata requires Python >=3.11.
     product_support:
       status: unsupported
       reason: The current product minimum is Python 3.11.
+    required_ci:
+      status: excluded
+      workflow_cell: null
+      tox_envs: []
+      reason: CPython 3.10 is below the declared package floor.
+    measured_evidence:
+      status: not-run
+      fields: *runtime_evidence_fields
+      reason: No acceptance run is required for a package-incompatible runtime.
     reason: 'The #300 runtime policy raises the product minimum to Python 3.11.'
     source_evidence:
     - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
@@ -260,9 +274,21 @@ runtime_policy:
       status: available
       source_evidence:
       - https://www.pypy.org/download.html
+    installability:
+      status: incompatible
+      reason: The package metadata requires Python >=3.11.
     product_support:
       status: unsupported
       reason: The product minimum is Python 3.11.
+    required_ci:
+      status: excluded
+      workflow_cell: null
+      tox_envs: []
+      reason: PyPy 3.10 is below the declared package floor.
+    measured_evidence:
+      status: not-run
+      fields: *runtime_evidence_fields
+      reason: No acceptance run is required for a package-incompatible runtime.
     reason: PyPy 3.10 is below the product minimum of Python 3.11.
     source_evidence:
     - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
@@ -275,9 +301,21 @@ runtime_policy:
       status: available
       source_evidence:
       - https://www.pypy.org/download.html
+    installability:
+      status: not-assessed
+      reason: PyPy 3.11 is outside the resolved acceptance matrix, so installation compatibility is not claimed.
     product_support:
       status: unsupported
       reason: The resolved runtime policy selects PyPy 3.12 on Linux x86_64.
+    required_ci:
+      status: excluded
+      workflow_cell: null
+      tox_envs: []
+      reason: The resolved runtime policy requires PyPy 3.12 on Linux x86_64.
+    measured_evidence:
+      status: not-run
+      fields: *runtime_evidence_fields
+      reason: PyPy 3.11 has no required acceptance lane under the resolved runtime policy.
     reason: 'The #300 runtime policy retires PyPy 3.11 in favor of PyPy 3.12 on Linux
       x86_64.'
     source_evidence:
@@ -414,9 +452,9 @@ support_ledger:
     source_evidence:
     - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
   lane_provenance:
-  - id: inventory-tox-graalpy253-pytestlatest-coverage-lin
+  - id: inventory-tox-graalpy-253-pytestlatest-coverage-lin
     lane_id: graalpy-253-linux
-    tox_env: graalpy253-pytestlatest-coverage-lin
+    tox_env: graalpy-253-pytestlatest-coverage-lin
     origin: added
     disposition: required
     source_evidence:
@@ -1210,7 +1248,7 @@ workflow_cells:
   setup_python_input: graalpy-25.3
   expected_interpreter: 3.13.14
   tox_envs:
-  - graalpy253-pytestlatest-coverage-lin
+  - graalpy-253-pytestlatest-coverage-lin
   runtime_version: '25.3'
 - id: allure-py313-linux
   job: optional-integrations
@@ -1585,9 +1623,9 @@ lanes:
   pytest: latest
   platform: linux
   capability: core-runtime-acceptance
-  tox_env: graalpy253-pytestlatest-coverage-lin
+  tox_env: graalpy-253-pytestlatest-coverage-lin
   workflow_selector: graalpy-253-linux
-  command: tox run -e graalpy253-pytestlatest-coverage-lin
+  command: tox run -e graalpy-253-pytestlatest-coverage-lin
   prerequisites:
   - type: python-package
     name: pytest

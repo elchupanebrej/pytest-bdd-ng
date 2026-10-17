@@ -4,7 +4,6 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-
 NOT_EXISTING_FEATURE_PATHS = [".", "/does/not/exist/"]
 
 
@@ -12,7 +11,7 @@ def test_feature_path_ok(testdir):
     base_dir = "features"
     prepare_testdir(testdir, base_dir)
 
-    result = testdir.runpytest("-k", "test_ok_by_ini")
+    result = testdir.runpytest("--cuke-no-autoload", "-k", "test_ok_by_ini")
     result.assert_outcomes(passed=2)
 
 
@@ -22,7 +21,7 @@ def test_feature_path_by_param_ok(testdir, base_dir):
     to find features"""
     prepare_testdir(testdir, base_dir)
 
-    result = testdir.runpytest("-k", "test_ok_by_param")
+    result = testdir.runpytest("--cuke-no-autoload", "-k", "test_ok_by_param")
     result.assert_outcomes(passed=2)
 
 

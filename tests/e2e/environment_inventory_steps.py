@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import configparser
+import importlib
 import json
 import os
 import platform
@@ -15,6 +16,7 @@ import sys
 from dataclasses import dataclass
 from importlib.metadata import version as distribution_version
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -538,6 +540,230 @@ def tox_selector_fragments_remain_separate_from_configured_environments(consumer
     assert not (set(selector_fragments) & active_environments), (selector_fragments, active_environments)
 
 
+@then("resolved tox base Python selectors should match inventory tox_base_python for PyPy and GraalPy")
+def alternative_runtime_tox_base_python_matches_inventory(consumer: Any) -> None:
+    context = _context(consumer)
+    alternative_cells = {
+        str(cell.get("runtime", "")).casefold(): cell
+        for cell in _required_runtime_cells(context)
+        if str(cell.get("runtime", "")).casefold() in {"pypy", "graalpy"}
+    }
+    assert set(alternative_cells) == {"pypy", "graalpy"}, alternative_cells
+
+    expected_setup_inputs = {"pypy": "pypy3.12", "graalpy": "graalpy-25.3"}
+    problems: list[str] = []
+    for runtime, cell in alternative_cells.items():
+        setup_python = cell.get("setup_python")
+        setup_python_input = setup_python.get("input") if isinstance(setup_python, dict) else None
+        expected_setup_input = expected_setup_inputs[runtime]
+        if setup_python_input != expected_setup_input:
+            problems.append(
+                f"{runtime} setup_python.input is {setup_python_input!r}; "
+                f"Actions setup input must remain {expected_setup_input!r}"
+            )
+
+        expected_base_python = cell.get("tox_base_python")
+        if not isinstance(expected_base_python, str) or not expected_base_python:
+            problems.append(f"{runtime} cell {cell.get('id')!r} has no tox_base_python: {expected_base_python!r}")
+            continue
+
+        required_ci = cell.get("required_ci")
+        tox_environments = required_ci.get("tox_envs") if isinstance(required_ci, dict) else None
+        if not isinstance(tox_environments, list) or not tox_environments:
+            problems.append(f"{runtime} cell {cell.get('id')!r} has no required tox environments: {required_ci!r}")
+            continue
+
+        for environment_name in tox_environments:
+            result = subprocess.run(
+                ["tox", "config", "-e", str(environment_name), "-k", "base_python"],
+                cwd=consumer.path,
+                env=_inventory_command_environment(consumer),
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            match = re.search(r"^base_python\s*=\s*(.*)$", result.stdout, flags=re.MULTILINE)
+            actual_base_python = match.group(1).strip() if match is not None else None
+            if result.returncode != 0:
+                problems.append(
+                    f"{environment_name} tox config failed with exit {result.returncode}: "
+                    f"{result.stdout.strip()} {result.stderr.strip()}"
+                )
+            if actual_base_python != expected_base_python:
+                problems.append(
+                    f"{environment_name} resolved base_python {actual_base_python!r}; "
+                    f"inventory {runtime} tox_base_python is {expected_base_python!r}"
+                )
+
+    assert not problems, "alternative runtime tox base_python must match canonical inventory selectors: " + "; ".join(
+        problems
+    )
+
+
+@when(
+    "the matrix runner checks a PyPy cell against a mismatched runtime version and platform",
+    target_fixture="matrix_runner_runtime_preflight",
+)
+def matrix_runner_rejects_mismatched_runtime_before_tox(
+    consumer: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> dict[str, Any]:
+    context = _context(consumer)
+    cell = next(
+        candidate
+        for candidate in _required_runtime_cells(context)
+        if str(candidate.get("runtime", "")).casefold() == "pypy"
+    )
+    runner_cell = dict(cell)
+    setup_python = cell.get("setup_python")
+    assert isinstance(setup_python, dict), cell
+    expected_interpreter = setup_python.get("expected_interpreter")
+    assert isinstance(expected_interpreter, str) and expected_interpreter, setup_python
+    runner_cell["expected_interpreter"] = expected_interpreter
+    required_ci = cell.get("required_ci")
+    assert isinstance(required_ci, dict), cell
+    tox_environments = required_ci.get("tox_envs")
+    assert isinstance(tox_environments, list) and tox_environments, cell
+    runner_cell["tox_envs"] = tox_environments
+
+    scripts_directory = context.repository_root / "scripts"
+    monkeypatch.syspath_prepend(str(scripts_directory))
+    runner = importlib.import_module("run_env_matrix_cell")
+
+    expected_platform = str(runner_cell["platform"])
+    actual_platform = {"linux": "win32", "macos": "linux", "windows": "linux"}[expected_platform]
+    actual_python = "0.0.0"
+    actual_runtime = "CPython"
+    monkeypatch.setattr(
+        runner,
+        "platform",
+        SimpleNamespace(
+            python_implementation=lambda: actual_runtime,
+            python_version=lambda: actual_python,
+            machine=lambda: "x86_64",
+        ),
+    )
+    monkeypatch.setattr(
+        runner,
+        "sys",
+        SimpleNamespace(platform=actual_platform, stdout=sys.stdout, stderr=sys.stderr),
+    )
+    monkeypatch.setattr(runner, "shutil", SimpleNamespace(which=lambda name: "/fake/bin/tox"))
+    monkeypatch.setattr(runner, "load_cells", lambda inventory, job: [runner_cell])
+
+    tox_calls: list[list[str]] = []
+
+    class UnexpectedToxInvocation(RuntimeError):
+        pass
+
+    def record_tox_invocation(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        tox_calls.append(command)
+        raise UnexpectedToxInvocation(f"tox was invoked before runtime validation: {command!r}")
+
+    monkeypatch.setattr(runner, "subprocess", SimpleNamespace(run=record_tox_invocation))
+
+    output_path = tmp_path / "evidence" / "cell.json"
+    inventory_path = tmp_path / "config" / "env-matrix.yaml"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "run_env_matrix_cell.py",
+            "--job",
+            "full-matrix",
+            "--cell",
+            str(runner_cell["id"]),
+            "--inventory",
+            str(inventory_path),
+            "--output",
+            str(output_path),
+            "--sha",
+            "a" * 40,
+        ],
+    )
+
+    tox_invocation_error = None
+    try:
+        return_code = runner.main()
+    except UnexpectedToxInvocation as error:
+        tox_invocation_error = str(error)
+        return_code = None
+    stderr = capsys.readouterr().err
+    return {
+        "return_code": return_code,
+        "stderr": stderr,
+        "tox_calls": tox_calls,
+        "tox_invocation_error": tox_invocation_error,
+        "output_path": output_path,
+        "expected_runtime": str(runner_cell["runtime"]),
+        "expected_python": str(runner_cell["expected_interpreter"]),
+        "expected_platform": expected_platform,
+        "actual_runtime": actual_runtime,
+        "actual_python": actual_python,
+        "actual_platform": actual_platform,
+    }
+
+
+@then("it should reject the cell before invoking tox or writing evidence")
+def matrix_runner_preflight_stops_before_tox(matrix_runner_runtime_preflight: dict[str, Any]) -> None:
+    result = matrix_runner_runtime_preflight
+    assert result["return_code"] == 1, result
+    assert result["tox_calls"] == [], result
+    assert result["tox_invocation_error"] is None, result
+    assert not result["output_path"].exists(), result
+    stderr = result["stderr"]
+    assert "selected runtime does not match inventory cell" in stderr, stderr
+    assert f"runtime={result['actual_runtime']!r}" in stderr, stderr
+    assert f"python={result['actual_python']!r}" in stderr, stderr
+    assert f"platform={result['actual_platform']!r}" in stderr, stderr
+    for dimension in ("runtime", "python", "platform"):
+        assert f"expected {result[f'expected_{dimension}']!r}" in stderr, stderr
+
+
+@then("the CPython 3.14 macOS tox config should include uv>=0.8")
+def cpython_314_macos_runtime_tox_config_installs_uv(consumer: Any) -> None:
+    context = _context(consumer)
+    cell = next(
+        (
+            candidate
+            for candidate in _required_runtime_cells(context)
+            if str(candidate.get("runtime", "")).casefold() == "cpython"
+            and str(candidate.get("python")) == "3.14"
+            and str(candidate.get("platform", "")).casefold() == "macos"
+        ),
+        None,
+    )
+    assert cell is not None, "the runtime inventory must declare CPython 3.14 macOS acceptance"
+    required_ci = cell.get("required_ci")
+    tox_environments = required_ci.get("tox_envs") if isinstance(required_ci, dict) else None
+    assert isinstance(tox_environments, list) and tox_environments, cell
+
+    for environment_name in tox_environments:
+        result = subprocess.run(
+            ["tox", "config", "-e", str(environment_name), "-k", "deps", "--format=json"],
+            cwd=consumer.path,
+            env=_inventory_command_environment(consumer),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"tox config failed for {environment_name}: {result.stdout}\n{result.stderr}"
+        payload = json.loads(result.stdout)
+        environment_config = payload.get("env", {}).get(str(environment_name), {})
+        dependencies = environment_config.get("deps")
+        normalized_dependencies = (
+            {re.sub(r"\s+", "", str(dependency)).casefold() for dependency in dependencies}
+            if isinstance(dependencies, list)
+            else set()
+        )
+        assert "uv>=0.8" in normalized_dependencies, (
+            f"{environment_name} must resolve uv>=0.8 for the isolated consumer acceptance tests; "
+            f"resolved dependencies were {dependencies!r}"
+        )
+
+
 @then("every required lane should have resolved command and CI selection proof")
 def every_required_lane_has_tox_and_ci_proof(consumer: Any) -> None:
     context = _context(consumer)
@@ -839,6 +1065,36 @@ def unsupported_pairs_have_upstream_evidence_and_reason(consumer: Any) -> None:
         assert isinstance(exclusion, dict), exclusion
         assert exclusion.get("reason") and exclusion.get("basis"), exclusion
         assert _has_http_sources(exclusion.get("source_evidence")), exclusion
+
+
+@then(
+    "every runtime exclusion should record upstream availability installability product support required CI "
+    "measured evidence and a named reason"
+)
+def runtime_exclusions_record_separate_policy_dimensions(consumer: Any) -> None:
+    exclusions = _runtime_policy(_context(consumer)).get("exclusions")
+    assert isinstance(exclusions, list) and exclusions, exclusions
+    dimensions = (
+        "upstream_availability",
+        "installability",
+        "product_support",
+        "required_ci",
+        "measured_evidence",
+    )
+    for exclusion in exclusions:
+        assert isinstance(exclusion, dict), exclusion
+        assert str(exclusion.get("id", "")).strip(), exclusion
+        assert str(exclusion.get("reason", "")).strip(), exclusion
+        for dimension in dimensions:
+            record = exclusion.get(dimension)
+            assert isinstance(record, dict), (exclusion.get("id"), dimension, exclusion)
+            assert str(record.get("status", "")).strip(), (exclusion.get("id"), dimension, record)
+        availability = exclusion["upstream_availability"]
+        assert availability.get("status") in {"available", "unavailable", "unknown"}, exclusion
+        assert _has_http_sources(availability.get("source_evidence")), exclusion
+        support = exclusion["product_support"]
+        assert support.get("status") == "unsupported", exclusion
+        assert str(support.get("reason", "")).strip(), exclusion
 
 
 def _has_http_sources(value: Any) -> bool:
@@ -1447,33 +1703,28 @@ def local_uv_evidence_matches_tox_acceptance_environments(
     repository_root = Path(request.config.rootpath)
     evidence_rules = runpy.run_path(str(repository_root / "scripts" / "environment_evidence.py"))
     required_system_tool_versions = evidence_rules["required_system_tool_versions"]
-    expected_uv_environments = {
-        "pypy312-pytestlatest-coverage-lin",
-        "py313-pytest84-allure-coverage-lin",
-        "py314-pytestlatest-gherkin33-xdist-coverage-lin",
-        "py314-pytestlatest-gherkinlatest-xdist-coverage-lin",
-        "py314-pytestlatest-gherkin33-xdist-coverage-mac",
-        "py314-pytestlatest-gherkin33-xdist-coverage-win",
-        "py314-pytestlatest-gherkinlatest-xdist-coverage-mac",
-        "py314-pytestlatest-gherkinlatest-xdist-coverage-win",
-        "py314-pytestlatest-playwright-report",
-        "py313-live-formatters-acceptance-lin",
-        "py313-live-formatters-acceptance-mac",
-        "py313-live-formatters-acceptance-win",
-        "native-go-parser",
-        "py314-pytestlatest-mypy",
-    }
     tox_environments = _list_tox_environment_names(
         consumer.path,
         environment=_inventory_command_environment(consumer),
     )[1]
+    expected_uv_environments = {environment for environment in tox_environments if "-coverage-" in environment}
+    expected_uv_environments.update(
+        {
+            "py314-pytestlatest-playwright-report",
+            "py313-live-formatters-acceptance-lin",
+            "py313-live-formatters-acceptance-mac",
+            "py313-live-formatters-acceptance-win",
+            "native-go-parser",
+            "py314-pytestlatest-mypy",
+        }
+    )
     actual_uv_environments = {
         environment for environment in tox_environments if "uv" in required_system_tool_versions(environment)
     }
     assert actual_uv_environments == expected_uv_environments, (
-        "local uv evidence should be required only for tox environments that install uv and run isolated "
-        "consumer acceptance; ordinary CPython and GraalPy coverage, pytest90-mypy, mypy-messages, doc-gen, "
-        "pre-commit, and remote xdist environments must not require it; "
+        "local uv evidence should be required for every runtime coverage lane and each other tox environment "
+        "that installs uv; pytest90-mypy, mypy-messages, doc-gen, pre-commit, and remote xdist environments "
+        "must not require it; "
         f"missing={sorted(expected_uv_environments - actual_uv_environments)}, "
         f"unexpected={sorted(actual_uv_environments - expected_uv_environments)}"
     )
@@ -1481,12 +1732,8 @@ def local_uv_evidence_matches_tox_acceptance_environments(
     expected_system_tools = {environment: {"tox"} for environment in tox_environments}
     for environment in expected_uv_environments:
         expected_system_tools[environment].add("uv")
-    expected_system_tools["py313-pytest84-allure-coverage-lin"].update(
-        {"node", "npm", "npx", "allure-cli"}
-    )
-    expected_system_tools["py314-pytestlatest-playwright-report"].update(
-        {"node", "npm", "npx", "allure-cli"}
-    )
+    expected_system_tools["py313-pytest84-allure-coverage-lin"].update({"node", "npm", "npx", "allure-cli"})
+    expected_system_tools["py314-pytestlatest-playwright-report"].update({"node", "npm", "npx", "allure-cli"})
     expected_system_tools["py314-doc-gen"].add("pandoc")
     expected_system_tools["native-go-parser"].update({"go", "native-compiler"})
     for environment in (
@@ -1502,7 +1749,7 @@ def local_uv_evidence_matches_tox_acceptance_environments(
     }
     assert actual_system_tools == expected_system_tools, (
         "the evidence collector should record only the system tools used by each acceptance lane, including "
-        "Node/npm/npx/Allure CLI and tox-local uv for browser reports; "
+        "tox-local uv for runtime coverage and Node/npm/npx/Allure CLI where used; "
         f"missing={expected_system_tools.keys() - actual_system_tools.keys()}, "
         f"unexpected={actual_system_tools.keys() - expected_system_tools.keys()}, "
         f"mismatched={{{', '.join(f'{name}: expected {sorted(expected_system_tools[name])}, got {sorted(actual_system_tools[name])}' for name in expected_system_tools.keys() & actual_system_tools.keys() if expected_system_tools[name] != actual_system_tools[name])}}}"
@@ -1889,14 +2136,14 @@ def check_inventory_omitting_resolved_tox_environment(
             (candidate, names)
             for candidate in context.document["lanes"]
             if isinstance(candidate, dict) and _status(candidate) == "required"
-            for names in (
-                [part.strip() for part in str(candidate.get("tox_env", "")).split(",") if part.strip()],
-            )
+            for names in ([part.strip() for part in str(candidate.get("tox_env", "")).split(",") if part.strip()],)
             if len([name for name in names if name in tox_names]) > 1
         ),
         None,
     )
-    assert lane_and_names is not None, f"expected a required lane with multiple resolved tox environments: {tox_names!r}"
+    assert lane_and_names is not None, (
+        f"expected a required lane with multiple resolved tox environments: {tox_names!r}"
+    )
     lane, environment_names = lane_and_names
     environment_name = next(name for name in environment_names if name in tox_names)
     environment_names.remove(environment_name)

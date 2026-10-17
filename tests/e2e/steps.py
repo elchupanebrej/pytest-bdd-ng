@@ -14573,16 +14573,25 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                 }
                 current_target = current.get(target["worker_id"])
                 current_remaining = current.get(remaining["worker_id"])
+                target_failure = current_target.get("active_failure") if isinstance(current_target, dict) else None
+                target_sequence_after_release = (
+                    target_failure.get("sequence") if isinstance(target_failure, dict) else None
+                )
+                target_released_or_advanced = target_failure is None or (
+                    isinstance(target_sequence_after_release, int) and target_sequence_after_release > target_sequence
+                )
                 if (
                     isinstance(current_target, dict)
-                    and current_target.get("active_failure") is None
+                    and target_released_or_advanced
                     and isinstance(current_remaining, dict)
                     and current_remaining.get("active_failure") == remaining_failure
                 ):
                     break
                 await asyncio.sleep(0.05)
             else:
-                raise AssertionError(f"releasing {target['worker_id']} also changed the other worker: {isolated_index!r}")
+                raise AssertionError(
+                    f"releasing {target['worker_id']} did not leave its peer unchanged: {isolated_index!r}"
+                )
 
             remaining_after_release = await call_worker(remaining, "inspect_failure", {})
             assert remaining_after_release.get("session_id") == remaining["session_id"], remaining_after_release
