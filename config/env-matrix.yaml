@@ -1765,7 +1765,7 @@ lanes:
   expected_carrier:
     kind: pytest
     path: features/debug-mcp-failure-inspection.feature
-    command: python -m pytest --cuke-autoload --cuke-features-dir=features features/debug-mcp-failure-inspection.feature -m e2e -q
+    command: python -m pytest --cuke-autoload --cuke-features-dir=features features/debug-mcp-failure-inspection.feature features/debug-mcp-xdist-worker-discovery.feature -m e2e -q
 - id: optional-gherkin33-linux
   status: required
   runtime: CPython
@@ -2210,8 +2210,10 @@ lanes:
     kind: pytest
     path: features/live-cucumber-progress-bar.feature
     command: python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e features/live-cucumber-progress-bar.feature
+      features/live-cucumber-progress.feature
       features/live-cucumber-snippets.feature features/live-cucumber-summary.feature features/live-cucumber-json.feature features/live-cucumber-junit-xml.feature
-      features/live-cucumber-usage.feature features/live-cucumber-usage-json.feature features/native-allure-reporting.feature
+      features/live-cucumber-usage.feature features/live-cucumber-usage-json.feature features/live-cucumber-pretty.feature
+      features/live-cucumber-progress-integration.feature features/native-allure-reporting.feature
 - id: live-formatters-acceptance-macos
   status: required
   runtime: CPython
@@ -2239,8 +2241,10 @@ lanes:
     kind: pytest
     path: features/live-cucumber-progress-bar.feature
     command: python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e features/live-cucumber-progress-bar.feature
+      features/live-cucumber-progress.feature
       features/live-cucumber-snippets.feature features/live-cucumber-summary.feature features/live-cucumber-json.feature features/live-cucumber-junit-xml.feature
-      features/live-cucumber-usage.feature features/live-cucumber-usage-json.feature features/native-allure-reporting.feature
+      features/live-cucumber-usage.feature features/live-cucumber-usage-json.feature features/live-cucumber-pretty.feature
+      features/live-cucumber-progress-integration.feature features/native-allure-reporting.feature
 - id: live-formatters-acceptance-windows
   status: required
   runtime: CPython
@@ -2268,8 +2272,10 @@ lanes:
     kind: pytest
     path: features/live-cucumber-progress-bar.feature
     command: python -m pytest --cuke-autoload --cuke-features-dir=features --collect-only -q -m e2e features/live-cucumber-progress-bar.feature
+      features/live-cucumber-progress.feature
       features/live-cucumber-snippets.feature features/live-cucumber-summary.feature features/live-cucumber-json.feature features/live-cucumber-junit-xml.feature
-      features/live-cucumber-usage.feature features/live-cucumber-usage-json.feature features/native-allure-reporting.feature
+      features/live-cucumber-usage.feature features/live-cucumber-usage-json.feature features/live-cucumber-pretty.feature
+      features/live-cucumber-progress-integration.feature features/native-allure-reporting.feature
 - id: pre-commit
   status: required
   runtime: CPython

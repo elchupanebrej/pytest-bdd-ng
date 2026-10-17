@@ -1,3 +1,4 @@
+@e2e
 Feature: Live Cucumber progress formatter
   The selected progress formatter reports one Cucumber status marker per
   completed scenario attempt and summarizes outcomes from the Messages stream.

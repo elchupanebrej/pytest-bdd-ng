@@ -1695,11 +1695,15 @@ def _validate_optional_integration_inventory(
             if isinstance(prerequisites, list)
             else {}
         )
-        command_requirements = {
-            str(item.get("name", "")).casefold()
-            for item in prerequisites
-            if isinstance(item, dict) and item.get("type") == "command"
-        } if isinstance(prerequisites, list) else set()
+        command_requirements = (
+            {
+                str(item.get("name", "")).casefold()
+                for item in prerequisites
+                if isinstance(item, dict) and item.get("type") == "command"
+            }
+            if isinstance(prerequisites, list)
+            else set()
+        )
         if "allure" in environment:
             allure = package_requirements.get("allure-python-commons-test")
             if (

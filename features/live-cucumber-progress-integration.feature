@@ -1,3 +1,4 @@
+@e2e
 Feature: Cucumber progress selection and terminal integration
   The opt-in progress formatter follows pytest configuration, streams case
   markers live, and can share a run with file formatters.
