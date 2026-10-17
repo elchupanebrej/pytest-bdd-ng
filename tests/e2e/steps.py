@@ -15,6 +15,7 @@ import time
 import venv
 import zipfile
 from collections import Counter, defaultdict
+from contextlib import suppress
 from dataclasses import dataclass
 from functools import reduce
 from operator import attrgetter, itemgetter
@@ -1832,6 +1833,33 @@ def run_installed_pytest_through_localhost_socket_gateways(arguments: str, consu
         *rewritten_arguments,
         *(f"--tx=socket={address}" for address in addresses),
     ]
+    conftest_path = consumer.path / "conftest.py"
+    conftest = conftest_path.read_text(encoding="utf-8") if conftest_path.is_file() else ""
+    nodeid_normalizer = "# pytest-cuke test-managed socket nodeid normalization"
+    if nodeid_normalizer not in conftest:
+        conftest_path.write_text(
+            conftest
+            + "\n\n"
+            + nodeid_normalizer
+            + "\n"
+            + dedent(
+                r'''
+                import re as _pytest_cuke_socket_re
+
+                _pytest_cuke_socket_remote_nodeid = _pytest_cuke_socket_re.compile(
+                    r"file:.+?/pyexecnetcache/(pytest-cuke-group-consumer[^/]+)/features/socket-worker-cases\.feature-"
+                )
+
+                def pytest_collection_modifyitems(items):
+                    for item in items:
+                        normalized = item.nodeid.replace("\\", "/")
+                        item._nodeid = _pytest_cuke_socket_remote_nodeid.sub(
+                            r"file:\1/features/socket-worker-cases.feature-", normalized
+                        )
+                '''
+            ),
+            encoding="utf-8",
+        )
     try:
         result = subprocess.run(
             command,
@@ -5523,6 +5551,7 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
             def record_event(phase, *, nodeid, group, outcome=None, when=None):
                 timestamp = time.monotonic_ns()
                 worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
+                run_id = os.environ.get("PYTEST_CUKE_RUN_ID", "single")
                 record = {
                     "phase": phase,
                     "nodeid": nodeid,
@@ -5530,10 +5559,10 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
                     "outcome": outcome,
                     "when": when,
                     "worker": worker,
-                    "run_id": os.environ.get("PYTEST_CUKE_RUN_ID", "single"),
+                    "run_id": run_id,
                     "timestamp_ns": timestamp,
                 }
-                token = hashlib.sha256(f"{phase}:{nodeid}:{worker}:{timestamp}".encode()).hexdigest()
+                token = hashlib.sha256(f"{phase}:{nodeid}:{worker}:{run_id}:{timestamp}".encode()).hexdigest()
                 EVENT_DIRECTORY.mkdir(exist_ok=True)
                 (EVENT_DIRECTORY / f"{phase}-{token}.json").write_text(json.dumps(record), encoding="utf-8")
 
@@ -11039,6 +11068,7 @@ def install_mcp_startup_guard(consumer: ConsumerProject) -> None:
             import atexit
             import builtins
             import os
+            import signal
             import subprocess
             from pathlib import Path
 
@@ -11061,15 +11091,48 @@ def install_mcp_startup_guard(consumer: ConsumerProject) -> None:
 
             class ObservedPopen(original_popen):
                 def __init__(self, *args, **kwargs):
-                    super().__init__(*args, **kwargs)
                     command = args[0] if args else kwargs.get("args", "unknown")
                     command_text = repr(command).lower()
+                    is_debugger_backend = "pytest_cuke.debug_mcp.backend" in command_text
+                    if (
+                        os.name == "nt"
+                        and os.environ.get("CUKE_MCP_GRACEFUL_CTRL_BREAK") == "1"
+                        and is_debugger_backend
+                    ):
+                        kwargs = dict(kwargs)
+                        kwargs["creationflags"] = (
+                            kwargs.get("creationflags", 0) | subprocess.CREATE_NEW_PROCESS_GROUP
+                        )
+                        child_env = kwargs.get("env")
+                        child_env = dict(os.environ if child_env is None else child_env)
+                        child_env["CUKE_MCP_ROLE"] = "backend"
+                        kwargs["env"] = child_env
+                    super().__init__(*args, **kwargs)
+                    self._cuke_mcp_debugger_backend = is_debugger_backend
                     observed_commands = ("mcp-pdb", "mcp_pdb", "pytest_cuke.debug_mcp.backend")
                     if any(command_name in command_text for command_name in observed_commands):
                         record(f"child:{self.pid}:{repr(command)}")
                         atexit.register(lambda child=self: record(f"child-status:{child.pid}:{child.poll()}"))
+                    if is_debugger_backend:
+                        record(f"backend-process-group:{self.pid}:{kwargs.get('creationflags', 0)}")
+
+                def terminate(self):
+                    if getattr(self, "_cuke_mcp_debugger_backend", False):
+                        record(f"backend-cleanup:{self.pid}")
+                    return super().terminate()
 
             subprocess.Popen = ObservedPopen
+
+            if os.name == "nt" and os.environ.get("CUKE_MCP_GRACEFUL_CTRL_BREAK") == "1":
+                role = os.environ.get("CUKE_MCP_ROLE")
+                if role in {"consumer", "backend"}:
+                    def handle_ctrl_break(signum, frame):
+                        record(f"signal:SIGBREAK:{role}:{os.getpid()}")
+                        if role == "consumer":
+                            signal.default_int_handler(signum, frame)
+
+                    signal.signal(signal.SIGBREAK, handle_ctrl_break)
+                    record(f"signal-handler-ready:{role}:{os.getpid()}")
             '''
         ),
         encoding="utf-8",
@@ -11160,6 +11223,9 @@ def choose_debug_mcp_nonlocal_host(consumer: ConsumerProject) -> None:
 @given("installed pytest starts in an isolated signal process group")
 def configure_consumer_pytest_signal_group(consumer: ConsumerProject) -> None:
     consumer._mcp_signal_process_group = True
+    if os.name == "nt":
+        consumer.env["CUKE_MCP_GRACEFUL_CTRL_BREAK"] = "1"
+        consumer.env["CUKE_MCP_ROLE"] = "consumer"
 
 
 @given("the installed consumer has the optional debug MCP extra installed")
@@ -11326,6 +11392,11 @@ def start_consumer_pytest_for_mcp_inspection(arguments: str, consumer: ConsumerP
             text=True,
             **process_group_options,
         )
+    if os.name == "nt" and getattr(consumer, "_mcp_signal_process_group", False):
+        guard_path = consumer.path / "mcp-startup-observations.log"
+        creationflags = int(process_group_options.get("creationflags", 0))
+        with guard_path.open("a", encoding="utf-8") as guard:
+            guard.write(f"outer-process-group:{process.pid}:{creationflags}\n")
     setattr(consumer, "_mcp_pytest_process", process)
     setattr(consumer, "_mcp_pytest_command", command)
     setattr(consumer, "_mcp_pytest_output_path", output_path)
@@ -12174,6 +12245,131 @@ def _debug_mcp_stale_artifact_sdk_client_script() -> str:
     )
 
 
+def _debug_mcp_external_client_timeout_message(
+    consumer: ConsumerProject,
+    stage_path: Path,
+    error: subprocess.TimeoutExpired,
+    client_name: str,
+) -> str:
+    stage = (
+        stage_path.read_text(encoding="utf-8", errors="replace")
+        if stage_path.is_file()
+        else "no client stage was recorded"
+    )
+    output_path = getattr(consumer, "_mcp_pytest_output_path", None)
+    pytest_output = (
+        output_path.read_text(encoding="utf-8", errors="replace")
+        if isinstance(output_path, Path) and output_path.exists()
+        else ""
+    )
+
+    def captured_output(value: str | bytes | None) -> str:
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        return value if isinstance(value, str) else ""
+
+    return (
+        f"{client_name} timed out after {error.timeout}s at last client stage {stage.strip()!r}\n"
+        f"pytest output ({output_path}):\n{pytest_output}\n"
+        f"client output captured before timeout:\n{captured_output(error.stdout)}\n"
+        f"client stderr captured before timeout:\n{captured_output(error.stderr)}"
+    )
+
+
+def _terminate_debug_mcp_external_client(process: subprocess.Popen[str]) -> None:
+    """Stop a timed-out client process tree and reap its root process."""
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        with suppress(OSError, subprocess.TimeoutExpired):
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+                close_fds=True,
+                timeout=5,
+            )
+    else:
+        import signal
+
+        with suppress(OSError):
+            os.killpg(process.pid, signal.SIGKILL)
+    if process.poll() is None:
+        process.kill()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+
+
+def _run_debug_mcp_external_client(
+    consumer: ConsumerProject,
+    command: list[str],
+    *,
+    client_name: str,
+    timeout: float,
+    stage_path: Path,
+    log_path: Path,
+) -> subprocess.CompletedProcess[str]:
+    """Run an SDK client with file-backed stdio and bounded process-tree cleanup.
+
+    The client gets no PIPE-backed stdout or stderr descriptors to inherit. Its
+    output is written to one diagnostic file, unrelated descriptors are closed,
+    and the client process is waited before that file is read.
+    """
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    process_options: dict[str, object] = {}
+    if os.name == "nt":
+        process_options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        process_options["start_new_session"] = True
+
+    timeout_error: subprocess.TimeoutExpired | None = None
+    return_code: int | None = None
+    with log_path.open("w", encoding="utf-8", errors="replace") as output:
+        process = subprocess.Popen(
+            command,
+            cwd=consumer.path,
+            env=consumer.env,
+            stdin=subprocess.DEVNULL,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+            **process_options,
+        )
+        try:
+            return_code = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            timeout_error = error
+            _terminate_debug_mcp_external_client(process)
+        finally:
+            output.flush()
+
+    client_output = log_path.read_text(encoding="utf-8", errors="replace") if log_path.is_file() else ""
+    if timeout_error is not None:
+        diagnostic_timeout = subprocess.TimeoutExpired(
+            command,
+            timeout,
+            output=client_output,
+            stderr="",
+        )
+        raise AssertionError(
+            _debug_mcp_external_client_timeout_message(
+                consumer,
+                stage_path,
+                diagnostic_timeout,
+                client_name,
+            )
+            + f"\nclient output log: {log_path}"
+        ) from timeout_error
+
+    assert return_code is not None, "the external MCP client process was not waited"
+    return subprocess.CompletedProcess(command, return_code, client_output, "")
+
+
 def _debug_mcp_debugger_continuation_client_script() -> str:
     return dedent(
         '''\
@@ -12184,6 +12380,37 @@ def _debug_mcp_debugger_continuation_client_script() -> str:
 
         from mcp import ClientSession
         from mcp.client.streamable_http import streamable_http_client
+
+        def mark(stage_path, stage):
+            Path(stage_path).write_text(stage + "\\n", encoding="utf-8")
+            print(f"client stage: {stage}", flush=True)
+
+        class BoundedClientSession(ClientSession):
+            def __init__(self, read_stream, write_stream, stage_path, label):
+                super().__init__(read_stream, write_stream)
+                self._stage_path = stage_path
+                self._label = label
+
+            async def _bounded(self, operation, awaitable):
+                stage = f"{self._label} {operation}"
+                mark(self._stage_path, stage)
+                try:
+                    return await asyncio.wait_for(awaitable, timeout=10)
+                except asyncio.TimeoutError as error:
+                    raise TimeoutError(f"{stage} timed out after 10 seconds") from error
+
+            async def initialize(self, *args, **kwargs):
+                return await self._bounded("initialize", super().initialize(*args, **kwargs))
+
+            async def list_tools(self, *args, **kwargs):
+                return await self._bounded("list_tools", super().list_tools(*args, **kwargs))
+
+            async def call_tool(self, *args, **kwargs):
+                tool_name = args[0] if args else kwargs.get("name", "unknown")
+                return await self._bounded(
+                    f"call_tool {tool_name}",
+                    super().call_tool(*args, **kwargs),
+                )
 
         def tool_text(result):
             assert not getattr(result, "isError", False), result
@@ -12210,16 +12437,21 @@ def _debug_mcp_debugger_continuation_client_script() -> str:
                         return payload
             raise AssertionError(f"MCP inspection tool did not return structured JSON: {result!r}")
 
-        async def inspect(endpoint):
+        async def inspect(endpoint, stage_path):
+            mark(stage_path, "inspection connect")
             async with streamable_http_client(endpoint) as (read_stream, write_stream, _session_id):
-                async with ClientSession(read_stream, write_stream) as session:
+                async with BoundedClientSession(read_stream, write_stream, stage_path, "inspection") as session:
                     await session.initialize()
                     result = await session.call_tool("inspect_failure", {})
                     assert not getattr(result, "isError", False), result
-                    return tool_payload(result)
+                    payload = tool_payload(result)
+                    mark(stage_path, "inspection ClientSession context exit")
+                mark(stage_path, "inspection HTTP client context exit")
+            return payload
 
-        async def main(debugger_endpoint, inspection_endpoint, target_path, output_path):
-            active_before = await inspect(inspection_endpoint)
+        async def main(debugger_endpoint, inspection_endpoint, target_path, output_path, stage_path):
+            mark(stage_path, "read initial inspection")
+            active_before = await inspect(inspection_endpoint, stage_path)
             failure = active_before.get("active_failure")
             session_id = active_before.get("session_id")
             assert isinstance(failure, dict), active_before
@@ -12227,12 +12459,13 @@ def _debug_mcp_debugger_continuation_client_script() -> str:
             assert isinstance(session_id, str) and session_id, active_before
             assert isinstance(sequence, int) and sequence > 0, active_before
 
+            mark(stage_path, "debugger connect")
             async with streamable_http_client(debugger_endpoint, terminate_on_close=False) as (
                 read_stream,
                 write_stream,
                 _session_id,
             ):
-                async with ClientSession(read_stream, write_stream) as session:
+                async with BoundedClientSession(read_stream, write_stream, stage_path, "debugger") as session:
                     await session.initialize()
                     tools = await session.list_tools()
                     names = {tool.name for tool in tools.tools}
@@ -12246,7 +12479,10 @@ def _debug_mcp_debugger_continuation_client_script() -> str:
                     continue_result = await session.call_tool("send_pdb_command", {"command": "continue"})
                     continue_text = tool_text(continue_result)
                     assert "Command output" in continue_text or "session" in continue_text.lower(), continue_text
+                    mark(stage_path, "debugger ClientSession context exit")
+                mark(stage_path, "debugger HTTP client context exit")
 
+            mark(stage_path, "write debugger observation")
             Path(output_path).write_text(
                 json.dumps(
                     {
@@ -12309,6 +12545,7 @@ def _debug_mcp_lease_expiry_client_script() -> str:
         import sys
         import time
         from pathlib import Path
+        from urllib.parse import urlsplit
 
         from mcp import ClientSession
         from mcp.client.streamable_http import streamable_http_client
@@ -13441,12 +13678,14 @@ def run_debugger_mcp_continuation_client(consumer: ConsumerProject) -> None:
     output_path = getattr(consumer, "_mcp_pytest_output_path")
     client_path = consumer.path / "debug-mcp-continuation-client.py"
     result_path = consumer.path / "debug-mcp-continuation-client-result.json"
+    stage_path = consumer.path / "debug-mcp-continuation-client-stage.txt"
     target_path = consumer.path / "debug-mcp-debugger-target.py"
     completion_path = consumer.path / "debugger-continuation-completed.txt"
     client_result: subprocess.CompletedProcess[str] | None = None
     try:
         assert target_path.is_file(), target_path
         client_path.write_text(_debug_mcp_debugger_continuation_client_script(), encoding="utf-8")
+        stage_path.unlink(missing_ok=True)
         discovery = _mcp_read_discovery_record(consumer)
         inspection_endpoint = discovery.get("inspection_endpoint")
         debugger_endpoint = discovery.get("debugger_endpoint")
@@ -13459,7 +13698,8 @@ def run_debugger_mcp_continuation_client(consumer: ConsumerProject) -> None:
         _assert_debug_mcp_failure_context(initial_failure, consumer)
         setattr(consumer, "_mcp_initial_discovery", discovery)
 
-        client_result = subprocess.run(
+        client_result = _run_debug_mcp_external_client(
+            consumer,
             [
                 str(consumer.python),
                 str(client_path),
@@ -13467,13 +13707,12 @@ def run_debugger_mcp_continuation_client(consumer: ConsumerProject) -> None:
                 str(inspection_endpoint),
                 str(target_path),
                 str(result_path),
+                str(stage_path),
             ],
-            cwd=consumer.path,
-            env=consumer.env,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=30,
+            client_name="external debugger MCP client",
+            timeout=60,
+            stage_path=stage_path,
+            log_path=consumer.path / "debug-mcp-continuation-client.log",
         )
         setattr(consumer, "_mcp_debugger_client_result", client_result)
         assert client_result.returncode == 0, (
@@ -13912,6 +14151,32 @@ def interrupt_active_debug_mcp_consumer_process(consumer: ConsumerProject) -> No
     assert isinstance(failure, dict), discovery
     consumer._mcp_initial_discovery = discovery
 
+    guard_path = consumer.path / "mcp-startup-observations.log"
+    if os.name == "nt":
+        ready_deadline = time.monotonic() + 15
+        while time.monotonic() < ready_deadline:
+            guard_output = guard_path.read_text(encoding="utf-8") if guard_path.is_file() else ""
+            ready_events = set(
+                re.findall(r"^signal-handler-ready:(consumer|backend):(\d+)$", guard_output, re.MULTILINE)
+            )
+            outer_groups = re.findall(r"^outer-process-group:(\d+):(\d+)$", guard_output, re.MULTILINE)
+            backend_groups = re.findall(r"^backend-process-group:(\d+):(\d+)$", guard_output, re.MULTILINE)
+            has_consumer_handler = ("consumer", str(process.pid)) in ready_events
+            has_backend_handler = any(role == "backend" for role, _pid in ready_events)
+            if has_consumer_handler and has_backend_handler and outer_groups and backend_groups:
+                break
+            if process.poll() is not None:
+                output = output_path.read_text(encoding="utf-8") if output_path.exists() else ""
+                raise AssertionError(
+                    f"pytest exited before consumer/backend Ctrl+Break handlers were ready:\n{guard_output}\n{output}"
+                )
+            time.sleep(0.05)
+        else:
+            raise AssertionError(
+                "consumer/backend Ctrl+Break handlers did not become ready within 15 seconds:\n"
+                f"{guard_output}"
+            )
+
     interrupt = signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT
     process.send_signal(interrupt)
     try:
@@ -13925,14 +14190,42 @@ def interrupt_active_debug_mcp_consumer_process(consumer: ConsumerProject) -> No
     consumer.pytest_result = subprocess.CompletedProcess(command, return_code, output, "")
     consumer._mcp_interrupted_failure = failure
     final_path = consumer.path / ".pytest_cache" / "cuke" / "debug-mcp" / "session.json"
-    final_record = json.loads(final_path.read_text(encoding="utf-8"))
+    final_record: object | None = None
+    cleanup_deadline = time.monotonic() + 5
+    while time.monotonic() < cleanup_deadline:
+        try:
+            payload = json.loads(final_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = None
+        if isinstance(payload, dict):
+            final_record = payload
+            if payload.get("status") == "closed" and payload.get("active_failure") is None:
+                break
+        time.sleep(0.05)
     consumer._mcp_final_record = final_record
-    consumer._mcp_advertised_endpoints_after_finish = [
-        final_record.get("debugger_endpoint"),
-        final_record.get("inspection_endpoint"),
-    ]
-    guard_path = consumer.path / "mcp-startup-observations.log"
+    consumer._mcp_advertised_endpoints_after_finish = (
+        [final_record.get("debugger_endpoint"), final_record.get("inspection_endpoint")]
+        if isinstance(final_record, dict)
+        else None
+    )
     guard_output = guard_path.read_text(encoding="utf-8") if guard_path.is_file() else ""
+    consumer._mcp_interrupted_pid = str(process.pid)
+    consumer._mcp_interrupted_guard_lines = guard_output.splitlines()
+    consumer._mcp_interrupted_signal_events = re.findall(
+        r"^signal:SIGBREAK:(consumer|backend):(\d+)$", guard_output, re.MULTILINE
+    )
+    consumer._mcp_interrupted_handler_ready_events = re.findall(
+        r"^signal-handler-ready:(consumer|backend):(\d+)$", guard_output, re.MULTILINE
+    )
+    consumer._mcp_interrupted_outer_process_groups = re.findall(
+        r"^outer-process-group:(\d+):(\d+)$", guard_output, re.MULTILINE
+    )
+    consumer._mcp_interrupted_backend_process_groups = re.findall(
+        r"^backend-process-group:(\d+):(\d+)$", guard_output, re.MULTILINE
+    )
+    consumer._mcp_interrupted_backend_cleanups = re.findall(
+        r"^backend-cleanup:(\d+)$", guard_output, re.MULTILINE
+    )
     consumer._mcp_interrupted_child_pids = re.findall(r"^child:(\d+):", guard_output, re.MULTILINE)
     consumer._mcp_interrupted_child_statuses = {
         pid: status
@@ -13960,6 +14253,44 @@ def consumer_interrupted_debug_mcp_process_is_closed(consumer: ConsumerProject) 
         child_pids,
         child_statuses,
     )
+    if os.name == "nt":
+        consumer_pid = getattr(consumer, "_mcp_interrupted_pid", None)
+        ready_events = getattr(consumer, "_mcp_interrupted_handler_ready_events", None)
+        signals = getattr(consumer, "_mcp_interrupted_signal_events", None)
+        outer_groups = getattr(consumer, "_mcp_interrupted_outer_process_groups", None)
+        backend_groups = getattr(consumer, "_mcp_interrupted_backend_process_groups", None)
+        backend_cleanups = getattr(consumer, "_mcp_interrupted_backend_cleanups", None)
+        guard_lines = getattr(consumer, "_mcp_interrupted_guard_lines", None)
+        assert isinstance(consumer_pid, str) and consumer_pid, consumer_pid
+        assert isinstance(ready_events, list), ready_events
+        assert ("consumer", consumer_pid) in ready_events, ready_events
+        assert isinstance(outer_groups, list) and len(outer_groups) == 1, outer_groups
+        outer_pid, outer_flags_text = outer_groups[0]
+        outer_flags = int(outer_flags_text)
+        assert outer_pid == consumer_pid, outer_groups
+        assert outer_flags & subprocess.CREATE_NEW_PROCESS_GROUP, outer_groups
+        console_isolation_flags = (
+            subprocess.CREATE_NEW_CONSOLE | subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
+        )
+        assert (outer_flags & console_isolation_flags) == 0, outer_groups
+        assert isinstance(backend_groups, list) and len(backend_groups) == 1, backend_groups
+        backend_pid, backend_flags_text = backend_groups[0]
+        backend_flags = int(backend_flags_text)
+        assert backend_pid != consumer_pid, (consumer_pid, backend_groups)
+        assert backend_flags & subprocess.CREATE_NEW_PROCESS_GROUP, backend_groups
+        assert (backend_flags & console_isolation_flags) == 0, backend_groups
+        assert ("backend", backend_pid) in ready_events, ready_events
+        assert isinstance(signals, list) and signals == [("consumer", consumer_pid)], signals
+        assert isinstance(backend_cleanups, list) and backend_cleanups == [backend_pid], backend_cleanups
+        assert isinstance(guard_lines, list), guard_lines
+        consumer_signal = f"signal:SIGBREAK:consumer:{consumer_pid}"
+        backend_cleanup = f"backend-cleanup:{backend_pid}"
+        assert consumer_signal in guard_lines and backend_cleanup in guard_lines, guard_lines
+        assert guard_lines.index(consumer_signal) < guard_lines.index(backend_cleanup), guard_lines
+        assert not any(
+            line.startswith("signal:SIGBREAK:backend:")
+            for line in guard_lines[: guard_lines.index(backend_cleanup)]
+        ), guard_lines
 
 
 @then(re.compile(r'consumer artifact "(?P<relative_path>[^"]+)" should retain the failed debugger BDD scenario'))
@@ -14413,9 +14744,41 @@ def _debug_mcp_xdist_worker_client_script() -> str:
         import sys
         import time
         from pathlib import Path
+        from urllib.parse import urlsplit
 
         from mcp import ClientSession
         from mcp.client.streamable_http import streamable_http_client
+
+        def mark(stage_path, stage):
+            Path(stage_path).write_text(stage + "\\n", encoding="utf-8")
+            print(f"client stage: {stage}", flush=True)
+
+        class BoundedClientSession(ClientSession):
+            def __init__(self, read_stream, write_stream, stage_path, label):
+                super().__init__(read_stream, write_stream)
+                self._stage_path = stage_path
+                self._label = label
+
+            async def _bounded(self, operation, awaitable):
+                stage = f"{self._label} {operation}"
+                mark(self._stage_path, stage)
+                try:
+                    return await asyncio.wait_for(awaitable, timeout=10)
+                except asyncio.TimeoutError as error:
+                    raise TimeoutError(f"{stage} timed out after 10 seconds") from error
+
+            async def initialize(self, *args, **kwargs):
+                return await self._bounded("initialize", super().initialize(*args, **kwargs))
+
+            async def list_tools(self, *args, **kwargs):
+                return await self._bounded("list_tools", super().list_tools(*args, **kwargs))
+
+            async def call_tool(self, *args, **kwargs):
+                tool_name = args[0] if args else kwargs.get("name", "unknown")
+                return await self._bounded(
+                    f"call_tool {tool_name}",
+                    super().call_tool(*args, **kwargs),
+                )
 
         def tool_payload(result):
             structured = getattr(result, "structuredContent", None)
@@ -14435,14 +14798,29 @@ def _debug_mcp_xdist_worker_client_script() -> str:
         def read_index(path):
             return json.loads(Path(path).read_text(encoding="utf-8"))
 
-        async def call_worker(record, tool_name, arguments):
-            endpoint = record["inspection_endpoint"]
+        def checked_endpoint(record, key):
+            endpoint = record.get(key)
+            assert isinstance(endpoint, str) and endpoint, (
+                f"worker {record.get('worker_id')} has no {key}: {record!r}"
+            )
+            parsed = urlsplit(endpoint)
+            assert parsed.scheme == "http" and parsed.hostname and parsed.port and parsed.path == "/mcp", (
+                f"worker {record.get('worker_id')} has an invalid {key}: {endpoint!r}; record={record!r}"
+            )
+            return endpoint
+
+        async def call_worker(record, tool_name, arguments, stage_path):
+            endpoint = checked_endpoint(record, "inspection_endpoint")
+            worker_id = record["worker_id"]
+            mark(stage_path, f"{worker_id} inspection connect")
             async with streamable_http_client(endpoint, terminate_on_close=False) as (
                 read_stream,
                 write_stream,
                 _get_session_id,
             ):
-                async with ClientSession(read_stream, write_stream) as session:
+                async with BoundedClientSession(
+                    read_stream, write_stream, stage_path, f"{worker_id} inspection"
+                ) as session:
                     await session.initialize()
                     listed = await session.list_tools()
                     names = {tool.name for tool in listed.tools}
@@ -14454,14 +14832,17 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                     assert not getattr(result, "isError", False), result
                     return tool_payload(result)
 
-        async def inspect_debugger_endpoint(record):
-            endpoint = record["debugger_endpoint"]
+        async def inspect_debugger_endpoint(record, stage_path):
+            endpoint = checked_endpoint(record, "debugger_endpoint")
+            mark(stage_path, f"{record['worker_id']} debugger connect")
             async with streamable_http_client(endpoint, terminate_on_close=False) as (
                 read_stream,
                 write_stream,
                 _get_session_id,
             ):
-                async with ClientSession(read_stream, write_stream) as session:
+                async with BoundedClientSession(
+                    read_stream, write_stream, stage_path, f"{record['worker_id']} debugger"
+                ) as session:
                     await session.initialize()
                     listed = await session.list_tools()
                     names = sorted(tool.name for tool in listed.tools)
@@ -14469,18 +14850,19 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                     assert required <= set(names), (record, names)
                     return {"endpoint": endpoint, "tools": names}
 
-        async def main(index_path, output_path, artifact_root):
+        async def main(index_path, output_path, artifact_root, stage_path):
+            mark(stage_path, "read xdist worker index")
             index = read_index(index_path)
             records = sorted(index["workers"], key=lambda worker: worker["worker_id"])
             assert len(records) == 2, index
             inspections = {}
             for record in records:
-                inspected = await call_worker(record, "inspect_failure", {})
+                inspected = await call_worker(record, "inspect_failure", {}, stage_path)
                 failure = inspected.get("active_failure")
                 assert isinstance(failure, dict), inspected
                 assert inspected.get("session_id") == record.get("session_id"), (inspected, record)
                 assert failure == record.get("active_failure"), (failure, record)
-                debugger = await inspect_debugger_endpoint(record)
+                debugger = await inspect_debugger_endpoint(record, stage_path)
                 inspections[record["worker_id"]] = {
                     "endpoint": record["inspection_endpoint"],
                     "tools": ["inspect_failure", "heartbeat", "release_failure", "submit_artifact"],
@@ -14528,6 +14910,7 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                     "sequence": target_sequence,
                     "artifact": submitted_artifact,
                 },
+                stage_path,
             )
             assert artifact_submission.get("ok") is True, artifact_submission
             assert artifact_submission.get("artifact_id") == submitted_artifact["artifact_id"], artifact_submission
@@ -14546,11 +14929,12 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                 target,
                 "heartbeat",
                 {"session_id": target["session_id"], "sequence": target_sequence},
+                stage_path,
             )
             assert first_heartbeat.get("session_id") == target["session_id"], first_heartbeat
             assert first_heartbeat.get("sequence") == target_sequence, first_heartbeat
             assert first_heartbeat.get("lease_seconds", 0) >= 30, first_heartbeat
-            remaining_after_heartbeat = await call_worker(remaining, "inspect_failure", {})
+            remaining_after_heartbeat = await call_worker(remaining, "inspect_failure", {}, stage_path)
             assert remaining_after_heartbeat.get("session_id") == remaining["session_id"], remaining_after_heartbeat
             assert remaining_after_heartbeat.get("active_failure") == remaining_failure, remaining_after_heartbeat
 
@@ -14558,12 +14942,14 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                 target,
                 "release_failure",
                 {"session_id": target["session_id"], "sequence": target_sequence},
+                stage_path,
             )
             assert first_release.get("released") is True, first_release
             assert first_release.get("session_id") == target["session_id"], first_release
             assert first_release.get("sequence") == target_sequence, first_release
             assert first_release.get("artifact_status") == "written", first_release
 
+            mark(stage_path, "wait for released worker follow-up failure")
             deadline = time.monotonic() + 15
             isolated_index = None
             while time.monotonic() < deadline:
@@ -14593,7 +14979,7 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                     f"releasing {target['worker_id']} did not leave its peer unchanged: {isolated_index!r}"
                 )
 
-            remaining_after_release = await call_worker(remaining, "inspect_failure", {})
+            remaining_after_release = await call_worker(remaining, "inspect_failure", {}, stage_path)
             assert remaining_after_release.get("session_id") == remaining["session_id"], remaining_after_release
             assert remaining_after_release.get("active_failure") == remaining_failure, remaining_after_release
 
@@ -14601,6 +14987,7 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                 remaining,
                 "heartbeat",
                 {"session_id": remaining["session_id"], "sequence": remaining_sequence},
+                stage_path,
             )
             last_peer_heartbeat = time.monotonic()
             followup_deadline = time.monotonic() + 15
@@ -14627,6 +15014,7 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                         remaining,
                         "heartbeat",
                         {"session_id": remaining["session_id"], "sequence": remaining_sequence},
+                        stage_path,
                     )
                     last_peer_heartbeat = time.monotonic()
                 await asyncio.sleep(0.1)
@@ -14644,11 +15032,13 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                 target,
                 "heartbeat",
                 {"session_id": target["session_id"], "sequence": followup_sequence},
+                stage_path,
             )
             assert followup_heartbeat.get("session_id") == target["session_id"], followup_heartbeat
             assert followup_heartbeat.get("sequence") == followup_sequence, followup_heartbeat
             assert followup_heartbeat.get("lease_seconds", 0) >= 30, followup_heartbeat
 
+            mark(stage_path, "wait for follow-up worker lease expiry")
             last_peer_heartbeat = time.monotonic()
             timeout_deadline = time.monotonic() + 45
             timeout_index = None
@@ -14674,12 +15064,13 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                         remaining,
                         "heartbeat",
                         {"session_id": remaining["session_id"], "sequence": remaining_sequence},
+                        stage_path,
                     )
                     last_peer_heartbeat = time.monotonic()
                 await asyncio.sleep(0.1)
             else:
                 raise AssertionError(f"one worker's lease did not expire independently: {timeout_index!r}")
-            remaining_after_timeout = await call_worker(remaining, "inspect_failure", {})
+            remaining_after_timeout = await call_worker(remaining, "inspect_failure", {}, stage_path)
             assert remaining_after_timeout.get("session_id") == remaining["session_id"], remaining_after_timeout
             assert remaining_after_timeout.get("active_failure") == remaining_failure, remaining_after_timeout
 
@@ -14687,12 +15078,14 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                 remaining,
                 "release_failure",
                 {"session_id": remaining["session_id"], "sequence": remaining_sequence},
+                stage_path,
             )
             assert second_release.get("released") is True, second_release
             assert second_release.get("session_id") == remaining["session_id"], second_release
             assert second_release.get("sequence") == remaining_sequence, second_release
             assert second_release.get("artifact_status") == "missing", second_release
 
+            mark(stage_path, "write xdist worker observation")
             Path(output_path).write_text(
                 json.dumps(
                     {
@@ -14721,7 +15114,7 @@ def _debug_mcp_xdist_worker_client_script() -> str:
                 encoding="utf-8",
             )
 
-        asyncio.run(main(sys.argv[1], sys.argv[2], sys.argv[3]))
+        asyncio.run(main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]))
         '''
     )
 
@@ -14733,9 +15126,53 @@ def _debug_mcp_xdist_duplicate_artifact_client_script() -> str:
         import json
         import sys
         from pathlib import Path
+        from urllib.parse import urlsplit
 
         from mcp import ClientSession
         from mcp.client.streamable_http import streamable_http_client
+
+        def mark(stage_path, stage):
+            Path(stage_path).write_text(stage + "\\n", encoding="utf-8")
+            print(f"client stage: {stage}", flush=True)
+
+        def checked_endpoint(record):
+            endpoint = record.get("inspection_endpoint")
+            assert isinstance(endpoint, str) and endpoint, (
+                f"worker {record.get('worker_id')} has no inspection_endpoint: {record!r}"
+            )
+            parsed = urlsplit(endpoint)
+            assert parsed.scheme == "http" and parsed.hostname and parsed.port and parsed.path == "/mcp", (
+                f"worker {record.get('worker_id')} has an invalid inspection_endpoint: "
+                f"{endpoint!r}; record={record!r}"
+            )
+            return endpoint
+
+        class BoundedClientSession(ClientSession):
+            def __init__(self, read_stream, write_stream, stage_path, label):
+                super().__init__(read_stream, write_stream)
+                self._stage_path = stage_path
+                self._label = label
+
+            async def _bounded(self, operation, awaitable):
+                stage = f"{self._label} {operation}"
+                mark(self._stage_path, stage)
+                try:
+                    return await asyncio.wait_for(awaitable, timeout=10)
+                except asyncio.TimeoutError as error:
+                    raise TimeoutError(f"{stage} timed out after 10 seconds") from error
+
+            async def initialize(self, *args, **kwargs):
+                return await self._bounded("initialize", super().initialize(*args, **kwargs))
+
+            async def list_tools(self, *args, **kwargs):
+                return await self._bounded("list_tools", super().list_tools(*args, **kwargs))
+
+            async def call_tool(self, *args, **kwargs):
+                tool_name = args[0] if args else kwargs.get("name", "unknown")
+                return await self._bounded(
+                    f"call_tool {tool_name}",
+                    super().call_tool(*args, **kwargs),
+                )
 
         def tool_payload(result):
             structured = getattr(result, "structuredContent", None)
@@ -14752,13 +15189,17 @@ def _debug_mcp_xdist_duplicate_artifact_client_script() -> str:
                         return payload
             raise AssertionError(f"MCP tool did not return structured JSON: {result!r}")
 
-        async def call_worker(record, tool_name, arguments):
-            async with streamable_http_client(record["inspection_endpoint"], terminate_on_close=False) as (
+        async def call_worker(record, tool_name, arguments, stage_path):
+            endpoint = checked_endpoint(record)
+            mark(stage_path, f"{record['worker_id']} inspection connect")
+            async with streamable_http_client(endpoint, terminate_on_close=False) as (
                 read_stream,
                 write_stream,
                 _get_session_id,
             ):
-                async with ClientSession(read_stream, write_stream) as session:
+                async with BoundedClientSession(
+                    read_stream, write_stream, stage_path, f"{record['worker_id']} inspection"
+                ) as session:
                     await session.initialize()
                     names = {tool.name for tool in (await session.list_tools()).tools}
                     required = {"inspect_failure", "submit_artifact", "release_failure"}
@@ -14766,8 +15207,9 @@ def _debug_mcp_xdist_duplicate_artifact_client_script() -> str:
                     result = await session.call_tool(tool_name, arguments)
                     return tool_payload(result)
 
-        async def main(index_path, output_path):
-            index = json.loads(Path(index_path).read_text(encoding="utf-8"))
+        async def main(snapshot_path, output_path, stage_path):
+            mark(stage_path, "read duplicate-worker index")
+            index = json.loads(Path(snapshot_path).read_text(encoding="utf-8"))
             records = sorted(index.get("workers", []), key=lambda worker: worker["worker_id"])
             assert len(records) == 2, index
             observations = {}
@@ -14779,7 +15221,7 @@ def _debug_mcp_xdist_duplicate_artifact_client_script() -> str:
                 for record in records:
                     worker_id = record["worker_id"]
                     try:
-                        inspection = await call_worker(record, "inspect_failure", {})
+                        inspection = await call_worker(record, "inspect_failure", {}, stage_path)
                         observations[worker_id] = inspection
                         failure = inspection.get("active_failure")
                         if not isinstance(failure, dict):
@@ -14821,6 +15263,7 @@ def _debug_mcp_xdist_duplicate_artifact_client_script() -> str:
                                     "sequence": sequence,
                                     "artifact": artifact,
                                 },
+                                stage_path,
                             )
                         except Exception as error:
                             submissions[worker_id] = {"client_error": repr(error)}
@@ -14844,10 +15287,12 @@ def _debug_mcp_xdist_duplicate_artifact_client_script() -> str:
                                 "session_id": record.get("session_id"),
                                 "sequence": failure.get("sequence"),
                             },
+                            stage_path,
                         )
                     except Exception as error:
                         releases[worker_id] = {"client_error": repr(error)}
 
+            mark(stage_path, "write duplicate-worker observation")
             Path(output_path).write_text(
                 json.dumps(
                     {
@@ -14864,7 +15309,7 @@ def _debug_mcp_xdist_duplicate_artifact_client_script() -> str:
                 encoding="utf-8",
             )
 
-        asyncio.run(main(sys.argv[1], sys.argv[2]))
+        asyncio.run(main(sys.argv[1], sys.argv[2], sys.argv[3]))
         '''
     )
 
@@ -14876,9 +15321,52 @@ def _debug_mcp_xdist_fresh_worker_client_script() -> str:
         import json
         import sys
         from pathlib import Path
+        from urllib.parse import urlsplit
 
         from mcp import ClientSession
         from mcp.client.streamable_http import streamable_http_client
+
+        def mark(stage_path, stage):
+            Path(stage_path).write_text(stage + "\\n", encoding="utf-8")
+            print(f"client stage: {stage}", flush=True)
+
+        def checked_endpoint(record, key):
+            endpoint = record.get(key)
+            assert isinstance(endpoint, str) and endpoint, (
+                f"worker {record.get('worker_id')} has no {key}: {record!r}"
+            )
+            parsed = urlsplit(endpoint)
+            assert parsed.scheme == "http" and parsed.hostname and parsed.port and parsed.path == "/mcp", (
+                f"worker {record.get('worker_id')} has an invalid {key}: {endpoint!r}; record={record!r}"
+            )
+            return endpoint
+
+        class BoundedClientSession(ClientSession):
+            def __init__(self, read_stream, write_stream, stage_path, label):
+                super().__init__(read_stream, write_stream)
+                self._stage_path = stage_path
+                self._label = label
+
+            async def _bounded(self, operation, awaitable):
+                stage = f"{self._label} {operation}"
+                mark(self._stage_path, stage)
+                try:
+                    return await asyncio.wait_for(awaitable, timeout=10)
+                except asyncio.TimeoutError as error:
+                    raise TimeoutError(f"{stage} timed out after 10 seconds") from error
+
+            async def initialize(self, *args, **kwargs):
+                return await self._bounded("initialize", super().initialize(*args, **kwargs))
+
+            async def list_tools(self, *args, **kwargs):
+                return await self._bounded("list_tools", super().list_tools(*args, **kwargs))
+
+            async def call_tool(self, *args, **kwargs):
+                tool_name = args[0] if args else kwargs.get("name", "unknown")
+                return await self._bounded(
+                    f"call_tool {tool_name}",
+                    super().call_tool(*args, **kwargs),
+                )
 
         def tool_payload(result):
             structured = getattr(result, "structuredContent", None)
@@ -14895,31 +15383,47 @@ def _debug_mcp_xdist_fresh_worker_client_script() -> str:
                         return payload
             raise AssertionError(f"MCP tool did not return structured JSON: {result!r}")
 
-        async def inspect_worker(record):
-            endpoint = record["inspection_endpoint"]
+        async def inspect_worker(record, stage_path):
+            worker_id = record["worker_id"]
+            endpoint = checked_endpoint(record, "inspection_endpoint")
+            mark(stage_path, f"{worker_id} inspection connect")
             async with streamable_http_client(endpoint, terminate_on_close=False) as (
                 read_stream,
                 write_stream,
                 _get_session_id,
             ):
-                async with ClientSession(read_stream, write_stream) as session:
+                async with BoundedClientSession(
+                    read_stream, write_stream, stage_path, f"{worker_id} inspection"
+                ) as session:
+                    mark(stage_path, f"{worker_id} inspection initialize")
                     await session.initialize()
+                    mark(stage_path, f"{worker_id} inspection list_tools")
                     names = {tool.name for tool in (await session.list_tools()).tools}
                     assert {"inspect_failure", "heartbeat", "release_failure"} <= names, (record, names)
+                    mark(stage_path, f"{worker_id} inspection inspect_failure")
                     inspection = tool_payload(await session.call_tool("inspect_failure", {}))
                     assert inspection.get("session_id") == record.get("session_id"), (inspection, record)
                     assert inspection.get("active_failure") is None, inspection
+                    mark(stage_path, f"{worker_id} inspection ClientSession context exit")
+                mark(stage_path, f"{worker_id} inspection HTTP client context exit")
 
-            debugger_endpoint = record["debugger_endpoint"]
+            debugger_endpoint = checked_endpoint(record, "debugger_endpoint")
+            mark(stage_path, f"{worker_id} debugger connect")
             async with streamable_http_client(debugger_endpoint, terminate_on_close=False) as (
                 read_stream,
                 write_stream,
                 _get_session_id,
             ):
-                async with ClientSession(read_stream, write_stream) as session:
+                async with BoundedClientSession(
+                    read_stream, write_stream, stage_path, f"{worker_id} debugger"
+                ) as session:
+                    mark(stage_path, f"{worker_id} debugger initialize")
                     await session.initialize()
+                    mark(stage_path, f"{worker_id} debugger list_tools")
                     debugger_tools = sorted(tool.name for tool in (await session.list_tools()).tools)
                     assert {"start_debug", "send_pdb_command"} <= set(debugger_tools), (record, debugger_tools)
+                    mark(stage_path, f"{worker_id} debugger ClientSession context exit")
+                mark(stage_path, f"{worker_id} debugger HTTP client context exit")
 
             return {
                 "worker_id": record["worker_id"],
@@ -14930,17 +15434,19 @@ def _debug_mcp_xdist_fresh_worker_client_script() -> str:
                 "debugger_tools": debugger_tools,
             }
 
-        async def main(index_path, output_path):
+        async def main(index_path, output_path, stage_path):
+            mark(stage_path, "read fresh worker index")
             index = json.loads(Path(index_path).read_text(encoding="utf-8"))
             workers = sorted(index.get("workers", []), key=lambda worker: worker["worker_id"])
             assert len(workers) == 2, index
-            observations = [await inspect_worker(record) for record in workers]
+            observations = [await inspect_worker(record, stage_path) for record in workers]
+            mark(stage_path, "write fresh worker observation")
             Path(output_path).write_text(
                 json.dumps({"session_id": index.get("session_id"), "workers": observations}, indent=2),
                 encoding="utf-8",
             )
 
-        asyncio.run(main(sys.argv[1], sys.argv[2]))
+        asyncio.run(main(sys.argv[1], sys.argv[2], sys.argv[3]))
         '''
     )
 
@@ -14954,6 +15460,8 @@ def run_external_mcp_xdist_worker_clients(consumer: ConsumerProject) -> None:
     index_path = _mcp_xdist_workers_path(consumer)
     client_path = consumer.path / "debug-mcp-xdist-worker-client.py"
     result_path = consumer.path / "debug-mcp-xdist-worker-client-result.json"
+    stage_path = consumer.path / "debug-mcp-xdist-worker-client-stage.txt"
+    log_path = consumer.path / "debug-mcp-xdist-worker-client.log"
     client_result: subprocess.CompletedProcess[str] | None = None
     try:
         initial_index = _read_mcp_xdist_worker_index(consumer)
@@ -14961,15 +15469,22 @@ def run_external_mcp_xdist_worker_clients(consumer: ConsumerProject) -> None:
         consumer._mcp_xdist_initial_index = initial_index
         consumer._mcp_xdist_initial_workers = initial_workers
         client_path.write_text(_debug_mcp_xdist_worker_client_script(), encoding="utf-8")
+        stage_path.unlink(missing_ok=True)
         artifact_root = _consumer_artifact_path("xdist-artifacts", consumer)
-        client_result = subprocess.run(
-            [str(consumer.python), str(client_path), str(index_path), str(result_path), str(artifact_root)],
-            cwd=consumer.path,
-            env=consumer.env,
-            check=False,
-            capture_output=True,
-            text=True,
+        client_result = _run_debug_mcp_external_client(
+            consumer,
+            [
+                str(consumer.python),
+                str(client_path),
+                str(index_path),
+                str(result_path),
+                str(artifact_root),
+                str(stage_path),
+            ],
+            client_name="xdist worker MCP clients",
             timeout=90,
+            stage_path=stage_path,
+            log_path=log_path,
         )
         consumer._mcp_xdist_client_result = client_result
         assert client_result.returncode == 0, (
@@ -15012,6 +15527,8 @@ def submit_artifacts_to_identical_xdist_failures(consumer: ConsumerProject) -> N
     index_path = _mcp_xdist_workers_path(consumer)
     client_path = consumer.path / "debug-mcp-xdist-duplicate-artifact-client.py"
     result_path = consumer.path / "debug-mcp-xdist-duplicate-artifact-client-result.json"
+    stage_path = consumer.path / "debug-mcp-xdist-duplicate-artifact-client-stage.txt"
+    log_path = consumer.path / "debug-mcp-xdist-duplicate-artifact-client.log"
     client_result: subprocess.CompletedProcess[str] | None = None
     try:
         deadline = time.monotonic() + 60
@@ -15032,6 +15549,10 @@ def submit_artifacts_to_identical_xdist_failures(consumer: ConsumerProject) -> N
                     if isinstance(record, dict)
                     and record.get("status") == "holding_failure"
                     and isinstance(record.get("active_failure"), dict)
+                    and isinstance(record.get("debugger_endpoint"), str)
+                    and bool(record["debugger_endpoint"])
+                    and isinstance(record.get("inspection_endpoint"), str)
+                    and bool(record["inspection_endpoint"])
                 ] if isinstance(records, list) else []
                 if (
                     payload.get("status") == "holding_failure"
@@ -15055,20 +15576,29 @@ def submit_artifacts_to_identical_xdist_failures(consumer: ConsumerProject) -> N
             key=lambda record: record.get("worker_id", ""),
         )
         assert len(workers) == 2, initial_index
+        for worker in workers:
+            debugger_endpoint = worker.get("debugger_endpoint")
+            inspection_endpoint = worker.get("inspection_endpoint")
+            assert isinstance(debugger_endpoint, str) and debugger_endpoint, worker
+            assert isinstance(inspection_endpoint, str) and inspection_endpoint, worker
+            _mcp_endpoint_port(debugger_endpoint)
+            _mcp_endpoint_port(inspection_endpoint)
         failures = [record.get("active_failure") for record in workers]
         assert all(isinstance(failure, dict) for failure in failures), initial_index
         consumer._mcp_xdist_duplicate_initial_index = initial_index
         consumer._mcp_xdist_duplicate_initial_workers = workers
 
         client_path.write_text(_debug_mcp_xdist_duplicate_artifact_client_script(), encoding="utf-8")
-        client_result = subprocess.run(
-            [str(consumer.python), str(client_path), str(index_path), str(result_path)],
-            cwd=consumer.path,
-            env=consumer.env,
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=45,
+        snapshot_path = consumer.path / "debug-mcp-xdist-duplicate-artifact-index.json"
+        snapshot_path.write_text(json.dumps(initial_index, ensure_ascii=False, indent=2), encoding="utf-8")
+        stage_path.unlink(missing_ok=True)
+        client_result = _run_debug_mcp_external_client(
+            consumer,
+            [str(consumer.python), str(client_path), str(snapshot_path), str(result_path), str(stage_path)],
+            client_name="duplicate-worker MCP client",
+            timeout=60,
+            stage_path=stage_path,
+            log_path=log_path,
         )
         consumer._mcp_xdist_duplicate_client_result = client_result
         assert client_result.returncode == 0, (
@@ -15599,20 +16129,23 @@ def release_fresh_xdist_session_workers(consumer: ConsumerProject) -> None:
                     if worker_record_matches and marker_workers == set(worker_ids):
                         client_path = consumer.path / "debug-mcp-xdist-fresh-session-client.py"
                         client_result_path = consumer.path / "debug-mcp-xdist-fresh-session-client-result.json"
+                        client_stage_path = consumer.path / "debug-mcp-xdist-fresh-session-client-stage.txt"
+                        client_log_path = consumer.path / "debug-mcp-xdist-fresh-session-client.log"
                         client_path.write_text(_debug_mcp_xdist_fresh_worker_client_script(), encoding="utf-8")
-                        client_result = subprocess.run(
+                        client_stage_path.unlink(missing_ok=True)
+                        client_result = _run_debug_mcp_external_client(
+                            consumer,
                             [
                                 str(consumer.python),
                                 str(client_path),
                                 str(index_path),
                                 str(client_result_path),
+                                str(client_stage_path),
                             ],
-                            cwd=consumer.path,
-                            env=consumer.env,
-                            check=False,
-                            capture_output=True,
-                            text=True,
-                            timeout=30,
+                            client_name="fresh-session MCP endpoint clients",
+                            timeout=60,
+                            stage_path=client_stage_path,
+                            log_path=client_log_path,
                         )
                         assert client_result.returncode == 0, (
                             f"fresh-session MCP endpoint clients failed ({client_result.returncode}):\n"
@@ -17009,21 +17542,22 @@ def consumer_reporting_spine_preserves_run_hook_lifecycle(
 @when("I run the tutorial example as its own pytest project", target_fixture="tutorial_pytest_result")
 def run_tutorial_example_as_own_pytest_project() -> subprocess.CompletedProcess[str]:
     repository_root = Path(__file__).resolve().parents[2]
+    tutorial_root = repository_root / "examples" / "tutorial"
     command = [
         sys.executable,
         "-m",
         "pytest",
         "-c",
-        "examples/tutorial/pyproject.toml",
-        "--rootdir=examples/tutorial",
+        "pyproject.toml",
+        "--rootdir=.",
         "--cuke-autoload",
         "--cuke-features-dir=features",
         "-q",
-        "examples/tutorial",
+        ".",
     ]
     return subprocess.run(
         command,
-        cwd=repository_root,
+        cwd=tutorial_root,
         env=_consumer_environment(),
         check=False,
         capture_output=True,

@@ -27,6 +27,16 @@ OPTIONAL_VERSION_KEYS = (
 SYSTEM_TOOL_VERSION_KEYS = ("tox", "node", "npm", "npx", "allure-cli", "uv", "pandoc", "go", "native-compiler")
 
 
+def normalize_architecture(value: str) -> str:
+    """Normalize a host architecture alias."""
+    normalized = value.casefold().replace("-", "_")
+    return {
+        "amd64": "x86_64",
+        "x64": "x86_64",
+        "arm64": "aarch64",
+    }.get(normalized, normalized)
+
+
 def required_optional_versions(tox_environment: str) -> tuple[str, ...]:
     """Return optional packages whose presence is part of this environment's contract."""
     required: list[str] = []

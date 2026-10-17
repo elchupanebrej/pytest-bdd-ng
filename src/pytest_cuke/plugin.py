@@ -1062,7 +1062,9 @@ def _build_scenario_param(feature: Feature, scenario: Scenario, config: Config) 
     )
 
 
-_XDIST_RSYNC_ROOT = re.compile(r"(?<=[:/\\])_remote-\d+-[^/\\]+(?=[/\\]|$)")
+_XDIST_RSYNC_ROOT = re.compile(
+    r"(?<=[:/\\])(?:_remote-\d+-|pytest-cuke-execnet-remote-\d+-)[^/\\]+(?=[/\\]|$)"
+)
 
 
 def _normalize_xdist_rsync_root(source: str) -> str:

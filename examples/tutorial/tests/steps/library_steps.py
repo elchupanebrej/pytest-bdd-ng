@@ -4,7 +4,7 @@ from typing import List, Literal
 from cucumber_messages import DataTable, Step
 from pytest_cuke import given, step, then, when
 
-from ...src.catalog import Book, Catalog
+from src.catalog import Book, Catalog
 
 
 def get_books_from_data_table(data_table: DataTable):

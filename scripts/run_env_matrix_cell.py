@@ -19,6 +19,7 @@ from environment_evidence import (
     SYSTEM_TOOL_VERSION_KEYS,
     TEST_EVIDENCE_GROUPS,
     evidence_group,
+    normalize_architecture,
     required_optional_versions,
     required_system_tool_versions,
     system_tool_version_command,
@@ -46,6 +47,40 @@ def _write_console_text(
         destination.flush()
 
 
+def _run_and_stream(
+    command: list[str],
+    *,
+    cwd: Path,
+    env: dict[str, str],
+) -> subprocess.CompletedProcess[str]:
+    """Run tox while forwarding each output line to the workflow log."""
+    # The command is built from the validated inventory's tox environment name.
+    process = subprocess.Popen(  # noqa: S603
+        command,
+        cwd=cwd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        bufsize=1,
+    )
+    if process.stdout is None:
+        raise RuntimeError("tox output pipe was not created")
+
+    output: list[str] = []
+    try:
+        for line in process.stdout:
+            output.append(line)
+            _write_console_text(line, end="", flush=True)
+    finally:
+        process.stdout.close()
+
+    returncode = process.wait()
+    return subprocess.CompletedProcess(command, returncode, stdout="".join(output), stderr="")
+
+
 def _installed_versions(python: Path) -> dict[str, Any]:
     package_names = json.dumps(_OPTIONAL_PACKAGES)
     query = "\n".join(
@@ -68,15 +103,6 @@ def _installed_versions(python: Path) -> dict[str, Any]:
     if result.returncode:
         raise RuntimeError(f"cannot inspect tox environment with {python}: {result.stderr.strip()}")
     return json.loads(result.stdout)
-
-
-def _normalized_architecture(value: str) -> str:
-    normalized = value.casefold().replace("-", "_")
-    return {
-        "amd64": "x86_64",
-        "x64": "x86_64",
-        "arm64": "aarch64",
-    }.get(normalized, normalized)
 
 
 def _normalized_runtime(value: str) -> str:
@@ -109,7 +135,7 @@ def _verify_selected_runtime(cell: dict[str, Any]) -> list[str]:
     if actual_platform is None or sys.platform != actual_platform:
         problems.append(f"platform={sys.platform!r}, expected {expected_platform!r}")
 
-    actual_architecture = _normalized_architecture(platform.machine())
+    actual_architecture = normalize_architecture(platform.machine())
     if expected_architecture not in {None, "runner-native"} and actual_architecture != expected_architecture:
         problems.append(f"architecture={actual_architecture!r}, expected {expected_architecture!r}")
     return problems
@@ -272,29 +298,12 @@ def main() -> int:
         if args.job == "native-go-parser":
             command_environment["PYTEST_CUKE_BUILD_GO"] = "off"
         _write_console_text(f"Running {' '.join(command)}", flush=True)
-        # The command is built from the validated inventory's tox environment name.
-        run = subprocess.run(  # noqa: S603
-            command,
-            cwd=project_root,
-            env=command_environment,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            check=False,
-        )
-        if run.stdout:
-            _write_console_text(run.stdout, end="" if run.stdout.endswith("\n") else "\n", flush=True)
-        if run.stderr:
-            _write_console_text(
-                run.stderr,
-                stream=sys.stderr,
-                end="" if run.stderr.endswith("\n") else "\n",
-                flush=True,
-            )
+        run = _run_and_stream(command, cwd=project_root, env=command_environment)
+        environment_outcome = "passed" if run.returncode == 0 else "failed"
         if run.returncode:
             overall_status = "failed"
 
-        output = run.stdout + "\n" + run.stderr
+        output = run.stdout
         test_counts = _test_counts(output)
         selected_tests = sum(test_counts.values()) if test_counts else None
         passed_tests = test_counts.get("passed", 0) if test_counts else None
@@ -302,12 +311,14 @@ def main() -> int:
         if environment_group in TEST_EVIDENCE_GROUPS:
             if selected_tests is None or selected_tests < 1:
                 overall_status = "failed"
+                environment_outcome = "failed"
                 _write_console_text(
                     f"run-env-matrix: {env_name} selected no tests; refusing to record an empty acceptance run",
                     stream=sys.stderr,
                 )
             elif passed_tests is None or passed_tests < 1:
                 overall_status = "failed"
+                environment_outcome = "failed"
                 _write_console_text(
                     f"run-env-matrix: {env_name} selected no tests that passed; "
                     "all selected tests may have been skipped or expected to fail",
@@ -326,11 +337,11 @@ def main() -> int:
             "passed_tests": passed_tests,
             "system_tool_versions": system_tool_versions,
             "system_tool_commands": system_tool_commands,
-            "outcome": "passed" if run.returncode == 0 else "failed",
+            "outcome": environment_outcome,
             "returncode": run.returncode,
             "platform": platform.platform(),
             "platform_name": sys.platform,
-            "architecture": _normalized_architecture(platform.machine()),
+            "architecture": normalize_architecture(platform.machine()),
             "job_url": job_url,
             "run_url": run_url,
             "result_json": result_json.as_posix(),
