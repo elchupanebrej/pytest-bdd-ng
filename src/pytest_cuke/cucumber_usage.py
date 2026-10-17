@@ -71,7 +71,20 @@ const createSupportCodeLibrary = () => {
     });
   }
 
-  const stepDefinitionIds = [...stepDefinitionsById.keys()];
+  const allStepDefinitions = [...stepDefinitionsById.values()];
+  const isInternalTraceDefinition = (message) => {
+    const uri = message?.sourceReference?.uri;
+    const normalizedUri = typeof uri === "string" ? uri.replace(/\\/g, "/") : "";
+    return (
+      message?.pattern?.type === "CUCUMBER_EXPRESSION" &&
+      message.pattern.source === "trace" &&
+      /(?:^|\/)pytest_cuke\/plugin\.py$/.test(normalizedUri)
+    );
+  };
+  // The built-in debugger step should not make a project with no user steps look non-empty.
+  const hasProjectDefinitions = allStepDefinitions.some((message) => !isInternalTraceDefinition(message));
+  const stepDefinitionsForUsage = hasProjectDefinitions ? allStepDefinitions : [];
+  const stepDefinitionIds = stepDefinitionsForUsage.map((message) => message.id);
   for (const stepDefinitionId of stepDefinitionIds) {
     const message = stepDefinitionsById.get(stepDefinitionId);
     const source = message?.pattern?.source;

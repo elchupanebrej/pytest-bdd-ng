@@ -1434,12 +1434,8 @@ def empty_usage_definitions_preserve_undefined_failure(consumer: Any) -> None:
     result = consumer.pytest_result
     output = _output(consumer)
     assert result is not None and result.returncode != 0, output
-    assert "No step definitions" not in output, output
-    assert "Pattern / Text" in output, output
-    trace_rows = [row for row in _table_rows(output) if row[0] == "trace"]
-    assert len(trace_rows) == 1, trace_rows
-    assert trace_rows[0][1] == "UNUSED", trace_rows
-    assert re.search(r"(?:^|/)plugin\.py:\d+$", trace_rows[0][2].replace("\\", "/")), trace_rows
+    assert "No step definitions" in output, output
+    assert "Pattern / Text" not in output, output
     assert "StepDefinitionNotFoundError" in output or "step definition is not found" in output.lower(), output
     assert re.search(r"(?m)^=+ FAILURES =+$", output), output
     assert re.search(r"(?im)^=+\s*short test summary info\s*=+\s*$", output), output
