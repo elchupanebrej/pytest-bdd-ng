@@ -121,6 +121,18 @@ Feature: TTY progress-bar failure reporting
     Then the following progress-bar step remains skipped
 """
 
+_UNSELECTED_PROGRESS_FEATURE = """\
+Feature: Default-off progress bar
+  Scenario: The first Pickle passes without an opt-in
+    Given a progress-bar scenario records execution
+
+  Scenario: The second Pickle passes without an opt-in
+    Given a progress-bar scenario records execution
+
+  Scenario: The third Pickle passes without an opt-in
+    Given a progress-bar scenario records execution
+"""
+
 _BACKEND_FAILURE_FEATURE = """\
 Feature: Progress-bar backend failure
   Scenario: A failing scenario remains failed after backend failure
@@ -338,6 +350,15 @@ def prepare_progress_bar_preflight_scenario(consumer: Any) -> None:
     )
 
 
+@given("the consumer prepares three passing progress-bar scenarios")
+def prepare_multiple_unselected_progress_bar_scenarios(consumer: Any) -> None:
+    _prepare_consumer(
+        consumer,
+        _UNSELECTED_PROGRESS_FEATURE,
+        feature_name="progress-bar-default-off.feature",
+    )
+
+
 @given("the consumer prepares failing, skipped, and passing progress-bar scenarios in a Unicode workspace with spaces")
 def prepare_progress_bar_outcomes_in_unicode_workspace(consumer: Any) -> None:
     root = _prepare_consumer(
@@ -494,7 +515,7 @@ def install_rerunfailures(consumer: Any) -> None:
 def progress_bar_is_disabled_by_default(consumer: Any) -> None:
     assert (_consumer_root(consumer) / "scenario-started.marker").is_file(), _output(consumer)
     output = _output(consumer)
-    assert "1 passed" in output, f"the ordinary pytest summary was not preserved:\n{output}"
+    assert "3 passed" in output, f"the ordinary pytest summary was not preserved:\n{output}"
     output = output.lower()
     assert "@cucumber/pretty-formatter" not in output, output
     assert "npm install" not in output, output
@@ -505,7 +526,11 @@ def unselected_progress_bar_writes_no_progress_output(consumer: Any) -> None:
     output = _output(consumer)
     assert not _ratio_updates(output), f"an unselected progress bar emitted completed/total counts:\n{output!r}"
     assert not _progress_rows(output), f"an unselected progress bar emitted terminal rows:\n{output!r}"
-    assert not re.search(r"\b1\s+scenarios?\b", output, re.IGNORECASE), (
+    pytest_progress = re.findall(r"(?m)^([.F-]+)\s+\[\d+%\]$", _ANSI.sub("", output))
+    assert pytest_progress == ["..."], f"unexpected ordinary or Cucumber progress markers:\n{output!r}"
+    piped_marker_rows = [line for line in _progress_marker_lines(output) if re.fullmatch(r"[.F-]+", line)]
+    assert not piped_marker_rows, f"an unselected progress bar emitted piped progress markers:\n{output!r}"
+    assert not re.search(r"\b3\s+scenarios?\b", output, re.IGNORECASE), (
         f"an unselected progress bar emitted a Cucumber scenario summary:\n{output!r}"
     )
 
@@ -815,19 +840,20 @@ def run_progress_bar_across_capture_and_verbosity_modes(consumer: Any) -> None:
         ("sys", "sys", ("-v",)),
         ("no", "no", ("-vv",)),
     ):
-        outputs[output_name] = _run_progress_bar_geometry_replay(
+        result = _run_progress_bar_geometry_replay(
             consumer,
             columns=32,
             capture_mode=capture_mode,
             verbosity=verbosity,
             messages_path=f"artifacts/messages-{output_name}.ndjson",
         )
+        outputs[output_name] = result.stdout
     consumer._progress_bar_capture_mode_outputs = outputs
 
 
 @when("I run installed pytest in a 32-column TTY with tee-sys capture and a failing scenario")
 def run_failing_progress_bar_scenario_in_tty(consumer: Any) -> None:
-    output = _run_progress_bar_geometry_replay(
+    consumer.pytest_result = _run_progress_bar_geometry_replay(
         consumer,
         columns=32,
         capture_mode="tee-sys",
@@ -836,14 +862,6 @@ def run_failing_progress_bar_scenario_in_tty(consumer: Any) -> None:
         reruns=None,
         tb_mode="short",
         expected_return_code=1,
-    )
-    consumer._progress_bar_tty_failure_output = output
-    consumer._progress_bar_tty_failure_return_code = consumer._progress_bar_last_replay_return_code
-    consumer.pytest_result = subprocess.CompletedProcess(
-        consumer._progress_bar_last_replay_command,
-        consumer._progress_bar_tty_failure_return_code,
-        output,
-        "",
     )
 
 
@@ -857,7 +875,7 @@ def _run_progress_bar_geometry_replay(
     reruns: int | None = 1,
     tb_mode: str = "no",
     expected_return_code: int = 0,
-) -> str:
+) -> subprocess.CompletedProcess[str]:
     import fcntl
     import pty
     import termios
@@ -945,13 +963,12 @@ def _run_progress_bar_geometry_replay(
         os.close(master_fd)
 
     output = b"".join(chunks).decode("utf-8", errors="replace")
-    consumer._progress_bar_last_replay_return_code = return_code
-    consumer._progress_bar_last_replay_command = command
-    assert return_code == expected_return_code, (
-        f"the {columns or 80}-column progress-bar replay exited with {return_code}, "
+    result = subprocess.CompletedProcess(command, return_code, output, "")
+    assert result.returncode == expected_return_code, (
+        f"the {columns or 80}-column progress-bar replay exited with {result.returncode}, "
         f"expected {expected_return_code}:\n{output}"
     )
-    return output
+    return result
 
 
 @then("the terminal progress updates should be live, width-aware, and capped at the unique Pickle total")
@@ -995,13 +1012,18 @@ def terminal_progress_updates_fit_width_and_cap_counts(consumer: Any) -> None:
     for expected_result in ("passed", "skipped"):
         assert expected_result in summary, f"the final Cucumber summary omitted {expected_result!r}: {summary!r}"
 
-    wide_rows = _progress_rows(_run_progress_bar_geometry_replay(consumer, columns=100))
+    wide_rows = _progress_rows(_run_progress_bar_geometry_replay(consumer, columns=100).stdout)
     assert wide_rows and max(len(line) for line in wide_rows) == 100, wide_rows
 
-    fallback_rows = _progress_rows(_run_progress_bar_geometry_replay(consumer, columns=None))
+    fallback_rows = _progress_rows(_run_progress_bar_geometry_replay(consumer, columns=None).stdout)
     assert fallback_rows and max(len(line) for line in fallback_rows) == 80, fallback_rows
 
-    narrow_output = _run_progress_bar_geometry_replay(consumer, columns=5, capture_mode="fd", verbosity=("-q",))
+    narrow_output = _run_progress_bar_geometry_replay(
+        consumer,
+        columns=5,
+        capture_mode="fd",
+        verbosity=("-q",),
+    ).stdout
     narrow_ratios = _ratio_updates(narrow_output)
     assert narrow_ratios and narrow_ratios[-1] == (3, 3), (
         f"the final unique-Pickle completion update was absent at five columns; raw PTY output: {narrow_output!r}"
@@ -1049,8 +1071,9 @@ def progress_bar_restores_pytest_output_across_capture_modes(consumer: Any) -> N
 
 @then("TTY progress and pytest failure reporting should both be visible")
 def tty_progress_preserves_pytest_failure_reporting(consumer: Any) -> None:
-    output = getattr(consumer, "_progress_bar_tty_failure_output", "")
-    assert getattr(consumer, "_progress_bar_tty_failure_return_code", None) == 1, output
+    result = consumer.pytest_result
+    assert result is not None and result.returncode == 1, _output(consumer)
+    output = _output(consumer)
 
     attempts = _attempts(_message_rows(consumer, "artifacts/messages-tty-failure.ndjson"))
     assert [attempt["status"] for attempt in attempts] == ["PASSED", "FAILED"], (attempts, output)

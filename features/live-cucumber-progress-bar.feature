@@ -5,7 +5,7 @@ Feature: Live Cucumber progress bar
 
   Scenario: Progress bar remains disabled without Node or npm unless selected
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
-    And the consumer prepares a progress-bar scenario that records execution
+    And the consumer prepares three passing progress-bar scenarios
     And the consumer PATH has no Node.js or npm executables
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q --tb=no --color=no"
     Then pytest should exit with code 0
