@@ -1232,13 +1232,13 @@ def proof_summary_preserves_browser_report_system_tool_evidence(
     assert uv_command.get("argv") == [uv_executable, "--version"], uv_command
 
 
-@then("core CPython and GraalPy coverage evidence should omit tox-local uv")
-def proof_summary_core_coverage_omits_tox_local_uv(proof_aggregation: ProofAggregationContext) -> None:
+@then("core CPython and GraalPy coverage evidence should include tox-local uv")
+def proof_summary_core_coverage_includes_tox_local_uv(proof_aggregation: ProofAggregationContext) -> None:
     environments = _summary(proof_aggregation).get("environments")
     assert isinstance(environments, list), environments
     expected_environments = {
         "py314-pytestlatest-coverage-lin",
-        "graalpy253-pytestlatest-coverage-lin",
+        "graalpy-253-pytestlatest-coverage-lin",
     }
     records = {
         environment.get("tox_environment"): environment
@@ -1249,8 +1249,16 @@ def proof_summary_core_coverage_omits_tox_local_uv(proof_aggregation: ProofAggre
     for name, environment in records.items():
         versions = environment.get("system_tool_versions")
         commands = environment.get("system_tool_commands")
-        assert isinstance(versions, dict) and versions.get("uv") is None, (name, versions)
-        assert isinstance(commands, dict) and commands.get("uv") is None, (name, commands)
+        assert isinstance(versions, dict) and isinstance(versions.get("uv"), str) and versions["uv"], (name, versions)
+        assert isinstance(commands, dict), (name, commands)
+        uv_command = commands.get("uv")
+        assert isinstance(uv_command, dict), (name, commands)
+        executable = uv_command.get("executable")
+        assert isinstance(executable, str) and executable.replace("\\", "/").endswith(f"/.tox/{name}/bin/uv"), (
+            name,
+            uv_command,
+        )
+        assert uv_command.get("argv") == [executable, "--version"], (name, uv_command)
 
 
 @then("the proof summary should preserve Node npm npx and Allure CLI evidence for optional Allure")

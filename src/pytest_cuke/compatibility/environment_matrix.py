@@ -781,12 +781,12 @@ def _validate_runtime_policy(
                     "Pin GraalPy 25.3 and CPython 3.15.0 explicitly in the canonical runtime inventory.",
                 )
             )
-        if key[0] == "graalpy" and cell is not None and cell.get("runtime_version") != "25.3":
+        if key[0] == "graalpy" and setup_cell is not None and setup_cell.get("runtime_version") != "25.3":
             diagnostics.append(
                 _diagnostic(
-                    str(cell.get("id") or "runtime-policy"),
+                    str(setup_cell.get("id") or "runtime-policy"),
                     "runtime-policy-graalpy-version-mismatch",
-                    f"GraalPy runtime version is {cell.get('runtime_version')!r}; expected 25.3",
+                    f"GraalPy runtime version is {setup_cell.get('runtime_version')!r}; expected 25.3",
                     "Set runtime_version to 25.3 and Python to 3.13.14 for the GraalPy cell.",
                 )
             )
@@ -851,22 +851,44 @@ def _validate_runtime_policy(
         if isinstance(exclusion_id, str):
             exclusion_ids.add(exclusion_id)
         availability = exclusion.get("upstream_availability")
+        installability = exclusion.get("installability")
         support = exclusion.get("product_support")
+        required_ci = exclusion.get("required_ci")
+        measured_evidence = exclusion.get("measured_evidence")
         if (
             not isinstance(availability, dict)
             or availability.get("status") not in {"available", "unavailable", "unknown"}
             or not _has_source_evidence(availability.get("source_evidence"))
+            or not isinstance(installability, dict)
+            or installability.get("status") not in {"incompatible", "not-assessed"}
+            or not isinstance(installability.get("reason"), str)
+            or not installability["reason"].strip()
             or not isinstance(support, dict)
             or support.get("status") != "unsupported"
-            or not support.get("reason")
+            or not isinstance(support.get("reason"), str)
+            or not support["reason"].strip()
+            or not isinstance(required_ci, dict)
+            or required_ci.get("status") != "excluded"
+            or required_ci.get("workflow_cell") is not None
+            or required_ci.get("tox_envs") != []
+            or not isinstance(required_ci.get("reason"), str)
+            or not required_ci["reason"].strip()
+            or not isinstance(measured_evidence, dict)
+            or measured_evidence.get("status") != "not-run"
+            or not isinstance(measured_evidence.get("fields"), list)
+            or not _RUNTIME_POLICY_EVIDENCE_FIELDS <= set(measured_evidence["fields"])
+            or not isinstance(measured_evidence.get("reason"), str)
+            or not measured_evidence["reason"].strip()
         ):
             diagnostics.append(
                 _diagnostic(
                     str(exclusion_id or "runtime-policy"),
                     "runtime-policy-exclusion-dimensions-invalid",
-                    "an excluded runtime must distinguish upstream availability from product support",
-                    "Declare upstream_availability with source evidence and "
-                    "product_support.status: unsupported with a reason.",
+                    "an excluded runtime must distinguish availability, installability, product support, required CI, "
+                    "and measured evidence",
+                    "Declare source-backed upstream_availability, installability.status and reason, unsupported "
+                    "product_support, excluded required_ci, and not-run measured_evidence with the standard fields "
+                    "and a reason.",
                 )
             )
         exclusion_key = (
