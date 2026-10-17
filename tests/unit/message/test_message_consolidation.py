@@ -422,31 +422,25 @@ def test_consolidation_deduplicates_a_source_from_its_execnet_rsync_staged_path(
     source_data = "Feature: Socket gateway cases\n  Scenario: A worker case\n"
     media_type = "text/x.cucumber.gherkin+plain"
     controller_uri = (
-        "file:///tmp/pytest-of-user/pytest-1/pytest-cuke-group-consumer11/"
+        "file:///C:/Users/runneradmin/AppData/Local/Temp/pytest-of-unknown/pytest-0/"
+        "pytest-cuke-group-consumer11/"
         "features/socket-worker-cases.feature"
     )
     worker_uri = (
-        "file:///tmp/pytest-cuke-execnet-remote-1-random/pyexecnetcache/"
+        "file:///C:/Users/runneradmin/AppData/Local/Temp/pytest-cuke-execnet-remote-1-zqhlv78o/"
+        "pyexecnetcache/"
         "pytest-cuke-group-consumer11/features/socket-worker-cases.feature"
     )
     fragments = (
         MessageFragment(
             worker_id="master",
             role="controller",
-            envelopes=(
-                message_to_dict(
-                    Envelope(source=Source(uri=controller_uri, data=source_data, media_type=media_type))
-                ),
-            ),
+            envelopes=(message_to_dict(Envelope(source=Source(uri=controller_uri, data=source_data, media_type=media_type))),),
         ),
         MessageFragment(
             worker_id="gw0",
             role="worker",
-            envelopes=(
-                message_to_dict(
-                    Envelope(source=Source(uri=worker_uri, data=source_data, media_type=media_type))
-                ),
-            ),
+            envelopes=(message_to_dict(Envelope(source=Source(uri=worker_uri, data=source_data, media_type=media_type))),),
         ),
     )
 
@@ -454,6 +448,84 @@ def test_consolidation_deduplicates_a_source_from_its_execnet_rsync_staged_path(
     sources = [envelope["source"] for envelope in consolidated.envelope_dicts if "source" in envelope]
 
     assert sources == [{"uri": controller_uri, "data": source_data, "mediaType": media_type}]
+
+
+def test_consolidation_deduplicates_same_source_from_execnet_staging_roots_without_controller_source() -> None:
+    source_data = "Feature: Socket gateway cases\n  Scenario: A worker case\n"
+    media_type = "text/x.cucumber.gherkin+plain"
+    worker_uris = (
+        "file:///C:/Temp/pytest-cuke-execnet-remote-0-first/pyexecnetcache/"
+        "pytest-cuke-group-consumer11/features/socket-worker-cases.feature",
+        "file:///C:/Temp/pytest-cuke-execnet-remote-1-second/pyexecnetcache/"
+        "pytest-cuke-group-consumer11/features/socket-worker-cases.feature",
+    )
+    fragments = (
+        MessageFragment(worker_id="master", role="controller", envelopes=()),
+        *(
+            MessageFragment(
+                worker_id=f"gw{index}",
+                role="worker",
+                envelopes=(message_to_dict(Envelope(source=Source(uri=uri, data=source_data, media_type=media_type))),),
+            )
+            for index, uri in enumerate(worker_uris)
+        ),
+    )
+
+    consolidated = consolidate_message_fragments(fragments)
+    reversed_consolidated = consolidate_message_fragments(tuple(reversed(fragments)))
+    sources = [envelope["source"] for envelope in consolidated.envelope_dicts if "source" in envelope]
+
+    assert sources == [{"uri": worker_uris[0], "data": source_data, "mediaType": media_type}]
+    assert reversed_consolidated.envelope_dicts == consolidated.envelope_dicts
+
+
+@pytest.mark.parametrize(
+    ("second_path", "second_data"),
+    (
+        ("features/other.feature", "Feature: Shared content\n"),
+        ("features/shared.feature", "Feature: Different content\n"),
+    ),
+)
+def test_consolidation_preserves_execnet_staged_sources_with_different_paths_or_contents(
+    second_path: str,
+    second_data: str,
+) -> None:
+    first_uri = (
+        "file:///C:/Temp/pytest-cuke-execnet-remote-0-first/pyexecnetcache/"
+        "pytest-cuke-group-consumer11/features/shared.feature"
+    )
+    second_uri = (
+        f"file:///C:/Temp/pytest-cuke-execnet-remote-1-second/pyexecnetcache/pytest-cuke-group-consumer11/{second_path}"
+    )
+    sources = (
+        (first_uri, "Feature: Shared content\n"),
+        (second_uri, second_data),
+    )
+    fragments = tuple(
+        MessageFragment(
+            worker_id=f"gw{index}",
+            role="worker",
+            envelopes=(
+                message_to_dict(
+                    Envelope(
+                        source=Source(
+                            uri=uri,
+                            data=data,
+                            media_type="text/x.cucumber.gherkin+plain",
+                        )
+                    )
+                ),
+            ),
+        )
+        for index, (uri, data) in enumerate(sources)
+    )
+
+    consolidated = consolidate_message_fragments(fragments)
+
+    assert [envelope["source"]["uri"] for envelope in consolidated.envelope_dicts if "source" in envelope] == [
+        first_uri,
+        second_uri,
+    ]
 
 
 def test_consolidation_preserves_distinct_source_uris_with_identical_content() -> None:
@@ -498,6 +570,34 @@ def test_consolidation_preserves_distinct_source_uris_with_identical_content() -
         "features/first.feature",
         "features/second.feature",
     ]
+
+
+def test_consolidation_keeps_staged_source_when_controller_uri_match_is_ambiguous() -> None:
+    source_data = "Feature: Shared content\n"
+    media_type = "text/x.cucumber.gherkin+plain"
+    staged_uri = (
+        "file:///C:/Temp/pytest-cuke-execnet-remote-1-random/pyexecnetcache/"
+        "pytest-cuke-group-consumer11/features/shared.feature"
+    )
+    source_uris = (
+        "file:///C:/Temp/first/pytest-cuke-group-consumer11/features/shared.feature",
+        "file:///C:/Temp/second/pytest-cuke-group-consumer11/features/shared.feature",
+        staged_uri,
+    )
+    fragments = tuple(
+        MessageFragment(
+            worker_id=worker_id,
+            role="controller" if worker_id == "master" else "worker",
+            envelopes=(message_to_dict(Envelope(source=Source(uri=uri, data=source_data, media_type=media_type))),),
+        )
+        for worker_id, uri in zip(("master", "gw0", "gw1"), source_uris, strict=True)
+    )
+
+    consolidated = consolidate_message_fragments(fragments)
+
+    assert [envelope["source"]["uri"] for envelope in consolidated.envelope_dicts if "source" in envelope] == list(
+        source_uris
+    )
 
 
 def test_consolidation_orders_cases_by_pickle_collection_order_across_worker_assignments() -> None:
