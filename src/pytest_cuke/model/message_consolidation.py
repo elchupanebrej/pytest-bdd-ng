@@ -184,38 +184,47 @@ def _execnet_rsync_relative_uri(uri: str) -> str | None:
 
 
 def _canonicalize_execnet_staged_uris(records: Sequence[_EnvelopeRecord]) -> None:
-    """Map xdist's staged feature paths back to a unique controller source URI."""
+    """Collapse equivalent xdist staging paths, preferring a unique controller source URI."""
     sources = [record for record in records if record.payload_kind == "source"]
     local_uris_by_content: dict[str, set[str]] = {}
-    for record in sources:
-        payload = _payload(record.envelope, "source")
-        uri = payload.get("uri")
-        if not isinstance(uri, str) or _execnet_rsync_relative_uri(uri) is not None:
-            continue
-        local_uris_by_content.setdefault(_source_identity_without_uri(record), set()).add(uri)
-
-    remap_candidates: dict[str, set[str]] = {}
+    staged_uris_by_source: dict[tuple[str, str], set[str]] = {}
+    source_identities_by_uri: dict[str, set[str]] = {}
     for record in sources:
         payload = _payload(record.envelope, "source")
         uri = payload.get("uri")
         if not isinstance(uri, str):
             continue
+        source_identity = _source_identity_without_uri(record)
+        source_identities_by_uri.setdefault(uri, set()).add(source_identity)
         relative_uri = _execnet_rsync_relative_uri(uri)
         if relative_uri is None:
-            continue
+            local_uris_by_content.setdefault(source_identity, set()).add(uri)
+        else:
+            staged_uris_by_source.setdefault((source_identity, relative_uri), set()).add(uri)
+
+    remap_candidates: dict[str, set[str]] = {}
+    for (source_identity, relative_uri), staged_uris in staged_uris_by_source.items():
         matching_uris = {
             candidate
-            for candidate in local_uris_by_content.get(_source_identity_without_uri(record), set())
+            for candidate in local_uris_by_content.get(source_identity, set())
             if candidate.replace("\\", "/").endswith(f"/{relative_uri}")
         }
-        if len(matching_uris) == 1:
-            remap_candidates.setdefault(uri, set()).update(matching_uris)
+        if len(matching_uris) > 1:
+            continue
+        canonical_uri = next(iter(matching_uris)) if matching_uris else min(staged_uris)
+        for staged_uri in staged_uris:
+            if staged_uri != canonical_uri:
+                remap_candidates.setdefault(staged_uri, set()).add(canonical_uri)
 
-    uri_remap = {
-        staged_uri: next(iter(candidates))
-        for staged_uri, candidates in remap_candidates.items()
-        if len(candidates) == 1
-    }
+    uri_remap: dict[str, str] = {}
+    for staged_uri, candidates in remap_candidates.items():
+        if len(candidates) != 1:
+            continue
+        canonical_uri = next(iter(candidates))
+        source_identities = source_identities_by_uri.get(staged_uri, set())
+        if len(source_identities) != 1 or source_identities != source_identities_by_uri.get(canonical_uri, set()):
+            continue
+        uri_remap[staged_uri] = canonical_uri
     if not uri_remap:
         return
 
