@@ -1075,7 +1075,8 @@ _XDIST_RSYNC_ROOT = re.compile(
 
 def _normalize_xdist_rsync_root(source: str) -> str:
     """Keep worker-specific rsync temp roots out of parametrized scenario IDs."""
-    return _XDIST_RSYNC_ROOT.sub("_remote", source)
+    source_with_posix_separators = source.replace("\\", "/")
+    return _XDIST_RSYNC_ROOT.sub("_remote", source_with_posix_separators)
 
 
 def _feature_scenario_identity(feature: Feature, scenario: Scenario) -> tuple[Any, ...] | None:

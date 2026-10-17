@@ -51,6 +51,7 @@ Feature: Live message-driven Cucumber JSON formatter
   Scenario: An unselected JSON backend is inert and explicit native routing is preserved
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the Cucumber JSON consumer prepares a passing marker scenario
+    And the consumer installs pytest-cuke with its Cucumber JSON extra in an isolated environment
     And the Cucumber JSON consumer PATH excludes Node.js and npm
     When I run installed pytest in the Cucumber JSON workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features -q --color=no"
     Then ordinary pytest should pass without starting a JSON backend

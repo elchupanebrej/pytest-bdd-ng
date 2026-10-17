@@ -440,6 +440,12 @@ def install_pytest_cuke_struct_bdd_extra_in_isolated_environment(consumer: Consu
     _install_pytest_cuke_extra_in_isolated_environment(consumer, "struct-bdd")
 
 
+@given("the consumer installs pytest-cuke with its Cucumber JSON extra in an isolated environment")
+def install_pytest_cuke_cucumber_json_extra_in_isolated_environment(consumer: ConsumerProject) -> None:
+    """Install native Cucumber JSON support without changing shared base consumer environments."""
+    _install_pytest_cuke_extra_in_isolated_environment(consumer, "cucumber-json")
+
+
 def _install_pytest_cuke_extra_in_isolated_environment(consumer: ConsumerProject, extra: str) -> None:
     uv_executable = shutil.which("uv")
     assert uv_executable, f"the {extra} consumer contract requires uv to create an isolated environment"
@@ -1071,14 +1077,36 @@ def run_consumer_pytest_with_local_http_fixture_url_base(
     target_fixture="pytest_result",
 )
 def run_local_pytest_with_arguments(arguments, request, testdir, step):
-    import os
-
     root = getattr(request.config, "rootpath", getattr(request.config, "rootdir", Path.cwd()))
     source_dir = str(Path(root) / "src")
-    current_path = os.environ.get("PYTHONPATH", "")
-    testdir.monkeypatch.setenv("PYTHONPATH", os.pathsep.join(filter(None, (source_dir, current_path))))
+    test_root = Path(str(testdir.tmpdir))
     cli_args = _split_consumer_arguments(arguments)
-    in_subprocess = "in a subprocess" in step.text
+    project_root_argument = next(
+        (
+            argument.partition("=")[2]
+            for argument in cli_args
+            if argument.startswith("--rootdir=")
+        ),
+        None,
+    )
+    if project_root_argument is None and "--rootdir" in cli_args:
+        rootdir_index = cli_args.index("--rootdir")
+        if rootdir_index + 1 < len(cli_args):
+            project_root_argument = cli_args[rootdir_index + 1]
+
+    python_paths = [str(test_root)]
+    if project_root_argument is not None:
+        project_root = Path(project_root_argument)
+        if not project_root.is_absolute():
+            project_root = test_root / project_root
+        if project_root.is_dir():
+            python_paths.insert(0, str(project_root))
+    current_path = os.environ.get("PYTHONPATH", "")
+    testdir.monkeypatch.setenv(
+        "PYTHONPATH",
+        os.pathsep.join(filter(None, (*python_paths, source_dir, current_path))),
+    )
+    in_subprocess = "in a subprocess" in step.text or os.name == "nt"
     runner = testdir.runpytest_subprocess if in_subprocess else testdir.runpytest_inprocess
     return runner(*cli_args)
 
@@ -11429,7 +11457,8 @@ def consumer_debug_mcp_startup_failure_has_no_advertised_endpoint_or_child(consu
     occupied_socket = getattr(consumer, "_mcp_occupied_socket", None)
     try:
         if occupied_socket is None:
-            assert "optional dependencies" in output.lower() and "debug-mcp" in output.lower(), output
+            assert "pydantic" in output.lower(), output
+            assert "pytest-cuke[debug-mcp]" in output.lower(), output
             assert not child_pids, guard_output
         else:
             assert "debugger server exited during startup" in output.lower(), output

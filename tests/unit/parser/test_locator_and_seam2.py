@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_cuke.model import Feature
 from pytest_cuke.scenario_locator import (
     FileScenarioLocator,
@@ -37,8 +38,9 @@ def test_file_scenario_locator_directory_glob(tmp_path: Path) -> None:
     f1.write_text("Feature: F1\n  Scenario: S1\n    Given a\n", encoding="utf-8")
     f2 = tmp_path / "f2.feature.md"
     f2.write_text("# Feature: F2\n## Scenario: S2\n* Given b\n", encoding="utf-8")
-    f3 = tmp_path / "f3.bdd.yaml"
-    f3.write_text("Name: F3\nSteps:\n  - Step:\n      Name: S3\n      Steps:\n        - Given: c\n", encoding="utf-8")
+    if STRUCT_BDD_INSTALLED:
+        f3 = tmp_path / "f3.bdd.yaml"
+        f3.write_text("Name: F3\nSteps:\n  - Step:\n      Name: S3\n      Steps:\n        - Given: c\n", encoding="utf-8")
 
     locator = FileScenarioLocator(features_base_dir=tmp_path, feature_paths=["**/*"])
     features = list(locator.resolve_features())
@@ -46,7 +48,8 @@ def test_file_scenario_locator_directory_glob(tmp_path: Path) -> None:
     names = {f.name for f in features}
     assert "F1" in names
     assert "F2" in names
-    assert "F3" in names
+    if STRUCT_BDD_INSTALLED:
+        assert "F3" in names
 
 
 def test_file_scenario_locator_filtering(tmp_path: Path) -> None:
@@ -110,15 +113,18 @@ def test_seam2_contract_all_formats(tmp_path: Path) -> None:
     f_md = tmp_path / "test.md"
     f_md.write_text("# Feature: Markdown\n## Scenario: M\n* Given m1\n", encoding="utf-8")
 
-    f_yaml = tmp_path / "test.bdd.yaml"
-    f_yaml.write_text(
-        "Name: StructBDD\nSteps:\n  - Step:\n      Name: Y\n      Steps:\n        - Given: y1\n",
-        encoding="utf-8",
-    )
+    feature_paths = [f_gherkin, f_md]
+    if STRUCT_BDD_INSTALLED:
+        f_yaml = tmp_path / "test.bdd.yaml"
+        f_yaml.write_text(
+            "Name: StructBDD\nSteps:\n  - Step:\n      Name: Y\n      Steps:\n        - Given: y1\n",
+            encoding="utf-8",
+        )
+        feature_paths.append(f_yaml)
 
-    locator = FileScenarioLocator(feature_paths=[f_gherkin, f_md, f_yaml])
+    locator = FileScenarioLocator(feature_paths=feature_paths)
     features = list(locator.resolve_features())
-    assert len(features) == 3
+    assert len(features) == (3 if STRUCT_BDD_INSTALLED else 2)
 
     for feat in features:
         assert isinstance(feat, Feature)

@@ -20,6 +20,10 @@ from pytest_cuke.model.message_types import Envelope, message_from_dict
 _IDE_JSON_ATTACHMENT_MEDIA_TYPES = frozenset(
     {IDE_DIAGNOSTIC_MEDIA_TYPE, IDE_LAUNCH_MEDIA_TYPE, IDE_STEP_BINDING_MEDIA_TYPE}
 )
+_XDIST_EXECNET_STAGING_PATH = re.compile(
+    r"(?:pytest-cuke-execnet-remote-\d+-[^/\\]+|_remote-\d+-[^/\\]+)/pyexecnetcache/",
+    re.IGNORECASE,
+)
 
 
 def _is_identifier_key(key: str) -> bool:
@@ -166,6 +170,60 @@ def _structural_identity(record: _EnvelopeRecord, *, strip_reference_ids: bool) 
         sort_keys=True,
         separators=(",", ":"),
     )
+
+
+def _source_identity_without_uri(record: _EnvelopeRecord) -> str:
+    source = {key: value for key, value in _payload(record.envelope, "source").items() if key != "uri"}
+    return json.dumps(source, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _execnet_rsync_relative_uri(uri: str) -> str | None:
+    normalized = uri.replace("\\", "/")
+    match = _XDIST_EXECNET_STAGING_PATH.search(normalized)
+    return normalized[match.end() :] if match is not None else None
+
+
+def _canonicalize_execnet_staged_uris(records: Sequence[_EnvelopeRecord]) -> None:
+    """Map xdist's staged feature paths back to a unique controller source URI."""
+    sources = [record for record in records if record.payload_kind == "source"]
+    local_uris_by_content: dict[str, set[str]] = {}
+    for record in sources:
+        payload = _payload(record.envelope, "source")
+        uri = payload.get("uri")
+        if not isinstance(uri, str) or _execnet_rsync_relative_uri(uri) is not None:
+            continue
+        local_uris_by_content.setdefault(_source_identity_without_uri(record), set()).add(uri)
+
+    remap_candidates: dict[str, set[str]] = {}
+    for record in sources:
+        payload = _payload(record.envelope, "source")
+        uri = payload.get("uri")
+        if not isinstance(uri, str):
+            continue
+        relative_uri = _execnet_rsync_relative_uri(uri)
+        if relative_uri is None:
+            continue
+        matching_uris = {
+            candidate
+            for candidate in local_uris_by_content.get(_source_identity_without_uri(record), set())
+            if candidate.replace("\\", "/").endswith(f"/{relative_uri}")
+        }
+        if len(matching_uris) == 1:
+            remap_candidates.setdefault(uri, set()).update(matching_uris)
+
+    uri_remap = {
+        staged_uri: next(iter(candidates))
+        for staged_uri, candidates in remap_candidates.items()
+        if len(candidates) == 1
+    }
+    if not uri_remap:
+        return
+
+    for record in records:
+        payload = _payload(record.envelope, record.payload_kind)
+        uri = payload.get("uri")
+        if isinstance(uri, str) and uri in uri_remap:
+            payload["uri"] = uri_remap[uri]
 
 
 def _pickle_order_identity(record: _EnvelopeRecord) -> str:
@@ -614,6 +672,7 @@ def consolidate_message_fragments(fragments: Sequence[MessageFragment]) -> Conso
 
     structural_kinds = set(STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS) - {"test_case"}
     _apply_id_remap(records, id_remap)
+    _canonicalize_execnet_staged_uris(records)
     structural_by_identity: dict[str, _EnvelopeRecord] = {}
     structural_order = ("source", "gherkin_document", "parameter_type", "pickle", "step_definition", "hook")
     for payload_kind in structural_order:

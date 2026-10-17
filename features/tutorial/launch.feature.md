@@ -4,7 +4,7 @@
 ## Scenario: Catalog example with simplest steps
 
 * Given Copy path from "examples/tutorial" to test path "tutorial"
-* When I run pytest with arguments "--rootdir=tutorial tutorial/tests"
+* When I run pytest in a subprocess with arguments "--rootdir=tutorial tutorial/tests"
 
 * Then pytest outcome must contain tests with statuses:
     | passed |

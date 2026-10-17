@@ -1,3 +1,4 @@
+@e2e
 Feature: Convert saved Cucumber Messages to Allure results
   A saved Cucumber Messages stream can be converted without collecting its
   original feature files or importing consumer test configuration.
