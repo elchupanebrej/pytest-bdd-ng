@@ -10,6 +10,7 @@ Feature: Live Cucumber progress bar
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q --tb=no --color=no"
     Then pytest should exit with code 0
     And progress bar should remain disabled while the scenario runs
+    And no progress-bar markers counts or Cucumber summary should appear
 
   Scenario: cuke_progress_bar enables readable piped progress with distinct file outputs
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -89,3 +90,11 @@ Feature: Live Cucumber progress bar
     And the consumer installs pytest-rerunfailures in the installed consumer
     When I run installed pytest in a 32-column TTY with default capture and "-q", plus "--capture=fd -q", "--capture=sys -v", and "--capture=no -vv"
     Then TTY progress and pytest output should be restored for each capture mode
+
+  Scenario: TTY capture restores pytest failure reporting after a final scenario failure
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer prepares a passing and a failing progress-bar scenario
+    And a POSIX pseudo-terminal with 32 columns is available
+    And the consumer installs pinned official Cucumber progress formatter packages
+    When I run installed pytest in a 32-column TTY with tee-sys capture and a failing scenario
+    Then TTY progress and pytest failure reporting should both be visible
