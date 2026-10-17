@@ -174,7 +174,8 @@ def test_formatter_fails_loudly_when_capture_state_api_is_unavailable() -> None:
 
 def test_formatter_materializes_and_removes_runtime_assets(tmp_path: Path) -> None:
     code = (
-        "from pathlib import Path; import sys; asset = Path(sys.argv[1]); print(asset.read_text()); print(asset.parent)"
+        "from pathlib import Path; import sys; asset = Path(sys.argv[1]); content = asset.read_text(); "
+        "sys.stdin.read(); print(content); print(asset.parent)"
     )
     session = FormatterSession(
         _config(),
