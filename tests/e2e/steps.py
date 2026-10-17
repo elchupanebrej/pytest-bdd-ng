@@ -4540,7 +4540,7 @@ def run_pytest(testdir: "Testdir", request, step):
     testdir.monkeypatch.setenv("PYTHONPATH", f"{src_dir}{os.pathsep}{orig_pp}" if orig_pp else src_dir)
 
     cli_args = list(options_dict.get("cli_args", []))
-    if not is_sub:
+    if not is_sub and os.name != "nt":
         import sys
 
         for mod_name in list(sys.modules.keys()):
