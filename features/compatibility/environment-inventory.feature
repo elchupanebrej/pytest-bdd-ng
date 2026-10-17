@@ -132,6 +132,7 @@ Feature: Supported environment inventory and acceptance proof
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     And the repository environment inventory is loaded
     Then every live formatter acceptance carrier should select exactly the feature files selected by tox
+    And live formatter acceptance should emit per-scenario progress to workflow logs
 
   Scenario: The doc-generation extra has a dedicated required lane
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project

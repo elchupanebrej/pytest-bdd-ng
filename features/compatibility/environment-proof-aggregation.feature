@@ -179,9 +179,21 @@ Feature: Aggregate the full supported environment proof
     When I run the matrix runner for one tox environment selected from its cell
     Then it should execute only that environment and record the canonical proof key and SHA
 
+  Scenario: The matrix runner normalizes an AMD64 architecture alias
+    When I run the matrix runner on a host reporting the AMD64 architecture
+    Then the matrix runner should record the normalized x86_64 architecture
+
   Scenario: The matrix runner rejects an environment outside its selected cell
     When I run the matrix runner for a tox environment outside its cell
     Then it should reject the environment before invoking tox or writing evidence
+
+  Scenario: The matrix runner rejects a successful tox command when all tests skip
+    When I run the matrix runner for a tox environment whose tests all skip
+    Then it should reject the skipped-only tox result and record a failed environment outcome
+
+  Scenario: The matrix runner streams progress before tox exits
+    When I watch a matrix command that waits after writing its first progress line
+    Then the runner should expose progress while the command is still running and retain its final output
 
   Scenario: The aggregator accepts complete and interrupted runtime evidence from every remote transport
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory

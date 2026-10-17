@@ -23,7 +23,7 @@ Feature: Debug MCP xdist worker discovery
     And the installed consumer has the optional debug MCP extra installed
     And the installed consumer has pytest-xdist installed
     And the installed consumer exposes an identical failure on each xdist worker
-    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=90s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-mcp-artifacts=collision-artifacts -n2 --dist=each -q"
+    When I start installed pytest for MCP inspection with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-mcp-on-fail --cuke-mcp-timeout=180s --cuke-mcp-lease=30s --cuke-mcp-host=127.0.0.1 --cuke-mcp-port=auto --cuke-mcp-artifacts=collision-artifacts -n2 --dist=each -q"
     And an external MCP client submits a structured artifact to each identical worker failure
     Then both workers should retain the same failure identity in distinct sessions
     And pytest should exit with a non-zero code

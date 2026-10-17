@@ -8,6 +8,7 @@ pytest_plugins = [
     "tests.e2e.legacy_pytest_fixture_registry_steps",
     "tests.e2e.runtime_steps",
     "tests.e2e.windows_file_uri_steps",
+    "tests.e2e.runtime_compatibility_steps",
     "tests.e2e.formatter_steps",
     "tests.e2e.offline_formatter_steps",
     "tests.e2e.live_pretty_formatter_steps",

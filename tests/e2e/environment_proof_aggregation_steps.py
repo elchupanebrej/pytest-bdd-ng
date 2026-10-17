@@ -11,6 +11,8 @@ import runpy
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -1648,13 +1650,25 @@ def _capture_matrix_runner_with_non_ascii_evidence_path(
         if command[1:] == ["--version"]:
             tox_version_calls.append(command)
             return subprocess.CompletedProcess(command, 0, stdout="4.25.0 from synthetic tox\n", stderr="")
+        raise AssertionError(f"tox execution should use the streaming process runner: {command!r}")
+
+    def fake_popen(command: list[str], **kwargs: Any) -> Any:
         tox_calls.append({"command": command, "returncode": tox_returncode, **kwargs})
         result_json = Path(command[command.index("--result-json") + 1])
         result_json.parent.mkdir(parents=True, exist_ok=True)
         result_json.write_text('{"testenvs": {}}\n', encoding="utf-8")
-        return subprocess.CompletedProcess(command, tox_returncode, stdout=tox_stdout, stderr="")
+
+        class FakeProcess:
+            stdout = io.StringIO(tox_stdout)
+
+            @staticmethod
+            def wait() -> int:
+                return tox_returncode
+
+        return FakeProcess()
 
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(runner.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -1749,7 +1763,9 @@ def matrix_runner_preserves_evidence_when_parent_stdout_is_cp1252(
     assert tox_call["command"][:2] == ["tox", "run"], tox_call
     assert tox_call["env"].get("PYTHONUTF8") == "1", tox_call["env"]
     assert tox_call.get("encoding") == "utf-8", tox_call
-    assert tox_call.get("errors", "strict") == "strict", tox_call
+    assert tox_call.get("errors") == "replace", tox_call
+    assert tox_call.get("stderr") == subprocess.STDOUT, tox_call
+    assert tox_call.get("stdout") == subprocess.PIPE, tox_call
 
 
 @then("it should return failure and record tox exit 23 in evidence")
@@ -2129,6 +2145,9 @@ def _run_selected_matrix_environment(
     monkeypatch: Any,
     *,
     requested_environment: str,
+    tox_stdout: str = "1 passed in 0.01s\n",
+    tox_returncode: int = 0,
+    machine_value: str | None = None,
 ) -> dict[str, Any]:
     monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
     runner = importlib.import_module("run_env_matrix_cell")
@@ -2161,6 +2180,8 @@ def _run_selected_matrix_environment(
     )
     monkeypatch.setattr(runner, "_python_in_tox_environment", lambda *_args: tmp_path / "python")
     monkeypatch.setattr(runner.platform, "platform", lambda: "synthetic-platform")
+    if machine_value is not None:
+        monkeypatch.setattr(runner.platform, "machine", lambda: machine_value)
     tox_calls: list[dict[str, Any]] = []
     tox_version_calls: list[list[str]] = []
 
@@ -2168,13 +2189,25 @@ def _run_selected_matrix_environment(
         if command[1:] == ["--version"]:
             tox_version_calls.append(command)
             return subprocess.CompletedProcess(command, 0, stdout="4.25.0 from synthetic tox\n", stderr="")
-        tox_calls.append({"command": command, **kwargs})
+        raise AssertionError(f"tox execution should use the streaming process runner: {command!r}")
+
+    def fake_popen(command: list[str], **kwargs: Any) -> Any:
+        tox_calls.append({"command": command, "returncode": tox_returncode, **kwargs})
         result_json = Path(command[command.index("--result-json") + 1])
         result_json.parent.mkdir(parents=True, exist_ok=True)
         result_json.write_text('{"testenvs": {}}\n', encoding="utf-8")
-        return subprocess.CompletedProcess(command, 0, stdout="1 passed in 0.01s\n", stderr="")
+
+        class FakeProcess:
+            stdout = io.StringIO(tox_stdout)
+
+            @staticmethod
+            def wait() -> int:
+                return tox_returncode
+
+        return FakeProcess()
 
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(runner.subprocess, "Popen", fake_popen)
     monkeypatch.setattr(
         sys,
         "argv",
@@ -2242,6 +2275,32 @@ def selected_matrix_environment_has_canonical_evidence(selected_matrix_environme
 
 
 @when(
+    "I run the matrix runner on a host reporting the AMD64 architecture",
+    target_fixture="amd64_matrix_environment_run",
+)
+def run_matrix_runner_with_amd64_architecture(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> dict[str, Any]:
+    return _run_selected_matrix_environment(
+        request,
+        tmp_path,
+        monkeypatch,
+        requested_environment="py313-pytestlatest-runner-selected",
+        machine_value="AMD64",
+    )
+
+
+@then("the matrix runner should record the normalized x86_64 architecture")
+def matrix_runner_records_normalized_amd64_architecture(amd64_matrix_environment_run: dict[str, Any]) -> None:
+    capture = amd64_matrix_environment_run
+    assert capture["returncode"] == 0, capture
+    evidence = json.loads(capture["output_path"].read_text(encoding="utf-8"))
+    assert evidence["environments"][0]["architecture"] == "x86_64", evidence
+
+
+@when(
     "I run the matrix runner for a tox environment outside its cell",
     target_fixture="rejected_matrix_environment_run",
 )
@@ -2264,3 +2323,104 @@ def matrix_runner_rejects_environment_outside_cell(rejected_matrix_environment_r
     assert capture["returncode"] == 2, capture
     assert capture["tox_calls"] == [], capture
     assert not capture["output_path"].exists(), capture
+
+
+@when(
+    "I run the matrix runner for a tox environment whose tests all skip",
+    target_fixture="skipped_only_matrix_environment_run",
+)
+def run_matrix_runner_for_skipped_only_environment(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> dict[str, Any]:
+    return _run_selected_matrix_environment(
+        request,
+        tmp_path,
+        monkeypatch,
+        requested_environment="py313-pytestlatest-runner-selected",
+        tox_stdout="2 skipped in 0.01s\n",
+    )
+
+
+@then("it should reject the skipped-only tox result and record a failed environment outcome")
+def skipped_only_matrix_environment_is_failed(
+    skipped_only_matrix_environment_run: dict[str, Any],
+) -> None:
+    capture = skipped_only_matrix_environment_run
+    assert capture["returncode"] == 1, capture
+    assert len(capture["tox_calls"]) == 1, capture
+
+    evidence = json.loads(capture["output_path"].read_text(encoding="utf-8"))
+    assert evidence["outcome"] == "failed", evidence
+    assert len(evidence["environments"]) == 1, evidence
+    assert evidence["environments"][0]["selected_tests"] == 2, evidence
+    assert evidence["environments"][0]["passed_tests"] == 0, evidence
+    assert evidence["environments"][0]["outcome"] == "failed", evidence
+
+
+@when("I watch a matrix command that waits after writing its first progress line", target_fixture="streamed_matrix_run")
+def run_matrix_command_and_observe_live_progress(monkeypatch: Any, tmp_path: Path) -> dict[str, Any]:
+    runner = importlib.import_module("run_env_matrix_cell")
+    output = io.StringIO()
+    monkeypatch.setattr(runner.sys, "stdout", output)
+    release_path = tmp_path / "release-matrix-command.txt"
+    command_script = "\n".join(
+        (
+            "import pathlib, sys, time",
+            "release = pathlib.Path(sys.argv[1])",
+            "print('matrix progress marker', flush=True)",
+            "deadline = time.monotonic() + 8",
+            "while not release.exists() and time.monotonic() < deadline:",
+            "    time.sleep(0.01)",
+            "print('1 passed in 0.01s', flush=True)",
+        )
+    )
+    results: list[subprocess.CompletedProcess[str]] = []
+    errors: list[BaseException] = []
+
+    def run_command() -> None:
+        try:
+            results.append(
+                runner._run_and_stream(
+                    [sys.executable, "-u", "-c", command_script, str(release_path)],
+                    cwd=tmp_path,
+                    env=os.environ.copy(),
+                )
+            )
+        except BaseException as error:
+            errors.append(error)
+
+    thread = threading.Thread(target=run_command, daemon=True)
+    thread.start()
+    observed_while_running = False
+    deadline = time.monotonic() + 3
+    try:
+        while thread.is_alive() and time.monotonic() < deadline:
+            if "matrix progress marker" in output.getvalue():
+                observed_while_running = thread.is_alive()
+                break
+            time.sleep(0.01)
+    finally:
+        release_path.touch()
+        thread.join(timeout=10)
+
+    return {
+        "observed_while_running": observed_while_running,
+        "thread_stopped": not thread.is_alive(),
+        "output": output.getvalue(),
+        "results": results,
+        "errors": errors,
+    }
+
+
+@then("the runner should expose progress while the command is still running and retain its final output")
+def matrix_runner_streams_progress_before_exit(streamed_matrix_run: dict[str, Any]) -> None:
+    assert streamed_matrix_run["observed_while_running"], streamed_matrix_run
+    assert streamed_matrix_run["thread_stopped"], streamed_matrix_run
+    assert not streamed_matrix_run["errors"], streamed_matrix_run
+    result = streamed_matrix_run["results"][0]
+    assert result.returncode == 0, result
+    assert "matrix progress marker" in streamed_matrix_run["output"], streamed_matrix_run
+    assert "matrix progress marker" in result.stdout, result
+    assert "1 passed in 0.01s" in result.stdout, result
