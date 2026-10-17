@@ -52,8 +52,7 @@ def required_system_tool_versions(tox_environment: str) -> tuple[str, ...]:
     is_live_formatter_acceptance = "live-formatters-acceptance" in tox_environment
     is_browser_report = "playwright-report" in tox_environment
     is_allure_acceptance = "-allure-" in tox_environment
-    is_xdist_acceptance = "-xdist-coverage-" in tox_environment
-    is_pypy_acceptance = tox_environment.startswith("pypy312-") and "-coverage-" in tox_environment
+    is_runtime_coverage = "-coverage-" in tox_environment
     is_native_parser_acceptance = "native-go-parser" in tox_environment
     is_installed_consumer_typing = tox_environment == "py314-pytestlatest-mypy"
 
@@ -61,9 +60,7 @@ def required_system_tool_versions(tox_environment: str) -> tuple[str, ...]:
         (
             is_live_formatter_acceptance,
             is_browser_report,
-            is_allure_acceptance,
-            is_xdist_acceptance,
-            is_pypy_acceptance,
+            is_runtime_coverage,
             is_native_parser_acceptance,
             is_installed_consumer_typing,
         )

@@ -38,6 +38,36 @@ for line in sys.stdin:
     sys.stdout.flush()
 '''
 
+_MESSAGE_DIAGNOSTIC_PREFIX = "PYTEST_CUKE_MESSAGE_DIAGNOSTIC="
+
+
+def _sink_failure_diagnostics(output: str) -> list[dict[str, Any]]:
+    diagnostics = []
+    for line in output.splitlines():
+        if not line.startswith(_MESSAGE_DIAGNOSTIC_PREFIX):
+            continue
+        try:
+            diagnostic = json.loads(line.removeprefix(_MESSAGE_DIAGNOSTIC_PREFIX))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(diagnostic, dict) and diagnostic.get("code") == "SINK_FAILURE":
+            diagnostics.append(diagnostic)
+    return diagnostics
+
+
+def _assert_formatter_failure_diagnostic(output: str, formatter_name: str, child_sentinel: str) -> None:
+    diagnostics = _sink_failure_diagnostics(output)
+    assert diagnostics, f"expected a structured SINK_FAILURE diagnostic:\n{output}"
+    failure_messages = [diagnostic.get("message", "") for diagnostic in diagnostics]
+    assert (
+        child_sentinel in output
+        or any(
+            f"Live formatter {formatter_name!r} exited before the Messages stream finished" in message
+            or f"Live formatter {formatter_name!r} stopped reading Messages:" in message
+            for message in failure_messages
+        )
+    ), output
+
 _FORMATTER_SUPPORT = '''\
 import json
 import os
@@ -452,10 +482,7 @@ def selected_formatter_failure_is_reported(output: str, consumer: Any) -> None:
     assert result is not None, "installed pytest has not run"
     combined_output = result.stdout + result.stderr
     assert result.returncode != 0, f"a failing formatter unexpectedly passed:\n{combined_output}"
-    assert (
-        "formatter child failure sentinel" in combined_output
-        or "Live formatter 'broken' exited before the Messages stream finished" in combined_output
-    ), combined_output
+    _assert_formatter_failure_diagnostic(combined_output, "broken", "formatter child failure sentinel")
     target = _consumer_root(consumer) / output
     assert not target.exists(), f"failed formatter published a success-looking artifact: {target}"
     leftovers = list(target.parent.glob(f".{target.name}.*.pytest-cuke-tmp"))
@@ -468,10 +495,7 @@ def failed_formatter_prevents_sibling_output_publication(consumer: Any) -> None:
     assert result is not None, "installed pytest has not run"
     combined_output = result.stdout + result.stderr
     assert result.returncode != 0, f"a failing formatter unexpectedly passed:\n{combined_output}"
-    assert (
-        "formatter child failure sentinel" in combined_output
-        or "Live formatter 'broken' exited before the Messages stream finished" in combined_output
-    ), combined_output
+    _assert_formatter_failure_diagnostic(combined_output, "broken", "formatter child failure sentinel")
     for output in ("healthy.ndjson", "broken.ndjson"):
         target = _consumer_root(consumer) / output
         assert not target.exists(), f"failed shared session published an artifact: {target}"
@@ -485,10 +509,11 @@ def first_envelope_formatter_failure_is_not_published(output: str, consumer: Any
     assert result is not None, "installed pytest has not run"
     combined_output = result.stdout + result.stderr
     assert result.returncode != 0, f"first-envelope formatter failure did not fail pytest:\n{combined_output}"
-    assert (
-        "formatter first-envelope failure sentinel" in combined_output
-        or "Live formatter 'first-message' exited before the Messages stream finished" in combined_output
-    ), combined_output
+    _assert_formatter_failure_diagnostic(
+        combined_output,
+        "first-message",
+        "formatter first-envelope failure sentinel",
+    )
     target = _consumer_root(consumer) / output
     assert not target.exists(), f"first-envelope failure published an output artifact: {target}"
     leftovers = list(target.parent.glob(f".{target.name}.*.pytest-cuke-tmp"))

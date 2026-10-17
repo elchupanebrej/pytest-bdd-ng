@@ -22,6 +22,22 @@ Feature: Supported environment inventory and acceptance proof
     And the active lane proof should record actual runtime Python pytest and platform versions
     And tox selector fragments should remain separate from configured environments
 
+  Scenario: Tox base Python selectors match the canonical alternative runtime selectors
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    Then resolved tox base Python selectors should match inventory tox_base_python for PyPy and GraalPy
+
+  Scenario: The matrix runner rejects runtime mismatches before launching tox
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    When the matrix runner checks a PyPy cell against a mismatched runtime version and platform
+    Then it should reject the cell before invoking tox or writing evidence
+
+  Scenario: The CPython 3.14 macOS runtime environment installs uv for consumer acceptance
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    Then the CPython 3.14 macOS tox config should include uv>=0.8
+
   Scenario: Active runtime policy and required cells match the current support contract
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     Given the repository environment inventory is loaded
@@ -40,6 +56,7 @@ Feature: Supported environment inventory and acceptance proof
     Then historical support rows should remain history and must not be active support
     And pytest 7 support should cover every Python pairing allowed by upstream constraints
     And each unsupported runtime or pytest pairing should have upstream evidence and a reason
+    And every runtime exclusion should record upstream availability installability product support required CI measured evidence and a named reason
     And PyPy 3.10 and 3.11 exclusions should remain source-backed historical runtime records
 
   Scenario: The pre-commit environment resolves to the lint command
