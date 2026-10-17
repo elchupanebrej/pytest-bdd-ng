@@ -31,6 +31,7 @@ Feature: Live native Allure reporting
     And native Allure results in "allure-results" should contain the passed scenario "Native live report scenario" and its steps
     When I generate an Allure 3 report from native results in "allure-results" into "allure-report"
     Then the native Allure 3 renderer should generate an HTML report
+    And the generated Allure 3 report should show scenario "Native live report scenario" with passed status
 
   Scenario: Native results preserve Gherkin descriptions outline identity and step arguments
     Given a fresh isolated pytest-cuke consumer is ready
@@ -78,6 +79,7 @@ Feature: Live native Allure reporting
     And native Allure results should contain both controller scenarios exactly once
     And native Allure results should preserve each xdist case nested steps and attachments exactly once
     And the native Allure results should contain one shared session container for both scenarios
+    And native Allure output should be written by the controller, with both xdist workers identified
 
   Scenario: xdist resolves native Allure structure when worker-local Messages IDs collide
     Given a fresh isolated pytest-cuke consumer is ready
@@ -90,6 +92,7 @@ Feature: Live native Allure reporting
     And native Allure results should contain both controller scenarios exactly once
     And native Allure results should preserve each xdist case nested steps and attachments exactly once
     And the native Allure results should contain one shared session container for both scenarios
+    And native Allure output should be written by the controller, with both xdist workers identified
 
   Scenario: Duplicate worker batches are rejected before native Allure publication
     Given a fresh isolated pytest-cuke consumer is ready

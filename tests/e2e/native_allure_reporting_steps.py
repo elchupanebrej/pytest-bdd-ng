@@ -157,10 +157,69 @@ def _write_feature(
         if with_colliding_worker_message_ids
         else ""
     )
+    xdist_output_observer = (
+        "_native_allure_write_trace = Path('.native-allure-write-observations.jsonl')\n"
+        "_native_allure_process_trace = Path('.native-allure-processes.jsonl')\n"
+        "_native_allure_results_path = None\n\n\n"
+        "_native_allure_worker = 'controller'\n\n\n"
+        "def _native_allure_worker_id():\n"
+        "    return _native_allure_worker\n\n\n"
+        "def _native_allure_record(path, record):\n"
+        "    with path.open('a', encoding='utf-8') as stream:\n"
+        "        stream.write(json.dumps(record, sort_keys=True) + '\\n')\n\n\n"
+        "def _native_allure_audit(event, args):\n"
+        "    if event != 'open' or _native_allure_results_path is None or not args:\n"
+        "        return\n"
+        "    filename = args[0]\n"
+        "    if not isinstance(filename, (str, bytes, os.PathLike)):\n"
+        "        return\n"
+        "    mode = args[1] if len(args) > 1 else None\n"
+        "    flags = args[2] if len(args) > 2 else 0\n"
+        "    writes = isinstance(mode, str) and any(marker in mode for marker in 'wax+')\n"
+        "    writable_flags = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND\n"
+        "    writes = writes or (isinstance(flags, int) and bool(flags & writable_flags))\n"
+        "    if not writes:\n"
+        "        return\n"
+        "    target = Path(os.fsdecode(filename))\n"
+        "    if not target.is_absolute():\n"
+        "        target = Path.cwd() / target\n"
+        "    try:\n"
+        "        relative = target.resolve().relative_to(_native_allure_results_path)\n"
+        "    except (OSError, RuntimeError, ValueError):\n"
+        "        return\n"
+        "    _native_allure_record(_native_allure_write_trace, {\n"
+        "        'worker': _native_allure_worker_id(),\n"
+        "        'path': relative.as_posix(),\n"
+        "        'pid': os.getpid(),\n"
+        "    })\n\n\n"
+        "@pytest.hookimpl(tryfirst=True)\n"
+        "def pytest_configure(config):\n"
+        "    global _native_allure_results_path, _native_allure_worker\n"
+        "    workerinput = getattr(config, 'workerinput', None)\n"
+        "    if isinstance(workerinput, dict) and isinstance(workerinput.get('workerid'), str):\n"
+        "        _native_allure_worker = workerinput['workerid']\n"
+        "    else:\n"
+        "        _native_allure_worker = 'controller'\n"
+        "    selected = config.getoption('cuke_allure', default=None) or config.getini('cuke_allure')\n"
+        "    if not selected:\n"
+        "        return\n"
+        "    _native_allure_results_path = Path(selected)\n"
+        "    if not _native_allure_results_path.is_absolute():\n"
+        "        _native_allure_results_path = Path(config.rootpath) / _native_allure_results_path\n"
+        "    _native_allure_results_path = _native_allure_results_path.resolve()\n"
+        "    _native_allure_record(_native_allure_process_trace, {\n"
+        "        'worker': _native_allure_worker_id(),\n"
+        "        'pid': os.getpid(),\n"
+        "    })\n"
+        "    sys.addaudithook(_native_allure_audit)\n\n\n"
+        if with_xdist_evidence
+        else ""
+    )
     (context.project / "native_report_steps.py").write_text(
         "import json\n"
         "import os\n"
         "import pytest\n"
+        "import sys\n"
         "from pathlib import Path\n"
         "from pytest_cuke.model.message_types import message_to_dict\n\n"
         "from pytest_cuke import given, parsers, then, when\n\n\n"
@@ -211,6 +270,7 @@ def _write_feature(
         "    attach(b'\\x00\\x7f\\xffnative', media_type='application/octet-stream', file_name='native-evidence.bin')\n"
         + file_attachment_code
         + worker_message_observer
+        + xdist_output_observer
         + xdist_step_code,
         encoding="utf-8",
     )
@@ -1272,6 +1332,34 @@ def native_allure_renderer_generates_html(
 
 @then(
     parsers.re(
+        r'the generated Allure 3 report should show scenario "(?P<scenario_name>[^"]+)" with passed status'
+    )
+)
+def native_allure_report_contains_passed_scenario(
+    scenario_name: str,
+    native_allure_render_result: tuple[subprocess.CompletedProcess[str], Path],
+) -> None:
+    _, report_directory = native_allure_render_result
+    test_results_directory = report_directory / "data" / "test-results"
+    data_files = sorted(test_results_directory.glob("*.json"))
+    assert data_files, f"Allure 3 generated no test result data under {test_results_directory}"
+
+    matching_results = []
+    for path in data_files:
+        payload = _load_json(path)
+        if payload.get("name") == scenario_name:
+            matching_results.append((path, payload))
+
+    assert len(matching_results) == 1, (
+        f"Allure 3 report data should contain one result named {scenario_name!r}; "
+        f"inspected {data_files}"
+    )
+    result_path, scenario_result = matching_results[0]
+    assert scenario_result.get("status") == "passed", (result_path, scenario_result)
+
+
+@then(
+    parsers.re(
         r'native Allure results in "(?P<relative_path>[^"]+)" should contain the passed scenario '
         r'"(?P<scenario_name>[^"]+)" and its steps'
     )
@@ -1618,6 +1706,35 @@ def native_allure_xdist_has_one_shared_container(native_allure_consumer: NativeA
     result_ids = {result_id for result_id in result_uuids if isinstance(result_id, str)}
     assert len(result_ids) == len(results), results
     _assert_session_container(native_allure_consumer, "allure-results", result_ids)
+
+
+@then("native Allure output should be written by the controller, with both xdist workers identified")
+def native_allure_xdist_outputs_are_controller_owned(native_allure_consumer: NativeAllureConsumer) -> None:
+    process_trace = _consumer_path(native_allure_consumer, ".native-allure-processes.jsonl")
+    write_trace = _consumer_path(native_allure_consumer, ".native-allure-write-observations.jsonl")
+    processes = [json.loads(line) for line in process_trace.read_text(encoding="utf-8").splitlines()]
+    writes = [json.loads(line) for line in write_trace.read_text(encoding="utf-8").splitlines()]
+
+    process_ids = {process.get("worker") for process in processes}
+    assert "controller" in process_ids, processes
+    assert {"gw0", "gw1"} <= process_ids, processes
+    controller_pids = {process.get("pid") for process in processes if process.get("worker") == "controller"}
+    assert controller_pids, processes
+    worker_pids = {process.get("pid") for process in processes if str(process.get("worker", "")).startswith("gw")}
+    assert len(worker_pids) >= 2 and controller_pids.isdisjoint(worker_pids), processes
+
+    allure_writes = [
+        write
+        for write in writes
+        if not PurePosixPath(str(write.get("path", ""))).name.startswith(".pytest-cuke-output-probe-")
+    ]
+    assert allure_writes, writes
+    output_names = [PurePosixPath(str(write.get("path", ""))).name.lstrip(".") for write in allure_writes]
+    assert any(name.endswith("-result.json.tmp") for name in output_names), allure_writes
+    assert any(name.endswith("-container.json.tmp") for name in output_names), allure_writes
+    assert any("-attachment." in name and name.endswith(".tmp") for name in output_names), allure_writes
+    assert all(write.get("worker") == "controller" for write in allure_writes), allure_writes
+    assert all(write.get("pid") in controller_pids for write in allure_writes), (allure_writes, processes)
 
 
 @then("duplicate worker batches should be diagnosed without republishing to native Allure")
