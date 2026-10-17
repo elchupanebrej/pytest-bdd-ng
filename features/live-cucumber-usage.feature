@@ -121,7 +121,7 @@ Feature: Live Cucumber Usage formatter
       | C:\outside |
       | C:/outside |
 
-  Scenario: Empty definitions use the official no-step-definitions message
+  Scenario: No project definitions use the official empty-usage result and retain pytest failure
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the usage consumer prepares an undefined feature without step definitions
     And the consumer installs the pinned official Cucumber UsageFormatter runtime
