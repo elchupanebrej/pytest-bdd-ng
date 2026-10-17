@@ -267,6 +267,20 @@ Feature: Supported environment inventory and acceptance proof
     When I expand every optional integration cell into tox environment rows
     Then every optional integration tox environment should appear exactly once with canonical cell metadata
 
+  Scenario: Full-matrix selector writes the same canonical rows to GitHub output
+    Given the repository environment inventory is copied to a temporary project
+    When I compare stdout and GitHub output for the selected long full-matrix cells
+    Then GitHub output should match stdout with each selected tox environment exactly once and canonical cell metadata
+
+  Scenario: Every product workflow uses the pinned Python setup action
+    Given the repository environment inventory is copied to a temporary project
+    Then every product workflow should use actions/setup-python@v6
+
+  Scenario: Native parser workflow cells and capability lanes match the tox Python
+    Given the repository environment inventory is copied to a temporary project
+    Then native parser workflow cells should use the tox base Python
+    And native parser capability lanes should use the tox base Python
+
   Scenario: Selector steps export the matrix output consumed by workflow jobs
     Given the repository environment inventory is copied to a temporary project
     When I remove the GitHub output flag from a selector step

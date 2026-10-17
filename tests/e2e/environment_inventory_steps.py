@@ -8,7 +8,6 @@ import importlib
 import io
 import json
 import os
-import platform
 import re
 import runpy
 import shlex
@@ -1462,14 +1461,29 @@ def every_required_lane_has_tox_and_ci_proof(consumer: Any) -> None:
 
 @then("the active lane proof should record actual runtime Python pytest and platform versions")
 def active_lane_proof_records_actual_versions(consumer: Any) -> None:
-    active = _report(_context(consumer)).get("proof", {}).get("activeEnvironment")
+    context = _context(consumer)
+    active = _report(context).get("proof", {}).get("activeEnvironment")
     assert isinstance(active, dict), active
-    assert str(active.get("runtime", "")).casefold() == platform.python_implementation().casefold(), active
-    python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
-    assert str(active.get("python", "")).startswith(python_version), active
-    assert str(active.get("pytest", "")) == pytest.__version__, active
-    actual_platforms = {sys.platform.casefold(), platform.system().casefold()}
-    assert str(active.get("platform", "")).casefold() in actual_platforms, active
+    probe = subprocess.run(
+        [
+            str(consumer.python),
+            "-c",
+            (
+                "import importlib.metadata, json, platform, sys; "
+                "print(json.dumps({'runtime': platform.python_implementation(), "
+                "'python': platform.python_version(), "
+                "'pytest': importlib.metadata.version('pytest'), 'platform': sys.platform}))"
+            ),
+        ],
+        cwd=consumer.path,
+        env=_inventory_command_environment(consumer),
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert probe.returncode == 0, (probe.stdout, probe.stderr)
+    actual = json.loads(probe.stdout)
+    assert active == actual, (active, actual)
 
 
 @then("active runtime policy should require CPython 3.11 through 3.15 on Linux macOS and Windows")
@@ -3569,6 +3583,79 @@ def repository_inventory_is_copied_to_temporary_project(
     return TemporaryEnvironmentInventoryContext(project_root, inventory_path, document)
 
 
+@then("every product workflow should use actions/setup-python@v6")
+def every_product_workflow_uses_pinned_setup_python(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    workflow_directory = temporary_environment_inventory.project_root / ".github" / "workflows"
+    workflow_files = sorted(workflow_directory.glob("*.yml")) + sorted(workflow_directory.glob("*.yaml"))
+    assert workflow_files, f"no product workflows found under {workflow_directory}"
+
+    for workflow_path in workflow_files:
+        workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+        assert isinstance(workflow, dict), f"{workflow_path} must contain a workflow object"
+        jobs = workflow.get("jobs")
+        assert isinstance(jobs, dict) and jobs, f"{workflow_path} must declare jobs"
+        setup_actions = [
+            str(step["uses"])
+            for job in jobs.values()
+            if isinstance(job, dict)
+            for step in job.get("steps", [])
+            if isinstance(step, dict)
+            and isinstance(step.get("uses"), str)
+            and step["uses"].startswith("actions/setup-python@")
+        ]
+        assert setup_actions, f"{workflow_path} does not select an actions/setup-python version"
+        assert all(action == "actions/setup-python@v6" for action in setup_actions), (
+            workflow_path,
+            setup_actions,
+        )
+
+
+def _native_parser_tox_python(context: TemporaryEnvironmentInventoryContext) -> str:
+    tox_config = configparser.ConfigParser(interpolation=None)
+    tox_path = context.project_root / "tox.ini"
+    with tox_path.open(encoding="utf-8") as stream:
+        tox_config.read_file(stream)
+    assert tox_config.has_option("testenv:native-go-parser", "base_python"), tox_path
+    base_python = tox_config.get("testenv:native-go-parser", "base_python")
+    match = re.search(r"(?<!\d)(\d+\.\d+)(?:\.\d+)?", base_python)
+    assert match is not None, f"cannot read the Python version from {base_python!r} in {tox_path}"
+    return match.group(1)
+
+
+@then("native parser workflow cells should use the tox base Python")
+def native_parser_workflow_cells_use_tox_base_python(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    expected_python = _native_parser_tox_python(context)
+    cells = [
+        cell
+        for cell in context.document.get("workflow_cells", [])
+        if isinstance(cell, dict) and cell.get("job") == "native-go-parser"
+    ]
+    assert cells, "the inventory must declare native-go-parser workflow cells"
+    actual_versions = {str(cell.get("python", "")) for cell in cells}
+    assert actual_versions == {expected_python}, (expected_python, actual_versions, cells)
+
+
+@then("native parser capability lanes should use the tox base Python")
+def native_parser_capability_lanes_use_tox_base_python(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    context = temporary_environment_inventory
+    expected_python = _native_parser_tox_python(context)
+    lanes = [
+        lane
+        for lane in context.document.get("lanes", [])
+        if isinstance(lane, dict) and lane.get("tox_env") == "native-go-parser"
+    ]
+    assert lanes, "the inventory must declare native-go-parser capability lanes"
+    actual_versions = {str(lane.get("python", "")) for lane in lanes}
+    assert actual_versions == {expected_python}, (expected_python, actual_versions, lanes)
+
+
 @when("I check a temporary inventory omitting one resolved tox environment")
 def check_inventory_omitting_resolved_tox_environment(
     temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
@@ -3810,14 +3897,24 @@ def expand_optional_integration_cells(
     return _expand_workflow_job_tox_envs(request, temporary_environment_inventory, "optional-integrations")
 
 
-def _expand_workflow_job_tox_envs(
-    request: Any,
+def _workflow_job_cells(
+    inventory: dict[str, Any],
+    job_id: str,
+) -> list[dict[str, Any]]:
+    workflow_cells = inventory.get("workflow_cells")
+    assert isinstance(workflow_cells, list), workflow_cells
+    job_cells = [cell for cell in workflow_cells if isinstance(cell, dict) and cell.get("job") == job_id]
+    assert job_cells, f"the canonical inventory has no {job_id!r} cells"
+    assert all(isinstance(cell.get("id"), str) and cell.get("id") for cell in job_cells), job_cells
+    return job_cells
+
+
+def _copy_workflow_matrix_selector(
+    repository_root: Path,
     context: TemporaryEnvironmentInventoryContext,
     job_id: str,
-) -> dict[str, Any]:
-    repository_root = Path(request.config.rootpath)
-    inventory = context.document
-    workflow_relative_path = inventory.get("project", {}).get("workflow")
+) -> Path:
+    workflow_relative_path = context.document.get("project", {}).get("workflow")
     assert isinstance(workflow_relative_path, str), workflow_relative_path
     workflow = yaml.safe_load((context.project_root / workflow_relative_path).read_text(encoding="utf-8"))
     selector_steps = workflow["jobs"]["matrix-select"]["steps"]
@@ -3832,6 +3929,39 @@ def _expand_workflow_job_tox_envs(
     selector_path = context.project_root / "scripts" / "env_matrix.py"
     selector_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(repository_root / "scripts" / "env_matrix.py", selector_path)
+    return selector_path
+
+
+def _expand_workflow_job_tox_envs(
+    request: Any,
+    context: TemporaryEnvironmentInventoryContext,
+    job_id: str,
+) -> dict[str, Any]:
+    repository_root = Path(request.config.rootpath)
+    job_cells = _workflow_job_cells(context.document, job_id)
+    selected_ids = tuple(str(cell["id"]) for cell in job_cells)
+    selector_path = _copy_workflow_matrix_selector(repository_root, context, job_id)
+    rows = _run_workflow_matrix_selector(context, selector_path, job_id)
+    return {"rows": rows, "selected_ids": selected_ids, "inventory": context.document, "job_id": job_id}
+
+
+def _selected_full_matrix_selector(
+    repository_root: Path,
+    context: TemporaryEnvironmentInventoryContext,
+) -> tuple[Path, tuple[str, ...]]:
+    job_cells = _workflow_job_cells(context.document, "full-matrix")
+    selected_ids = tuple(str(cell["id"]) for cell in job_cells)
+    selector_path = _copy_workflow_matrix_selector(repository_root, context, "full-matrix")
+    return selector_path, selected_ids
+
+
+def _run_workflow_matrix_selector(
+    context: TemporaryEnvironmentInventoryContext,
+    selector_path: Path,
+    job_id: str,
+    *,
+    github_output_path: Path | None = None,
+) -> list[dict[str, Any]]:
     command = [
         sys.executable,
         str(selector_path),
@@ -3841,17 +3971,87 @@ def _expand_workflow_job_tox_envs(
         "--inventory",
         str(context.inventory_path),
     ]
+    environment = None
+    if github_output_path is not None:
+        github_output_path.parent.mkdir(parents=True, exist_ok=True)
+        github_output_path.write_text("", encoding="utf-8")
+        command.append("--github-output")
+        environment = os.environ.copy()
+        environment["GITHUB_OUTPUT"] = str(github_output_path)
     result = subprocess.run(
         command,
         cwd=context.project_root,
+        env=environment,
         check=False,
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, f"full-matrix expansion failed:\n{result.stdout}\n{result.stderr}"
-    rows = json.loads(result.stdout)
+    assert result.returncode == 0, f"{job_id} expansion failed:\n{result.stdout}\n{result.stderr}"
+    if github_output_path is None:
+        rows = json.loads(result.stdout)
+    else:
+        assert result.stdout == "", result.stdout
+        output_lines = github_output_path.read_text(encoding="utf-8").splitlines()
+        assert len(output_lines) == 1 and output_lines[0].startswith("cells="), output_lines
+        rows = json.loads(output_lines[0].partition("=")[2])
     assert isinstance(rows, list) and all(isinstance(row, dict) for row in rows), rows
-    return {"rows": rows, "inventory": inventory, "job_id": job_id}
+    return rows
+
+
+def _run_full_matrix_selector(
+    context: TemporaryEnvironmentInventoryContext,
+    selector_path: Path,
+    selected_ids: tuple[str, ...],
+    *,
+    github_output_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    expected_ids = {str(cell["id"]) for cell in _workflow_job_cells(context.document, "full-matrix")}
+    assert set(selected_ids) == expected_ids, (selected_ids, expected_ids)
+    return _run_workflow_matrix_selector(
+        context,
+        selector_path,
+        "full-matrix",
+        github_output_path=github_output_path,
+    )
+
+
+@when(
+    "I compare stdout and GitHub output for the selected long full-matrix cells",
+    target_fixture="full_matrix_selector_outputs",
+)
+def compare_stdout_and_github_matrix_output(
+    request: Any,
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> dict[str, Any]:
+    context = temporary_environment_inventory
+    selector_path, selected_ids = _selected_full_matrix_selector(Path(request.config.rootpath), context)
+    stdout_rows = _run_full_matrix_selector(context, selector_path, selected_ids)
+    github_output_path = context.project_root / "artifacts" / "matrix-output.txt"
+    github_output_rows = _run_full_matrix_selector(
+        context,
+        selector_path,
+        selected_ids,
+        github_output_path=github_output_path,
+    )
+    return {
+        "stdout_rows": stdout_rows,
+        "github_output_rows": github_output_rows,
+        "selected_ids": selected_ids,
+        "inventory": context.document,
+    }
+
+
+@then("GitHub output should match stdout with each selected tox environment exactly once and canonical cell metadata")
+def github_matrix_output_matches_stdout(
+    full_matrix_selector_outputs: dict[str, Any],
+) -> None:
+    stdout_rows = full_matrix_selector_outputs["stdout_rows"]
+    github_output_rows = full_matrix_selector_outputs["github_output_rows"]
+    selected_ids = full_matrix_selector_outputs["selected_ids"]
+    inventory = full_matrix_selector_outputs["inventory"]
+    assert github_output_rows == stdout_rows, (github_output_rows, stdout_rows)
+    _assert_selected_full_matrix_environments(stdout_rows, selected_ids, inventory)
+    _assert_selected_full_matrix_environments(github_output_rows, selected_ids, inventory)
 
 
 @then("every full-matrix tox environment should appear exactly once with canonical cell metadata")
@@ -3869,32 +4069,55 @@ def expanded_optional_integration_rows_cover_every_environment_once(
 
 
 def _assert_expanded_workflow_rows_match_cells(expansion: dict[str, Any], job_id: str) -> None:
-    inventory = expansion["inventory"]
-    rows = expansion["rows"]
     assert expansion["job_id"] == job_id, expansion
-    inventory_cells = inventory.get("workflow_cells")
-    assert isinstance(inventory_cells, list), inventory_cells
-    job_cells = [cell for cell in inventory_cells if isinstance(cell, dict) and cell.get("job") == job_id]
-    assert job_cells, f"the canonical inventory has no {job_id!r} cells"
-    expected_cells = {str(cell["id"]): cell for cell in job_cells}
+    expected_ids = tuple(str(cell["id"]) for cell in _workflow_job_cells(expansion["inventory"], job_id))
+    assert expansion["selected_ids"] == expected_ids, expansion
+    _assert_selected_workflow_environments(
+        expansion["rows"],
+        expansion["selected_ids"],
+        expansion["inventory"],
+        job_id,
+    )
+
+
+def _assert_selected_full_matrix_environments(
+    rows: list[dict[str, Any]],
+    selected_cell_ids: tuple[str, ...],
+    inventory: dict[str, Any],
+) -> None:
+    _assert_selected_workflow_environments(rows, selected_cell_ids, inventory, "full-matrix")
+
+
+def _assert_selected_workflow_environments(
+    rows: list[dict[str, Any]],
+    selected_cell_ids: tuple[str, ...],
+    inventory: dict[str, Any],
+    job_id: str,
+) -> None:
+    selected_ids = set(selected_cell_ids)
+    job_cells = _workflow_job_cells(inventory, job_id)
+    selected_cells = [cell for cell in job_cells if str(cell["id"]) in selected_ids]
+    assert selected_cells and {str(cell["id"]) for cell in selected_cells} == selected_ids, (selected_ids, job_cells)
+
     expected_environments: list[str] = []
-    for cell in expected_cells.values():
+    for cell in selected_cells:
         tox_envs = cell.get("tox_envs")
         assert isinstance(tox_envs, list) and tox_envs, cell
-        expected_environments.extend(str(tox_env) for tox_env in tox_envs)
+        expected_environments.extend(str(tox_environment) for tox_environment in tox_envs)
 
     actual_environments = [row.get("tox_environment") for row in rows]
     assert sorted(actual_environments) == sorted(expected_environments), actual_environments
     assert len(actual_environments) == len(set(actual_environments)), actual_environments
     assert len(rows) == len(expected_environments), rows
 
-    for cell in job_cells:
+    for cell in selected_cells:
         cell_id = str(cell["id"])
         matching_rows = [row for row in rows if row.get("id") == cell_id]
-        assert len(matching_rows) == len(cell["tox_envs"]), (cell_id, matching_rows)
+        tox_envs = cell["tox_envs"]
+        assert len(matching_rows) == len(tox_envs), (cell_id, matching_rows)
         assert len({row.get("tox_environment") for row in matching_rows}) == len(matching_rows), matching_rows
         for row in matching_rows:
-            assert row.get("tox_environment") in cell["tox_envs"], row
+            assert row.get("tox_environment") in tox_envs, row
             for key, value in cell.items():
                 if key != "tox_envs":
                     assert row.get(key) == value, (key, cell, row)
