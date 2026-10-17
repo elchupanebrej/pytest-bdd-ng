@@ -4,7 +4,11 @@ import json
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Optional
 
+import pytest
+
 from tests.support.testing_utils import run_pytester_isolated
+
+pytestmark = pytest.mark.e2e
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_cuke.compatibility.pytest import RunResult

@@ -17,7 +17,7 @@ from pytest_cuke.plugin import _build_scenario_param
         (
             r"file:..\_remote-0-first\features\checkout.feature",
             r"file:..\_remote-1-second\features\checkout.feature",
-            r"file:..\_remote\features\checkout.feature",
+            "file:../_remote/features/checkout.feature",
         ),
         (
             "file:../pytest-cuke-execnet-remote-0-first/features/checkout.feature",
@@ -27,7 +27,7 @@ from pytest_cuke.plugin import _build_scenario_param
         (
             r"file:..\pytest-cuke-execnet-remote-0-first\features\pytest-cuke-execnet-remote-preserved\checkout.feature",
             r"file:..\pytest-cuke-execnet-remote-1-second\features\pytest-cuke-execnet-remote-preserved\checkout.feature",
-            r"file:..\_remote\features\pytest-cuke-execnet-remote-preserved\checkout.feature",
+            "file:../_remote/features/pytest-cuke-execnet-remote-preserved/checkout.feature",
         ),
     ],
 )

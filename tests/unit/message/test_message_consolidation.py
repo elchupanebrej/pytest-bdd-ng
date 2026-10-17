@@ -418,6 +418,88 @@ def test_consolidation_deduplicates_sources_and_preserves_worker_attempts_determ
     assert final_run["testRunStartedId"] == "master:run-1"
 
 
+def test_consolidation_deduplicates_a_source_from_its_execnet_rsync_staged_path() -> None:
+    source_data = "Feature: Socket gateway cases\n  Scenario: A worker case\n"
+    media_type = "text/x.cucumber.gherkin+plain"
+    controller_uri = (
+        "file:///tmp/pytest-of-user/pytest-1/pytest-cuke-group-consumer11/"
+        "features/socket-worker-cases.feature"
+    )
+    worker_uri = (
+        "file:///tmp/pytest-cuke-execnet-remote-1-random/pyexecnetcache/"
+        "pytest-cuke-group-consumer11/features/socket-worker-cases.feature"
+    )
+    fragments = (
+        MessageFragment(
+            worker_id="master",
+            role="controller",
+            envelopes=(
+                message_to_dict(
+                    Envelope(source=Source(uri=controller_uri, data=source_data, media_type=media_type))
+                ),
+            ),
+        ),
+        MessageFragment(
+            worker_id="gw0",
+            role="worker",
+            envelopes=(
+                message_to_dict(
+                    Envelope(source=Source(uri=worker_uri, data=source_data, media_type=media_type))
+                ),
+            ),
+        ),
+    )
+
+    consolidated = consolidate_message_fragments(fragments)
+    sources = [envelope["source"] for envelope in consolidated.envelope_dicts if "source" in envelope]
+
+    assert sources == [{"uri": controller_uri, "data": source_data, "mediaType": media_type}]
+
+
+def test_consolidation_preserves_distinct_source_uris_with_identical_content() -> None:
+    source_data = "Feature: Shared content\n"
+    media_type = "text/x.cucumber.gherkin+plain"
+    fragments = (
+        MessageFragment(
+            worker_id="gw0",
+            role="worker",
+            envelopes=(
+                message_to_dict(
+                    Envelope(
+                        source=Source(
+                            uri="features/first.feature",
+                            data=source_data,
+                            media_type=media_type,
+                        )
+                    )
+                ),
+            ),
+        ),
+        MessageFragment(
+            worker_id="gw1",
+            role="worker",
+            envelopes=(
+                message_to_dict(
+                    Envelope(
+                        source=Source(
+                            uri="features/second.feature",
+                            data=source_data,
+                            media_type=media_type,
+                        )
+                    )
+                ),
+            ),
+        ),
+    )
+
+    consolidated = consolidate_message_fragments(fragments)
+
+    assert [envelope["source"]["uri"] for envelope in consolidated.envelope_dicts if "source" in envelope] == [
+        "features/first.feature",
+        "features/second.feature",
+    ]
+
+
 def test_consolidation_orders_cases_by_pickle_collection_order_across_worker_assignments() -> None:
     timestamp = Timestamp(seconds=10, nanos=0)
     scenario_names = ("standalone", "row-10", "row-11", "row-12")

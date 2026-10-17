@@ -278,9 +278,12 @@ def _payload_without_stack_trace(
     return validation_payload
 
 
-def _validation_summary(error: Exception) -> str:
-    if isinstance(error, ValidationError):
-        details = error.errors()
+def _validation_summary(error: BaseException) -> str:
+    validation_errors = getattr(error, "errors", None)
+    if callable(validation_errors):
+        details = validation_errors()
+        if not isinstance(details, list):
+            return str(error)
         return "; ".join(
             f"{'.'.join(str(part) for part in item['loc'])}: {item['msg']}" for item in details
         )

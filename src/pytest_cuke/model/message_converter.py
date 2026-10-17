@@ -273,10 +273,11 @@ def step_to_pickle_step(
                 ]
             )
         )
-    return cucumber_messages.PickleStep(
+    resolved_ast_node_id = step.id or ast_node_id
+    return messages.PickleStep(
         id=st_id,
         text=step.name,
-        ast_node_ids=[step.id or ast_node_id] if step.id or ast_node_id else [],
+        ast_node_ids=[resolved_ast_node_id] if resolved_ast_node_id is not None else [],
         argument=arg,
     )
 

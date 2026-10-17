@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from pytest_cuke import plugin as core_plugin
 
 pytest.importorskip("pydantic")
 
@@ -93,7 +94,16 @@ def test_parser_registry_does_not_select_struct_bdd_for_data_files(path: str) ->
 
 def test_core_collectibility_defers_unsupported_extensions_to_plugins() -> None:
     assert core_is_collectible(MagicMock(), Path("ordinary.yaml")) is None
-    assert core_is_collectible(MagicMock(), Path("feature.BDD.JSON5")) is None
+    assert core_is_collectible(MagicMock(), Path("feature.BDD.CSV")) is None
+
+
+def test_core_collectibility_requires_optional_dependencies_for_supported_extensions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(core_plugin, "STRUCT_BDD_INSTALLED", False)
+
+    with pytest.raises(pytest.UsageError, match=r"pytest-cuke\[struct-bdd\]"):
+        core_is_collectible(MagicMock(), Path("feature.BDD.JSON5"))
 
 
 def test_recursive_locator_uses_casefolded_struct_bdd_suffixes_and_ignores_plain_data(tmp_path: Path) -> None:
