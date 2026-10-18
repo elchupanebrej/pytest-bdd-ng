@@ -148,6 +148,7 @@ class WorkerMessageResult:
 @dataclass(slots=True)
 class _WorkerState:
     batches: dict[int, MessageBatch] = field(default_factory=dict)
+    next_live_sequence: int = 0
     manifest: WorkerCompletionManifest | None = None
     error: str | None = None
     malformed: list[WorkerTransportDiagnostic] = field(default_factory=list)
@@ -186,6 +187,18 @@ class WorkerMessageReceiver:
             return False
         state.batches[batch.sequence] = batch
         return True
+
+    def take_ready_batches(self, worker_id: str) -> tuple[MessageBatch, ...]:
+        """Return newly contiguous batches without removing consolidation data."""
+        self._ensure_open()
+        state = self._workers.get(worker_id)
+        if state is None:
+            return ()
+        ready: list[MessageBatch] = []
+        while (batch := state.batches.get(state.next_live_sequence)) is not None:
+            ready.append(batch)
+            state.next_live_sequence += 1
+        return tuple(ready)
 
     def record_manifest(
         self,

@@ -749,7 +749,8 @@ class MessagePlugin:
             self.worker_message_receiver.receive_batch(payload)
             return
         if self.worker_message_receiver.receive_batch(batch.to_payload()):
-            self._publish_worker_message_batch(batch)
+            for ready_batch in self.worker_message_receiver.take_ready_batches(batch.worker_id):
+                self._publish_worker_message_batch(ready_batch)
 
     def _publish_worker_message_batch(self, batch: MessageBatch) -> None:
         live_batch = {

@@ -1080,6 +1080,33 @@ def test_worker_receiver_reports_sequence_gaps_and_preserves_received_batches() 
     ]
 
 
+def test_worker_receiver_releases_only_newly_contiguous_batches_in_order() -> None:
+    events = [
+        {"attachment": {"body": "first"}},
+        {"attachment": {"body": "second"}},
+        {"attachment": {"body": "third"}},
+    ]
+    batcher = MessageBatcher("gw0")
+    batches = [batcher.make_batch((event,)) for event in events]
+    receiver = WorkerMessageReceiver(expected_workers=("gw0",))
+
+    assert receiver.receive_batch(batches[2].to_payload())
+    assert receiver.take_ready_batches("gw0") == ()
+
+    assert receiver.receive_batch(batches[0].to_payload())
+    first_ready = receiver.take_ready_batches("gw0")
+    assert [batch.sequence for batch in first_ready] == [0]
+
+    assert receiver.receive_batch(batches[1].to_payload())
+    remaining_ready = receiver.take_ready_batches("gw0")
+    assert [batch.sequence for batch in remaining_ready] == [1, 2]
+
+    receiver.record_manifest(batcher.make_manifest(complete=True).to_payload())
+    result = receiver.finalize()
+    assert result.fragments[0].envelopes == tuple(events)
+    assert result.fragments[0].complete
+
+
 def test_worker_receiver_accepts_a_complete_ordered_manifest() -> None:
     event_1 = {"attachment": {"body": "one"}}
     event_2 = {"attachment": {"body": "two"}}
