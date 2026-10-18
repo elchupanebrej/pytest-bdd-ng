@@ -127,6 +127,17 @@ def formatter_worker_scenario_reaches_bridge(case):
     raise AssertionError("the formatter run did not execute scenarios on two xdist workers")
 
 
+def pytest_cuke_message_batch(config, batch):
+    del config
+    observation = {
+        "worker_id": batch.get("worker_id"),
+        "sequence": batch.get("sequence"),
+        "envelope_count": len(batch.get("envelopes", [])),
+    }
+    with (ROOT / "xdist-worker-batches.jsonl").open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps(observation, sort_keys=True) + "\\n")
+
+
 @given("the official formatter has rendered its scenario title")
 def official_formatter_has_rendered_scenario_title():
     marker = ROOT / "pretty-live.marker"
@@ -697,6 +708,35 @@ def formatter_xdist_artifact_is_one_normalized_stream(output: str, consumer: Any
             if event["testCaseStartedId"] == attempt["id"]:
                 assert event["testCaseStartedId"].startswith(worker_prefix), event
                 assert event["testStepId"].startswith(worker_prefixes), event
+
+
+@then(
+    re.compile(
+        r'consumer artifact "(?P<batch_output>[^"]+)" should preserve contiguous callback sequences per worker'
+    )
+)
+def formatter_xdist_batch_sequences_are_contiguous(batch_output: str, consumer: Any) -> None:
+    observation_directory = _consumer_root(consumer) / "formatter-worker-observations"
+    observations = [json.loads(path.read_text(encoding="utf-8")) for path in observation_directory.glob("*.json")]
+    expected_workers = {item.get("worker_id") for item in observations}
+    assert len(expected_workers) == 2, expected_workers
+
+    batch_path = _consumer_root(consumer) / batch_output
+    assert batch_path.is_file(), f"worker batch callback artifact was not written: {batch_path}"
+    sequences_by_worker: dict[str, list[int]] = {}
+    for line in batch_path.read_text(encoding="utf-8").splitlines():
+        observation = json.loads(line)
+        worker_id = observation.get("worker_id")
+        sequence = observation.get("sequence")
+        envelope_count = observation.get("envelope_count")
+        assert isinstance(worker_id, str) and worker_id, observation
+        assert isinstance(sequence, int) and not isinstance(sequence, bool) and sequence >= 0, observation
+        assert isinstance(envelope_count, int) and envelope_count > 0, observation
+        sequences_by_worker.setdefault(worker_id, []).append(sequence)
+
+    assert set(sequences_by_worker) == expected_workers, (sequences_by_worker, expected_workers)
+    for worker_id, sequences in sequences_by_worker.items():
+        assert sequences == list(range(len(sequences))), (worker_id, sequences)
 
 
 @then("consumer artifact \"pretty-output.txt\" should contain the official Cucumber formatter output")

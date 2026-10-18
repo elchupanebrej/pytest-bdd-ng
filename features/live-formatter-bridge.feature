@@ -58,6 +58,7 @@ Feature: Live Cucumber formatter bridge
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --color=no -n 2 --dist=load --max-worker-restart=0 -q"
     Then pytest should exit with code 0
     And consumer formatter artifact "xdist-live.ndjson" should be one normalized stream for two xdist scenarios
+    And consumer artifact "xdist-worker-batches.jsonl" should preserve contiguous callback sequences per worker
 
   Scenario Outline: Invalid output destinations fail before a scenario starts
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
