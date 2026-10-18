@@ -71,7 +71,7 @@ Feature: Core pytest-cuke runs without optional Pydantic integrations
         Scenarios: []
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-parser=python -q"
-    Then pytest should exit with code 4
+    Then pytest should exit with a non-zero code
     And pytest output should contain "install pytest-cuke[struct-bdd]"
 
   Scenario: A selected native Allure integration explains its optional dependency

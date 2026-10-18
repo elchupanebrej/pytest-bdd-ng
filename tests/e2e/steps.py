@@ -5632,6 +5632,7 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
             from __future__ import annotations
 
             import hashlib
+            import itertools
             import json
             import os
             import time
@@ -5639,6 +5640,7 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
 
 
             EVENT_DIRECTORY = Path(".pytest-cuke-group-events")
+            EVENT_SEQUENCE = itertools.count()
 
 
             def record_event(
@@ -5650,7 +5652,10 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
                 when=None,
                 resolved_group=None,
                 assignment_source=None,
+                assignment_ordinal=None,
+                collection_position=None,
             ):
+                sequence = next(EVENT_SEQUENCE)
                 timestamp = time.monotonic_ns()
                 worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
                 run_id = os.environ.get("PYTEST_CUKE_RUN_ID", "single")
@@ -5662,11 +5667,14 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
                     "when": when,
                     "resolved_group": resolved_group,
                     "assignment_source": assignment_source,
+                    "assignment_ordinal": assignment_ordinal,
+                    "collection_position": collection_position,
+                    "sequence": sequence,
                     "worker": worker,
                     "run_id": run_id,
                     "timestamp_ns": timestamp,
                 }
-                token = hashlib.sha256(f"{phase}:{nodeid}:{worker}:{run_id}:{timestamp}".encode()).hexdigest()
+                token = hashlib.sha256(f"{phase}:{nodeid}:{worker}:{run_id}:{sequence}".encode()).hexdigest()
                 EVENT_DIRECTORY.mkdir(exist_ok=True)
                 (EVENT_DIRECTORY / f"{phase}-{token}.json").write_text(json.dumps(record), encoding="utf-8")
 
@@ -5701,6 +5709,24 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
             from group_events import record_event
 
 
+            @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+            def pytest_collection_finish(session):
+                yield
+                test_group_plugin = session.config.pluginmanager.get_plugin("pytest_cuke_test_groups")
+                assignments = getattr(test_group_plugin, "assignments", {})
+                for position, item in enumerate(session.items):
+                    assignment = assignments.get(item.nodeid)
+                    record_event(
+                        "collection",
+                        nodeid=item.nodeid,
+                        group=getattr(assignment, "group", None),
+                        resolved_group=getattr(assignment, "group", None),
+                        assignment_source=getattr(getattr(assignment, "source", None), "value", None),
+                        assignment_ordinal=getattr(assignment, "ordinal", None),
+                        collection_position=position,
+                    )
+
+
             @pytest.hookimpl(hookwrapper=True)
             def pytest_runtest_makereport(item, call):
                 outcome = yield
@@ -5730,6 +5756,7 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
                     group=group,
                     resolved_group=getattr(assignment, "group", None),
                     assignment_source=getattr(getattr(assignment, "source", None), "value", None),
+                    assignment_ordinal=getattr(assignment, "ordinal", None),
                     outcome=report.outcome,
                     when=report.when,
                 )
@@ -5894,10 +5921,94 @@ def consumer_pytest_finished_before_watchdog(consumer: ConsumerProject) -> None:
 @then(re.compile(r'consumer start events should follow "(?P<expected>[^"]+)"'))
 def consumer_start_events_follow_order(expected, consumer: ConsumerProject) -> None:
     events = _read_consumer_test_group_events(consumer)
-    starts = sorted((event for event in events if event["phase"] == "start"), key=itemgetter("timestamp_ns"))
+    starts = [event for event in events if event["phase"] == "start"]
+    workers = {str(event.get("worker", "master")) for event in starts}
+    order_key = "sequence" if len(workers) <= 1 else "timestamp_ns"
+    starts.sort(key=lambda event: event[order_key])
     actual = [str(event["nodeid"]).rsplit("::", 1)[-1] for event in starts]
     expected_names = [name.strip() for name in expected.split(",") if name.strip()]
-    assert actual == expected_names, f"consumer start order was {actual}; expected {expected_names}"
+    collection = sorted(
+        (event for event in events if event["phase"] == "collection"),
+        key=lambda event: event["collection_position"],
+    )
+    collection_details = [
+        {
+            "position": event["collection_position"],
+            "nodeid": str(event["nodeid"]).rsplit("::", 1)[-1],
+            "group": event.get("resolved_group"),
+            "source": event.get("assignment_source"),
+            "ordinal": event.get("assignment_ordinal"),
+        }
+        for event in collection
+    ]
+    assert actual == expected_names, (
+        f"consumer start order was {actual}; expected {expected_names}; "
+        f"final collection assignments: {collection_details}"
+    )
+
+
+@then(re.compile(r'consumer collection events should follow "(?P<expected>[^"]+)"'))
+def consumer_collection_events_follow_order(expected, consumer: ConsumerProject) -> None:
+    events = _read_consumer_test_group_events(consumer)
+    collection = sorted(
+        (event for event in events if event["phase"] == "collection"),
+        key=lambda event: event["collection_position"],
+    )
+    actual = [str(event["nodeid"]).rsplit("::", 1)[-1] for event in collection]
+    expected_names = [name.strip() for name in expected.split(",") if name.strip()]
+    details = [
+        {
+            "position": event["collection_position"],
+            "nodeid": str(event["nodeid"]).rsplit("::", 1)[-1],
+            "group": event.get("resolved_group"),
+            "source": event.get("assignment_source"),
+            "ordinal": event.get("assignment_ordinal"),
+        }
+        for event in collection
+    ]
+    assert actual == expected_names, (
+        f"consumer final collection order was {actual}; expected {expected_names}; "
+        f"collection assignments: {details}"
+    )
+
+
+@then(re.compile(r'consumer collection assignments should include "(?P<expected>[^"]+)"'))
+def consumer_collection_assignments_include(expected, consumer: ConsumerProject) -> None:
+    events = _read_consumer_test_group_events(consumer)
+    collection = [event for event in events if event["phase"] == "collection"]
+    actual = {
+        str(event["nodeid"]).rsplit("::", 1)[-1]: {
+            "group": event.get("resolved_group"),
+            "source": event.get("assignment_source"),
+            "ordinal": event.get("assignment_ordinal"),
+        }
+        for event in collection
+    }
+    expected_assignments = {}
+    for value in expected.split(","):
+        name, separator, assignment_text = value.partition("=")
+        group, source_separator, source_and_ordinal = assignment_text.partition(":")
+        source, ordinal_separator, ordinal = source_and_ordinal.partition(":")
+        assert (
+            separator
+            and name.strip()
+            and group.strip()
+            and source_separator
+            and source.strip()
+            and ordinal_separator
+            and ordinal.strip().isdecimal()
+        ), f"invalid expected collection assignment {value!r}"
+        expected_assignments[name.strip()] = {
+            "group": group.strip(),
+            "source": source.strip(),
+            "ordinal": int(ordinal),
+        }
+
+    actual_assignments = {name: actual.get(name) for name in expected_assignments}
+    assert actual_assignments == expected_assignments, (
+        f"consumer collection assignments were {actual_assignments}; expected {expected_assignments}; "
+        f"all assignments: {actual}"
+    )
 
 
 @then(re.compile(r'consumer resolved groups should include "(?P<expected>[^"]+)"'))
@@ -5963,7 +6074,11 @@ def consumer_has_no_test_group_barrier_state_root(consumer: ConsumerProject) -> 
 @then(re.compile(r"at least (?P<count>two|four|\d+) xdist workers should have recorded group events"))
 def consumer_group_events_show_multiple_workers(count: str, consumer: ConsumerProject) -> None:
     events = _read_consumer_test_group_events(consumer)
-    workers = {str(event["worker"]) for event in events if event.get("worker") != "master"}
+    workers = {
+        str(event["worker"])
+        for event in events
+        if event.get("phase") in {"start", "terminal"} and event.get("worker") != "master"
+    }
     required_workers = int(count) if count.isdecimal() else {"two": 2, "four": 4}[count]
     assert len(workers) >= required_workers, (
         f"expected events from at least {required_workers} xdist workers, got {sorted(workers)}"
