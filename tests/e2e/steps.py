@@ -5641,7 +5641,16 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
             EVENT_DIRECTORY = Path(".pytest-cuke-group-events")
 
 
-            def record_event(phase, *, nodeid, group, outcome=None, when=None):
+            def record_event(
+                phase,
+                *,
+                nodeid,
+                group,
+                outcome=None,
+                when=None,
+                resolved_group=None,
+                assignment_source=None,
+            ):
                 timestamp = time.monotonic_ns()
                 worker = os.environ.get("PYTEST_XDIST_WORKER", "master")
                 run_id = os.environ.get("PYTEST_CUKE_RUN_ID", "single")
@@ -5651,6 +5660,8 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
                     "group": group,
                     "outcome": outcome,
                     "when": when,
+                    "resolved_group": resolved_group,
+                    "assignment_source": assignment_source,
                     "worker": worker,
                     "run_id": run_id,
                     "timestamp_ns": timestamp,
@@ -5707,10 +5718,18 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
                 )
                 group_markers = {mark.name for mark in item.iter_markers() if mark.name in groups}
                 group = next((name for name in reversed(groups) if name in group_markers), None)
+                test_group_plugin = item.config.pluginmanager.get_plugin("pytest_cuke_test_groups")
+                assignment = (
+                    getattr(test_group_plugin, "assignments", {}).get(item.nodeid)
+                    if test_group_plugin is not None
+                    else None
+                )
                 record_event(
                     "terminal",
                     nodeid=item.nodeid,
                     group=group,
+                    resolved_group=getattr(assignment, "group", None),
+                    assignment_source=getattr(getattr(assignment, "source", None), "value", None),
                     outcome=report.outcome,
                     when=report.when,
                 )
@@ -5879,6 +5898,30 @@ def consumer_start_events_follow_order(expected, consumer: ConsumerProject) -> N
     actual = [str(event["nodeid"]).rsplit("::", 1)[-1] for event in starts]
     expected_names = [name.strip() for name in expected.split(",") if name.strip()]
     assert actual == expected_names, f"consumer start order was {actual}; expected {expected_names}"
+
+
+@then(re.compile(r'consumer resolved groups should include "(?P<expected>[^"]+)"'))
+def consumer_resolved_groups_include(expected, consumer: ConsumerProject) -> None:
+    events = _read_consumer_test_group_events(consumer)
+    terminals = [event for event in events if event["phase"] == "terminal"]
+    actual = {
+        str(event["nodeid"]).rsplit("::", 1)[-1]: {
+            "group": event.get("resolved_group"),
+            "source": event.get("assignment_source"),
+        }
+        for event in terminals
+    }
+    expected_assignments = {}
+    for item in expected.split(","):
+        name, separator, group = item.partition("=")
+        assert separator and name.strip() and group.strip(), f"invalid expected group assignment {item!r}"
+        expected_assignments[name.strip()] = group.strip()
+
+    actual_assignments = {name: actual.get(name, {}).get("group") for name in expected_assignments}
+    assert actual_assignments == expected_assignments, (
+        f"consumer resolved test groups were {actual_assignments}; expected {expected_assignments}; "
+        f"assignment details: {actual}"
+    )
 
 
 @then(re.compile(r'every selected "(?P<earlier>[^\"]+)" test should settle before any "(?P<later>[^\"]+)" test starts'))
