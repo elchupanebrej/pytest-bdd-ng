@@ -11,6 +11,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
       """python
       import json
       import os
+      import threading
       import time
       import uuid
       from pathlib import Path
@@ -19,6 +20,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
       from pytest_cuke import given, parsers
 
       _consumer_config = None
+      _observation_lock = threading.Lock()
 
 
       def pytest_configure(config):
@@ -55,8 +57,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
-          with live_batches.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(batch, sort_keys=True) + "\n")
+          with _observation_lock:
+              with live_batches.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(batch, sort_keys=True) + "\n")
 
 
       @pytest.hookimpl(trylast=True)
@@ -72,8 +75,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")
-          with manifests.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(record, sort_keys=True) + "\n")
+          with _observation_lock:
+              with manifests.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(record, sort_keys=True) + "\n")
       """
     And consumer file "features/worker-cases.feature" contains:
       """gherkin
@@ -111,12 +115,14 @@ Feature: Local and subprocess Cucumber Messages consolidation
       """python
       import json
       import os
+      import threading
       from pathlib import Path
 
       import pytest
       from pytest_cuke import given, parsers
 
       _consumer_config = None
+      _observation_lock = threading.Lock()
 
 
       def pytest_configure(config):
@@ -132,8 +138,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
-          with live_batches.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(batch, sort_keys=True) + "\n")
+          with _observation_lock:
+              with live_batches.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(batch, sort_keys=True) + "\n")
 
 
       @pytest.hookimpl(trylast=True)
@@ -149,8 +156,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")
-          with manifests.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(record, sort_keys=True) + "\n")
+          with _observation_lock:
+              with manifests.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(record, sort_keys=True) + "\n")
       """
     And consumer file "features/subprocess-worker-cases.feature" contains:
       """gherkin
@@ -180,12 +188,14 @@ Feature: Local and subprocess Cucumber Messages consolidation
     And consumer file "conftest.py" contains:
       """python
       import json
+      import threading
       from pathlib import Path
 
       import pytest
       from pytest_cuke import given, parsers
 
       _consumer_config = None
+      _observation_lock = threading.Lock()
 
 
       def pytest_configure(config):
@@ -204,8 +214,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
-          with live_batches.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(batch, sort_keys=True) + "\n")
+          with _observation_lock:
+              with live_batches.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(batch, sort_keys=True) + "\n")
 
 
       @pytest.hookimpl(trylast=True)
@@ -221,8 +232,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")
-          with manifests.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(record, sort_keys=True) + "\n")
+          with _observation_lock:
+              with manifests.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(record, sort_keys=True) + "\n")
       """
     And consumer file "features/mixed-worker-cases.feature" contains:
       """gherkin
@@ -249,12 +261,14 @@ Feature: Local and subprocess Cucumber Messages consolidation
       """python
       import json
       import os
+      import threading
       from pathlib import Path
 
       import pytest
       from pytest_cuke import given, parsers
 
       _consumer_config = None
+      _observation_lock = threading.Lock()
 
 
       def pytest_configure(config):
@@ -272,8 +286,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
-          with live_batches.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(batch, sort_keys=True) + "\n")
+          with _observation_lock:
+              with live_batches.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(batch, sort_keys=True) + "\n")
 
 
       @pytest.hookimpl(trylast=True)
@@ -289,8 +304,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")
-          with manifests.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(record, sort_keys=True) + "\n")
+          with _observation_lock:
+              with manifests.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(record, sort_keys=True) + "\n")
       """
     And consumer file "features/crash-worker-cases.feature" contains:
       """gherkin
@@ -429,12 +445,14 @@ Feature: Local and subprocess Cucumber Messages consolidation
       """python
       import json
       import os
+      import threading
       from pathlib import Path
 
       import pytest
       from pytest_cuke import given, parsers
 
       _consumer_config = None
+      _observation_lock = threading.Lock()
 
 
       def pytest_configure(config):
@@ -450,8 +468,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
-          with live_batches.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(batch, sort_keys=True) + "\n")
+          with _observation_lock:
+              with live_batches.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(batch, sort_keys=True) + "\n")
 
 
       @pytest.hookimpl(trylast=True)
@@ -467,8 +486,9 @@ Feature: Local and subprocess Cucumber Messages consolidation
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")
-          with manifests.open("a", encoding="utf-8") as stream:
-              stream.write(json.dumps(record, sort_keys=True) + "\n")
+          with _observation_lock:
+              with manifests.open("a", encoding="utf-8") as stream:
+                  stream.write(json.dumps(record, sort_keys=True) + "\n")
       """
     And consumer file "features/socket-worker-cases.feature" contains:
       """gherkin
