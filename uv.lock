@@ -2726,7 +2726,6 @@ dependencies = [
     { name = "parse-type" },
     { name = "pathvalidate" },
     { name = "py" },
-    { name = "pydantic" },
     { name = "pytest" },
     { name = "referencing" },
     { name = "typing-extensions", marker = "python_full_version < '3.12'" },
@@ -2736,10 +2735,15 @@ dependencies = [
 allure = [
     { name = "allure-pytest" },
     { name = "allure-python-commons" },
+    { name = "pydantic" },
+]
+cucumber-json = [
+    { name = "pydantic" },
 ]
 debug-mcp = [
     { name = "mcp" },
     { name = "mcp-pdb" },
+    { name = "pydantic" },
     { name = "uvicorn" },
 ]
 doc-gen = [
@@ -2769,6 +2773,7 @@ pyright = [
 struct-bdd = [
     { name = "hjson" },
     { name = "json5" },
+    { name = "pydantic" },
     { name = "pyhocon" },
     { name = "pyyaml" },
     { name = "types-pyyaml" },
@@ -2777,9 +2782,13 @@ test = [
     { name = "attrs" },
     { name = "pytest" },
     { name = "pytest-httpserver" },
+    { name = "pyyaml" },
 ]
 test-playwright = [
     { name = "playwright" },
+]
+test-pydantic = [
+    { name = "pydantic" },
 ]
 testtypes = [
     { name = "allure-pytest" },
@@ -2840,7 +2849,11 @@ requires-dist = [
     { name = "playwright", marker = "extra == 'test-playwright'", specifier = ">=1.50,<2" },
     { name = "py" },
     { name = "pycmarkgfm", marker = "extra == 'doc-gen'" },
-    { name = "pydantic", specifier = ">=2.0.3" },
+    { name = "pydantic", marker = "extra == 'allure'", specifier = ">=2.0.3" },
+    { name = "pydantic", marker = "extra == 'cucumber-json'", specifier = ">=2.0.3" },
+    { name = "pydantic", marker = "extra == 'debug-mcp'", specifier = ">=2.0.3" },
+    { name = "pydantic", marker = "extra == 'struct-bdd'", specifier = ">=2.0.3" },
+    { name = "pydantic", marker = "extra == 'test-pydantic'", specifier = ">=2.0.3" },
     { name = "pydantic", marker = "extra == 'testtypes'", specifier = "==2.12.5" },
     { name = "pyhocon", marker = "extra == 'struct-bdd'" },
     { name = "pyhocon", marker = "extra == 'testtypes'", specifier = "==0.3.63" },
@@ -2851,6 +2864,7 @@ requires-dist = [
     { name = "pytest-httpserver", marker = "extra == 'test'", specifier = ">=1.1.5" },
     { name = "pyyaml", marker = "extra == 'env-matrix'", specifier = "==6.0.3" },
     { name = "pyyaml", marker = "extra == 'struct-bdd'" },
+    { name = "pyyaml", marker = "extra == 'test'", specifier = "==6.0.3" },
     { name = "pyyaml", marker = "extra == 'testtypes'", specifier = "==6.0.3" },
     { name = "referencing", specifier = ">=0.30" },
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.4.0" },
@@ -2861,7 +2875,7 @@ requires-dist = [
     { name = "uvicorn", marker = "extra == 'debug-mcp'", specifier = ">=0.34" },
     { name = "vulture", marker = "extra == 'lint'", specifier = ">=2.11" },
 ]
-provides-extras = ["lint", "pyright", "testtypes", "test", "env-matrix", "test-playwright", "mutation", "allure", "debug-mcp", "doc-gen", "struct-bdd"]
+provides-extras = ["lint", "pyright", "testtypes", "test", "test-pydantic", "env-matrix", "test-playwright", "mutation", "allure", "debug-mcp", "doc-gen", "struct-bdd", "cucumber-json"]
 
 [[package]]
 name = "pytest-httpserver"
