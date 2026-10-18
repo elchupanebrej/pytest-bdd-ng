@@ -694,15 +694,24 @@ def run_progress_bar_in_pty_until_live_update(consumer: Any) -> None:
     chunks: list[bytes] = []
     deadline = time.monotonic() + 45
     observed_live = False
+    output_open = True
     release_path = root / "release-gated-scenario.marker"
     try:
         while time.monotonic() < deadline:
-            readable, _, _ = select.select([master_fd], [], [], 0.05)
-            if readable:
-                try:
-                    chunks.append(os.read(master_fd, 4096))
-                except OSError:
-                    break
+            if output_open:
+                readable, _, _ = select.select([master_fd], [], [], 0.05)
+                if readable:
+                    try:
+                        chunk = os.read(master_fd, 4096)
+                    except OSError:
+                        output_open = False
+                    else:
+                        if chunk:
+                            chunks.append(chunk)
+                        else:
+                            output_open = False
+            else:
+                time.sleep(0.05)
             text = b"".join(chunks).decode("utf-8", errors="replace")
             if (root / "gated-started.marker").is_file() and (1, 3) in _ratio_updates(text):
                 assert not (root / "gated-finished.marker").exists(), (
@@ -718,14 +727,17 @@ def run_progress_bar_in_pty_until_live_update(consumer: Any) -> None:
             + b"".join(chunks).decode("utf-8", errors="replace")
         )
         return_code = process.wait(timeout=45)
-        while True:
+        while output_open:
             readable, _, _ = select.select([master_fd], [], [], 0)
             if not readable:
                 break
             try:
-                chunks.append(os.read(master_fd, 4096))
+                chunk = os.read(master_fd, 4096)
             except OSError:
                 break
+            if not chunk:
+                break
+            chunks.append(chunk)
     except BaseException:
         release_path.write_text("release", encoding="utf-8")
         if process.poll() is None:
@@ -823,17 +835,27 @@ def _run_progress_bar_geometry_replay(
 
     chunks: list[bytes] = []
     deadline = time.monotonic() + 45
+    output_open = True
     try:
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise TimeoutError(f"the {columns or 80}-column progress-bar replay did not finish")
-            readable, _, _ = select.select([master_fd], [], [], min(remaining, 0.05))
-            if readable:
-                try:
-                    chunks.append(os.read(master_fd, 4096))
-                except OSError:
-                    break
+            readable = []
+            if output_open:
+                readable, _, _ = select.select([master_fd], [], [], min(remaining, 0.05))
+                if readable:
+                    try:
+                        chunk = os.read(master_fd, 4096)
+                    except OSError:
+                        output_open = False
+                    else:
+                        if chunk:
+                            chunks.append(chunk)
+                        else:
+                            output_open = False
+            else:
+                time.sleep(min(remaining, 0.05))
             if process.poll() is not None and not readable:
                 break
         return_code = process.wait(timeout=5)

@@ -410,26 +410,38 @@ def _run_pytest_in_pty(
     os.close(slave)
     output = bytearray()
     deadline = time.monotonic() + 90
+    output_open = True
     try:
         while process.poll() is None:
             if time.monotonic() >= deadline:
                 process.kill()
                 process.wait(timeout=5)
                 raise AssertionError("pytest did not finish in the constrained usage terminal")
+            if not output_open:
+                time.sleep(0.1)
+                continue
             readable, _, _ = select.select([master], [], [], 0.1)
             if readable:
                 try:
-                    output.extend(os.read(master, 4096))
+                    chunk = os.read(master, 4096)
                 except OSError:
-                    break
-        while True:
+                    output_open = False
+                    continue
+                if not chunk:
+                    output_open = False
+                else:
+                    output.extend(chunk)
+        while output_open:
             readable, _, _ = select.select([master], [], [], 0)
             if not readable:
                 break
             try:
-                output.extend(os.read(master, 4096))
+                chunk = os.read(master, 4096)
             except OSError:
                 break
+            if not chunk:
+                break
+            output.extend(chunk)
     finally:
         if process.poll() is None:
             process.wait(timeout=5)

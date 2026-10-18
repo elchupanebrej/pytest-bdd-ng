@@ -55,6 +55,8 @@ Feature: Optional ordered pytest test groups
     Then the installed pytest run should finish before its watchdog
     And pytest should exit with code 0
     And consumer resolved groups should include "test_unit_second=unit,test_unit_first=unit,test_integration_first=integration"
+    And consumer collection assignments should include "test_unit_second=unit:item-marker:0,test_unit_first=unit:item-marker:0,test_integration_first=integration:item-marker:1"
+    And consumer collection events should follow "test_unit_second,test_unit_first,test_integration_first"
     And consumer start events should follow "test_unit_second,test_unit_first,test_integration_first"
     And pytest output should include "3 passed"
 
@@ -128,6 +130,8 @@ Feature: Optional ordered pytest test groups
     Then the installed pytest run should finish before its watchdog
     And pytest should exit with code 0
     And consumer resolved groups should include "test_direct_marker=unit,test_last_path_mapping=unit,test_default_group=integration,test_directory_convention=contract,test_highest_marker=e2e"
+    And consumer collection assignments should include "test_direct_marker=unit:item-marker:0,test_last_path_mapping=unit:path-mapping:0,test_default_group=integration:default:1,test_directory_convention=contract:directory:2,test_highest_marker=e2e:conftest-marker:3"
+    And consumer collection events should follow "test_direct_marker,test_last_path_mapping,test_default_group,test_directory_convention,test_highest_marker"
     And consumer start events should follow "test_direct_marker,test_last_path_mapping,test_default_group,test_directory_convention,test_highest_marker"
 
   Scenario: A group marker inherited from a directory conftest affects real pytest ordering
