@@ -726,7 +726,28 @@ def run_progress_bar_in_pty_until_live_update(consumer: Any) -> None:
             "the 1/3 progress update did not arrive while the final scenario was waiting:\n"
             + b"".join(chunks).decode("utf-8", errors="replace")
         )
-        return_code = process.wait(timeout=45)
+        finish_deadline = time.monotonic() + 45
+        while process.poll() is None:
+            remaining = finish_deadline - time.monotonic()
+            if remaining <= 0:
+                output = b"".join(chunks).decode("utf-8", errors="replace")
+                raise TimeoutError(f"the live progress-bar pytest process did not finish after release:\n{output}")
+            if not output_open:
+                time.sleep(min(remaining, 0.05))
+                continue
+            readable, _, _ = select.select([master_fd], [], [], min(remaining, 0.05))
+            if not readable:
+                continue
+            try:
+                chunk = os.read(master_fd, 4096)
+            except OSError:
+                output_open = False
+            else:
+                if chunk:
+                    chunks.append(chunk)
+                else:
+                    output_open = False
+        return_code = process.returncode
         while output_open:
             readable, _, _ = select.select([master_fd], [], [], 0)
             if not readable:
