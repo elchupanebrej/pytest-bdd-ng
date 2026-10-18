@@ -469,11 +469,12 @@ Feature: Binding-only mock run validation
 
 
       def pytest_runtest_call(item):
+          worker = os.environ.get("PYTEST_XDIST_WORKER", "main")
           observation = {
               "nodeid": item.nodeid,
-              "worker": os.environ.get("PYTEST_XDIST_WORKER", "main"),
+              "worker": worker,
           }
-          with Path("worker-nodeids.ndjson").open("a", encoding="utf-8") as stream:
+          with Path(f"worker-nodeids-{worker}.ndjson").open("a", encoding="utf-8") as stream:
               stream.write(json.dumps(observation) + "\n")
       """
     And consumer file "features/first-session/north-source.feature" contains:

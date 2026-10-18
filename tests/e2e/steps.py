@@ -10729,12 +10729,15 @@ def consumer_ide_mock_run_sessions_and_workers_are_isolated(
         "the worker source is north"
     ], first_steps
 
-    first_observation_path = _consumer_artifact_path("worker-nodeids.ndjson", consumer)
-    observations = [
-        json.loads(line)
-        for line in first_observation_path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    observations = []
+    for worker_id in ("main", "gw0", "gw1"):
+        observation_path = _consumer_artifact_path(f"worker-nodeids-{worker_id}.ndjson", consumer)
+        assert observation_path.is_file(), f"worker {worker_id} did not write its observation file"
+        observations.extend(
+            json.loads(line)
+            for line in observation_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        )
     assert len(observations) == 3, observations
     observations_by_nodeid = {entry.get("nodeid"): entry.get("worker") for entry in observations}
     assert len(observations_by_nodeid) == 3, observations
@@ -10848,8 +10851,14 @@ def consumer_ide_split_worker_duplicate_bindings(relative_path: str, consumer: C
         for nodeid in launches_by_nodeid
     }, launches_by_nodeid
 
-    worker_lines = _consumer_artifact_path("worker-nodeids.txt", consumer).read_text(encoding="utf-8").splitlines()
-    worker_pairs = [tuple(line.split("\t", maxsplit=1)) for line in worker_lines]
+    worker_pairs = []
+    for worker_id in ("gw0", "gw1"):
+        worker_path = _consumer_artifact_path(f"worker-nodeids-{worker_id}.txt", consumer)
+        assert worker_path.is_file(), f"worker {worker_id} did not write its nodeid observation"
+        worker_pairs.extend(
+            tuple(line.split("\t", maxsplit=1))
+            for line in worker_path.read_text(encoding="utf-8").splitlines()
+        )
     assert len(worker_pairs) == 2 and all(len(pair) == 2 for pair in worker_pairs), worker_pairs
     workers_by_nodeid = {nodeid: worker for nodeid, worker in worker_pairs}
     assert set(workers_by_nodeid) == set(launches_by_nodeid), (workers_by_nodeid, launches_by_nodeid)

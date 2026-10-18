@@ -197,8 +197,9 @@ Feature: IDE step binding diagnostics
       from pathlib import Path
 
       def pytest_runtest_call(item):
-          with Path("worker-nodeids.txt").open("a", encoding="utf-8") as artifact:
-              artifact.write(f"{item.nodeid}\t{os.environ['PYTEST_XDIST_WORKER']}\n")
+          worker = os.environ["PYTEST_XDIST_WORKER"]
+          with Path(f"worker-nodeids-{worker}.txt").open("a", encoding="utf-8") as artifact:
+              artifact.write(f"{item.nodeid}\t{worker}\n")
       """
     And consumer file "features/split-worker-bindings.feature" contains:
       """gherkin
