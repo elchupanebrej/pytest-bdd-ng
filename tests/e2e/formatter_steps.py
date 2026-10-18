@@ -71,6 +71,7 @@ def _assert_formatter_failure_diagnostic(output: str, formatter_name: str, child
 _FORMATTER_SUPPORT = '''\
 import json
 import os
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -79,6 +80,7 @@ from pytest_cuke import given, parsers
 
 ROOT = Path(__file__).parent
 expected_markers = json.loads((ROOT / "expected-live-markers.json").read_text(encoding="utf-8"))
+_batch_observer_lock = threading.Lock()
 
 
 def _wait_for_live_markers(names):
@@ -134,8 +136,9 @@ def pytest_cuke_message_batch(config, batch):
         "sequence": batch.get("sequence"),
         "envelope_count": len(batch.get("envelopes", [])),
     }
-    with (ROOT / "xdist-worker-batches.jsonl").open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(observation, sort_keys=True) + "\\n")
+    with _batch_observer_lock:
+        with (ROOT / "xdist-worker-batches.jsonl").open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(observation, sort_keys=True) + "\\n")
 
 
 @given("the official formatter has rendered its scenario title")

@@ -5635,6 +5635,7 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
             import itertools
             import json
             import os
+            import tempfile
             import time
             from pathlib import Path
 
@@ -5676,7 +5677,26 @@ def configure_consumer_test_group_event_recorder(consumer: ConsumerProject) -> N
                 }
                 token = hashlib.sha256(f"{phase}:{nodeid}:{worker}:{run_id}:{sequence}".encode()).hexdigest()
                 EVENT_DIRECTORY.mkdir(exist_ok=True)
-                (EVENT_DIRECTORY / f"{phase}-{token}.json").write_text(json.dumps(record), encoding="utf-8")
+                event_path = EVENT_DIRECTORY / f"{phase}-{token}.json"
+                temporary_path = None
+                try:
+                    with tempfile.NamedTemporaryFile(
+                        mode="w",
+                        encoding="utf-8",
+                        dir=EVENT_DIRECTORY,
+                        prefix=f".{event_path.name}.",
+                        suffix=".tmp",
+                        delete=False,
+                    ) as temporary_file:
+                        temporary_file.write(json.dumps(record))
+                        temporary_path = Path(temporary_file.name)
+                    os.replace(temporary_path, event_path)
+                finally:
+                    if temporary_path is not None:
+                        try:
+                            temporary_path.unlink()
+                        except FileNotFoundError:
+                            pass
 
 
             def record_start(nodeid, group):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import pytest
 
@@ -159,6 +160,65 @@ def test_live_adapter_collapses_worker_lifecycle_and_deduplicates_shared_definit
     assert {start["testRunStartedId"] for start in starts} == {"controller-run"}
     assert {start["testCaseId"] for start in starts} == {"gw0:test-case-id"}
     assert {start["workerId"] for start in starts} == {"gw0", "gw1"}
+
+
+def test_live_adapter_deduplicates_step_definitions_within_each_worker() -> None:
+    adapter = LiveMessageAdapter()
+    adapter.controller_envelope({"testRunStarted": {"id": "controller-run"}})
+
+    def step_definition(worker_id: str) -> dict[str, Any]:
+        return namespace_envelope_ids(
+            {
+                "stepDefinition": {
+                    "id": "shared-step-definition",
+                    "pattern": {"source": "the shared step", "type": "CUCUMBER_EXPRESSION"},
+                    "sourceReference": {"uri": "features/shared.feature", "location": {"line": 1}},
+                }
+            },
+            worker_id=worker_id,
+        )
+
+    def test_case(worker_id: str) -> dict[str, Any]:
+        return namespace_envelope_ids(
+            {
+                "testCase": {
+                    "id": "shared-test-case",
+                    "pickleId": "shared-pickle",
+                    "testSteps": [
+                        {"id": "shared-test-step", "stepDefinitionIds": ["shared-step-definition"]}
+                    ],
+                }
+            },
+            worker_id=worker_id,
+        )
+
+    emitted: list[dict[str, Any]] = []
+    emitted_test_cases: list[dict[str, Any]] = []
+    for worker_id in ("gw0", "gw1"):
+        worker_start = namespace_envelope_ids(
+            {"testRunStarted": {"id": f"{worker_id}-run"}},
+            worker_id=worker_id,
+        )
+        assert adapter.worker_envelope(worker_start, worker_id=worker_id) is None
+
+        definition = step_definition(worker_id)
+        assert adapter.worker_envelope(definition, worker_id=worker_id) == definition
+        emitted.append(definition)
+        assert adapter.worker_envelope(definition, worker_id=worker_id) is None
+
+        case = test_case(worker_id)
+        normalized_case = adapter.worker_envelope(case, worker_id=worker_id)
+        assert normalized_case is not None
+        assert normalized_case == case
+        emitted_test_cases.append(normalized_case)
+
+    definition_ids = [envelope["stepDefinition"]["id"] for envelope in emitted]
+    assert definition_ids == ["gw0:shared-step-definition", "gw1:shared-step-definition"]
+    assert len(definition_ids) == len(set(definition_ids))
+    case_definition_ids = [
+        envelope["testCase"]["testSteps"][0]["stepDefinitionIds"][0] for envelope in emitted_test_cases
+    ]
+    assert case_definition_ids == definition_ids
 
 
 def test_live_adapter_rejects_worker_messages_before_controller_run_start() -> None:
