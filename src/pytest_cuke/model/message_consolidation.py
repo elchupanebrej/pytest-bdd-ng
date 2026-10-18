@@ -516,7 +516,7 @@ class LiveMessageAdapter:
     def __init__(self) -> None:
         self._controller_run_id: str | None = None
         self._id_remap: dict[str, str] = {}
-        self._structural_by_identity: dict[str, _EnvelopeRecord] = {}
+        self._structural_by_identity: dict[tuple[str | None, str], _EnvelopeRecord] = {}
         self._hook_types: dict[str, str] = {}
         self._run_hook_types: dict[str, str] = {}
 
@@ -605,9 +605,10 @@ class LiveMessageAdapter:
             sequence_in_fragment=0,
         )
         identity = _structural_identity(record, strip_reference_ids=False)
-        canonical = self._structural_by_identity.get(identity)
+        identity_key = (worker_id if payload_kind == "step_definition" else None, identity)
+        canonical = self._structural_by_identity.get(identity_key)
         if canonical is None:
-            self._structural_by_identity[identity] = record
+            self._structural_by_identity[identity_key] = record
             return envelope
 
         self._id_remap.update(_duplicate_object_id_map(canonical, record))
