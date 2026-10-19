@@ -213,30 +213,22 @@ function testcaseAttributes(tag) {
   );
 }
 
-function addDuplicateTestCaseSources(xml) {
+function addTestCaseSources(xml) {
   const tokenPattern = /<!\[CDATA\[[\s\S]*?\]\]>|<!--[\s\S]*?-->|<(?:[^>"']|"[^"]*"|'[^']*')*>/g;
   const tokens = [...xml.matchAll(tokenPattern)];
   const testcases = tokens.filter(({ 0: token }) => /^<testcase(?:\s|>)/.test(token));
-  const identityCounts = new Map();
-  for (const { 0: tag } of testcases) {
-    const attributes = testcaseAttributes(tag);
-    const identity = JSON.stringify([attributes.classname, attributes.name]);
-    identityCounts.set(identity, (identityCounts.get(identity) ?? 0) + 1);
-  }
-  if (![...identityCounts.values()].some((count) => count > 1)) return xml;
+  if (!testcases.length) return xml;
 
   const sources = orderedTestCaseSources();
   if (!sources || sources.length !== testcases.length) {
-    throw new Error("Cannot correlate duplicate Cucumber JUnit cases with source locations");
+    throw new Error("Cannot correlate Cucumber JUnit cases with source locations");
   }
 
   let testcaseIndex = 0;
   const replacements = new Map();
   for (const { 0: tag, index } of testcases) {
     const attributes = testcaseAttributes(tag);
-    const identity = JSON.stringify([attributes.classname, attributes.name]);
     const source = sources[testcaseIndex++];
-    if (identityCounts.get(identity) === 1) continue;
     const additions = [];
     if (attributes.file === undefined) additions.push(`file="${xmlAttribute(source.uri)}"`);
     if (attributes.line === undefined) additions.push(`line="${xmlAttribute(source.line)}"`);
@@ -274,7 +266,7 @@ for await (const line of input) {
   for (const handler of messageHandlers) handler(envelope);
 }
 
-process.stdout.write(addDuplicateTestCaseSources(addDocumentProperties(report)));
+process.stdout.write(addTestCaseSources(addDocumentProperties(report)));
 """.strip()
 
 

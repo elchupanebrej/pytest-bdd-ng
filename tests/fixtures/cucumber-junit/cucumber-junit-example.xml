@@ -13,14 +13,14 @@
     <property name="cucumber.file%3Acucumber-junit-example.feature.document.0.outline.0.Submit%20a%20profile%20for%20%3Ccustomer%3E.examples.0.named%20profiles.table" value="[[&quot;customer&quot;],[&quot;Ada&quot;],[&quot;Boris&quot;]]"></property>
   </properties>
 
-  <testcase classname="Cucumber JUnit example café" name="Customer profiles - Submit a profile for &lt;customer> - named profiles - #1.1: Submit a profile for &lt;customer>[table_rows:[line: 30]]" time="2">
+  <testcase classname="Cucumber JUnit example café" file="file:cucumber-junit-example.feature" line="30" name="Customer profiles - Submit a profile for &lt;customer> - named profiles - #1.1: Submit a profile for &lt;customer>[table_rows:[line: 30]]" time="2">
     <system-out>Given the Cucumber JUnit example prepares a profile.........................passed
 Given the Cucumber JUnit example confirms its profile setup.................passed
 When the Cucumber JUnit example receives a profile document.................passed
 And the Cucumber JUnit example receives profile fields......................passed
 Then the Cucumber JUnit example accepts "Ada"...............................passed</system-out>
   </testcase>
-  <testcase classname="Cucumber JUnit example café" name="Customer profiles - Submit a profile for &lt;customer> - named profiles - #1.2: Submit a profile for &lt;customer>[table_rows:[line: 31]]" time="3">
+  <testcase classname="Cucumber JUnit example café" file="file:cucumber-junit-example.feature" line="31" name="Customer profiles - Submit a profile for &lt;customer> - named profiles - #1.2: Submit a profile for &lt;customer>[table_rows:[line: 31]]" time="3">
     <system-out>Given the Cucumber JUnit example prepares a profile.........................passed
 Given the Cucumber JUnit example confirms its profile setup.................passed
 When the Cucumber JUnit example receives a profile document.................passed

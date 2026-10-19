@@ -81,6 +81,7 @@ Feature: Live message-driven Cucumber JUnit XML formatter
     And the consumer installs the pinned official Cucumber JUnit runtime
     When I run installed pytest in the Cucumber JUnit workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-junit=report.xml --cuke-messages-ndjson=artifacts/messages.ndjson -q --color=no"
     Then the public Cucumber JUnit example should preserve its contract and match live durations to Messages
+    And the public outline rows should identify their source URI and example line
     When the consumer creates deterministic Cucumber JUnit Messages for golden comparison
     And I replay deterministic Cucumber JUnit Messages to "report-replayed.xml"
     Then deterministic Cucumber JUnit replay should match the pinned example golden including numeric durations
