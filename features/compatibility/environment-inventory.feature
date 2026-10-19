@@ -50,6 +50,11 @@ Feature: Supported environment inventory and acceptance proof
     And every required runtime cell should declare upstream availability installability product support required CI and measured evidence separately
     And every required cell should require measured Python pytest platform architecture SHA command selected and passed tests outcome and workflow URLs
 
+  Scenario: The first required Linux runtime cell is x86_64 in policy and CI
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    Then the CPython 3.11 Linux required cell should require x86_64 in runtime policy and CI
+
   Scenario: Historical rows and unsupported pairings remain reasoned without claiming active support
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     Given the repository environment inventory is loaded
