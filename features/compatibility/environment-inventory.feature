@@ -215,3 +215,7 @@ Feature: Supported environment inventory and acceptance proof
     Given the contributor entry point and compatibility audit guide are loaded
     Then the guide should expose the full-proof command artifact and prerequisites
     And the contributor entry point should link to the compatibility audit guide
+
+  Scenario: Support guidance distinguishes pytest compatibility from measured CI coverage
+    Given the contributor entry point and compatibility audit guide are loaded
+    Then the guide should distinguish the broad pytest support promise from measured CI coverage

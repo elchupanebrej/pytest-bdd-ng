@@ -139,6 +139,13 @@ Python dependencies and Pandoc. Dedicated browser, native and remote jobs
 install or verify their own prerequisites. xdist proof is reported as
 `parallel`, separately from serial runtime proof.
 
+Project metadata's `pytest>=7.0` is the broad support floor for Python/pytest
+pairs that pytest upstream considers compatible. This compatibility promise
+does not mean every pytest patch is measured in CI. Measured CI coverage for
+CPython 3.11–3.14 runs the latest pytest 9.x line on Linux, macOS and Windows,
+plus the latest pytest 7.4.x on CPython 3.11/Linux and the latest pytest 8.4.x
+on CPython 3.12/Linux.
+
 Core runtime environments use tox's package installer directly; the GraalPy
 cell keeps its bundled pip and does not install uv. Optional consumer and
 formatter lanes install `uv>=0.8` where their isolated-consumer contracts need
