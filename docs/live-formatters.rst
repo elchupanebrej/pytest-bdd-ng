@@ -197,8 +197,13 @@ or ``cuke_json = "PATH"`` in pytest configuration. The option without a path
 writes ``cucumber.json`` under pytest's root directory; relative paths resolve
 from that root. The ``cuke_json_backend`` setting defaults to ``"cucumber"``.
 This backend uses the JSON formatter from ``@cucumber/cucumber`` and preserves
-the formatter's feature, scenario, step, hook, argument, attachment, status,
-duration, and diagnostic fields.
+the formatter's feature, scenario, step, argument, attachment, status, duration,
+and diagnostic fields. In this legacy JSON projection, feature and
+scenario descriptions appear in their respective ``description`` fields. Rules
+are flattened into the feature's scenario entries: there is no separate Rule
+object, and Rule description text is omitted. Rule tags are carried onto the
+scenarios inside the Rule. Scenario hooks appear in each scenario's ``steps`` as
+hidden ``Before`` and ``After`` entries, not as separate hook fields.
 
 The former pytest-cuke JSON writer remains available through explicit routing:
 set ``--cuke-json-backend=native`` or ``cuke_json_backend = "native"``. Both

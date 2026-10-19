@@ -186,6 +186,21 @@ ROOT = Path(__file__).parent
 (ROOT / "conftest-imported.marker").write_text("imported", encoding="utf-8")
 pytest_plugins = ["cucumber_json_consumer_steps"]
 """
+_HOOK_CONFTST = """\
+import pytest
+
+pytest_plugins = ["cucumber_json_consumer_steps"]
+
+
+@pytest.hookimpl
+def pytest_cuke_before_scenario(request, run):
+    del request, run
+
+
+@pytest.hookimpl
+def pytest_cuke_after_scenario(request, run):
+    del request, run
+"""
 _FINALIZATION_PRELOAD = """\
 if (process.argv.length === 1) {
   process.once("beforeExit", () => {
@@ -391,13 +406,20 @@ def _feature_line(source: str, expected_line: str) -> int:
 def _assert_rich_report(consumer: Any, relative_path: str) -> None:
     report, _ = _read_json(consumer, relative_path)
     feature = _one_feature(report, "Cucumber JSON contract café")
-    assert "Feature description line one" in feature.get("description", ""), feature
+    assert feature.get("description") == (
+        "Feature description line one\n"
+        "  Feature description line two"
+    ), feature
     assert {tag.get("name") for tag in feature.get("tags", [])} == {"@feature-tag"}, feature
     elements = feature["elements"]
+    assert all(element.get("type") != "rule" for element in elements), elements
+    serialized_feature = json.dumps(feature, ensure_ascii=False)
+    assert "Rule description line one" not in serialized_feature, feature
+    assert "Rule description line two" not in serialized_feature, feature
     described = _scenario(feature, "A described JSON scenario")
     assert described.get("type") == "scenario", described
     assert "account-actions" in described.get("id", ""), described
-    assert "Scenario description line" in described.get("description", ""), described
+    assert described.get("description") == "Scenario description line", described
     described_tags = {tag.get("name") for tag in described.get("tags", [])}
     assert described_tags == {
         "@rule-tag",
@@ -724,7 +746,8 @@ def pinned_official_formatter_matches_golden(consumer: Any) -> None:
 
 @given("the Cucumber JSON consumer prepares a feature for run hook lifecycle coverage")
 def prepare_cucumber_json_hook_lifecycle(consumer: Any) -> None:
-    _prepare(consumer, _HOOK_FEATURE)
+    root = _prepare(consumer, _HOOK_FEATURE)
+    _write(root, "conftest.py", _HOOK_CONFTST)
 
 
 @then("the Cucumber JSON report should preserve the scenario while Messages records both test run hooks")
@@ -735,7 +758,15 @@ def cucumber_json_report_preserves_messages_run_hooks(consumer: Any) -> None:
     report, _ = _read_json(consumer, "artifacts/hooks.json")
     feature = _one_feature(report, "Cucumber JSON hook lifecycle")
     scenario = _scenario(feature, "The marker records that execution began")
-    assert scenario["steps"][0]["result"]["status"] == "passed", scenario
+    scenario_steps = scenario["steps"]
+    assert len(scenario_steps) == 3, scenario_steps
+    before_step, body_step, after_step = scenario_steps
+    assert before_step.get("hidden") is True and before_step.get("keyword", "").strip() == "Before", before_step
+    assert after_step.get("hidden") is True and after_step.get("keyword", "").strip() == "After", after_step
+    assert before_step.get("result", {}).get("status") == "passed", before_step
+    assert body_step.get("name") == "cuke json marker scenario starts", body_step
+    assert body_step.get("result", {}).get("status") == "passed", body_step
+    assert after_step.get("result", {}).get("status") == "passed", after_step
 
     messages_path = consumer._cucumber_json_workspace / "artifacts/hooks.ndjson"
     envelopes = [json.loads(line) for line in messages_path.read_text(encoding="utf-8").splitlines() if line]
