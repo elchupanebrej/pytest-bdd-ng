@@ -2213,7 +2213,9 @@ def compatibility_audit_guide_documents_full_proof(compatibility_audit_documents
 def compatibility_audit_guide_distinguishes_support_from_measured_coverage(
     compatibility_audit_documents: CompatibilityAuditDocuments,
 ) -> None:
-    paragraphs = [" ".join(paragraph.casefold().split()) for paragraph in compatibility_audit_documents.audit_guide.split("\n\n")]
+    paragraphs = [
+        " ".join(paragraph.casefold().split()) for paragraph in compatibility_audit_documents.audit_guide.split("\n\n")
+    ]
     support_promise = [
         paragraph
         for paragraph in paragraphs
@@ -2222,9 +2224,7 @@ def compatibility_audit_guide_distinguishes_support_from_measured_coverage(
         and "upstream" in paragraph
         and "pair" in paragraph
     ]
-    assert support_promise, (
-        "the guide should state that pytest >=7.0 is a support floor for upstream-compatible pairs"
-    )
+    assert support_promise, "the guide should state that pytest >=7.0 is a support floor for upstream-compatible pairs"
 
     measured_matrix = [
         paragraph
@@ -2235,7 +2235,8 @@ def compatibility_audit_guide_distinguishes_support_from_measured_coverage(
         and all(os_name in paragraph for os_name in ("linux", "macos", "windows"))
     ]
     assert measured_matrix, (
-        "the guide should identify latest pytest 9.x across CPython 3.11–3.14 Linux, macOS, and Windows as measured CI coverage"
+        "the guide should identify latest pytest 9.x across CPython 3.11–3.14 Linux, macOS, "
+        "and Windows as measured CI coverage"
     )
 
     anchor_claims = {
