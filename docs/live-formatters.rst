@@ -227,10 +227,12 @@ Select Cucumber's official message-driven JUnit XML formatter with
 The option without a path writes ``cucumber.xml`` under pytest's root directory;
 relative paths resolve from that root. The report follows
 ``@cucumber/junit-xml-formatter``'s XML projection: suites and test cases carry
-scenario identity and outcomes, step details appear in ``system-out``, and
-failed or skipped cases use the corresponding JUnit elements. Scenario outline
-rows remain distinct test cases. The formatter does not add separate XML
-elements for Gherkin tags, descriptions, doc strings, or data tables.
+scenario identity and outcomes, test cases carry source ``file`` and ``line``
+attributes, step details appear in ``system-out``, and failed or skipped cases
+use the corresponding JUnit elements. Scenario outline rows remain distinct
+test cases. Feature, Rule, Scenario, and Examples tags; Feature, Rule, and
+Scenario descriptions; step doc strings and data tables; and Examples tables
+are recorded as suite ``<property>`` values, not dedicated XML elements.
 
 The report can run beside pytest's native ``--junitxml`` when the two outputs
 use distinct paths. It also works with saved streams through ``cuke replay

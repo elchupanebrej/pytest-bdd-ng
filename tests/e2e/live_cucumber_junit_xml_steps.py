@@ -1038,6 +1038,24 @@ def public_cucumber_junit_example_preserves_contract(consumer: Any) -> None:
     _assert_junit_durations_match_messages(consumer, "report.xml", "artifacts/messages.ndjson")
 
 
+@then("the public outline rows should identify their source URI and example line")
+def public_outline_rows_retain_source_identity(consumer: Any) -> None:
+    _, cases = _read_junit(consumer, "report.xml")
+    expected_sources = {
+        "#1.1": ("file:cucumber-junit-example.feature", "30"),
+        "#1.2": ("file:cucumber-junit-example.feature", "31"),
+    }
+    actual_sources: dict[str, tuple[str | None, str | None]] = {}
+    assert len(cases) == len(expected_sources), cases
+    for case in cases:
+        markers = [marker for marker in expected_sources if marker in case.get("name", "")]
+        assert len(markers) == 1, case.attrib
+        marker = markers[0]
+        assert marker not in actual_sources, case.attrib
+        actual_sources[marker] = (case.get("file"), case.get("line"))
+    assert actual_sources == expected_sources, actual_sources
+
+
 @then("duplicate-named Cucumber JUnit cases should retain source URI and line")
 def duplicate_cucumber_junit_cases_retain_source_identity(consumer: Any) -> None:
     root, cases = _read_junit(consumer, "artifacts/duplicate-identities.xml")
