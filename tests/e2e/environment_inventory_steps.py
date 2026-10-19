@@ -2209,6 +2209,47 @@ def compatibility_audit_guide_documents_full_proof(compatibility_audit_documents
     assert not missing_prerequisites, f"the guide omits full-proof prerequisites: {missing_prerequisites!r}"
 
 
+@then("the guide should distinguish the broad pytest support promise from measured CI coverage")
+def compatibility_audit_guide_distinguishes_support_from_measured_coverage(
+    compatibility_audit_documents: CompatibilityAuditDocuments,
+) -> None:
+    paragraphs = [" ".join(paragraph.casefold().split()) for paragraph in compatibility_audit_documents.audit_guide.split("\n\n")]
+    support_promise = [
+        paragraph
+        for paragraph in paragraphs
+        if re.search(r"pytest\s*>=\s*7\.0", paragraph)
+        and "floor" in paragraph
+        and "upstream" in paragraph
+        and "pair" in paragraph
+    ]
+    assert support_promise, (
+        "the guide should state that pytest >=7.0 is a support floor for upstream-compatible pairs"
+    )
+
+    measured_matrix = [
+        paragraph
+        for paragraph in paragraphs
+        if "measured ci coverage" in paragraph
+        and "latest pytest 9.x" in paragraph
+        and re.search(r"cpython\s+3\.11\s*[–-]\s*3\.14", paragraph)
+        and all(os_name in paragraph for os_name in ("linux", "macos", "windows"))
+    ]
+    assert measured_matrix, (
+        "the guide should identify latest pytest 9.x across CPython 3.11–3.14 Linux, macOS, and Windows as measured CI coverage"
+    )
+
+    anchor_claims = {
+        "CPython 3.11/Linux pytest 7.4.x": any(
+            "7.4.x" in paragraph and re.search(r"3\.11\s*/\s*linux", paragraph) for paragraph in paragraphs
+        ),
+        "CPython 3.12/Linux pytest 8.4.x": any(
+            "8.4.x" in paragraph and re.search(r"3\.12\s*/\s*linux", paragraph) for paragraph in paragraphs
+        ),
+    }
+    missing_anchors = [claim for claim, present in anchor_claims.items() if not present]
+    assert not missing_anchors, f"the guide omits measured pytest anchor cells: {missing_anchors!r}"
+
+
 @then("the contributor entry point should link to the compatibility audit guide")
 def contributor_entry_links_to_compatibility_audit(compatibility_audit_documents: CompatibilityAuditDocuments) -> None:
     contribution_section = compatibility_audit_documents.contributor_entry.partition("How to Contribute")[2]
