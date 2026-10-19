@@ -142,17 +142,19 @@ install or verify their own prerequisites. xdist proof is reported as
 Project metadata's `pytest>=7.0` is the broad support floor for Python/pytest
 pairs that pytest upstream considers compatible. This compatibility promise
 does not mean every pytest patch is measured in CI. Measured CI coverage for
-CPython 3.11–3.14 runs the latest pytest 9.x line on Linux, macOS and Windows,
+CPython 3.11–3.15 runs the latest pytest 9.x line on Linux, macOS and Windows,
 plus the latest pytest 7.4.x on CPython 3.11/Linux and the latest pytest 8.4.x
 on CPython 3.12/Linux.
 
-Core runtime environments use tox's package installer directly; the GraalPy
-cell keeps its bundled pip and does not install uv. Optional consumer and
-formatter lanes install `uv>=0.8` where their isolated-consumer contracts need
-it. Each coverage environment records its full Python and pytest versions, OS,
-architecture, commit SHA, resolved tox command, selected/passed test counts,
-outcome and workflow URLs. Full proof is valid only when every expected record
-matches the requested commit SHA and passes.
+Core runtime environments use tox's package installer directly. The GraalPy
+runtime retains its bundled pip; tox's `coverage` factor also installs
+`uv>=0.8` in that cell, as it does in the other coverage environments.
+Optional consumer and formatter lanes install `uv>=0.8` where their
+isolated-consumer contracts need it. Each coverage environment records its
+full Python and pytest versions, OS, architecture, commit SHA, resolved tox
+command, selected/passed test counts, outcome and workflow URLs. Full proof is
+valid only when every expected record matches the requested commit SHA and
+passes.
 
 Live formatter acceptance has dedicated Linux, macOS and Windows cells. The
 portable Linux invocation is:

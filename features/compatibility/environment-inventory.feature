@@ -90,6 +90,12 @@ Feature: Supported environment inventory and acceptance proof
     Then the inventory check should fail with the lane package and install remedy
     And the missing prerequisite should not be reported as a skip
 
+  Scenario: Optional package constraints reject installed versions outside declared requirements
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    When I probe an optional lane with installed packages outside declared version and PEP 508 requirements
+    Then the inventory check should report each requested package constraint installed version and install remedy
+
   Scenario: Collection summaries count selected tests instead of the total
     When I parse a partially deselected pytest collection summary
     Then the selected count should be 2
