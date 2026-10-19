@@ -13,6 +13,10 @@ import sys
 from pathlib import Path
 from typing import Any, TypeGuard
 
+from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.version import InvalidVersion, Version
+
 TOX_LIST_COMMAND = ("tox", "list", "--no-desc")
 _SUPPORTED_STATUSES = {"required", "optional", "unsupported"}
 
@@ -2249,6 +2253,44 @@ def _build_lane_proof(
     return proof
 
 
+def _package_prerequisite_constraint(
+    prerequisite: dict[str, Any],
+) -> tuple[SpecifierSet | None, str | None, str | None]:
+    """Return the constraint, display value, and parse error for a package prerequisite."""
+    name = str(prerequisite.get("name", ""))
+    requirement_value = prerequisite.get("requirement")
+    if requirement_value is not None:
+        requirement_text = str(requirement_value)
+        try:
+            requirement = Requirement(requirement_text)
+        except InvalidRequirement as error:
+            return None, requirement_text, f"invalid PEP 508 requirement: {error}"
+        normalized_requirement_name = re.sub(r"[-_.]+", "-", requirement.name).casefold()
+        normalized_declared_name = re.sub(r"[-_.]+", "-", name).casefold()
+        if normalized_requirement_name != normalized_declared_name:
+            return (
+                None,
+                requirement_text,
+                f"requirement names {requirement.name!r}, not the declared package {name!r}",
+            )
+        if requirement.marker is not None and not requirement.marker.evaluate():
+            return None, requirement_text, None
+        return requirement.specifier, requirement_text, None
+
+    version_value = prerequisite.get("version")
+    if version_value is None or str(version_value).strip().casefold() in {"", "latest"}:
+        return None, None, None
+    version_text = str(version_value).strip()
+    specifier_text = version_text
+    if not version_text.startswith(("<", ">", "=", "!", "~")):
+        specifier_text = f"=={version_text}"
+    try:
+        specifier = SpecifierSet(specifier_text)
+    except InvalidSpecifier as error:
+        return None, version_text, f"invalid version specifier: {error}"
+    return specifier, specifier_text, None
+
+
 def _probe_lane(
     lane: dict[str, Any],
     project_root: Path,
@@ -2263,7 +2305,7 @@ def _probe_lane(
         name = str(prerequisite.get("name", ""))
         if prerequisite_type == "python-package":
             try:
-                importlib.metadata.version(name)
+                installed_version = importlib.metadata.version(name)
             except importlib.metadata.PackageNotFoundError:
                 diagnostics.append(
                     _diagnostic(
@@ -2271,6 +2313,45 @@ def _probe_lane(
                         "package-prerequisite-missing",
                         f"required Python package {name!r} is not installed for lane {lane_id!r}",
                         str(prerequisite.get("remedy", f"Install package {name!r} before running this lane.")),
+                    )
+                )
+                continue
+
+            specifier, requested, constraint_error = _package_prerequisite_constraint(prerequisite)
+            if constraint_error is not None:
+                diagnostics.append(
+                    _diagnostic(
+                        lane_id,
+                        "package-prerequisite-invalid",
+                        f"requested constraint {requested!r} for Python package {name!r} is invalid: "
+                        f"{constraint_error}",
+                        str(prerequisite.get("remedy", f"Correct the declared requirement for {name!r}.")),
+                    )
+                )
+                continue
+            if specifier is None or not specifier:
+                continue
+            try:
+                version = Version(installed_version)
+            except InvalidVersion as error:
+                diagnostics.append(
+                    _diagnostic(
+                        lane_id,
+                        "package-prerequisite-version-invalid",
+                        f"installed version {installed_version!r} for Python package {name!r} cannot be "
+                        f"checked against requested constraint {requested!r}: {error}",
+                        str(prerequisite.get("remedy", f"Install a compatible version of {name!r}.")),
+                    )
+                )
+                continue
+            if not specifier.contains(version):
+                diagnostics.append(
+                    _diagnostic(
+                        lane_id,
+                        "package-prerequisite-version-mismatch",
+                        f"required Python package {name!r} has installed version {installed_version!r}, which "
+                        f"does not satisfy requested constraint {requested!r} for lane {lane_id!r}",
+                        str(prerequisite.get("remedy", f"Install a version of {name!r} that satisfies {requested}.")),
                     )
                 )
         elif prerequisite_type == "command" and shutil.which(name) is None:

@@ -949,8 +949,8 @@ support_ledger:
     - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
     - https://docs.pytest.org/en/7.4.x/changelog.html
 
-# The twelve frozen #149 cells are retained. Three PyPy 3.10 cells preserve
-# the green current-branch baseline from #200 while PyPy 3.11 is added.
+# Runtime cells follow the resolved #300 policy: CPython 3.11–3.15 on all three
+# operating systems, plus PyPy 3.12 and GraalPy 25.3 on Linux x86_64.
 workflow_cells:
 - id: remote-socket
   job: remote

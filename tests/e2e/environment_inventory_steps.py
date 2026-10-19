@@ -35,6 +35,8 @@ class EnvironmentInventoryContext:
     report: dict[str, Any] | None = None
     tox_result: subprocess.CompletedProcess[str] | None = None
     tox_configurations: dict[str, dict[str, list[str]]] | None = None
+    package_constraint_lane: str | None = None
+    package_constraint_expectations: list[dict[str, str]] | None = None
 
 
 @dataclass
@@ -241,6 +243,29 @@ def _run_environment_check(
     else:
         context.report = payload if isinstance(payload, dict) else None
     return result
+
+
+def _installed_consumer_version(consumer: Any, package_name: str) -> str:
+    result = subprocess.run(
+        [
+            str(consumer.python),
+            "-c",
+            "from importlib.metadata import version; import sys; print(version(sys.argv[1]))",
+            package_name,
+        ],
+        cwd=consumer.path,
+        env=consumer.env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"could not read installed {package_name} version from the isolated consumer:\n"
+        f"{result.stdout}\n{result.stderr}"
+    )
+    detected_version = result.stdout.strip()
+    assert detected_version, f"the isolated consumer returned an empty {package_name} version"
+    return detected_version
 
 
 def _report(context: EnvironmentInventoryContext) -> dict[str, Any]:
@@ -1808,6 +1833,41 @@ def probe_temporary_optional_lane_with_missing_package(consumer: Any) -> None:
     _run_environment_check(context, lane_id=context.missing_prerequisite_lane)
 
 
+@when("I probe an optional lane with installed packages outside declared version and PEP 508 requirements")
+def probe_optional_lane_with_incompatible_package_requirements(consumer: Any) -> None:
+    context = _context(consumer)
+    lane = next(
+        (candidate for candidate in _lanes(context) if _lane_id(candidate) == "optional-dependency-probe"), None
+    )
+    assert lane is not None, "cannot test package constraints without the optional dependency probe lane"
+
+    expectations: list[dict[str, str]] = []
+    for package, field in (("pytest", "version"), ("packaging", "requirement")):
+        detected_version = _installed_consumer_version(consumer, package)
+        requested_constraint = f">{detected_version}"
+        remedy = f"python -m pip install '{package}{requested_constraint}'"
+        prerequisite: dict[str, str] = {
+            "type": "python-package",
+            "name": package,
+            field: requested_constraint if field == "version" else f"{package}{requested_constraint}",
+            "remedy": remedy,
+        }
+        _prerequisite_entries(lane).append(prerequisite)
+        expectations.append(
+            {
+                "package": package,
+                "requested": requested_constraint if field == "version" else f"{package}{requested_constraint}",
+                "detected": detected_version,
+                "remedy": remedy,
+            }
+        )
+
+    context.package_constraint_lane = _lane_id(lane)
+    context.package_constraint_expectations = expectations
+    _write_inventory(context)
+    _run_environment_check(context, lane_id=context.package_constraint_lane)
+
+
 @then("the inventory check should fail with the lane package and install remedy")
 def missing_optional_package_fails_with_remedy(consumer: Any) -> None:
     context = _context(consumer)
@@ -1825,6 +1885,33 @@ def missing_optional_package_fails_with_remedy(consumer: Any) -> None:
         and f"python -m pip install {package}".casefold() in str(item.get("remedy", "")).casefold()
         for item in matching
     ), diagnostics
+
+
+@then("the inventory check should report each requested package constraint installed version and install remedy")
+def incompatible_optional_package_constraints_fail_with_remedies(consumer: Any) -> None:
+    context = _context(consumer)
+    result = context.check_result
+    report = _report(context)
+    assert result is not None and result.returncode != 0, (result, report)
+    assert report.get("status") == "fail", report
+    expectations = context.package_constraint_expectations
+    assert expectations, "the package constraint probe should retain its requested and installed versions"
+    diagnostics = report.get("diagnostics")
+    assert isinstance(diagnostics, list) and diagnostics, report
+    lane_id = context.package_constraint_lane
+    matching = [item for item in diagnostics if isinstance(item, dict) and item.get("laneId") == lane_id]
+    for expected in expectations:
+        package_diagnostics = [
+            item
+            for item in matching
+            if expected["package"].casefold() in str(item.get("message", "")).casefold()
+        ]
+        assert any(
+            expected["requested"].casefold() in str(item.get("message", "")).casefold()
+            and expected["detected"] in str(item.get("message", ""))
+            and expected["remedy"].casefold() in str(item.get("remedy", "")).casefold()
+            for item in package_diagnostics
+        ), {"expected": expected, "diagnostics": package_diagnostics}
 
 
 @then("the missing prerequisite should not be reported as a skip")
@@ -2231,11 +2318,11 @@ def compatibility_audit_guide_distinguishes_support_from_measured_coverage(
         for paragraph in paragraphs
         if "measured ci coverage" in paragraph
         and "latest pytest 9.x" in paragraph
-        and re.search(r"cpython\s+3\.11\s*[–-]\s*3\.14", paragraph)
+        and re.search(r"cpython\s+3\.11\s*[–-]\s*3\.15", paragraph)
         and all(os_name in paragraph for os_name in ("linux", "macos", "windows"))
     ]
     assert measured_matrix, (
-        "the guide should identify latest pytest 9.x across CPython 3.11–3.14 Linux, macOS, "
+        "the guide should identify latest pytest 9.x across CPython 3.11–3.15 Linux, macOS, "
         "and Windows as measured CI coverage"
     )
 
