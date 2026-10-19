@@ -388,7 +388,12 @@ _RUNTIME_POLICY_EVIDENCE_FIELDS = {
 
 def _expected_runtime_cell_keys() -> set[tuple[str, str, str, str]]:
     expected = {
-        ("cpython", f"3.{minor}", platform_name, "runner-native")
+        (
+            "cpython",
+            f"3.{minor}",
+            platform_name,
+            "x86_64" if minor == 11 and platform_name == "linux" else "runner-native",
+        )
         for minor in range(11, 16)
         for platform_name in ("linux", "macos", "windows")
     }
@@ -737,13 +742,13 @@ def _validate_runtime_policy(
                 "runtime-policy-canonical-cells-invalid",
                 f"required runtime cells do not match the canonical support matrix; missing={missing_keys!r}, "
                 f"extra={extra_keys!r}, duplicates={sorted(duplicate_keys)!r}",
-                "Require CPython 3.11-3.15 on Linux, macOS, and Windows, PyPy 3.12 on Linux x86_64, "
-                "and GraalPy 25.3/Python 3.13.14 on Linux x86_64.",
+                "Require CPython 3.11-3.15 on Linux, macOS, and Windows (with CPython 3.11/Linux on x86_64), "
+                "PyPy 3.12 on Linux x86_64, and GraalPy 25.3/Python 3.13.14 on Linux x86_64.",
             )
         )
 
     expected_floor_lines = {
-        ("cpython", "3.11", "linux", "runner-native"): "7.4.x",
+        ("cpython", "3.11", "linux", "x86_64"): "7.4.x",
         ("cpython", "3.12", "linux", "runner-native"): "8.4.x",
     }
     for key, floor_line in expected_floor_lines.items():

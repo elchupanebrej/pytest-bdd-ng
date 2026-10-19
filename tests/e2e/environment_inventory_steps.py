@@ -854,7 +854,12 @@ def active_runtime_policy_requires_current_cpython_cells(consumer: Any) -> None:
     context = _context(consumer)
     cells = _required_runtime_cells(context)
     expected = {
-        ("cpython", f"3.{minor}", platform_name, "runner-native")
+        (
+            "cpython",
+            f"3.{minor}",
+            platform_name,
+            "x86_64" if minor == 11 and platform_name == "linux" else "runner-native",
+        )
         for minor in range(11, 16)
         for platform_name in ("linux", "macos", "windows")
     }
@@ -905,6 +910,34 @@ def special_runtimes_pin_setup_python_inputs(consumer: Any) -> None:
         assert workflow_cell.get("expected_interpreter") == "3.15.0", workflow_cell
 
 
+@then("the CPython 3.11 Linux required cell should require x86_64 in runtime policy and CI")
+def cpython_311_linux_cell_requires_x86_64(consumer: Any) -> None:
+    context = _context(consumer)
+    policy_cell = next(
+        (cell for cell in _required_runtime_cells(context) if cell.get("id") == "cpython-311-linux"),
+        None,
+    )
+    assert isinstance(policy_cell, dict), "runtime policy must contain the required cpython-311-linux cell"
+
+    workflow_cells = context.document.get("workflow_cells")
+    assert isinstance(workflow_cells, list), workflow_cells
+    workflow_cell = next(
+        (
+            cell
+            for cell in workflow_cells
+            if isinstance(cell, dict) and cell.get("id") == "cpython-311-linux" and cell.get("job") == "full-matrix"
+        ),
+        None,
+    )
+    assert isinstance(workflow_cell, dict), "full-matrix workflow must contain cpython-311-linux"
+
+    actual_architectures = {
+        "runtime_policy": policy_cell.get("architecture"),
+        "workflow_cell": workflow_cell.get("architecture"),
+    }
+    assert actual_architectures == {"runtime_policy": "x86_64", "workflow_cell": "x86_64"}, actual_architectures
+
+
 @then("required CPython cells should use latest pytest 9 with the specified pytest 7 and 8 floor cells")
 def required_cpython_cells_use_latest_and_compatible_floor_pytest(consumer: Any) -> None:
     context = _context(consumer)
@@ -921,7 +954,7 @@ def required_cpython_cells_use_latest_and_compatible_floor_pytest(consumer: Any)
         assert isinstance(required_lines, list) and "9.x" in required_lines, cell
     by_key = {_runtime_cell_key(cell): cell for cell in cells}
     expected_floor_lines = {
-        ("cpython", "3.11", "linux", "runner-native"): "7.4.x",
+        ("cpython", "3.11", "linux", "x86_64"): "7.4.x",
         ("cpython", "3.12", "linux", "runner-native"): "8.4.x",
     }
     for key, floor in expected_floor_lines.items():

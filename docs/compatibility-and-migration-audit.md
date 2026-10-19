@@ -121,8 +121,9 @@ diagnostic text.
 `config/env-matrix.yaml` is the source for the supported runtime, platform,
 optional-capability and CI-cell inventory. Required runtime cells are CPython
 3.11–3.15 on Linux, macOS and Windows, plus PyPy 3.12 and GraalPy 25.3 on Linux
-x86_64. CPython 3.11/Linux also runs latest pytest 7.4.x; CPython 3.12/Linux
-also runs latest pytest 8.4.x. Every required tox environment installs the
+x86_64. The required CPython 3.11/Linux cell is constrained to x86_64. CPython
+3.11/Linux also runs latest pytest 7.4.x; CPython 3.12/Linux also runs latest
+pytest 8.4.x. Every required tox environment installs the
 package, runs the core suite and executes the standalone `examples/tutorial`
 project. The inventory records upstream availability, installability, product
 support, required CI, measured results and exclusions separately; unsupported

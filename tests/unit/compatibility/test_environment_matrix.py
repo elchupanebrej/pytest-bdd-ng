@@ -34,7 +34,12 @@ def _runtime_cell_records() -> tuple[list[dict[str, Any]], list[dict[str, Any]],
     lanes: list[dict[str, Any]] = []
 
     targets = [
-        ("CPython", f"3.{minor}", platform_name, "runner-native")
+        (
+            "CPython",
+            f"3.{minor}",
+            platform_name,
+            "x86_64" if minor == 11 and platform_name == "linux" else "runner-native",
+        )
         for minor in range(11, 16)
         for platform_name in ("linux", "macos", "windows")
     ]

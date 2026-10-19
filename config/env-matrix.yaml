@@ -34,7 +34,7 @@ runtime_policy:
       runtime: CPython
       python: "3.11"
       platform: linux
-      architecture: runner-native
+      architecture: x86_64
       setup_python: {input: "3.11", expected_interpreter: "3.11.*"}
       upstream_availability: *cpython_source
       installability: *core_installability
@@ -1079,7 +1079,7 @@ workflow_cells:
   runtime: CPython
   python: '3.11'
   platform: linux
-  architecture: runner-native
+  architecture: x86_64
   runner: ubuntu-latest
   setup_python_input: '3.11'
   expected_interpreter: 3.11.*
