@@ -96,6 +96,12 @@ Feature: Supported environment inventory and acceptance proof
     When I probe an optional lane with installed packages outside declared version and PEP 508 requirements
     Then the inventory check should report each requested package constraint installed version and install remedy
 
+  Scenario: Optional package requirements ignore missing packages with inactive PEP 508 markers
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
+    And the repository environment inventory is loaded
+    When I probe an optional lane with an absent package behind an inactive PEP 508 marker
+    Then the inventory check should pass without a missing-package diagnostic for that package
+
   Scenario: Collection summaries count selected tests instead of the total
     When I parse a partially deselected pytest collection summary
     Then the selected count should be 2

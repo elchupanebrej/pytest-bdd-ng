@@ -37,6 +37,8 @@ class EnvironmentInventoryContext:
     tox_configurations: dict[str, dict[str, list[str]]] | None = None
     package_constraint_lane: str | None = None
     package_constraint_expectations: list[dict[str, str]] | None = None
+    inactive_marker_lane: str | None = None
+    inactive_marker_package: str | None = None
 
 
 @dataclass
@@ -1845,18 +1847,19 @@ def probe_optional_lane_with_incompatible_package_requirements(consumer: Any) ->
     for package, field in (("pytest", "version"), ("packaging", "requirement")):
         detected_version = _installed_consumer_version(consumer, package)
         requested_constraint = f">{detected_version}"
+        display_constraint = requested_constraint if field == "version" else f"{package}{requested_constraint}"
         remedy = f"python -m pip install '{package}{requested_constraint}'"
         prerequisite: dict[str, str] = {
             "type": "python-package",
             "name": package,
-            field: requested_constraint if field == "version" else f"{package}{requested_constraint}",
+            field: display_constraint,
             "remedy": remedy,
         }
         _prerequisite_entries(lane).append(prerequisite)
         expectations.append(
             {
                 "package": package,
-                "requested": requested_constraint if field == "version" else f"{package}{requested_constraint}",
+                "requested": display_constraint,
                 "detected": detected_version,
                 "remedy": remedy,
             }
@@ -1866,6 +1869,28 @@ def probe_optional_lane_with_incompatible_package_requirements(consumer: Any) ->
     context.package_constraint_expectations = expectations
     _write_inventory(context)
     _run_environment_check(context, lane_id=context.package_constraint_lane)
+
+
+@when("I probe an optional lane with an absent package behind an inactive PEP 508 marker")
+def probe_optional_lane_with_inactive_package_marker(consumer: Any) -> None:
+    context = _context(consumer)
+    lane = next(
+        (candidate for candidate in _lanes(context) if _lane_id(candidate) == "optional-dependency-probe"), None
+    )
+    assert lane is not None, "cannot test PEP 508 markers without the optional dependency probe lane"
+    package = "pytest-cuke-acceptance-inactive-marker-000000"
+    _prerequisite_entries(lane).append(
+        {
+            "type": "python-package",
+            "name": package,
+            "requirement": f"{package}; python_version < '0'",
+            "remedy": f"python -m pip install {package}",
+        }
+    )
+    context.inactive_marker_lane = _lane_id(lane)
+    context.inactive_marker_package = package
+    _write_inventory(context)
+    _run_environment_check(context, lane_id=context.inactive_marker_lane)
 
 
 @then("the inventory check should fail with the lane package and install remedy")
@@ -1912,6 +1937,28 @@ def incompatible_optional_package_constraints_fail_with_remedies(consumer: Any) 
             and expected["remedy"].casefold() in str(item.get("remedy", "")).casefold()
             for item in package_diagnostics
         ), {"expected": expected, "diagnostics": package_diagnostics}
+
+
+@then("the inventory check should pass without a missing-package diagnostic for that package")
+def inactive_marker_skips_missing_package_check(consumer: Any) -> None:
+    context = _context(consumer)
+    result = context.check_result
+    report = _report(context)
+    assert result is not None and result.returncode == 0, (result, report)
+    assert report.get("status") == "pass", report
+    lane_id = context.inactive_marker_lane
+    package = context.inactive_marker_package
+    diagnostics = report.get("diagnostics", [])
+    assert isinstance(diagnostics, list), report
+    missing_package_diagnostics = [
+        item
+        for item in diagnostics
+        if isinstance(item, dict)
+        and item.get("laneId") == lane_id
+        and item.get("code") == "package-prerequisite-missing"
+        and package.casefold() in str(item.get("message", "")).casefold()
+    ]
+    assert not missing_package_diagnostics, missing_package_diagnostics
 
 
 @then("the missing prerequisite should not be reported as a skip")
