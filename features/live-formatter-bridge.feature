@@ -42,22 +42,14 @@ Feature: Live Cucumber formatter bridge
     Then pytest should exit with code 0
     And consumer formatter artifacts "alpha.ndjson" and "zeta.ndjson" should be identical valid successful Messages streams
 
-  Scenario: A live formatter receives one normalized stream from xdist workers
+  Scenario: A slow live formatter receives one normalized stream from xdist workers
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer has pytest-xdist available or skips this scenario
-    And the consumer registers live formatter plugin "xdist" writing "xdist-live.ndjson"
-    And consumer file "features/xdist-live-formatter.feature" contains:
-      """gherkin
-      Feature: Live formatter with xdist workers
-        Scenario: The northern worker scenario reaches the bridge
-          Given formatter worker scenario north reaches the bridge
-
-        Scenario: The southern worker scenario reaches the bridge
-          Given formatter worker scenario south reaches the bridge
-      """
+    And the consumer registers live formatter plugin "xdist-slow" writing "xdist-live.ndjson"
+    And the consumer has many xdist formatter stress scenarios
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --color=no -n 2 --dist=load --max-worker-restart=0 -q"
     Then pytest should exit with code 0
-    And consumer formatter artifact "xdist-live.ndjson" should be one normalized stream for two xdist scenarios
+    And consumer formatter artifact "xdist-live.ndjson" should be one normalized stream for many xdist scenarios
     And consumer artifact "xdist-worker-batches.jsonl" should preserve contiguous callback sequences per worker
 
   Scenario Outline: Invalid output destinations fail before a scenario starts

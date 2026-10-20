@@ -20,6 +20,7 @@ from pytest_cuke.model.message_validation import validate_envelope
 _FORMATTER_PROBE = '''\
 import json
 import sys
+import time
 from pathlib import Path
 
 mode = sys.argv[1]
@@ -36,9 +37,12 @@ for line in sys.stdin:
         marker.write_text(json.dumps(envelope["testCaseStarted"]), encoding="utf-8")
     sys.stdout.write(line)
     sys.stdout.flush()
+    if mode.endswith("-slow"):
+        time.sleep(0.005)
 '''
 
 _MESSAGE_DIAGNOSTIC_PREFIX = "PYTEST_CUKE_MESSAGE_DIAGNOSTIC="
+_XDIST_SCENARIO_NAMES = tuple(f"scenario-{index:02d}" for index in range(1, 25))
 
 
 def _sink_failure_diagnostics(output: str) -> list[dict[str, Any]]:
@@ -215,6 +219,17 @@ def _install_formatter_plugins(consumer: Any, plugins: dict[str, str], markers: 
 def register_live_formatter_plugin(name: str, output: str, consumer: Any) -> None:
     source = _plugin_source([{"name": name, "mode": name, "output": output}])
     _install_formatter_plugins(consumer, {f"{name}_formatter": source}, [name])
+
+
+@given("the consumer has many xdist formatter stress scenarios")
+def consumer_has_many_xdist_formatter_stress_scenarios(consumer: Any) -> None:
+    scenarios = "\n\n".join(
+        f"  Scenario: Worker case {case} reaches the bridge\n"
+        f"    Given formatter worker scenario {case} reaches the bridge"
+        for case in _XDIST_SCENARIO_NAMES
+    )
+    feature = f"Feature: Live formatter with xdist workers\n\n{scenarios}\n"
+    _write_consumer_file(consumer, "features/xdist-live-formatter.feature", feature)
 
 
 @given("the installed consumer has pytest-xdist available or skips this scenario")
@@ -632,7 +647,7 @@ def _message_identifier_graph(value: object) -> tuple[list[str], list[str]]:
     return object_ids, references
 
 
-@then(re.compile(r'consumer formatter artifact "(?P<output>[^"]+)" should be one normalized stream for two xdist scenarios'))
+@then(re.compile(r'consumer formatter artifact "(?P<output>[^"]+)" should be one normalized stream for many xdist scenarios'))
 def formatter_xdist_artifact_is_one_normalized_stream(output: str, consumer: Any) -> None:
     _, rows = _messages_artifact(output, consumer)
     metas = [row["meta"] for row in rows if "meta" in row]
@@ -649,19 +664,18 @@ def formatter_xdist_artifact_is_one_normalized_stream(output: str, consumer: Any
 
     assert len(metas) == len(run_starts) == len(run_finishes) == 1, (metas, run_starts, run_finishes)
     assert sources and documents, (sources, documents)
-    assert len(pickles) == len(cases) == 2, (pickles, cases)
-    assert len(attempts) == len(case_finishes) == len(step_starts) == len(step_finishes) == 2
+    expected_count = len(_XDIST_SCENARIO_NAMES)
+    assert len(pickles) == len(cases) == expected_count, (pickles, cases)
+    assert len(attempts) == len(case_finishes) == len(step_starts) == len(step_finishes) == expected_count
     assert run_finishes[0].get("success") is True, run_finishes[0]
     assert rows[-1].get("testRunFinished") == run_finishes[0], "testRunFinished must close the live xdist stream"
 
-    expected_steps = {
-        "formatter worker scenario north reaches the bridge",
-        "formatter worker scenario south reaches the bridge",
-    }
+    case_names = _XDIST_SCENARIO_NAMES
+    expected_steps = {f"formatter worker scenario {case} reaches the bridge" for case in case_names}
     pickle_ids = {pickle["id"] for pickle in pickles}
     case_ids = {case["id"] for case in cases}
     attempt_ids = {attempt["id"] for attempt in attempts}
-    assert len(pickle_ids) == len(case_ids) == len(attempt_ids) == 2
+    assert len(pickle_ids) == len(case_ids) == len(attempt_ids) == expected_count
     assert {pickle["steps"][0]["text"] for pickle in pickles} == expected_steps
     pickles_by_id = {pickle["id"]: pickle for pickle in pickles}
     cases_by_id = {case["id"]: case for case in cases}
@@ -690,7 +704,7 @@ def formatter_xdist_artifact_is_one_normalized_stream(output: str, consumer: Any
     worker_prefixes = tuple(f"{worker}:" for worker in workers)
     observations_path = _consumer_root(consumer) / "formatter-worker-observations"
     observations = [json.loads(path.read_text(encoding="utf-8")) for path in observations_path.glob("*.json")]
-    assert {item.get("case") for item in observations} == {"north", "south"}, observations
+    assert {item.get("case") for item in observations} == set(case_names), observations
     assert {item.get("worker_id") for item in observations} == workers, observations
 
     object_ids, references = _message_identifier_graph(rows)
