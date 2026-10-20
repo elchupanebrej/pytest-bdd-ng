@@ -26,7 +26,7 @@ Feature: Live message-driven Cucumber JSON formatter
     When I remove the Cucumber JSON consumer test sources and clear their execution markers
     And I run command "cuke" in the Cucumber JSON workspace with arguments "replay messages.ndjson --formatter cucumber-json=artifacts/replayed.json"
     Then replay should succeed without importing removed sources or running pytest fixtures
-    And replayed Cucumber JSON should be semantically equivalent to the live report
+    And replayed Cucumber JSON at "artifacts/replayed.json" should be semantically equivalent to live report at "artifacts/live.json"
 
   Scenario: Failure skip and undefined outcomes retain official statuses and diagnostics
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -34,7 +34,9 @@ Feature: Live message-driven Cucumber JSON formatter
     And the consumer installs the pinned official Cucumber JSON runtime
     When I run installed pytest in the Cucumber JSON workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-json=artifacts/outcomes.json --cuke-messages-ndjson=artifacts/outcomes.ndjson -q --tb=short --color=no"
     Then the Cucumber JSON run should fail while publishing every outcome
-    And the official report should preserve pass fail skip undefined status failure text and durations
+    And the official report should preserve pass fail skip undefined statuses failure text and durations and omit undefined error messages
+    When I run command "cuke" in the Cucumber JSON workspace with arguments "replay artifacts/outcomes.ndjson --formatter cucumber-json=artifacts/outcomes-replayed.json"
+    Then replayed Cucumber JSON at "artifacts/outcomes-replayed.json" should be semantically equivalent to live report at "artifacts/outcomes.json"
 
   Scenario: Missing duplicate and unwritable destinations fail before scenarios run
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

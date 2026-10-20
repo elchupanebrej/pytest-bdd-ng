@@ -369,6 +369,13 @@ def _combined_output(consumer: Any, *, replay: bool = False) -> str:
     return f"{result.stdout}\n{result.stderr}"
 
 
+def _assert_cucumber_json_replay_succeeded(consumer: Any) -> str:
+    result = consumer.cucumber_json_replay_result
+    output = _combined_output(consumer, replay=True)
+    assert result.returncode == 0, output
+    return output
+
+
 def _read_json(consumer: Any, relative_path: str) -> tuple[Any, str]:
     artifact = consumer._cucumber_json_workspace / relative_path
     assert (
@@ -838,18 +845,21 @@ def cucumber_json_report_preserves_messages_run_hooks(consumer: Any) -> None:
 
 @then("replay should succeed without importing removed sources or running pytest fixtures")
 def cucumber_json_replay_does_not_import_sources(consumer: Any) -> None:
-    result = consumer.cucumber_json_replay_result
-    output = _combined_output(consumer, replay=True)
-    assert result.returncode == 0, output
+    output = _assert_cucumber_json_replay_succeeded(consumer)
     assert (consumer._cucumber_json_workspace / "artifacts/replayed.json").is_file(), output
     assert all(not (consumer._cucumber_json_workspace / marker).exists() for marker in _SOURCE_MARKERS)
 
 
-@then("replayed Cucumber JSON should be semantically equivalent to the live report")
-def replayed_cucumber_json_matches_live(consumer: Any) -> None:
-    live, _ = _read_json(consumer, "artifacts/live.json")
-    replayed, _ = _read_json(consumer, "artifacts/replayed.json")
-    assert live == replayed
+@then(
+    parsers.re(
+        r'replayed Cucumber JSON at "(?P<replay_path>[^"]+)" should be semantically equivalent to live report at "(?P<live_path>[^"]+)"'
+    )
+)
+def replayed_cucumber_json_matches_live(replay_path: str, live_path: str, consumer: Any) -> None:
+    _assert_cucumber_json_replay_succeeded(consumer)
+    replayed, _ = _read_json(consumer, replay_path)
+    live, _ = _read_json(consumer, live_path)
+    assert live == replayed, (live_path, replay_path)
 
 
 @given("the Cucumber JSON consumer prepares passing failing skipped and undefined scenarios")
@@ -866,7 +876,9 @@ def cucumber_json_outcomes_preserve_pytest_failure(consumer: Any) -> None:
     assert (consumer._cucumber_json_workspace / "artifacts/outcomes.ndjson").is_file(), output
 
 
-@then("the official report should preserve pass fail skip undefined status failure text and durations")
+@then(
+    "the official report should preserve pass fail skip undefined statuses failure text and durations and omit undefined error messages"
+)
 def official_cucumber_json_preserves_mixed_outcomes(consumer: Any) -> None:
     report, _ = _read_json(consumer, "artifacts/outcomes.json")
     feature = _one_feature(report, "Cucumber JSON outcomes")
@@ -887,7 +899,9 @@ def official_cucumber_json_preserves_mixed_outcomes(consumer: Any) -> None:
     failure = scenarios["A step fails"]["steps"][0]["result"]
     assert "Cucumber JSON failure sentinel" in failure.get("error_message", ""), failure
     undefined = scenarios["An undefined step is reported"]["steps"]
-    assert undefined[0]["result"].get("status") == "undefined", undefined
+    undefined_result = undefined[0].get("result", {})
+    assert undefined_result.get("status") == "undefined", undefined
+    assert "error_message" not in undefined_result, undefined
     assert len(undefined) == 2 and undefined[1]["result"].get("status") == "skipped", undefined
 
 
