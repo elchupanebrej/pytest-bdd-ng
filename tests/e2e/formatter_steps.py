@@ -179,6 +179,7 @@ def _plugin_source(requests: list[dict[str, Any]]) -> str:
         output_expression = request.get("output_expression")
         if output_expression is None:
             output_expression = "None" if request["output"] is None else f"Path({request['output']!r})"
+        timeout_seconds = 30.0 if request["mode"].endswith("-slow") else 5.0
         request_lines.append(
             "        FormatterRequest(\n"
             f"            name={request['name']!r},\n"
@@ -186,7 +187,7 @@ def _plugin_source(requests: list[dict[str, Any]]) -> str:
             f"{request['mode']!r}),\n"
             f"            output_path={output_expression},\n"
             "            working_directory=Path(__file__).parent,\n"
-            "            timeout_seconds=5.0,\n"
+            f"            timeout_seconds={timeout_seconds!r},\n"
             "        ),"
         )
     return (
