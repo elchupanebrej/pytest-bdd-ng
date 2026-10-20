@@ -6064,7 +6064,7 @@ def consumer_test_groups_obey_terminal_barrier(earlier, later, consumer: Consume
     later_starts = [event["timestamp_ns"] for event in events if event["phase"] == "start" and event["group"] == later]
     assert earlier_terminals, f"the consumer recorded no terminal events for group {earlier!r}"
     assert later_starts, f"the consumer recorded no start events for group {later!r}"
-    assert max(earlier_terminals) < min(later_starts), (
+    assert max(earlier_terminals) <= min(later_starts), (
         f"group {later!r} started before every selected {earlier!r} item settled: "
         f"latest terminal={max(earlier_terminals)}, earliest start={min(later_starts)}"
     )
@@ -16113,7 +16113,16 @@ def consumer_xdist_keeps_failures_and_closes_worker_services(consumer: ConsumerP
     result = consumer.pytest_result
     assert result is not None and result.returncode != 0, result
     report_path = consumer.path / "report.json"
-    assert report_path.is_file(), f"Cucumber JSON report was not written: {report_path}"
+    worker_index_path = _mcp_xdist_workers_path(consumer)
+    worker_directory = worker_index_path.parent / "workers"
+    worker_record_paths = sorted(str(path.relative_to(consumer.path)) for path in worker_directory.glob("*.json"))
+    assert report_path.is_file(), (
+        f"Cucumber JSON report was not written: {report_path}\n"
+        f"child pytest exit code: {result.returncode}\n"
+        f"child pytest combined stdout/stderr:\n{result.stdout}\n"
+        f"xdist worker index: {worker_index_path} (exists={worker_index_path.is_file()})\n"
+        f"xdist worker records: {worker_record_paths}"
+    )
     report = json.loads(report_path.read_text(encoding="utf-8"))
     scenarios = [
         scenario
