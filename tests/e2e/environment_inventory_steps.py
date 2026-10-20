@@ -262,8 +262,7 @@ def _installed_consumer_version(consumer: Any, package_name: str) -> str:
         text=True,
     )
     assert result.returncode == 0, (
-        f"could not read installed {package_name} version from the isolated consumer:\n"
-        f"{result.stdout}\n{result.stderr}"
+        f"could not read installed {package_name} version from the isolated consumer:\n{result.stdout}\n{result.stderr}"
     )
     detected_version = result.stdout.strip()
     assert detected_version, f"the isolated consumer returned an empty {package_name} version"
@@ -1927,9 +1926,7 @@ def incompatible_optional_package_constraints_fail_with_remedies(consumer: Any) 
     matching = [item for item in diagnostics if isinstance(item, dict) and item.get("laneId") == lane_id]
     for expected in expectations:
         package_diagnostics = [
-            item
-            for item in matching
-            if expected["package"].casefold() in str(item.get("message", "")).casefold()
+            item for item in matching if expected["package"].casefold() in str(item.get("message", "")).casefold()
         ]
         assert any(
             expected["requested"].casefold() in str(item.get("message", "")).casefold()
