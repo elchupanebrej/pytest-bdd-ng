@@ -972,7 +972,8 @@ def progress_bar_restores_pytest_output_across_capture_modes(consumer: Any) -> N
             capture_mode,
             ratios,
         )
-        assert re.search(r"\b\d+ passed\b.*\bin \d+(?:\.\d+)?s\b", output), (
+        summary_output = _ANSI.sub("", output)
+        assert re.search(r"\b\d+ passed\b.*\bin \d+(?:\.\d+)?s\b", summary_output), (
             f"pytest's ordinary duration summary was not restored for --capture={capture_mode}:\n{output}"
         )
         assert "skipped" in output.lower(), (capture_mode, output)
