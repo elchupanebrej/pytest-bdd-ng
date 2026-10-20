@@ -508,6 +508,7 @@ class FormatterSession:
         self._message_adapter = LiveMessageAdapter()
         self._stream_validator = MessageStreamValidator()
         self._next_worker_sequence: dict[str, int] = {}
+        self._delivery_lock = Lock()
 
     @property
     def failed(self) -> bool:
@@ -537,15 +538,20 @@ class FormatterSession:
 
     def write_message(self, message: Message) -> None:
         """Send one controller message through the live/replay normalization path."""
-        try:
-            envelope = self._message_adapter.controller_envelope(message_to_dict(message))
-        except (TypeError, ValueError) as error:
-            raise FormatterRuntimeError(f"Could not adapt controller Cucumber Messages: {error}") from error
-        if envelope is not None:
-            self._write_envelope(envelope)
+        with self._delivery_lock:
+            try:
+                envelope = self._message_adapter.controller_envelope(message_to_dict(message))
+            except (TypeError, ValueError) as error:
+                raise FormatterRuntimeError(f"Could not adapt controller Cucumber Messages: {error}") from error
+            if envelope is not None:
+                self._write_envelope(envelope)
 
     def pytest_cuke_message_batch(self, config: Config, batch: dict[str, Any]) -> None:
         del config
+        with self._delivery_lock:
+            self._write_worker_batch(batch)
+
+    def _write_worker_batch(self, batch: dict[str, Any]) -> None:
         worker_id = batch.get("worker_id")
         sequence = batch.get("sequence")
         envelopes = batch.get("envelopes")
@@ -585,6 +591,10 @@ class FormatterSession:
                 self._raise_failure()
 
     def finish(self) -> None:
+        with self._delivery_lock:
+            self._finish()
+
+    def _finish(self) -> None:
         if self._finished:
             self._raise_failure()
             return
@@ -626,6 +636,10 @@ class FormatterSession:
             self._raise_failure()
 
     def abort(self) -> None:
+        with self._delivery_lock:
+            self._abort()
+
+    def _abort(self) -> None:
         if self._finished:
             return
         self._finished = True
