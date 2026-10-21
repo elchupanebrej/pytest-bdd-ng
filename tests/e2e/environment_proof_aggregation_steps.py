@@ -2436,12 +2436,14 @@ def _run_selected_matrix_environment(
     monkeypatch.setattr(
         runner,
         "_installed_versions",
-        lambda _python: installed_runtime
-        or {
-            "python": "3.13.0",
-            "runtime": "CPython",
-            "packages": {"pytest": "9.0.1"},
-        },
+        lambda _python: (
+            installed_runtime
+            or {
+                "python": "3.13.0",
+                "runtime": "CPython",
+                "packages": {"pytest": "9.0.1"},
+            }
+        ),
     )
     monkeypatch.setattr(runner, "_python_in_tox_environment", lambda *_args: tmp_path / "python")
     monkeypatch.setattr(runner.platform, "platform", lambda: "synthetic-platform")
@@ -2701,7 +2703,10 @@ def run_cpython_311_linux_lane_with_skipped_core_and_passing_tutorial(
             {"tox": "4.25.0", "uv": "0.8.22"},
             {
                 "tox": {"executable": "tox", "argv": ["tox", "--version"]},
-                "uv": {"executable": "/project/.tox/py311-pytestlatest-coverage-lin/bin/uv", "argv": ["uv", "--version"]},
+                "uv": {
+                    "executable": "/project/.tox/py311-pytestlatest-coverage-lin/bin/uv",
+                    "argv": ["uv", "--version"],
+                },
             },
         ),
     )
