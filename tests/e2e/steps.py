@@ -4879,7 +4879,7 @@ def _pytest_cuke_xdist_environment(_pytest_cuke_group_wheel: Path, tmp_path_fact
             "--python",
             str(python_path),
             str(_pytest_cuke_group_wheel),
-            "pytest-xdist",
+            "pytest-xdist<4",
             "pytest-order",
         ],
         check=False,

@@ -372,7 +372,7 @@ Feature: Local xdist test-group completion barriers
       def test_unit():
           pass
       """
-    When I run installed pytest with a 20-second watchdog and arguments "-c pytest.ini --order-scope=session --cuke-no-autoload --tx=ssh=invalid.invalid//python=python3 -q"
+    When I run installed pytest with a 60-second watchdog and arguments "-c pytest.ini --order-scope=session --cuke-no-autoload --dist=load --tx=ssh=invalid.invalid//python=python3 -q"
     Then the installed pytest run should finish before its watchdog
     And pytest should exit with code 4
     And pytest output should include "shared filesystem"
