@@ -119,7 +119,9 @@ def formatter_worker_scenario_reaches_bridge(case):
     observations = ROOT / "formatter-worker-observations"
     observations.mkdir(exist_ok=True)
     observation = observations / f"{case}-{uuid.uuid4().hex}.json"
-    observation.write_text(json.dumps({"case": case, "worker_id": worker_id}), encoding="utf-8")
+    temporary = observation.with_suffix(".tmp")
+    temporary.write_text(json.dumps({"case": case, "worker_id": worker_id}), encoding="utf-8")
+    temporary.replace(observation)
 
     deadline = time.monotonic() + 20
     while time.monotonic() < deadline:
