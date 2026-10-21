@@ -191,6 +191,15 @@ Feature: Aggregate the full supported environment proof
     When I run the matrix runner for a tox environment whose tests all skip
     Then it should reject the skipped-only tox result and record a failed environment outcome
 
+  Scenario Outline: CPython 3.11 Linux rejects a passing tutorial when core acceptance is incomplete
+    When I run the CPython 3.11 Linux latest pytest lane with core summary "<core_summary>" and a passing tutorial example
+    Then it should record a failed CPython 3.11 Linux core acceptance result with <core_passed> passed and <core_failed> failed
+
+    Examples:
+      | core_summary                | core_passed | core_failed |
+      | 20 skipped in 0.01s          | 0           | 0           |
+      | 19 passed, 1 failed in 0.01s | 19          | 1           |
+
   Scenario: The matrix runner streams progress before tox exits
     When I watch a matrix command that waits after writing its first progress line
     Then the runner should expose progress while the command is still running and retain its final output

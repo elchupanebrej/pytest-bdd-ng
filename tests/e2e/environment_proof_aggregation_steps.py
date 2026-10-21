@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pytest_cuke import given, then, when
+from pytest_cuke import given, parsers, then, when
 
 
 _EXPECTED_GROUPS = ("serial", "parallel", "e2e", "external", "quality", "optional")
@@ -2398,9 +2398,13 @@ def _run_selected_matrix_environment(
     monkeypatch: Any,
     *,
     requested_environment: str,
-    tox_stdout: str = "1 passed in 0.01s\n",
+    tox_stdout: str | None = None,
     tox_returncode: int = 0,
     machine_value: str | None = None,
+    selected_cell: dict[str, Any] | None = None,
+    installed_runtime: dict[str, Any] | None = None,
+    host_runtime: dict[str, str] | None = None,
+    system_tool_evidence: tuple[dict[str, str | None], dict[str, dict[str, Any] | None]] | None = None,
 ) -> dict[str, Any]:
     monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
     runner = importlib.import_module("run_env_matrix_cell")
@@ -2409,7 +2413,7 @@ def _run_selected_matrix_environment(
     inventory_path.parent.mkdir(parents=True)
     inventory_path.write_text("{}\n", encoding="utf-8")
     output_path = tmp_path / "artifacts" / "canonical-cell-evidence.json"
-    cell = {
+    cell = selected_cell or {
         "id": "cpython-313-linux",
         "runtime": "CPython",
         "python": "3.13",
@@ -2420,12 +2424,20 @@ def _run_selected_matrix_environment(
             "py313-pytest90-runner-other",
         ],
     }
+    if tox_stdout is None:
+        tox_stdout = (
+            f"{requested_environment}: commands[0]> python -m pytest\n"
+            "1 passed in 0.01s\n"
+            f"{requested_environment}: commands[1]> python -m pytest tutorial-example-acceptance.feature\n"
+            "1 passed in 0.01s\n"
+        )
     monkeypatch.setattr(runner.shutil, "which", lambda _executable: "tox")
     monkeypatch.setattr(runner, "load_cells", lambda _inventory, _job: [cell])
     monkeypatch.setattr(
         runner,
         "_installed_versions",
-        lambda _python: {
+        lambda _python: installed_runtime
+        or {
             "python": "3.13.0",
             "runtime": "CPython",
             "packages": {"pytest": "9.0.1"},
@@ -2435,6 +2447,13 @@ def _run_selected_matrix_environment(
     monkeypatch.setattr(runner.platform, "platform", lambda: "synthetic-platform")
     if machine_value is not None:
         monkeypatch.setattr(runner.platform, "machine", lambda: machine_value)
+    if host_runtime is not None:
+        monkeypatch.setattr(runner.platform, "python_implementation", lambda: host_runtime["runtime"])
+        monkeypatch.setattr(runner.platform, "python_version", lambda: host_runtime["python"])
+        monkeypatch.setattr(runner.sys, "platform", host_runtime["platform"])
+        monkeypatch.setattr(runner.platform, "machine", lambda: host_runtime["architecture"])
+    if system_tool_evidence is not None:
+        monkeypatch.setattr(runner, "_system_tool_evidence", lambda *_args, **_kwargs: system_tool_evidence)
     tox_calls: list[dict[str, Any]] = []
     tox_version_calls: list[list[str]] = []
 
@@ -2524,6 +2543,24 @@ def selected_matrix_environment_has_canonical_evidence(selected_matrix_environme
     assert evidence["cell"] == record["cell"] == capture["cell"]["id"], evidence
     assert record["tox_environment"] == capture["requested_environment"], record
     assert evidence["git_sha"] == record["git_sha"] == _PROOF_SHA, evidence
+    assert record["acceptance_commands"] == {
+        "core_tests": {
+            "command_index": 0,
+            "selected_tests": 1,
+            "passed_tests": 1,
+            "failed_tests": 0,
+            "error_tests": 0,
+            "outcome": "passed",
+        },
+        "tutorial_example": {
+            "command_index": 1,
+            "selected_tests": 1,
+            "passed_tests": 1,
+            "failed_tests": 0,
+            "error_tests": 0,
+            "outcome": "passed",
+        },
+    }, record
     assert len(evidence["environments"]) == 1, evidence
 
 
@@ -2610,6 +2647,113 @@ def skipped_only_matrix_environment_is_failed(
     assert evidence["environments"][0]["selected_tests"] == 2, evidence
     assert evidence["environments"][0]["passed_tests"] == 0, evidence
     assert evidence["environments"][0]["outcome"] == "failed", evidence
+
+
+@when(
+    parsers.parse(
+        'I run the CPython 3.11 Linux latest pytest lane with core summary "{core_summary}" '
+        "and a passing tutorial example"
+    ),
+    target_fixture="cpython_311_linux_skipped_core_matrix_run",
+)
+def run_cpython_311_linux_lane_with_skipped_core_and_passing_tutorial(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+    core_summary: str,
+) -> dict[str, Any]:
+    cell = {
+        "id": "cpython-311-linux",
+        "runtime": "CPython",
+        "python": "3.11",
+        "platform": "linux",
+        "architecture": "x86_64",
+        "expected_interpreter": "3.11.*",
+        "runner": "ubuntu-latest",
+        "tox_envs": ["py311-pytestlatest-coverage-lin", "py311-pytest74-coverage-lin"],
+    }
+    capture = _run_selected_matrix_environment(
+        request,
+        tmp_path,
+        monkeypatch,
+        requested_environment="py311-pytestlatest-coverage-lin",
+        tox_stdout=(
+            "py311-pytestlatest-coverage-lin: commands[0]> coverage run --append -m pytest "
+            "-m 'not e2e and not external and not typecheck and not doc_gen' -q\n"
+            f"{core_summary}\n"
+            "py311-pytestlatest-coverage-lin: commands[1]> python -m pytest --cuke-autoload "
+            "--cuke-features-dir=features features/compatibility/tutorial-example-acceptance.feature -m e2e -q\n"
+            "1 passed in 0.01s\n"
+        ),
+        selected_cell=cell,
+        installed_runtime={
+            "python": "3.11.9",
+            "runtime": "CPython",
+            "packages": {"pytest": "9.0.1"},
+        },
+        host_runtime={
+            "runtime": "CPython",
+            "python": "3.11.9",
+            "platform": "linux",
+            "architecture": "x86_64",
+        },
+        system_tool_evidence=(
+            {"tox": "4.25.0", "uv": "0.8.22"},
+            {
+                "tox": {"executable": "tox", "argv": ["tox", "--version"]},
+                "uv": {"executable": "/project/.tox/py311-pytestlatest-coverage-lin/bin/uv", "argv": ["uv", "--version"]},
+            },
+        ),
+    )
+    capture["core_summary"] = core_summary
+    return capture
+
+
+@then(
+    parsers.parse(
+        "it should record a failed CPython 3.11 Linux core acceptance result with {core_passed:d} passed "
+        "and {core_failed:d} failed"
+    )
+)
+def cpython_311_linux_skipped_core_acceptance_is_failed(
+    cpython_311_linux_skipped_core_matrix_run: dict[str, Any],
+    core_passed: int,
+    core_failed: int,
+) -> None:
+    capture = cpython_311_linux_skipped_core_matrix_run
+    assert capture["returncode"] == 1, capture
+    assert len(capture["tox_calls"]) == 1, capture
+    command = capture["tox_calls"][0]["command"]
+    assert command[command.index("-e") + 1] == "py311-pytestlatest-coverage-lin", command
+
+    evidence = json.loads(capture["output_path"].read_text(encoding="utf-8"))
+    assert evidence["outcome"] == "failed", evidence
+    assert evidence["cell"] == "cpython-311-linux", evidence
+    assert evidence["git_sha"] == _PROOF_SHA, evidence
+    assert len(evidence["environments"]) == 1, evidence
+    record = evidence["environments"][0]
+    assert record["tox_environment"] == "py311-pytestlatest-coverage-lin", record
+    assert record["python"] == "3.11.9", record
+    assert record["pytest"] == "9.0.1", record
+    assert record["platform_name"] == "linux", record
+    assert record["architecture"] == "x86_64", record
+    assert record["outcome"] == "failed", record
+    assert record["acceptance_commands"]["core_tests"] == {
+        "command_index": 0,
+        "selected_tests": 20,
+        "passed_tests": core_passed,
+        "failed_tests": core_failed,
+        "error_tests": 0,
+        "outcome": "failed",
+    }, record
+    assert record["acceptance_commands"]["tutorial_example"] == {
+        "command_index": 1,
+        "selected_tests": 1,
+        "passed_tests": 1,
+        "failed_tests": 0,
+        "error_tests": 0,
+        "outcome": "passed",
+    }, record
 
 
 @when("I watch a matrix command that waits after writing its first progress line", target_fixture="streamed_matrix_run")

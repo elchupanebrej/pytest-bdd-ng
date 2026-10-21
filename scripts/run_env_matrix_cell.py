@@ -29,6 +29,7 @@ from environment_evidence import (
 _OPTIONAL_PACKAGES = ("pytest", *OPTIONAL_VERSION_KEYS)
 _VERSION_PATTERN = re.compile(r"(?<![\w.])v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(?![\w.])")
 _GO_VERSION_PATTERN = re.compile(r"\bgo\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b")
+_CORE_ACCEPTANCE_COMMANDS = (("core_tests", 0), ("tutorial_example", 1))
 
 
 def _write_console_text(
@@ -228,6 +229,27 @@ def _test_counts(output: str) -> dict[str, int] | None:
     return summary or None
 
 
+def _test_counts_by_tox_command(output: str) -> dict[int, dict[str, int]]:
+    """Return pytest summary counts grouped by tox command index."""
+    command_counts: dict[int, dict[str, int]] = {}
+    command_index: int | None = None
+    command_pattern = re.compile(r"\bcommands\[(\d+)\]>")
+    for line in output.splitlines():
+        command_match = command_pattern.search(line)
+        if command_match:
+            command_index = int(command_match.group(1))
+            command_counts.setdefault(command_index, {})
+            continue
+        if command_index is None:
+            continue
+        line_counts = _test_counts(line)
+        if line_counts is None:
+            continue
+        for outcome, count in line_counts.items():
+            command_counts[command_index][outcome] = command_counts[command_index].get(outcome, 0) + count
+    return command_counts
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--job", required=True)
@@ -306,6 +328,7 @@ def main() -> int:
         selected_tests = sum(test_counts.values()) if test_counts else None
         passed_tests = test_counts.get("passed", 0) if test_counts else None
         environment_group = evidence_group(args.job, env_name)
+        acceptance_command_results: dict[str, dict[str, int | str]] | None = None
         if environment_group in TEST_EVIDENCE_GROUPS:
             if selected_tests is None or selected_tests < 1:
                 overall_status = "failed"
@@ -322,6 +345,37 @@ def main() -> int:
                     "all selected tests may have been skipped or expected to fail",
                     stream=sys.stderr,
                 )
+        if args.job == "full-matrix" and "pytest" in env_name:
+            command_counts = _test_counts_by_tox_command(output)
+            acceptance_command_results = {}
+            for command_name, command_index in _CORE_ACCEPTANCE_COMMANDS:
+                counts = command_counts.get(command_index, {})
+                command_selected_tests = sum(counts.values())
+                command_passed_tests = counts.get("passed", 0)
+                command_failed_tests = counts.get("failed", 0)
+                command_error_tests = counts.get("error", 0)
+                command_outcome = (
+                    "passed"
+                    if command_passed_tests > 0 and command_failed_tests == 0 and command_error_tests == 0
+                    else "failed"
+                )
+                acceptance_command_results[command_name] = {
+                    "command_index": command_index,
+                    "selected_tests": command_selected_tests,
+                    "passed_tests": command_passed_tests,
+                    "failed_tests": command_failed_tests,
+                    "error_tests": command_error_tests,
+                    "outcome": command_outcome,
+                }
+                if command_outcome == "failed":
+                    overall_status = "failed"
+                    environment_outcome = "failed"
+                    acceptance_label = "core test suite" if command_name == "core_tests" else "tutorial example"
+                    _write_console_text(
+                        f"run-env-matrix: {env_name} {acceptance_label} (tox command {command_index}) "
+                        "did not pass cleanly; refusing to record incomplete core acceptance",
+                        stream=sys.stderr,
+                    )
 
         system_tool_versions, system_tool_commands = _system_tool_evidence(env_name, project_root=project_root)
         environment_record: dict[str, Any] = {
@@ -344,6 +398,8 @@ def main() -> int:
             "run_url": run_url,
             "result_json": result_json.as_posix(),
         }
+        if acceptance_command_results is not None:
+            environment_record["acceptance_commands"] = acceptance_command_results
         if args.job == "remote":
             try:
                 remote_payload = json.loads(remote_runtime_path.read_text(encoding="utf-8"))
