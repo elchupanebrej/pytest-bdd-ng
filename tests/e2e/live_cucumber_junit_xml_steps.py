@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 from pytest_cuke import given, parsers, then, when
+from tests.support.testing_utils import mask_npm_package_from_node_resolution
 from tests.support.windows_acl import (
     assert_windows_identity_lookup_command,
     windows_acl_user_sid,
@@ -989,10 +990,57 @@ def hide_cucumber_junit_runtime(consumer: Any) -> None:
     assert shutil.which("npm", path=consumer.env["PATH"]) is None
 
 
+@given("the Cucumber JUnit consumer exposes Node.js without npm")
+def expose_node_without_npm_for_cucumber_junit(consumer: Any) -> None:
+    node, _, consumer_bin = _node_paths(consumer)
+    isolated = consumer._cucumber_junit_workspace / "node-only"
+    isolated.mkdir(exist_ok=True)
+    node_name = "node.exe" if os.name == "nt" else "node"
+    destination = isolated / node_name
+    if os.name == "nt":
+        shutil.copy2(node, destination)
+    else:
+        destination.symlink_to(Path(node).resolve())
+        destination.chmod(destination.stat().st_mode | 0o111)
+    consumer.env["PATH"] = os.pathsep.join((str(isolated), consumer_bin))
+    consumer.env.pop("NODE_PATH", None)
+    assert shutil.which("node", path=consumer.env["PATH"]) is not None
+    assert shutil.which("npm", path=consumer.env["PATH"]) is None
+
+
+@given("the Cucumber JUnit consumer exposes Node.js and npm without the official formatter package")
+def expose_node_and_npm_without_cucumber_junit_formatter(consumer: Any) -> None:
+    node, npm, consumer_bin = _node_paths(consumer)
+    entries = (str(Path(node).parent), str(Path(npm).parent), consumer_bin)
+    consumer.env["PATH"] = os.pathsep.join(dict.fromkeys(entries))
+    consumer.env.pop("NODE_PATH", None)
+    assert shutil.which("node", path=consumer.env["PATH"]) is not None
+    assert shutil.which("npm", path=consumer.env["PATH"]) is not None
+    mask_npm_package_from_node_resolution(
+        consumer._cucumber_junit_workspace,
+        _CUCUMBER_JUNIT_PACKAGE,
+    )
+
+
 @then("missing Cucumber JUnit runtime diagnostics should stop the run before the marker scenario")
 def missing_cucumber_junit_runtime_preflights(consumer: Any) -> None:
     output = _junit_preflight_failure(consumer, "node")
     assert "node" in output.lower() or "npm install" in output.lower(), output
+    assert not (consumer._cucumber_junit_workspace / "artifacts/report.xml").exists(), output
+
+
+@then("missing npm Cucumber JUnit diagnostics should stop the run before the marker scenario")
+def missing_npm_cucumber_junit_preflights(consumer: Any) -> None:
+    output = _junit_preflight_failure(consumer, "npm")
+    assert "requires executable 'npm'" in output, output
+    assert "cucumber-junit" in output, output
+    assert not (consumer._cucumber_junit_workspace / "artifacts/report.xml").exists(), output
+
+
+@then("the missing official Cucumber JUnit package should fail preflight before the marker scenario")
+def missing_cucumber_junit_formatter_package_preflights(consumer: Any) -> None:
+    output = _junit_preflight_failure(consumer, _CUCUMBER_JUNIT_PACKAGE)
+    assert "npm install" in output.lower(), output
     assert not (consumer._cucumber_junit_workspace / "artifacts/report.xml").exists(), output
 
 
