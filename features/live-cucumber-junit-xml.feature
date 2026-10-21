@@ -75,6 +75,20 @@ Feature: Live message-driven Cucumber JUnit XML formatter
     When I run installed pytest in the Cucumber JUnit workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-junit=artifacts/finalization.xml -q --color=no"
     Then the Cucumber JUnit backend failure should be visible without publishing a partial report
 
+  Scenario: Node without npm fails the Cucumber JUnit preflight before scenario execution
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the Cucumber JUnit consumer prepares a marker scenario for destination preflight
+    And the Cucumber JUnit consumer exposes Node.js without npm
+    When I run installed pytest in the Cucumber JUnit workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-junit=artifacts/report.xml -q --color=no"
+    Then missing npm Cucumber JUnit diagnostics should stop the run before the marker scenario
+
+  Scenario: Node and npm without the official formatter package fail preflight before scenario execution
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the Cucumber JUnit consumer prepares a marker scenario for destination preflight
+    And the Cucumber JUnit consumer exposes Node.js and npm without the official formatter package
+    When I run installed pytest in the Cucumber JUnit workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-junit=artifacts/report.xml -q --color=no"
+    Then the missing official Cucumber JUnit package should fail preflight before the marker scenario
+
   Scenario: The public autoload example emits an inspectable JUnit report
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the public Cucumber JUnit example is copied to the installed consumer
