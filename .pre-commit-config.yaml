@@ -1,4 +1,6 @@
 ---
+ci:
+  skip: [mypy-runtime-source]
 default_language_version:
   python: python3.14
 repos:

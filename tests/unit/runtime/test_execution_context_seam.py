@@ -74,6 +74,7 @@ def test_seam4_scenario_report_failure_details_and_step_accumulation() -> None:
     step_run = StepRun(step=failing_step, id="sr-1")
     step_run.fail(ValueError("boom"), duration=0.25)
     sc_run.add_step_run(step_run)
+    sc_run.fail(ValueError("boom"))
 
     report = ScenarioReport.from_scenario_run(sc_run)
     assert report.failed is True

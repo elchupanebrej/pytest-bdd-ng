@@ -21,7 +21,7 @@ def test_${ make_python_name(pickle.name)}():
 
 % endfor
 % for feature_pickle, step in feature_pickle_steps:
-@${make_step_method_name(step.type)}(${ make_string_literal(step.text)})
+@${make_step_method_name(step.type, step.keyword)}(${ make_string_literal(step.text)})
 def ${ make_python_name(step.text)}():
     ${make_python_docstring(step.text)}
     raise NotImplementedError

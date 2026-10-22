@@ -52,13 +52,15 @@ STEP_TYPE_TO_STEP_METHOD_NAME = {
 }
 
 
-def make_step_method_name(step_type: str | StepType | None) -> str:
+def make_step_method_name(step_type: str | StepType | None, keyword: str | None = None) -> str:
     """Return the public decorator for a Gherkin step type.
 
     Gherkin conjunctions such as ``And`` do not carry the semantic category of
     the preceding step in newer protocol versions. Use the generic ``step``
     decorator whenever that category is unavailable.
     """
+    if keyword is not None and keyword.strip().casefold() in {"and", "but", "*"}:
+        return STEP_TYPE_TO_STEP_METHOD_NAME[StepType.unknown]
     try:
         normalized_step_type = StepType(step_type)
     except (TypeError, ValueError):

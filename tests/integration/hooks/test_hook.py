@@ -283,7 +283,7 @@ def test_tag_hook_with_unmatched_expression_is_not_called(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd.hook import before_tag
+        from pytest_cuke.hook import before_tag
 
         @before_tag("never")
         def should_not_run(request):
@@ -305,7 +305,7 @@ def test_around_hook_must_be_generator(testdir):
     testdir.makeconftest(
         # language=python
         """\
-        from pytest_bdd.hook import around_tag
+        from pytest_cuke.hook import around_tag
 
         @around_tag("never")
         def not_a_generator(request):

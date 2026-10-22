@@ -529,7 +529,7 @@ def _zero_match_scenario_detail(feature: Feature, scenario: Scenario) -> str:
     source = feature.filename or feature.uri or feature.rel_filename or "<unknown feature>"
     location = f"{source}:{scenario.line}" if scenario.line else source
     heading = f"{scenario.keyword} {scenario.name}"
-    details = [f"  {source}:{step.line}: {step.keyword}{step.name}" for step in execution_steps(feature, scenario)]
+    details = [f"  {source}:{step.line}: {step.keyword} {step.name}" for step in execution_steps(feature, scenario)]
     return "\n".join((f"{location}: {heading} has no matching step definitions.", "  Scenario steps:", *details))
 
 

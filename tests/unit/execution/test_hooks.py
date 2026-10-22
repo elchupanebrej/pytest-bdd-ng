@@ -97,16 +97,14 @@ def test_hook_caller_dispatch() -> None:
 
 def test_hook_caller_is_noop_without_hook_methods() -> None:
     caller = HookCaller(object())
-    req, feat, scen, step, step_fn, step_def = (
-        MagicMock(),
-        MagicMock(),
+    req, run, step_fn, step_def = (
         MagicMock(),
         MagicMock(),
         MagicMock(),
         MagicMock(),
     )
-    caller.before_scenario(req, feat, scen)
-    caller.after_scenario(req, feat, scen)
-    caller.before_step(req, feat, scen, step, step_fn)
-    caller.after_step(req, feat, scen, step, step_fn, {}, step_def)
-    caller.step_error(req, feat, scen, step, step_fn, {}, RuntimeError("step failed"), step_def)
+    caller.before_scenario(req, run)
+    caller.after_scenario(req, run)
+    caller.before_step(req, run, step_fn)
+    caller.after_step(req, run, step_fn, {}, step_def)
+    caller.step_error(req, run, step_fn, {}, RuntimeError("step failed"), step_def)
