@@ -139,6 +139,12 @@ Python dependencies and Pandoc. Dedicated browser, native and remote jobs
 install or verify their own prerequisites. xdist proof is reported as
 `parallel`, separately from serial runtime proof.
 
+PyPy 3.12 is product-supported on Linux x86_64. Upstream PyPy builds also exist
+for macOS and Windows, but pytest-cuke has not verified installation and
+installed-consumer acceptance on those platforms. Those rows remain excluded
+from product support; the optional `pydantic-core` integration also has no
+PyPy 3.12 wheel and is not part of the core support claim.
+
 Project metadata's `pytest>=7.0` is the broad support floor for Python/pytest
 pairs that pytest upstream considers compatible. This compatibility promise
 does not mean every pytest patch is measured in CI. Measured CI coverage for

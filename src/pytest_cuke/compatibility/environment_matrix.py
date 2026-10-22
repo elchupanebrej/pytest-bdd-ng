@@ -924,6 +924,8 @@ def _validate_runtime_policy(
         ("cpython", "3.10", "all", "all"),
         ("pypy", "3.10", "all", "all"),
         ("pypy", "3.11", "all", "all"),
+        ("pypy", "3.12", "macos", "all"),
+        ("pypy", "3.12", "windows", "all"),
     }
     actual_exclusion_keys = {
         (
@@ -940,11 +942,13 @@ def _validate_runtime_policy(
             _diagnostic(
                 "runtime-policy",
                 "runtime-policy-canonical-exclusions-invalid",
-                "runtime exclusions must retain CPython 3.10 below the product floor and retired PyPy 3.10/3.11; "
+                "runtime exclusions must retain CPython 3.10 below the product floor, retired PyPy 3.10/3.11, "
+                "and PyPy 3.12 on macOS/Windows; "
                 f"missing={sorted(expected_exclusion_keys - actual_exclusion_keys)!r}, "
                 f"extra={sorted(actual_exclusion_keys - expected_exclusion_keys)!r}",
-                "Keep CPython 3.10 and PyPy 3.10/3.11 as source-backed unsupported policy rows while active support "
-                "uses CPython 3.11-3.15 and PyPy 3.12.",
+                "Keep CPython 3.10 and PyPy 3.10/3.11 as historical unsupported rows and PyPy 3.12 macOS/Windows "
+                "as source-backed platform exclusions while active support uses CPython 3.11-3.15 and PyPy 3.12 "
+                "on Linux x86_64.",
             )
         )
 
