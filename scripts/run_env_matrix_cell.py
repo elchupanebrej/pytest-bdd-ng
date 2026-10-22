@@ -108,7 +108,17 @@ def _installed_versions(python: Path) -> dict[str, Any]:
     return payload
 
 
-def _verify_selected_runtime(cell: dict[str, Any]) -> list[str]:
+def _observed_runtime() -> dict[str, str]:
+    """Capture the host identity used to validate and report a selected matrix cell."""
+    return {
+        "runtime": str(normalize_runtime_name(platform.python_implementation())),
+        "python": platform.python_version(),
+        "platform_name": sys.platform,
+        "architecture": normalize_architecture(platform.machine()),
+    }
+
+
+def _verify_selected_runtime(cell: dict[str, Any], observed: dict[str, str] | None = None) -> list[str]:
     """Fail before tox if setup-python did not select the runtime described by the inventory."""
     expected_runtime = cell.get("runtime")
     expected_python = cell.get("expected_interpreter")
@@ -117,12 +127,13 @@ def _verify_selected_runtime(cell: dict[str, Any]) -> list[str]:
     if not all(isinstance(value, str) and value for value in (expected_runtime, expected_python, expected_platform)):
         return []
 
+    actual = observed if observed is not None else _observed_runtime()
     problems: list[str] = []
-    actual_runtime = normalize_runtime_name(platform.python_implementation())
+    actual_runtime = actual["runtime"]
     if actual_runtime != expected_runtime:
         problems.append(f"runtime={actual_runtime!r}, expected {expected_runtime!r}")
 
-    actual_python = platform.python_version()
+    actual_python = actual["python"]
     if expected_python.endswith(".*"):
         matches_python = actual_python.startswith(expected_python[:-1])
     else:
@@ -130,14 +141,26 @@ def _verify_selected_runtime(cell: dict[str, Any]) -> list[str]:
     if not matches_python:
         problems.append(f"python={actual_python!r}, expected {expected_python!r}")
 
-    actual_platform = {"linux": "linux", "macos": "darwin", "windows": "win32"}.get(expected_platform)
-    if actual_platform is None or sys.platform != actual_platform:
-        problems.append(f"platform={sys.platform!r}, expected {expected_platform!r}")
+    expected_platform_name = {"linux": "linux", "macos": "darwin", "windows": "win32"}.get(expected_platform)
+    if expected_platform_name is None or actual["platform_name"] != expected_platform_name:
+        problems.append(f"platform={actual['platform_name']!r}, expected {expected_platform_name!r}")
 
-    actual_architecture = normalize_architecture(platform.machine())
+    actual_architecture = actual["architecture"]
+    if not actual_architecture:
+        problems.append("architecture was not reported by the selected runner")
     if expected_architecture not in {None, "runner-native"} and actual_architecture != expected_architecture:
         problems.append(f"architecture={actual_architecture!r}, expected {expected_architecture!r}")
     return problems
+
+
+def _write_evidence(output_path: Path, evidence: dict[str, Any]) -> None:
+    """Replace evidence atomically so interrupted runs never leave partial JSON."""
+    temporary_path = output_path.with_name(f".{output_path.name}.tmp")
+    try:
+        temporary_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        temporary_path.replace(output_path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
 
 
 def _workflow_urls() -> tuple[str | None, str | None]:
@@ -266,6 +289,7 @@ def main() -> int:
     error_message: str | None = None
     error_code = 2
     selected: dict[str, Any] | None = None
+    observed_runtime: dict[str, str] | None = None
     tox = shutil.which("tox")
     if not args.sha:
         error_message = "pass --sha or set GITHUB_SHA so evidence is tied to an exact commit"
@@ -283,7 +307,8 @@ def main() -> int:
             elif args.tox_env and args.tox_env not in selected["tox_envs"]:
                 error_message = f"tox environment {args.tox_env!r} is not part of cell {args.cell!r}"
             else:
-                runtime_problems = _verify_selected_runtime(selected)
+                observed_runtime = _observed_runtime()
+                runtime_problems = _verify_selected_runtime(selected, observed_runtime)
                 if runtime_problems:
                     error_message = f"selected runtime does not match inventory cell {args.cell!r}: " + "; ".join(
                         runtime_problems
@@ -296,6 +321,7 @@ def main() -> int:
     assert args.sha
     assert selected is not None
     assert tox is not None
+    assert observed_runtime is not None
     tox_environments = [args.tox_env] if args.tox_env else selected["tox_envs"]
 
     project_root = args.inventory.resolve().parent.parent
@@ -303,6 +329,25 @@ def main() -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     tox_results_dir = output_path.parent / "tox-results"
     tox_results_dir.mkdir(parents=True, exist_ok=True)
+    expected_interpreter = selected.get("expected_interpreter")
+    preflight = {
+        "expected_interpreter": expected_interpreter if isinstance(expected_interpreter, str) else None,
+        **observed_runtime,
+        "platform": platform.platform(),
+    }
+    _write_console_text(f"Runtime preflight: {json.dumps(preflight, sort_keys=True)}", flush=True)
+    _write_evidence(
+        output_path,
+        {
+            "schema_version": 1,
+            "git_sha": args.sha,
+            "job": args.job,
+            "cell": args.cell,
+            "outcome": "running",
+            "preflight": preflight,
+            "environments": [],
+        },
+    )
     environment_records: list[dict[str, Any]] = []
     overall_status = "passed"
     job_url, run_url = _workflow_urls()
@@ -391,9 +436,9 @@ def main() -> int:
             "system_tool_commands": system_tool_commands,
             "outcome": environment_outcome,
             "returncode": run.returncode,
-            "platform": platform.platform(),
-            "platform_name": sys.platform,
-            "architecture": normalize_architecture(platform.machine()),
+            "platform": preflight["platform"],
+            "platform_name": preflight["platform_name"],
+            "architecture": preflight["architecture"],
             "job_url": job_url,
             "run_url": run_url,
             "result_json": result_json.as_posix(),
@@ -479,9 +524,10 @@ def main() -> int:
         "job": args.job,
         "cell": args.cell,
         "outcome": overall_status,
+        "preflight": preflight,
         "environments": environment_records,
     }
-    output_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_evidence(output_path, evidence)
     _write_console_text(f"Environment evidence written to {output_path}")
     return 0 if overall_status == "passed" else 1
 

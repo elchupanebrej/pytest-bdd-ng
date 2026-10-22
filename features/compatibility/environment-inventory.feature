@@ -33,6 +33,16 @@ Feature: Supported environment inventory and acceptance proof
     When the matrix runner checks a PyPy cell against a mismatched runtime version and platform
     Then it should reject the cell before invoking tox or writing evidence
 
+  Scenario Outline: CPython 3.15 cells record runner identity before tox acceptance starts
+    When I start CPython 3.15 cell "<cell_id>" with platform name "<platform_name>", platform "<platform>", machine "<machine>", and normalized architecture "<normalized_architecture>"
+    Then its preflight evidence should record the expected interpreter and actual runner identity before tox starts
+
+    Examples: CPython 3.15 operating systems
+      | cell_id           | platform_name | platform     | machine | normalized_architecture |
+      | cpython-315-linux   | linux  | Linux-test   | x86_64 | x86_64    |
+      | cpython-315-macos   | darwin | Darwin-test  | arm64  | aarch64   |
+      | cpython-315-windows | win32  | Windows-test | AMD64  | x86_64    |
+
   Scenario: The CPython 3.14 macOS runtime environment installs uv for consumer acceptance
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     And the repository environment inventory is loaded
