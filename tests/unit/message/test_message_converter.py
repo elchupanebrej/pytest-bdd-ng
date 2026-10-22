@@ -178,6 +178,33 @@ def test_scenario_execution_metadata_includes_feature_and_rule_backgrounds_in_or
     assert [step.ast_node_ids for step in pickle.steps] == [["feature-step"], ["rule-step"], ["scenario-step"]]
 
 
+def test_scenario_execution_metadata_deduplicates_feature_steps_copied_into_rule_background() -> None:
+    feature_step = Step(name="feature setup", keyword="Given", id="feature-step")
+    rule_step = Step(name="rule setup", keyword="Given", id="rule-step")
+    scenario_step = Step(name="scenario action", keyword="When", id="scenario-step")
+    feature = Feature(name="Nested backgrounds", background=Background(id="feature-background", steps=(feature_step,)))
+    scenario = Scenario(
+        name="Scenario under a Rule",
+        id="nested-scenario",
+        background=Background(id="rule-background", steps=(feature_step, rule_step)),
+        steps=(scenario_step,),
+    )
+
+    pickle = mc.scenario_to_pickle(scenario, feature=feature)
+
+    assert [step.text for step in pickle.steps] == ["feature setup", "rule setup", "scenario action"]
+    assert [step.ast_node_ids for step in pickle.steps] == [["feature-step"], ["rule-step"], ["scenario-step"]]
+
+
+@pytest.mark.parametrize(("keyword", "expected"), (("When", "When "), ("Given ", "Given "), ("*", "* ")))
+def test_step_to_message_preserves_gherkin_keyword_separator(keyword: str, expected: str) -> None:
+    step = Step(name="a source step", keyword=keyword)
+
+    message = mc.step_to_message(step)
+
+    assert message.keyword == expected
+
+
 def test_scenario_pickle_uses_feature_background_when_scenario_has_no_background() -> None:
     background_step = Step(name="feature setup", keyword="Given ", id="feature-step")
     scenario_step = Step(name="scenario action", keyword="When ", id="scenario-step")
