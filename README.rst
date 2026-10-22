@@ -1,8 +1,8 @@
-BDD library for the pytest runner
-=================================
+pytest-cuke: BDD library for the pytest runner
+==============================================
 
-.. image:: http://img.shields.io/pypi/v/pytest-bdd-ng.svg
-    :target: https://pypi.python.org/pypi/pytest-bdd-ng
+.. image:: http://img.shields.io/pypi/v/pytest-cuke.svg
+    :target: https://pypi.python.org/pypi/pytest-cuke
 .. image:: https://codecov.io/gh/elchupanebrej/pytest-bdd-ng/branch/default/graph/badge.svg
     :target: https://app.codecov.io/gh/elchupanebrej/pytest-bdd-ng
 .. image:: https://readthedocs.org/projects/pytest-bdd-ng/badge/?version=default
@@ -16,7 +16,7 @@ BDD library for the pytest runner
 .. _Gherkin: https://cucumber.io/docs/gherkin/reference
 .. _pytest-bdd: https://github.com/pytest-dev/pytest-bdd
 
-**pytest-bdd-ng** combine descriptive clarity of Gherkin_ language
+**pytest-cuke** combines descriptive clarity of Gherkin_ language
 with power and fullness of pytest_ infrastructure.
 It enables unifying unit and functional
 tests, reduces the burden of continuous integration server configuration and allows the reuse of
@@ -27,10 +27,10 @@ mentioned in feature steps with dependency injection. This allows a true BDD
 just-enough specification of the requirements without obligatory maintaining any context object
 containing the side effects of Gherkin imperative declarations.
 
-Why ``NG`` ?
-------------
+Why pytest-cuke?
+----------------
 
-The current pytest plugin for cucumber is pytest-bdd_ , a popular project with 1.2k stars and used in 3k public repos and maintained by the pytest community. The upstream open-cucumber project does not have an official python release, so the current cucumber specs include features not available in pytest-bdd_ . This project is an effort to bridge the gap and also make it easier for pytest users to access new cucumber features.
+The upstream pytest-bdd_ project is the original pytest integration for Gherkin. pytest-cuke is a separate package and command namespace built on the retained pytest-bdd 2.3.1 runtime. It makes current Cucumber specifications available to pytest users while keeping pytest fixtures and familiar test workflows.
 
 .. list-table::
    :widths: 30 10 10 50
@@ -38,7 +38,7 @@ The current pytest plugin for cucumber is pytest-bdd_ , a popular project with 1
 
    * - Feature
      - original
-     - NG
+     - pytest-cuke
      - Description
    * - `Official parser support <https://github.com/cucumber/gherkin>`_
      - \-
@@ -79,19 +79,19 @@ The current pytest plugin for cucumber is pytest-bdd_ , a popular project with 1
    * - Supported python/pytest versions
      - \+/-
      - \+
-     - NG supports wider and elder pytest&python version. Tested also for PyPy
+     - pytest-cuke supports a wide range of pytest and Python versions, including PyPy.
    * - Active community
      - \+
      - \-/+
      -
 
 
-Install pytest-bdd-ng
+Install pytest-cuke
 ---------------------
 
 .. code-block:: console
 
-    pip install pytest-bdd-ng
+    pip install pytest-cuke
 
 Packages for parsing Markdown defined features
 ##############################################
@@ -125,7 +125,7 @@ TLDR;
         # https://docs.pytest.org/en/stable/reference/fixtures.html#conftest-py-sharing-fixtures-across-multiple-files
         And File "conftest.py" with content:
           """python
-          from pytest_bdd import step
+          from pytest_cuke import step
 
           @step('Passing step')
           def _():
@@ -140,7 +140,7 @@ TLDR;
 
 Project layout
 --------------
-**pytest-bdd-ng** automatically collects ``*.feature`` files from pytest_ tests directory.
+**pytest-cuke** automatically collects ``*.feature`` files from pytest_ tests directory.
 Important to remember, that feature files are used by other team members as live documentation,
 so it's not a very good idea to mix documentation and test code.
 
@@ -194,7 +194,7 @@ The step definitions would then be organized like this:
     │     └── given.py
     │     │      └── """User auth step definitions"""
     │     │          from pytest import fixture
-    │     │          from pytest_bdd import given, when, then, step
+    │     │          from pytest_cuke import given, when, then, step
     │     │
     │     │          @fixture
     │     │          def credentials():
@@ -228,3 +228,5 @@ How to Contribute
 -----------------
 
 The project is now open to contributions. Please open an issue for more details.
+See the `compatibility matrix and migration audit <docs/compatibility-and-migration-audit.md>`_ for supported environments, prerequisites, and full acceptance proof
+instructions.

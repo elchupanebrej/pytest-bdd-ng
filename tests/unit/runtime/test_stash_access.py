@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from pytest_bdd.exceptions import (
+from pytest_cuke.exceptions import (
     PytestBDDStashAlreadyInitializedError,
     PytestBDDStashLookupError,
     PytestBDDStashTypeMismatchError,
 )
-from pytest_bdd.model.stash_access import (
+from pytest_cuke.model.stash_access import (
     ConfigStash,
     ItemStash,
     SessionStash,

@@ -37,11 +37,11 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Topic :: Utilities",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
-  "Programming Language :: Python :: 3.14"
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15"
 ]
 dependencies = [
   "aiohttp",
@@ -49,14 +49,15 @@ dependencies = [
   "certifi",
   "chevron",
   "ci-environment",
+  # This upstream binding includes the run-hook payloads used by the reporting lifecycle.
+  "cucumber-messages==28.0.0",
   "cucumber-expressions",
-  "cucumber-messages",
   "decopatch",
   "docopt-ng",
   "filelock",
-  "gherkin-official>=25,<30",
-  "importlib-metadata;python_version<'3.10.0'",
+  "gherkin-official>=25,<34",
   "importlib-resources",
+  "jsonschema>=4.18",
   "makefun",
   "Mako",
   "ordered_set",
@@ -65,25 +66,31 @@ dependencies = [
   "parse_type>=0.6.6",
   "pathvalidate",
   "py",
-  # pydantic 2.13+ pulls pydantic-core>=2.46, which has no PyPy 3.10 wheels (PyO3 dropped pp310) - see #204
-  'pydantic>=2.0.3,<2.13; platform_python_implementation == "PyPy"',
-  'pydantic>=2.0.3; platform_python_implementation != "PyPy"',
-  "pytest>=5.2",
+  "referencing>=0.30",
+  "pytest>=7.0",
   "cucumber-tag-expressions",
-  "typing-extensions;python_version<'3.11.0'"
+  "typing-extensions;python_version<'3.12.0'"
 ]
 description = "BDD for pytest"
 license = {file = "LICENSE.rst"}
 maintainers = [
   {name = "Konstantin Goloveshko", email = "kostya.goloveshko@gmail.com"}
 ]
-name = "pytest-bdd-ng"
+name = "pytest-cuke"
 readme = {file = "README.rst", content-type = "text/x-rst"}
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 version = "2.3.1"
 
 [project.entry-points.pytest11]
-pytest-bdd = "pytest_bdd.plugin"
+cuke = "pytest_cuke.plugin"
+
+[project.scripts]
+pytest-cuke = "pytest_cuke.cli:main"
+cuke = "pytest_cuke.cli:main"
+
+[project.entry-points."pytest_cuke.formatters"]
+cucumber-json = "pytest_cuke.cucumber_json_formatter:replay_cucumber_json_formatter_request"
+cucumber-junit = "pytest_cuke.cucumber_junit_formatter:replay_cucumber_junit_formatter_request"
 
 
 [project.optional-dependencies]
@@ -94,21 +101,50 @@ lint = [
   "bandit>=1.9.4",
   "pip-audit>=2.10.1"
 ]
-typecheck = [
-  "pyright>=1.1.350",
-  "mypy>=2.4.0"
+pyright = [
+  "pyright==1.1.414"
+]
+testtypes = [
+  "attrs==26.1.0",
+  "mypy==2.4.0",
+  "pydantic==2.12.5",
+  "types-PyYAML==6.0.12.20260906",
+  "allure-python-commons==2.16.2",
+  "allure-pytest==2.16.2",
+  "hjson==3.1.0",
+  "json5==0.15.0",
+  "pyhocon==0.3.63",
+  "PyYAML==6.0.3"
 ]
 test = [
   "pytest>=7.0.0",
   "attrs>=22.2.0",
-  "tomli_w"
+  "pytest-httpserver>=1.1.5",
+  "PyYAML==6.0.3"
+]
+test-pydantic = [
+  "pydantic>=2.0.3"
+]
+env-matrix = [
+  "PyYAML==6.0.3",
+  "tox>=4.2"
+]
+test-playwright = [
+  "playwright>=1.50,<2"
 ]
 mutation = [
   "mutmut>=3.8.0"
 ]
 allure = [
   "allure-python-commons",
-  "allure-pytest"
+  "allure-pytest",
+  "pydantic>=2.0.3"
+]
+debug-mcp = [
+  "mcp-pdb>=0.6,<0.7",
+  "mcp>=1.24,<2",
+  "uvicorn>=0.34",
+  "pydantic>=2.0.3"
 ]
 doc-gen = [
   'docopt-ng',
@@ -121,12 +157,16 @@ struct-bdd = [
   "hjson",
   "json5",
   "pyhocon",
+  "pydantic>=2.0.3",
   "PyYAML",
   "types-PyYAML"
 ]
+cucumber-json = [
+  "pydantic>=2.0.3"
+]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py311"
 line-length = 120
 
 [tool.ruff.lint]
@@ -145,7 +185,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["pytest_bdd"]
+known-first-party = ["pytest_cuke"]
 
 [tool.ruff.lint.per-file-ignores]
 "docs/**" = ["ALL"]
@@ -175,29 +215,28 @@ known-first-party = ["pytest_bdd"]
   "E402",
 ]
 "src/*/plugin.py" = ["ARG001"]
-"src/pytest_bdd/compatibility/**" = ["TCH", "C4", "RET", "PLR", "SIM", "UP"]
-"src/pytest_bdd/struct_bdd/**" = ["PLC0415", "TCH", "ARG001", "ARG002"]
-"src/pytest_bdd/script/**" = ["RET503", "PLC0415"]
-"src/pytest_bdd/utils.py" = ["PLC0415"]
-"src/pytest_bdd/testing_utils.py" = ["B905"]
-"src/pytest_bdd/webloc.py" = ["C408"]
+"src/pytest_cuke/compatibility/**" = ["TCH", "C4", "RET", "PLR", "SIM", "UP"]
+"src/pytest_cuke/struct_bdd/**" = ["PLC0415", "TCH", "ARG001", "ARG002"]
+"src/pytest_cuke/script/**" = ["RET503", "PLC0415"]
+"src/pytest_cuke/utils.py" = ["PLC0415"]
+"src/pytest_cuke/webloc.py" = ["C408"]
 
 [tool.pyright]
 include = ["src"]
 exclude = ["**/__pycache__"]
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 typeCheckingMode = "strict"
 reportUnknownMemberType = "warning"
 reportMissingTypeStubs = "none"
 
 [tool.deptry]
-known_first_party = ["pytest_bdd"]
+known_first_party = ["pytest_cuke"]
 
 [tool.deptry.package_module_name_map]
 allure-python-commons = "allure_commons"
 allure-pytest = "allure_pytest"
-cucumber-expressions = "cucumber_expressions"
 cucumber-messages = "cucumber_messages"
+cucumber-expressions = "cucumber_expressions"
 cucumber-tag-expressions = "cucumber_tag_expressions"
 gherkin-official = "gherkin"
 PyYAML = "yaml"
@@ -237,79 +276,57 @@ DEP003 = ["pluggy", "tomli"]
 mutate_only_covered_lines = true
 
 [tool.mypy]
-files = ["src/pytest_bdd"]
-python_version = "3.10"
-check_untyped_defs = true
+python_version = "3.11"
+files = ["src/pytest_cuke"]
+strict = true
+disallow_untyped_defs = true
+disallow_untyped_calls = true
+disallow_any_generics = true
+plugins = ["pydantic.mypy"]
+warn_unused_configs = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 no_implicit_optional = true
 show_error_codes = true
 
-# cucumber-messages is a generated, untyped runtime dependency (dataclasses +
-# json converter, no py.typed marker), so mypy cannot analyze its imports (#200).
-[[tool.mypy.overrides]]
-module = ["cucumber_messages", "cucumber_messages.*"]
-ignore_missing_imports = true
-
-# gherkin-official, cucumber-expressions, cucumber-tag-expressions,
-# parse/parse_type, hjson, json5, pyhocon, PyYAML/types-PyYAML, mako,
-# panflute, pycmarkgfm, and pypandoc ship no type information (no py.typed
-# marker) or are not installed in the type-check environment, so mypy cannot
-# analyze their imports. Treat them as untyped optional dependencies until
-# upstream types exist (#200, #218, #227).
 [[tool.mypy.overrides]]
 module = [
-  "gherkin",
-  "gherkin.*",
-  "cucumber_expressions",
-  "cucumber_expressions.*",
-  "cucumber_tag_expressions",
-  "parse",
-  "parse_type",
-  "parse_type.*",
-  "hjson",
-  "json5",
-  "json5.*",
-  "pyhocon",
-  "yaml",
-  "yaml.*",
-  "mako",
-  "mako.*",
-  "panflute",
-  "pycmarkgfm",
-  "pypandoc",
+  "cucumber_messages", "cucumber_messages.*",
+  "gherkin", "gherkin.*",
+  "cucumber_expressions", "cucumber_expressions.*",
+  "cucumber_tag_expressions", "cucumber_tag_expressions.*",
+  "parse", "parse_type", "parse_type.*",
+  "mako", "mako.*",
+  "allure_commons", "allure_commons.*",
+  "allure_pytest", "allure_pytest.*",
+  "ci_environment", "chevron"
 ]
-ignore_missing_imports = true
+follow_untyped_imports = true
 
-# tomli is only imported on Python <3.11 (see compatibility/tomllib.py) and is
-# absent from the type-check environment on >=3.11; on <3.11 it ships its own
-# types, so a blanket missing-import ignore is correct on every version (#230).
-[[tool.mypy.overrides]]
-module = ["tomli"]
-ignore_missing_imports = true
-
-# allure-python-commons and allure-pytest back the optional [allure] extra and
-# are absent from the type-check environment; they also ship no type
-# information. Treat them as untyped optional dependencies (#200).
-[[tool.mypy.overrides]]
-module = [
-  "allure_commons",
-  "allure_commons.*",
-  "allure_pytest",
-  "allure_pytest.*",
+[tool.pytest-cuke.typecheck]
+checker_version = "2.3.1"
+source_scope = "src/pytest_cuke"
+required_distributions = [
+  "attrs==26.1.0",
+  "pydantic==2.12.5",
+  "types-PyYAML==6.0.12.20260906",
 ]
-ignore_missing_imports = true
 
-[tool.mypy-src]
-disallow_untyped_defs = true
+[tool.pytest-cuke.compatibility]
+python-factors = ["3.11", "3.12", "3.13", "3.14", "3.15"]
+pytest-factors = ["7.4", "8.4", "9.0", "latest"]
+execution-targets = ["lin", "mac", "win"]
+tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
+compatibility-source = "pytest-official-policy-and-release-notes"
 
-[tool.mypy-tests]
-disallow_untyped_defs = false
+[tool.pytest-cuke.migration-audit]
+feature-patterns = ["features/**/*.feature", "features/**/*.gherkin", "features/**/*.feature.md", "features/**/*.gherkin.md"]
+test-registration-patterns = ["tests/**/*.py"]
+threshold-percent = 80
 
-# Single source of pytest configuration. Do not re-add a root pytest.ini:
-# it would shadow this section (see #221).
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "features"]
+addopts = ["-m", "not typecheck and not doc_gen"]
 filterwarnings = [
   "ignore::DeprecationWarning",
   "ignore::ImportWarning",
@@ -321,5 +338,19 @@ markers = [
   "contract: Contract tests",
   "e2e: End-to-end tests",
   "external: External integration tests",
-  "slow: Runtime-cost marker curated in tests/slow-tests.txt (not a Test Group); use -m 'not slow' for the fast selection"
+  "slow: Runtime-cost marker curated in tests/slow-tests.txt (not a Test Group); use -m 'not slow' for the fast selection",
+  "typecheck: Strict runtime-source Mypy acceptance probes",
+  "doc_gen: Tests that require optional documentation-generation dependencies and Pandoc"
 ]
+cuke_autoload = true
+cuke_features_dir = "features"
+cuke_strict = false
+cuke_liberal_steps = false
+cuke_json = ""
+cuke_junit = ""
+cuke_messages_ndjson = ""
+cuke_html = ""
+cuke_progress = false
+cuke_progress_bar = false
+cuke_snippets = false
+cuke_summary = false

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from pytest_bdd.hook import (
+from pytest_cuke.hook import (
     HookCaller,
     HookConjunction,
     HookKind,
@@ -13,13 +13,13 @@ from pytest_bdd.hook import (
     before_mark,
     before_tag,
 )
-from pytest_bdd.hooks import (
-    pytest_bdd_after_scenario,
-    pytest_bdd_after_step,
-    pytest_bdd_apply_tag,
-    pytest_bdd_before_scenario,
-    pytest_bdd_before_step,
-    pytest_bdd_step_error,
+from pytest_cuke.hooks import (
+    pytest_cuke_after_scenario,
+    pytest_cuke_after_step,
+    pytest_cuke_apply_tag,
+    pytest_cuke_before_scenario,
+    pytest_cuke_before_step,
+    pytest_cuke_step_error,
 )
 
 from pytest import mark
@@ -44,12 +44,12 @@ def test_hook_enums_and_decorators() -> None:
 
 def test_hook_specifications_exist() -> None:
     specs = [
-        pytest_bdd_before_scenario,
-        pytest_bdd_after_scenario,
-        pytest_bdd_before_step,
-        pytest_bdd_after_step,
-        pytest_bdd_step_error,
-        pytest_bdd_apply_tag,
+        pytest_cuke_before_scenario,
+        pytest_cuke_after_scenario,
+        pytest_cuke_before_step,
+        pytest_cuke_after_step,
+        pytest_cuke_step_error,
+        pytest_cuke_apply_tag,
     ]
     assert all(callable(s) for s in specs)
 
@@ -58,47 +58,40 @@ def test_hook_caller_dispatch() -> None:
     mock_relay = MagicMock()
     caller = HookCaller(mock_relay)
 
-    req, feat, scen, step, step_fn, step_def = (
-        MagicMock(),
-        MagicMock(),
+    req, run, step_fn, step_def = (
         MagicMock(),
         MagicMock(),
         MagicMock(),
         MagicMock(),
     )
-    caller.before_scenario(req, feat, scen)
-    mock_relay.pytest_bdd_before_scenario.assert_called_once_with(request=req, feature=feat, scenario=scen)
+    caller.before_scenario(req, run)
+    mock_relay.pytest_cuke_before_scenario.assert_called_once_with(request=req, run=run)
 
-    caller.after_scenario(req, feat, scen)
-    mock_relay.pytest_bdd_after_scenario.assert_called_once_with(request=req, feature=feat, scenario=scen)
+    caller.after_scenario(req, run)
+    mock_relay.pytest_cuke_after_scenario.assert_called_once_with(request=req, run=run)
 
-    caller.before_step(req, feat, scen, step, step_fn)
-    mock_relay.pytest_bdd_before_step.assert_called_once_with(
-        request=req, feature=feat, scenario=scen, step=step, step_func=step_fn
-    )
+    caller.before_step(req, run, step_fn)
+    mock_relay.pytest_cuke_before_step.assert_called_once_with(request=req, run=run, step_func=step_fn)
 
-    caller.after_step(req, feat, scen, step, step_fn, {}, step_def)
-    mock_relay.pytest_bdd_after_step.assert_called_once_with(
+    caller.after_step(req, run, step_fn, {}, step_def)
+    mock_relay.pytest_cuke_after_step.assert_called_once_with(
         request=req,
-        feature=feat,
-        scenario=scen,
-        step=step,
+        run=run,
         step_func=step_fn,
         step_func_args={},
         step_definition=step_def,
     )
 
     exc = RuntimeError("step failed")
-    caller.step_error(req, feat, scen, step, step_fn, {}, exc, step_def)
-    mock_relay.pytest_bdd_step_error.assert_called_once_with(
+    caller.step_error(req, run, step_fn, {}, exc, step_def)
+    mock_relay.pytest_cuke_step_error.assert_called_once_with(
         request=req,
-        feature=feat,
-        scenario=scen,
-        step=step,
+        run=run,
         step_func=step_fn,
         step_func_args={},
         exception=exc,
         step_definition=step_def,
+        tolerated=False,
     )
 
 

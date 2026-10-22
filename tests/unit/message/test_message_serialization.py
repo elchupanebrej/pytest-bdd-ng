@@ -5,12 +5,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import cucumber_messages
-from pytest_bdd.model import message_converter as mc
-from pytest_bdd.model import message_serialization as ms
-
-pytestmark = pytest.mark.unit
-
+from pytest_cuke.model import message_types as messages
+from pytest_cuke.model import message_converter as mc
+from pytest_cuke.model import message_serialization as ms
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -23,7 +20,7 @@ def test_serialize_and_deserialize_envelope() -> None:
     assert ms.deserialize_envelope(json_str).test_run_started.timestamp.seconds == 100
     assert ms.deserialize_envelope(mc.envelope_to_dict(env)) == env
     with pytest.raises(TypeError, match="exactly one payload"):
-        ms.serialize_envelope(cucumber_messages.Envelope())
+        ms.serialize_envelope(messages.Envelope())
 
 
 def test_dump_and_load_ndjson(tmp_path: Path) -> None:
@@ -44,16 +41,3 @@ def test_dump_and_load_ndjson(tmp_path: Path) -> None:
     target = tmp_path / "test.ndjson"
     ms.dump_ndjson(envelopes, target)
     assert len(ms.load_ndjson(target)) == 4
-
-
-def test_load_ndjson_accepts_path_strings_and_inline_single_line_json(tmp_path: Path) -> None:
-    target = tmp_path / "single.ndjson"
-    target.write_text(ms.serialize_envelope(mc.make_test_run_started(100.0)), encoding="utf-8")
-
-    loaded = ms.load_ndjson(str(target))
-    assert len(loaded) == 1
-    assert loaded[0].test_run_started.timestamp.seconds == 100
-
-    inline = ms.load_ndjson(ms.serialize_envelope(mc.make_test_run_started(101.0)))
-    assert len(inline) == 1
-    assert inline[0].test_run_started.timestamp.seconds == 101

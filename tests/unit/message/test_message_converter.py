@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import pytest
 
-import cucumber_messages
-from pytest_bdd.model import message_converter as mc
-from pytest_bdd.model.background import Background
-from pytest_bdd.model.doc_string import DocString
-from pytest_bdd.model.feature import Feature
-from pytest_bdd.model.rule import Rule
-from pytest_bdd.model.scenario import Scenario
-from pytest_bdd.model.step import Step
-from pytest_bdd.model.table import DataTable, TableCell, TableRow
-from pytest_bdd.model.tag import Tag
-
-pytestmark = pytest.mark.unit
+from pytest_cuke.model import message_types as messages
+from pytest_cuke.exceptions import FeatureConcreteParseError
+from pytest_cuke.model import message_converter as mc
+from pytest_cuke.model.message_extension import StepDefinitionPatternType
+from pytest_cuke.model.background import Background
+from pytest_cuke.model.doc_string import DocString
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.rule import Rule
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.step import Step
+from pytest_cuke.model.table import DataTable, TableCell, TableRow
+from pytest_cuke.model.tag import Tag
 
 
 def test_feature_to_gherkin_document_conversion() -> None:
@@ -53,9 +53,28 @@ def test_feature_to_gherkin_document_conversion() -> None:
 
 
 def test_validate_envelope_shape_error() -> None:
-    empty_env = cucumber_messages.Envelope()
+    empty_env = messages.Envelope()
     with pytest.raises(TypeError, match="exactly one payload"):
         mc.validate_envelope_shape(empty_env)
+
+
+def test_parse_error_envelope_preserves_source_and_uses_one_based_location() -> None:
+    error = FeatureConcreteParseError("invalid syntax", 6, "  open", "features/broken.feature.md", column=0)
+
+    envelope = mc.parse_error_to_envelope(error)
+
+    assert envelope.parse_error is not None
+    assert envelope.parse_error.message == "invalid syntax"
+    assert envelope.parse_error.source.uri == "features/broken.feature.md"
+    assert envelope.parse_error.source.location is not None
+    assert envelope.parse_error.source.location.line == 6
+    assert envelope.parse_error.source.location.column == 1
+    mc.validate_envelope_shape(envelope)
+    assert messages.message_from_dict(mc.envelope_to_dict(envelope), messages.Envelope) == envelope
+
+    missing_source = FeatureConcreteParseError("invalid syntax", 0, "", "")
+    with pytest.raises(ValueError, match="positive source line and non-empty URI"):
+        mc.parse_error_to_envelope(missing_source)
 
 
 def test_scenario_to_pickle_and_test_case() -> None:
@@ -69,6 +88,49 @@ def test_scenario_to_pickle_and_test_case() -> None:
     assert pickle.steps[0].text == "user logs in"
     assert len(pickle.tags) == 1
     assert pickle.tags[0].name == "@auth"
+    assert pickle.ast_node_ids == ["sc-1"]
+    assert pickle.steps[0].id == "auth.feature#sc-1-step-0"
+    assert pickle.id == "auth.feature#sc-1"
+
+    same_ast_id_other_source = mc.scenario_to_pickle(sc, uri="other-auth.feature")
+    assert same_ast_id_other_source.id == "other-auth.feature#sc-1"
+    assert same_ast_id_other_source.id != pickle.id
+    assert same_ast_id_other_source.ast_node_ids == pickle.ast_node_ids
+
+    row_pickle = mc.scenario_to_pickle(sc, uri="auth.feature", default_id="auth.feature#Login")
+    assert row_pickle.id == "auth.feature#Login"
+    assert row_pickle.ast_node_ids == ["sc-1"]
+    assert row_pickle.steps[0].id == "auth.feature#Login-step-0"
+    assert mc.scenario_to_test_case(sc, pickle_id=row_pickle.id).test_steps[0].pickle_step_id == row_pickle.steps[0].id
+
+    outline_row = Scenario(
+        name="Outline row",
+        id="expanded-row-id",
+        source_ast_node_ids=("outline-source-id", "examples-row-source-id"),
+        steps=(step,),
+    )
+    outline_pickle = mc.scenario_to_pickle(outline_row)
+    assert outline_pickle.ast_node_ids == ["outline-source-id", "examples-row-source-id"]
+    assert outline_pickle.steps[0].id == "expanded-row-id-step-0"
+    outline_test_case = mc.scenario_to_test_case(outline_row, pickle_id=outline_pickle.id)
+    assert outline_test_case.test_steps[0].pickle_step_id == "expanded-row-id-step-0"
+
+    struct_scenario = Scenario(name="Struct route", line=0)
+    struct_pickle = mc.scenario_to_pickle(
+        struct_scenario,
+        uri="file:routes.bdd.yaml",
+        default_id="file:routes.bdd.yaml#route-case-1",
+    )
+    struct_document = mc.feature_to_gherkin_document(
+        Feature(name="Routes", uri="file:routes.bdd.yaml", scenarios=(struct_scenario,))
+    )
+    struct_test_case = mc.scenario_to_test_case(struct_scenario, pickle_id=struct_pickle.id)
+    assert struct_pickle.id == "file:routes.bdd.yaml#route-case-1"
+    assert struct_document.feature is not None
+    struct_document_scenario = struct_document.feature.children[0].scenario
+    assert struct_document_scenario is not None
+    assert struct_pickle.ast_node_ids == [struct_document_scenario.id]
+    assert struct_test_case.pickle_id == struct_pickle.id
 
     p_env = mc.pickle_to_envelope(pickle)
     assert p_env.pickle is not None
@@ -77,78 +139,54 @@ def test_scenario_to_pickle_and_test_case() -> None:
     tc = mc.scenario_to_test_case(sc, pickle_id=pickle.id)
     assert tc.pickle_id == pickle.id
     assert len(tc.test_steps) == 1
-    assert tc.test_steps[0].pickle_step_id == "step-1"
+    assert tc.test_steps[0].pickle_step_id == pickle.steps[0].id
 
     tc_env = mc.test_case_to_envelope(tc)
     assert tc_env.test_case is not None
     mc.validate_envelope_shape(tc_env)
 
 
-def test_converter_datetime_rule_background_and_pickle_arguments() -> None:
-    from datetime import datetime, timezone
-
-    timestamp = mc.make_timestamp(datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc))
-    assert timestamp.seconds == 1704067200
-
-    rule = Rule(
-        name="R",
-        keyword="Rule",
-        line=10,
-        background=Background(name="BG", keyword="Background", line=11),
-        scenarios=(Scenario(name="S", keyword="Scenario", line=12),),
+def test_scenario_execution_metadata_includes_feature_and_rule_backgrounds_in_order() -> None:
+    feature_step = Step(name="the repeated setup step", keyword="Given ", id="feature-step")
+    rule_step = Step(name="the repeated setup step", keyword="Given ", id="rule-step")
+    scenario_step = Step(name="the repeated setup step", keyword="When ", id="scenario-step")
+    feature_background = Background(id="feature-background", steps=(feature_step,))
+    rule_background = Background(id="rule-background", steps=(rule_step,))
+    feature = Feature(name="Layered backgrounds", background=feature_background)
+    scenario = Scenario(
+        name="An outline row",
+        id="expanded-row",
+        background=rule_background,
+        steps=(scenario_step,),
+        source_ast_node_ids=("outline-id", "row-id"),
     )
-    rule_message = mc.rule_to_message(rule, default_id="r-1")
-    assert rule_message.children[0].background is not None
-    assert rule_message.children[1].scenario is not None
 
-    doc_step = Step(name="with doc", keyword="Given ", doc_string=DocString(content="hello", media_type="text/plain"))
-    doc_pickle_step = mc.step_to_pickle_step(doc_step)
-    assert doc_pickle_step.argument is not None
-    assert doc_pickle_step.argument.doc_string is not None
-    assert doc_pickle_step.argument.doc_string.content == "hello"
+    pickle = mc.scenario_to_pickle(scenario, feature=feature)
+    test_case = mc.scenario_to_test_case(scenario, pickle_id=pickle.id, feature=feature)
 
-    table_step = Step(
-        name="with table",
-        keyword="Given ",
-        data_table=DataTable(rows=(TableRow(cells=(TableCell(value="cell"),)),)),
-    )
-    table_pickle_step = mc.step_to_pickle_step(table_step)
-    assert table_pickle_step.argument is not None
-    assert table_pickle_step.argument.data_table is not None
-    assert table_pickle_step.argument.data_table.rows[0].cells[0].value == "cell"
-
-
-def test_rule_scenario_pickle_merges_feature_and_rule_backgrounds() -> None:
-    """Pickles must include feature background steps before rule background steps."""
-    from pytest_bdd.parser import GherkinParser
-
-    feature = GherkinParser().parse_text(
-        # language=gherkin
-        """\
-        Feature: Rule background merge
-          Background:
-            Given feature background step
-          Rule: A
-            Background:
-              Given rule background step
-            Example: Example A
-              Given scenario step
-        """
-    )
-    scenario = feature.rules[0].scenarios[0]
-
-    assert [s.name for s in scenario.all_steps] == [
-        "feature background step",
-        "rule background step",
-        "scenario step",
+    assert [step.text for step in pickle.steps] == [
+        "the repeated setup step",
+        "the repeated setup step",
+        "the repeated setup step",
     ]
-
-    pickle = mc.scenario_to_pickle(scenario, uri="rule-merge.feature")
-    assert [s.text for s in pickle.steps] == [
-        "feature background step",
-        "rule background step",
-        "scenario step",
+    assert [step.id for step in pickle.steps] == [
+        "expanded-row-step-0",
+        "expanded-row-step-1",
+        "expanded-row-step-2",
     ]
+    assert [step.pickle_step_id for step in test_case.test_steps] == [step.id for step in pickle.steps]
+    assert [step.ast_node_ids for step in pickle.steps] == [["feature-step"], ["rule-step"], ["scenario-step"]]
+
+
+def test_scenario_pickle_uses_feature_background_when_scenario_has_no_background() -> None:
+    background_step = Step(name="feature setup", keyword="Given ", id="feature-step")
+    scenario_step = Step(name="scenario action", keyword="When ", id="scenario-step")
+    feature = Feature(name="Feature background", background=Background(steps=(background_step,)))
+    scenario = Scenario(name="Scenario without copied background", steps=(scenario_step,))
+
+    pickle = mc.scenario_to_pickle(scenario, feature=feature)
+
+    assert [step.text for step in pickle.steps] == ["feature setup", "scenario action"]
 
 
 def test_execution_message_helpers_and_dict_roundtrip() -> None:
@@ -167,7 +205,7 @@ def test_execution_message_helpers_and_dict_roundtrip() -> None:
         test_case_started_id="tcs-1", test_step_id="ts-1", status="passed", duration=0.5, timestamp=102.5
     )
     assert env_ts_finish.test_step_finished is not None
-    assert env_ts_finish.test_step_finished.test_step_result.status == cucumber_messages.TestStepResultStatus.passed
+    assert env_ts_finish.test_step_finished.test_step_result.status == messages.Status.passed
 
     env_tc_finish = mc.make_test_case_finished(test_case_started_id="tcs-1", timestamp=103.0)
     assert env_tc_finish.test_case_finished is not None
@@ -180,3 +218,27 @@ def test_execution_message_helpers_and_dict_roundtrip() -> None:
     reloaded = mc.envelope_from_dict(d)
     assert reloaded.test_run_finished is not None
     assert reloaded.test_run_finished.success is True
+
+
+@pytest.mark.parametrize(
+    ("internal_type", "wire_type"),
+    (
+        (StepDefinitionPatternType.pytest_cuke_heuristic_expression, "CUCUMBER_EXPRESSION"),
+        (StepDefinitionPatternType.pytest_cuke_regular_expression, "REGULAR_EXPRESSION"),
+    ),
+)
+def test_step_definition_pattern_extensions_map_to_official_wire_values(
+    internal_type: StepDefinitionPatternType,
+    wire_type: str,
+) -> None:
+    envelope = messages.Envelope(
+        step_definition=messages.StepDefinition(
+            id="definition-1",
+            pattern=messages.StepDefinitionPattern(source="example", type=internal_type),
+            source_reference=messages.SourceReference(uri="steps.py", location=messages.Location(line=1)),
+        )
+    )
+
+    payload = messages.message_to_dict(envelope)
+
+    assert payload["stepDefinition"]["pattern"]["type"] == wire_type

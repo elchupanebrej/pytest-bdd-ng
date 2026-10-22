@@ -4,8 +4,8 @@ import os
 import sys
 from pathlib import Path
 
-from pytest_bdd.compatibility.path import relpath, resolvepath
-from pytest_bdd.compatibility.pathlib import GlobError
+from pytest_cuke.compatibility.path import relpath, resolvepath
+from pytest_cuke.compatibility.pathlib import GlobError
 
 from pytest import mark
 

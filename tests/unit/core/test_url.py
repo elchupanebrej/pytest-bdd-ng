@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.util.url import is_local_url, is_url_parsable
+from pytest_cuke.util.url import is_local_url, is_url_parsable
 
 from pytest import mark
 

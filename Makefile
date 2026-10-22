@@ -9,7 +9,7 @@ develop: .env
 	.env/bin/pip install -e .[full]
 
 coverage: develop
-	coverage run --source=pytest_bdd .env/bin/pytest tests
+	coverage run --source=pytest_cuke .env/bin/pytest tests
 	coverage report -m
 
 test: develop

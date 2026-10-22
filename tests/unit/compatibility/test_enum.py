@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.compatibility.enum import StrEnum
+from pytest_cuke.compatibility.enum import StrEnum
 
 from pytest import mark
 

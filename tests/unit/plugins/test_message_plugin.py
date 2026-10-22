@@ -1,35 +1,68 @@
 from __future__ import annotations
 
 import json
-from base64 import b64encode
+import os
 from pathlib import Path
 from queue import Queue
-from threading import Event
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
-from cucumber_messages import AttachmentContentEncoding, Envelope as Message, TestCase
-from pytest_bdd.compatibility.pytest import Exit
-from pytest_bdd.message_plugin import MessagePlugin
-from pytest_bdd.model.message_converter import envelope_to_dict
-
-from pytest import mark
-
-pytestmark = mark.unit
-
+from pytest_cuke.model.message_validation import MessageValidationDiagnostic
+from pytest_cuke.formatter_api import FormatterRequest
+from pytest_cuke.model.message_types import (
+    Attachment,
+    ContentEncoding,
+    Duration,
+    Envelope as Message,
+    ExceptionMessage,
+    Pickle,
+    PickleStep,
+    Status,
+    TestCase,
+    TestCaseStarted,
+    TestRunFinished,
+    TestRunStarted,
+    TestStep,
+    TestStepFinished,
+    TestStepResult,
+    TestStepStarted,
+    Timestamp,
+    message_to_dict,
+)
+from pytest import ExitCode
+from pytest_cuke.message_plugin import MessagePlugin, message_session_finish_hook
+from pytest_cuke.message_schema_sync import resolve_upstream_release
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.session_run import RunContext
+from pytest_cuke.model.step import Step
+from pytest_cuke.utils import IdGenerator
 
 TestCase.__test__ = False
+TestCaseStarted.__test__ = False
+TestRunFinished.__test__ = False
+TestRunStarted.__test__ = False
+TestStep.__test__ = False
+TestStepFinished.__test__ = False
+TestStepResult.__test__ = False
+TestStepStarted.__test__ = False
 
 
-def _enabled_config(**overrides):
-    config = MagicMock()
-    config.option.messages_ndjson_path = "messages.ndjson"
-    config.option.cucumber_html_path = None
-    for key, value in overrides.items():
-        setattr(config.option, key, value)
-    return config
+def _complete_hook_wrapper(wrapper: Any, *, excinfo: Any = None) -> None:
+    next(wrapper)
+    try:
+        wrapper.send(SimpleNamespace(excinfo=excinfo))
+    except StopIteration:
+        return
+    raise AssertionError("pytest hook wrapper did not complete")
+
+
+def _drain_messages(plugin: MessagePlugin) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    while not plugin.process_messages_io_queue.empty():
+        result.append(json.loads(plugin.process_messages_io_queue.get_nowait()))
+    return result
 
 
 def test_message_plugin_add_options() -> None:
@@ -38,17 +71,44 @@ def test_message_plugin_add_options() -> None:
     parser.getgroup.return_value = group
 
     MessagePlugin.add_options(parser)
-    assert parser.getgroup.call_count == 2
-    assert group.addoption.call_count == 2
+    assert parser.getgroup.call_count == 4
+    assert group.addoption.call_count == 5
+    assert any(call.args[0] == "--cuke-pretty" for call in group.addoption.call_args_list)
+    assert any(call.args[0] == "cuke_pretty" for call in parser.addini.call_args_list)
 
 
 def test_message_plugin_disabled_when_no_options() -> None:
     config = MagicMock()
-    config.option.messages_ndjson_path = None
-    config.option.cucumber_html_path = None
+    config.rootpath = Path.cwd()
+    config.option.cuke_messages_ndjson = None
+    config.option.cuke_html = None
+    config.getini.return_value = ""
 
     plugin = MessagePlugin(config=config)
     assert plugin.is_disabled is True
+    assert plugin.message_transport is None
+
+
+def test_xdist_worker_does_not_allocate_a_local_messages_file(monkeypatch) -> None:
+    config = SimpleNamespace(
+        option=SimpleNamespace(cuke_messages_ndjson=None, cuke_html=None, cuke_allure=None),
+        workerinput={"workerid": "gw0"},
+        rootpath=Path.cwd(),
+        getini=lambda name: "",
+    )
+    request = FormatterRequest(name="worker-probe", command=("python",))
+    monkeypatch.setattr("pytest_cuke.message_plugin.resolve_formatter_requests", lambda config: (request,))
+
+    def fail_temporary_file_creation(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("xdist workers must not allocate local Messages files")
+
+    monkeypatch.setattr("pytest_cuke.message_plugin.tempfile.mkstemp", fail_temporary_file_creation)
+
+    plugin = MessagePlugin(config=config)
+
+    assert plugin.is_xdist_worker is True
+    assert plugin.is_messages_file_temp is False
+    assert plugin.messages_file_path == Path(os.devnull)
 
 
 def test_message_plugin_get_timestamp() -> None:
@@ -57,202 +117,512 @@ def test_message_plugin_get_timestamp() -> None:
     assert ts.nanos >= 0
 
 
-def test_message_plugin_pytest_bdd_message_queue() -> None:
+def test_message_plugin_pytest_cuke_message_queue() -> None:
     config = MagicMock()
-    config.option.messages_ndjson_path = "messages.ndjson"
-    config.option.cucumber_html_path = None
+    config.rootpath = Path.cwd()
+    config.option.cuke_messages_ndjson = "messages.ndjson"
+    config.option.cuke_html = None
 
     plugin = MessagePlugin(config=config)
     assert plugin.is_disabled is False
     plugin.process_messages_io_queue = Queue()
 
-    msg = Message(test_case=TestCase(id="tc-1", pickle_id="p-1", test_steps=[]))
-    plugin.pytest_bdd_message(config, msg)
+    msg = Message(
+        attachment=Attachment(
+            body="tc-1",
+            content_encoding=ContentEncoding.identity,
+            media_type="text/plain",
+        )
+    )
+    plugin.pytest_cuke_message(config, msg)
 
     assert not plugin.process_messages_io_queue.empty()
     item = plugin.process_messages_io_queue.get_nowait()
     assert "tc-1" in item
 
 
-def test_message_plugin_pytest_bdd_attach() -> None:
-    config = MagicMock()
-    config.option.messages_ndjson_path = "messages.ndjson"
-    config.option.cucumber_html_path = None
-
+def test_validated_message_hook_and_ndjson_receive_the_same_accepted_order() -> None:
+    observed: list[Message] = []
+    config = SimpleNamespace(
+        stash={},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=SimpleNamespace(pytest_cuke_message_validated=lambda *, config, message: observed.append(message)),
+    )
     plugin = MessagePlugin(config=config)
-    plugin.current_test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=[])
-
-    request = MagicMock()
-    request.config = config
-
-    plugin.pytest_bdd_attach(request, "hello attachment", "text/plain", "file.txt")
-    config.hook.pytest_bdd_message.assert_called_once()
-
-
-def _hook_fixture(request):
-    pass
-
-
-_hook_fixture.__pytest_bdd_is_hook__ = True
-_hook_fixture.__pytest_bdd_hook_name__ = "once"
-_hook_fixture.__pytest_bdd_hook_expression__ = "@tagged"
-
-
-def _run_fixture_setup(plugin: MessagePlugin, func) -> None:
-    request = MagicMock()
-    request.config = plugin.config
-    hookwrapper = plugin.pytest_fixture_setup(SimpleNamespace(func=func), request)
-    next(hookwrapper)
-    with pytest.raises(StopIteration):
-        next(hookwrapper)
-
-
-def test_hook_message_registry_is_scoped_to_plugin_instance() -> None:
-    """One process may host several in-process pytest sessions (e.g. pytester, #232).
-
-    Each session has its own ``MessagePlugin`` instance and must emit the hook message for the
-    same hook function again; a process-global registry keyed by ``id(func)`` leaks across
-    sessions and can skip the message when a freed function's address is reused.
-    """
-    config = _enabled_config()
-    config.rootpath = Path(__file__).parent
-    config.pytest_bdd_id_generator.get_next_id.return_value = "hook-0"
-
-    first_session = MessagePlugin(config=config)
-    second_session = MessagePlugin(config=config)
-
-    for plugin in (first_session, second_session):
-        _run_fixture_setup(plugin, _hook_fixture)
-        _run_fixture_setup(plugin, _hook_fixture)
-
-    emitted = [
-        call.kwargs["message"].hook
-        for call in config.hook.pytest_bdd_message.call_args_list
-        if call.kwargs["message"].hook is not None
+    plugin.process_messages_io_queue = Queue()
+    messages = [
+        Message(
+            attachment=Attachment(
+                body="first",
+                content_encoding=ContentEncoding.identity,
+                media_type="text/plain",
+            )
+        ),
+        Message(
+            attachment=Attachment(
+                body="second",
+                content_encoding=ContentEncoding.identity,
+                media_type="text/plain",
+            )
+        ),
     ]
-    assert [hook.name for hook in emitted] == ["once", "once"]
+
+    for message in messages:
+        plugin.pytest_cuke_message(config, message)
+
+    queued = [plugin.process_messages_io_queue.get_nowait() for _ in messages]
+    assert observed == messages
+    assert [json.loads(value)["attachment"]["body"] for value in queued] == ["first", "second"]
 
 
-def test_message_plugin_build_source_without_readable_file(tmp_path) -> None:
-    assert MessagePlugin.build_source(SimpleNamespace(filename=None)) is None
-    assert MessagePlugin.build_source(SimpleNamespace(filename=str(tmp_path / "missing.feature"))) is None
-
-
-def test_message_plugin_disabled_is_a_noop() -> None:
-    config = MagicMock()
-    config.option.messages_ndjson_path = None
-    config.option.cucumber_html_path = None
+def test_validated_hook_and_ndjson_receive_the_same_exception_stack_trace() -> None:
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="test.feature::Scenario",
+        feature=Feature(name="Failure", uri="failure.feature"),
+        scenario=Scenario(name="Failure"),
+    )
+    scenario_run.message_state.test_step_exception_traces = {"ts-1": "failure stack trace"}
+    observed: list[Message] = []
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=SimpleNamespace(pytest_cuke_message_validated=lambda *, config, message: observed.append(message)),
+    )
     plugin = MessagePlugin(config=config)
-    request = MagicMock()
-    request.config = config
+    plugin.process_messages_io_queue = Queue()
+    events = [
+        Message(test_run_started=TestRunStarted(timestamp=Timestamp(seconds=1, nanos=0))),
+        Message(
+            pickle=Pickle(
+                id="p-1",
+                uri="failure.feature",
+                name="Failure",
+                language="en",
+                steps=[PickleStep(id="ps-1", ast_node_ids=["ast-1"], text="a failing step")],
+                tags=[],
+                ast_node_ids=["ast-1"],
+            )
+        ),
+        Message(
+            test_case=TestCase(
+                id="tc-1",
+                pickle_id="p-1",
+                test_steps=[TestStep(id="ts-1", pickle_step_id="ps-1", step_definition_ids=[])],
+            )
+        ),
+        Message(
+            test_case_started=TestCaseStarted(
+                attempt=0,
+                id="tcs-1",
+                test_case_id="tc-1",
+                worker_id="master",
+                timestamp=Timestamp(seconds=2, nanos=0),
+            )
+        ),
+        Message(
+            test_step_started=TestStepStarted(
+                test_case_started_id="tcs-1",
+                test_step_id="ts-1",
+                timestamp=Timestamp(seconds=3, nanos=0),
+            )
+        ),
+        Message(
+            test_step_finished=TestStepFinished(
+                test_case_started_id="tcs-1",
+                test_step_id="ts-1",
+                timestamp=Timestamp(seconds=4, nanos=0),
+                test_step_result=TestStepResult(
+                    duration=Duration(seconds=1, nanos=0),
+                    status=Status.failed,
+                    exception=ExceptionMessage(type="AssertionError", message="failure"),
+                ),
+            )
+        ),
+    ]
 
-    plugin.pytest_bdd_message(config, Message(test_case=TestCase(id="tc-1", pickle_id="p-1", test_steps=[])))
-    plugin.pytest_bdd_attach(request, "text attachment", None, None)
-    plugin.pytest_bdd_step_error(
-        request,
-        feature=None,
-        scenario=None,
-        step=None,
-        step_func=None,
+    for event in events:
+        plugin.pytest_cuke_message(config, event)
+
+    observed_payloads = [message_to_dict(event) for event in observed]
+    queued_payloads = [json.loads(plugin.process_messages_io_queue.get_nowait()) for _ in events]
+    assert observed_payloads == queued_payloads
+    assert queued_payloads[-1]["testStepFinished"]["testStepResult"]["exception"]["stackTrace"] == (
+        "failure stack trace"
+    )
+
+
+def test_message_plugin_rejects_invalid_envelope_before_both_sinks() -> None:
+    observed: list[Message] = []
+    config = SimpleNamespace(
+        stash={},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=SimpleNamespace(pytest_cuke_message_validated=lambda *, config, message: observed.append(message)),
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.process_messages_io_queue = Queue()
+    invalid = Message(
+        test_run_started=TestRunStarted(timestamp=Timestamp(seconds=123, nanos=456)),
+        test_run_finished=TestRunFinished(success=True, timestamp=Timestamp(seconds=124, nanos=0)),
+    )
+
+    plugin.pytest_cuke_message(config, invalid)
+
+    assert observed == []
+    assert plugin.process_messages_io_queue.empty()
+    assert len(plugin.message_diagnostics) == 1
+    diagnostic = plugin.message_diagnostics[0]
+    assert diagnostic.code == "INVALID_PAYLOAD_SHAPE"
+    assert diagnostic.severity == "error"
+    assert diagnostic.position == 0
+    assert diagnostic.payload_kind is None
+    assert diagnostic.offending_ids == ()
+
+    terminal_reporter = MagicMock()
+    plugin.pytest_terminal_summary(terminal_reporter, ExitCode.TESTS_FAILED, config)
+    diagnostic_line = terminal_reporter.write_line.call_args.args[0]
+    assert diagnostic_line.startswith("PYTEST_CUKE_MESSAGE_DIAGNOSTIC={")
+    assert json.loads(diagnostic_line.removeprefix("PYTEST_CUKE_MESSAGE_DIAGNOSTIC=")) == {
+        "code": "INVALID_PAYLOAD_SHAPE",
+        "severity": "error",
+        "position": 0,
+        "payload_kind": None,
+        "message": diagnostic.message,
+        "offending_ids": [],
+        "instance_path": None,
+    }
+
+
+def test_message_plugin_meta_uses_the_installed_protocol_release() -> None:
+    config = SimpleNamespace(
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        rootpath=Path.cwd(),
+        getini=lambda name: "",
+        hook=None,
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.process_messages_io_queue = Queue()
+    plugin.start_process_messages_thread = lambda: None
+    config.pytest_cuke_id_generator = IdGenerator()
+    config.hook = SimpleNamespace(
+        pytest_cuke_message=lambda *, config, message: plugin.pytest_cuke_message(config, message),
+        pytest_cuke_message_validated=lambda *, config, message: None,
+    )
+
+    _complete_hook_wrapper(plugin.pytest_sessionstart(SimpleNamespace(config=config)))
+
+    envelopes = _drain_messages(plugin)
+    envelope = envelopes[0]
+    assert envelope["meta"]["protocolVersion"] == resolve_upstream_release()[1].protocol_version
+    assert [next(iter(item)) for item in envelopes] == [
+        "meta",
+        "hook",
+        "hook",
+        "testRunStarted",
+        "testRunHookStarted",
+        "testRunHookFinished",
+    ]
+
+
+def test_late_message_diagnostics_are_written_after_terminal_summary() -> None:
+    terminalreporter = MagicMock()
+    config = SimpleNamespace(
+        option=SimpleNamespace(cuke_messages_ndjson=None, cuke_html=None, cuke_allure=None),
+        rootpath=Path.cwd(),
+        getini=lambda name: "",
+        hook=None,
+        pluginmanager=SimpleNamespace(get_plugin=lambda name: terminalreporter),
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.message_diagnostics_summary_emitted = True
+    diagnostic = MessageValidationDiagnostic(
+        code="partial_stream",
+        severity="error",
+        position=0,
+        payload_kind=None,
+        message="worker transfer was incomplete",
+    )
+    next_diagnostic = MessageValidationDiagnostic(
+        code="missing_worker_manifest",
+        severity="error",
+        position=1,
+        payload_kind=None,
+        message="worker manifest was not published",
+    )
+
+    plugin._report_message_diagnostics((diagnostic,))
+    plugin._report_message_diagnostics((next_diagnostic,))
+
+    assert [call.args[0] for call in terminalreporter.write_line.call_args_list] == [
+        'PYTEST_CUKE_MESSAGE_DIAGNOSTIC={"code":"partial_stream","severity":"error","position":0,'
+        '"payload_kind":null,"message":"worker transfer was incomplete","offending_ids":[],"instance_path":null}',
+        'PYTEST_CUKE_MESSAGE_DIAGNOSTIC={"code":"missing_worker_manifest","severity":"error","position":1,'
+        '"payload_kind":null,"message":"worker manifest was not published","offending_ids":[],"instance_path":null}',
+    ]
+    assert plugin.message_diagnostics == [diagnostic, next_diagnostic]
+
+
+def test_invalid_stream_marks_terminal_message_and_pytest_run_failed() -> None:
+    config = SimpleNamespace(
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        rootpath=Path.cwd(),
+        getini=lambda name: "",
+        workeroutput={},
+        hook=None,
+    )
+    plugin = MessagePlugin(config=config)
+    plugin.process_messages_io_queue = Queue()
+    plugin.finish_process_messages_thread = lambda: None
+    plugin.start_process_messages_thread = lambda: None
+    config.pytest_cuke_id_generator = IdGenerator()
+    config.hook = SimpleNamespace(
+        pytest_cuke_message=lambda *, config, message: plugin.pytest_cuke_message(config, message),
+        pytest_cuke_message_validated=lambda *, config, message: None,
+    )
+    _complete_hook_wrapper(plugin.pytest_sessionstart(SimpleNamespace(config=config)))
+    plugin.pytest_cuke_message(
+        config,
+        Message(
+            test_run_started=TestRunStarted(timestamp=Timestamp(seconds=123, nanos=456)),
+            test_run_finished=TestRunFinished(success=True, timestamp=Timestamp(seconds=124, nanos=0)),
+        ),
+    )
+    session = SimpleNamespace(config=config, exitstatus=ExitCode.OK)
+
+    _complete_hook_wrapper(message_session_finish_hook(plugin).pytest_sessionfinish(session, ExitCode.OK))
+
+    envelopes = _drain_messages(plugin)
+    terminal = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
+    assert len(terminal) == 1
+    assert terminal[0]["success"] is False
+    assert session.exitstatus is ExitCode.TESTS_FAILED
+    assert [diagnostic.code for diagnostic in plugin.message_diagnostics] == ["INVALID_PAYLOAD_SHAPE"]
+
+
+def test_message_plugin_pytest_cuke_attach() -> None:
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="test.feature::Scenario",
+        feature=Feature(name="Attachment", uri="attachment.feature"),
+        scenario=Scenario(name="Attachment"),
+    )
+    scenario_run.message_state.test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=[])
+    scenario_run.message_state.test_case_started = TestCaseStarted(
+        attempt=0,
+        id="tcs-1",
+        test_case_id="tc-1",
+        worker_id="master",
+        timestamp=Timestamp(seconds=1, nanos=0),
+    )
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+    )
+
+    plugin = MessagePlugin(config=config)
+
+    request = SimpleNamespace(config=config)
+
+    plugin.pytest_cuke_attach(request, context, "hello attachment", "text/plain", "file.txt")
+    config.hook.pytest_cuke_message.assert_called_once()
+
+
+def test_tolerated_step_error_keeps_later_message_steps_executable() -> None:
+    failed_step = Step(name="tolerated failure", keyword="When ")
+    later_step = Step(name="later real step", keyword="Then ")
+    scenario = Scenario(name="Tolerated", steps=(failed_step, later_step))
+    feature = Feature(name="Tolerant messages", uri="tolerant.feature")
+    context = RunContext()
+    scenario_run = context.start_scenario(nodeid="tolerant.feature::Tolerated", feature=feature, scenario=scenario)
+    failed_test_step = TestStep(id="ts-failed", pickle_step_id="ps-failed", step_definition_ids=[])
+    later_test_step = TestStep(id="ts-later", pickle_step_id="ps-later", step_definition_ids=[])
+    scenario_run.message_state.test_case_started = TestCaseStarted(
+        attempt=0,
+        id="attempt-1",
+        test_case_id="tc-1",
+        worker_id="master",
+        timestamp=Timestamp(seconds=1, nanos=0),
+    )
+    scenario_run.message_state.test_steps = [failed_test_step, later_test_step]
+    scenario_run.message_state.test_steps_by_identity = {
+        id(failed_step): failed_test_step,
+        id(later_step): later_test_step,
+    }
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+    )
+    plugin = MessagePlugin(config=config)
+
+    context.start_step(failed_step)
+    plugin.pytest_cuke_step_error(
+        request=SimpleNamespace(config=config),
+        run=context,
+        step_func=lambda: None,
         step_func_args={},
-        exception=AssertionError("boom"),
-        step_definition=None,
+        exception=AssertionError("tolerated failure"),
+        step_definition=object(),
+        tolerated=True,
     )
-    plugin.generate_html_report()
 
-    config.hook.pytest_bdd_message.assert_not_called()
+    assert scenario_run.message_state.finished_test_step_ids == {"ts-failed"}
+    assert len(config.hook.pytest_cuke_message.call_args_list) == 2
 
 
-def test_message_plugin_pytest_bdd_attach_bytearray_and_plain_object() -> None:
-    config = _enabled_config()
+def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None:
+    step = Step(name="pending step", keyword="When ")
+    scenario = Scenario(name="Pending", steps=(step,))
+    feature = Feature(name="Pending messages", uri="pending.feature")
+    context = RunContext()
+    scenario_run = context.start_scenario(nodeid="pending.feature::Pending", feature=feature, scenario=scenario)
+    test_step = TestStep(id="ts-pending", pickle_step_id="ps-pending", step_definition_ids=[])
+    scenario_run.message_state.test_case_started = TestCaseStarted(
+        attempt=0,
+        id="attempt-pending",
+        test_case_id="tc-pending",
+        worker_id="master",
+        timestamp=Timestamp(seconds=1, nanos=0),
+    )
+    scenario_run.message_state.test_steps = [test_step]
+    scenario_run.message_state.test_steps_by_identity = {id(step): test_step}
+    context.start_step(step)
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+    )
     plugin = MessagePlugin(config=config)
-    plugin.current_test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=[])
+
+    plugin.pytest_cuke_step_bypassed(
+        request=SimpleNamespace(config=config),
+        run=context,
+        step_definition=object(),
+        status="passed",
+    )
+
+    messages = [call.kwargs["message"] for call in config.hook.pytest_cuke_message.call_args_list]
+    assert [message.test_step_started.test_step_id for message in messages if message.test_step_started] == [
+        "ts-pending"
+    ]
+    finished = [message.test_step_finished for message in messages if message.test_step_finished]
+    assert len(finished) == 1
+    assert finished[0].test_case_started_id == "attempt-pending"
+    assert finished[0].test_step_result.status == Status.passed
+    assert scenario_run.message_state.finished_test_step_ids == {"ts-pending"}
+    assert scenario_run.message_state.active_test_step_id is None
+
+
+def test_message_plugin_ignores_ordinary_pytest_tests() -> None:
+    config = MagicMock()
+    config.rootpath = Path.cwd()
+    config.option.cuke_messages_ndjson = "messages.ndjson"
+    config.option.cuke_html = None
+
+    plugin = MessagePlugin(config=config)
     request = MagicMock()
-    request.config = config
+    item = MagicMock()
+    item.fixturenames = ["pytestconfig"]
+    item._request = request
 
-    plugin.pytest_bdd_attach(request, bytearray(b"hello"), None, None)
-    plugin.pytest_bdd_attach(request, 12345, None, None)
+    list(plugin.pytest_runtest_setup(item))
 
-    attachments = [call.kwargs["message"].attachment for call in config.hook.pytest_bdd_message.call_args_list]
-    assert attachments[0].body == b64encode(b"hello").decode("ascii")
-    assert AttachmentContentEncoding(attachments[0].content_encoding) == AttachmentContentEncoding.base64
-    assert attachments[1].body == "12345"
-    assert attachments[1].media_type == "text/plain;charset=UTF-8"
-    assert AttachmentContentEncoding(attachments[1].content_encoding) == AttachmentContentEncoding.identity
+    request.getfixturevalue.assert_not_called()
 
 
-def test_check_npm_and_cucumber_packages_exits_when_dependencies_missing(monkeypatch) -> None:
-    plugin = MessagePlugin(config=_enabled_config())
-
-    monkeypatch.setattr("pytest_bdd.message_plugin.check_npm", lambda: False)
-    with pytest.raises(Exit):
-        plugin.check_npm_and_cucumber_packages()
-
-    monkeypatch.setattr("pytest_bdd.message_plugin.check_npm", lambda: True)
-    monkeypatch.setattr("pytest_bdd.message_plugin.check_npm_package", lambda package, global_install=False: False)
-    with pytest.raises(Exit):
-        plugin.check_npm_and_cucumber_packages()
-
-
-def test_process_messages_writes_valid_and_drops_invalid(tmp_path, caplog) -> None:
-    messages_file = tmp_path / "messages.ndjson"
-    queue: Queue[str] = Queue()
-    valid = json.dumps(
-        envelope_to_dict(Message(test_case=TestCase(id="tc-1", pickle_id="p-1", test_steps=[]))),
-        separators=(",", ":"),
+def test_message_plugin_marks_an_intermediate_retry_attempt() -> None:
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="retry.feature::Scenario",
+        feature=Feature(name="Retry", uri="retry.feature"),
+        scenario=Scenario(name="Retry"),
+        attempt=1,
     )
-    queue.put_nowait(valid)
-    queue.put_nowait('{"source": 1}')
-    queue.put_nowait(valid)
-
-    stop_event = Event()
-    stop_event.set()
-    MessagePlugin.process_messages(queue, stop_event, messages_file)
-
-    lines = messages_file.read_text(encoding="utf-8").splitlines()
-    assert len(lines) == 2
-    assert all("tc-1" in line for line in lines)
-    assert "Failed to parse" in caplog.text
-
-
-def test_message_plugin_generates_html_report_and_removes_temp_messages_file(tmp_path, monkeypatch) -> None:
-    assets = tmp_path / "assets"
-    assets.mkdir()
-    (assets / "formatter.js").write_text("window.formatter = 1;", encoding="utf-8")
-    (assets / "formatter.css").write_text("body { color: red; }", encoding="utf-8")
-    (assets / "index.mustache.html").write_text(
-        "<html><head><style>{{css}}</style></head><body>"
-        "<script>{{script}}</script><script>window.CUCUMBER_MESSAGES = [{{messages}}];</script>"
-        "</body></html>",
-        encoding="utf-8",
+    scenario_run.message_state.test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=[])
+    scenario_run.message_state.test_case_started = TestCaseStarted(
+        attempt=0,
+        id="tcs-1",
+        test_case_id="tc-1",
+        worker_id="master",
+        timestamp=Timestamp(seconds=1, nanos=0),
     )
-
-    def fake_find_resource(_package, resource):
-        mapping = {
-            "main.js": "formatter.js",
-            "main.css": "formatter.css",
-            "index.mustache.html": "index.mustache.html",
-        }
-        name = Path(resource).name
-        return iter([str(assets / mapping[name])] if name in mapping else [])
-
-    monkeypatch.setattr(MessagePlugin, "check_npm_and_cucumber_packages", lambda self: None)
-    monkeypatch.setattr("pytest_bdd.message_plugin.find_resource", fake_find_resource)
-
-    html_path = tmp_path / "report" / "cucumber.html"
-    config = _enabled_config(messages_ndjson_path=None, cucumber_html_path=str(html_path))
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+    )
     plugin = MessagePlugin(config=config)
 
-    assert plugin.is_messages_file_temp is True
-    temp_messages_file = Path(plugin.messages_file_path)
-    assert temp_messages_file.exists()
+    plugin.pytest_runtest_logreport(SimpleNamespace(nodeid=scenario_run.nodeid, when="call", outcome="rerun"))
+    plugin.pytest_runtest_logreport(SimpleNamespace(nodeid=scenario_run.nodeid, when="teardown", outcome="passed"))
 
-    plugin.start_process_messages_thread()
-    plugin.pytest_bdd_message(config, Message(test_case=TestCase(id="tc-1", pickle_id="p-1", test_steps=[])))
-    plugin.pytest_sessionfinish(SimpleNamespace(config=config), exitstatus=0)
+    finished = [
+        call.kwargs["message"].test_case_finished
+        for call in config.hook.pytest_cuke_message.call_args_list
+        if call.kwargs["message"].test_case_finished is not None
+    ]
+    assert len(finished) == 1
+    assert finished[0].will_be_retried is True
 
-    html = html_path.read_text(encoding="utf-8")
-    assert "window.formatter = 1;" in html
-    assert "body { color: red; }" in html
-    assert "tc-1" in html
-    assert temp_messages_file.exists() is False
+
+def test_message_plugin_emits_skipped_messages_for_a_setup_skip() -> None:
+    context = RunContext()
+    scenario_run = context.start_scenario(
+        nodeid="skip.feature::Scenario",
+        feature=Feature(name="Setup skip", uri="skip.feature"),
+        scenario=Scenario(
+            name="Setup skip",
+            steps=(Step(name="first", keyword="Given "), Step(name="second", keyword="Then ")),
+        ),
+    )
+    test_steps = [
+        TestStep(id="ts-1", pickle_step_id="ps-1", step_definition_ids=[]),
+        TestStep(id="ts-2", pickle_step_id="ps-2", step_definition_ids=[]),
+    ]
+    scenario_run.message_state.test_case = TestCase(id="tc-1", pickle_id="p-1", test_steps=test_steps)
+    scenario_run.message_state.test_steps = test_steps
+    config = SimpleNamespace(
+        stash={RunContext.STASH_KEY: context},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson="messages.ndjson", cuke_html=None, cuke_allure=None),
+        getini=lambda name: "",
+        hook=MagicMock(),
+        pytest_cuke_id_generator=IdGenerator(),
+    )
+    plugin = MessagePlugin(config=config)
+
+    plugin.pytest_runtest_logreport(
+        SimpleNamespace(
+            nodeid=scenario_run.nodeid,
+            when="setup",
+            outcome="skipped",
+            longrepr=("skip.py", 1, "fixture setup skip sentinel"),
+        )
+    )
+
+    messages = [call.kwargs["message"] for call in config.hook.pytest_cuke_message.call_args_list]
+    started = [message.test_case_started for message in messages if message.test_case_started is not None]
+    finished_steps = [message.test_step_finished for message in messages if message.test_step_finished is not None]
+    finished_cases = [message.test_case_finished for message in messages if message.test_case_finished is not None]
+    assert len(started) == 1
+    assert started[0].attempt == 0
+    assert [message.test_step_result.status for message in finished_steps] == [Status.skipped, Status.skipped]
+    assert all(message.test_step_result.message == "fixture setup skip sentinel" for message in finished_steps)
+    assert len(finished_cases) == 1
+    assert finished_cases[0].test_case_started_id == started[0].id
+    assert finished_cases[0].will_be_retried is False

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pytest_bdd.compatibility.sys import get_frame
+from pytest_cuke.compatibility.sys import get_frame
 
 from pytest import mark
 

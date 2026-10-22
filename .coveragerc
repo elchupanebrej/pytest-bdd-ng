@@ -1,12 +1,12 @@
 [run]
 branch = true
-source = pytest_bdd
+source = pytest_cuke
 
 [paths]
 source =
-    src/pytest_bdd
-    .tox/*/lib/python*/site-packages/pytest_bdd
-    .tox/*/Lib/site-packages/pytest_bdd
+    src/pytest_cuke
+    .tox/*/lib/python*/site-packages/pytest_cuke
+    .tox/*/Lib/site-packages/pytest_cuke
 
 [report]
 fail_under = 85

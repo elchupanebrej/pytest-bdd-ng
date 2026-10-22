@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import json
 
-from pytest_bdd.model.scenario import Scenario
-from pytest_bdd.model.scenario_report import ScenarioReport, StepReport
-from pytest_bdd.model.scenario_run import ExecutionContext, ScenarioRun, StepRun
-from pytest_bdd.model.stash_access import SimpleStash
-from pytest_bdd.model.step import Step
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.scenario_report import ScenarioReport, StepReport
+from pytest_cuke.model.scenario_run import ExecutionContext, ScenarioRun, StepRun
+from pytest_cuke.model.stash_access import SimpleStash
+from pytest_cuke.model.step import Step
 
 from pytest import mark
 

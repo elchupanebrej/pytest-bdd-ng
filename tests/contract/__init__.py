@@ -1,0 +1,1 @@
+"""Product contract tests."""
