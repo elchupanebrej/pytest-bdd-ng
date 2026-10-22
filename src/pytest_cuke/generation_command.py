@@ -215,10 +215,12 @@ def _unique_steps(features: Sequence[Feature]) -> list[Step]:
 
 
 def _normalized_step_type(step: Step) -> StepType:
+    keyword = step.keyword.strip().casefold()
+    if keyword in {"and", "but", "*"}:
+        return StepType.unknown
     if isinstance(step.type, StepType):
         return step.type
     raw_type = str(step.type or "").casefold()
-    keyword = step.keyword.strip().casefold()
     if raw_type in {"context", "given"} or keyword == "given":
         return StepType.context
     if raw_type in {"action", "when"} or keyword == "when":

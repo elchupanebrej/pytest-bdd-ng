@@ -87,7 +87,7 @@ Feature: Rule background merge
 MERGE_STEPS = """\
 from pytest import fixture
 
-from pytest_bdd import given
+from pytest_cuke import given
 
 
 @fixture
@@ -132,7 +132,7 @@ def test_rule_background_merges_with_feature_background(testdir, tmp_path):
         f"""\
         from pathlib import Path
 
-        from pytest_bdd import scenario
+        from pytest_cuke import scenario
 
         @scenario(Path(r"{feature_path}"), "Example A")
         def test_merged_backgrounds(executed):

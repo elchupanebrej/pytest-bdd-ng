@@ -103,8 +103,8 @@ class ScenarioReport:
         steps = [StepReport.from_step_run(st) for st in scenario_run.steps]
         failed = scenario_run.status in ("failed", "undefined")
         err_msg = str(scenario_run.exception) if scenario_run.exception is not None else None
-        if failed and not err_msg and any(s.error_message for s in steps if s.failed):
-            err_msg = next(s.error_message for s in steps if s.failed and s.error_message)
+        if failed and not err_msg and any(step.error_message for step in steps if step.failed):
+            err_msg = next(step.error_message for step in steps if step.failed and step.error_message)
 
         total_duration = scenario_run.duration or sum(s.duration for s in steps)
         status = scenario_run.status

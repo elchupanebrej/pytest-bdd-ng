@@ -22,5 +22,4 @@ Feature: Legacy test code generation
       """
     When I run installed pytest from consumer directory "." with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-generate --cuke-feature={consumer_path}/features/generated-source.feature -q tests/test_generated_source.py"
     Then pytest should exit with code 0
-    And pytest output should include "@step("
-    And pytest output should include "preserve Unicode ℼ and 𝑟 with"
+    And pytest output should include "@step('preserve Unicode ℼ and 𝑟 with"

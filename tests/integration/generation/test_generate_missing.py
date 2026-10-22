@@ -140,9 +140,9 @@ def test_generate_missing_with_step_parsers(testdir):
 
 
 def test_generation_requires_feature_option(testdir):
-    """Both generation commands report the missing --feature option."""
-    missing_result = testdir.runpytest("--generate-missing")
-    missing_result.stdout.fnmatch_lines(["The --feature parameter is required."])
+    """Both generation commands report the missing --cuke-feature option."""
+    missing_result = testdir.runpytest("--cuke-generate-missing")
+    missing_result.stdout.fnmatch_lines(["The --cuke-feature parameter is required."])
 
-    generate_result = testdir.runpytest("--generate")
-    generate_result.stdout.fnmatch_lines(["The --feature parameter is required."])
+    generate_result = testdir.runpytest("--cuke-generate")
+    generate_result.stdout.fnmatch_lines(["The --cuke-feature parameter is required."])
