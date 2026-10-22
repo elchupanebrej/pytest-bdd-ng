@@ -92,8 +92,11 @@ def step_to_message(step: Step, default_id: str = "") -> cucumber_messages.Step:
     st_id = step.id or default_id
     ds = doc_string_to_message(step.doc_string, f"{st_id}-ds") if step.doc_string else None
     dt = data_table_to_message(step.data_table, f"{st_id}-dt") if step.data_table else None
-    return cucumber_messages.Step(
-        id=st_id, keyword=step.keyword, text=step.name, location=make_location(step.line), doc_string=ds, data_table=dt
+    keyword = step.keyword.rstrip()
+    if keyword:
+        keyword = f"{keyword} "
+    return messages.Step(
+        id=st_id, keyword=keyword, text=step.name, location=make_location(step.line), doc_string=ds, data_table=dt
     )
 
 
