@@ -145,6 +145,14 @@ installed-consumer acceptance on those platforms. Those rows remain excluded
 from product support; the optional `pydantic-core` integration also has no
 PyPy 3.12 wheel and is not part of the core support claim.
 
+GraalPy 25.3 is product-supported on Linux x86_64, where its Python language
+version is 3.13.14. Upstream GraalPy builds exist for macOS and Windows, but
+pytest-cuke has not verified the source/native installation and
+installed-consumer acceptance paths there. GraalPy documents less comprehensive
+testing on macOS and additional Windows limitations; packages using its native
+API need GraalPy-compatible wheels or source builds. Those platforms remain
+excluded from product support until their acceptance paths are verified.
+
 Project metadata's `pytest>=7.0` is the broad support floor for Python/pytest
 pairs that pytest upstream considers compatible. This compatibility promise
 does not mean every pytest patch is measured in CI. Measured CI coverage for

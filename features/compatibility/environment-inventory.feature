@@ -69,6 +69,15 @@ Feature: Supported environment inventory and acceptance proof
     When I inspect the PyPy 3.12 platform exclusions
     Then macOS and Windows should remain upstream available and carry technical exclusion reasons
 
+  Scenario: GraalPy evidence serialization preserves a measured Linux acceptance artifact and bundled pip
+    When I serialize a previously measured GraalPy 25.3 Linux acceptance artifact
+    Then serialized evidence should preserve exact GraalPy and pytest versions on Linux x86_64 and bundled pip
+    And serialized acceptance evidence should preserve sdist installation core and tutorial results with exact CI links
+
+  Scenario: GraalPy 25.3 platform exclusions distinguish support evidence from upstream availability
+    When I inspect the GraalPy 25.3 platform exclusions
+    Then macOS and Windows should remain upstream available and carry GraalPy-specific technical reasons
+
   Scenario: The first required Linux runtime cell is x86_64 in policy and CI
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     And the repository environment inventory is loaded
