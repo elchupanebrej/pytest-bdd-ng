@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import configparser
 import importlib
+import io
 import json
 import os
 import platform
@@ -21,7 +22,7 @@ from typing import Any
 
 import pytest
 import yaml
-from pytest_cuke import given, then, when
+from pytest_cuke import given, parsers, then, when
 from pytest_cuke.compatibility.environment_matrix import _collected_count, check_environment_inventory
 from pytest_cuke.compatibility.runtime_compat import is_pair_compatible
 
@@ -792,6 +793,136 @@ def matrix_runner_preflight_stops_before_tox(matrix_runner_runtime_preflight: di
     assert f"platform={result['actual_platform']!r}" in stderr, stderr
     for dimension in ("runtime", "python", "platform"):
         assert f"expected {result[f'expected_{dimension}']!r}" in stderr, stderr
+
+
+@when(
+    parsers.parse(
+        'I start CPython 3.15 cell "{cell_id}" with platform name "{platform_name}", '
+        'platform "{platform}", machine "{machine}", and normalized architecture "{normalized_architecture}"'
+    ),
+    target_fixture="cpython_315_preflight",
+)
+def start_cpython_315_cell_with_preflight(
+    cell_id: str,
+    platform_name: str,
+    platform: str,
+    machine: str,
+    normalized_architecture: str,
+    request: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> dict[str, Any]:
+    repository_root = Path(request.config.rootpath)
+    inventory_path = repository_root / "config" / "env-matrix.yaml"
+    scripts_directory = repository_root / "scripts"
+    monkeypatch.syspath_prepend(str(scripts_directory))
+    runner = importlib.import_module("run_env_matrix_cell")
+    cell = next(
+        candidate for candidate in runner.load_cells(inventory_path, "full-matrix") if candidate["id"] == cell_id
+    )
+    assert cell.get("runtime") == "CPython", cell
+    assert cell.get("python") == "3.15", cell
+    assert cell.get("expected_interpreter") == "3.15.0", cell
+
+    actual_runtime = "CPython"
+    actual_python = "3.15.0"
+    monkeypatch.setattr(
+        runner,
+        "platform",
+        SimpleNamespace(
+            python_implementation=lambda: actual_runtime,
+            python_version=lambda: actual_python,
+            platform=lambda: platform,
+            machine=lambda: machine,
+        ),
+    )
+    monkeypatch.setattr(runner.sys, "platform", platform_name)
+    monkeypatch.setattr(runner.shutil, "which", lambda name: "/fake/bin/tox")
+
+    output_path = tmp_path / "evidence" / f"{cell_id}.json"
+    monkeypatch.setattr(
+        runner.sys,
+        "argv",
+        [
+            "run_env_matrix_cell.py",
+            "--job",
+            "full-matrix",
+            "--cell",
+            cell_id,
+            "--inventory",
+            str(inventory_path),
+            "--output",
+            str(output_path),
+            "--sha",
+            "a" * 40,
+        ],
+    )
+
+    launch_preflight: dict[str, Any] | None = None
+    tox_environments = list(cell["tox_envs"])
+
+    def start_tox(command: list[str], **kwargs: Any) -> Any:
+        nonlocal launch_preflight
+        if output_path.is_file():
+            launch_payload = json.loads(output_path.read_text(encoding="utf-8"))
+            candidate = launch_payload.get("preflight") if isinstance(launch_payload, dict) else None
+            launch_preflight = candidate if isinstance(candidate, dict) else None
+        result_json = Path(command[3])
+        result_json.write_text("{}\n", encoding="utf-8")
+        environment_name = command[-1]
+        assert environment_name in tox_environments, command
+        stdout = io.StringIO(
+            f"{environment_name}> commands[0]> pytest tests/unit\n"
+            "1 passed in 0.01s\n"
+            f"{environment_name}> commands[1]> pytest examples/tutorial\n"
+            "1 passed in 0.01s\n"
+        )
+        return SimpleNamespace(stdout=stdout, wait=lambda: 0)
+
+    monkeypatch.setattr(runner.subprocess, "Popen", start_tox)
+    monkeypatch.setattr(
+        runner,
+        "_installed_versions",
+        lambda python: {"runtime": actual_runtime, "python": actual_python, "packages": {"pytest": "9.0.0"}},
+    )
+    monkeypatch.setattr(runner, "_system_tool_evidence", lambda *args, **kwargs: ({}, {}))
+    monkeypatch.setattr(runner, "_python_in_tox_environment", lambda *args: Path("/fake/python"))
+    monkeypatch.setattr(runner, "required_optional_versions", lambda environment: ())
+    monkeypatch.setattr(runner, "required_system_tool_versions", lambda environment: ())
+
+    return_code = runner.main()
+    assert output_path.is_file(), f"matrix runner did not write evidence for {cell_id}"
+    evidence = json.loads(output_path.read_text(encoding="utf-8"))
+    return {
+        "cell_id": cell_id,
+        "expected_interpreter": str(cell["expected_interpreter"]),
+        "actual_runtime": actual_runtime,
+        "actual_python": actual_python,
+        "actual_platform": platform,
+        "actual_platform_name": platform_name,
+        "actual_machine": machine,
+        "expected_architecture": normalized_architecture,
+        "return_code": return_code,
+        "tox_environments": tox_environments,
+        "launch_preflight": launch_preflight,
+        "final_preflight": evidence.get("preflight"),
+    }
+
+
+@then("its preflight evidence should record the expected interpreter and actual runner identity before tox starts")
+def cpython_315_preflight_is_recorded_before_tox(cpython_315_preflight: dict[str, Any]) -> None:
+    result = cpython_315_preflight
+    assert result["return_code"] == 0, result
+    assert result["tox_environments"], result
+    launch_preflight = result["launch_preflight"]
+    assert isinstance(launch_preflight, dict), "preflight evidence was not persisted before tox started"
+    assert launch_preflight == result["final_preflight"], result
+    assert launch_preflight["expected_interpreter"] == "3.15.0", launch_preflight
+    assert launch_preflight["runtime"] == result["actual_runtime"] == "CPython", launch_preflight
+    assert launch_preflight["python"] == result["actual_python"] == "3.15.0", launch_preflight
+    assert launch_preflight["platform"] == result["actual_platform"], launch_preflight
+    assert launch_preflight["platform_name"] == result["actual_platform_name"], launch_preflight
+    assert launch_preflight["architecture"] == result["expected_architecture"], launch_preflight
 
 
 @then("the CPython 3.14 macOS tox config should include uv>=0.8")
