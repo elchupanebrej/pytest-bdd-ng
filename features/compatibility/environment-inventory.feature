@@ -60,6 +60,15 @@ Feature: Supported environment inventory and acceptance proof
     And every required runtime cell should declare upstream availability installability product support required CI and measured evidence separately
     And every required cell should require measured Python pytest platform architecture SHA command selected and passed tests outcome and workflow URLs
 
+  Scenario: The PyPy 3.12 Linux cell records exact measured acceptance evidence
+    When I run the PyPy 3.12 Linux acceptance cell with measured evidence
+    Then its measured evidence should record exact PyPy and pytest versions on Linux x86_64
+    And its acceptance evidence should prove the core and executable example commands with SHA and CI links
+
+  Scenario: PyPy 3.12 platform exclusions distinguish support evidence from upstream availability
+    When I inspect the PyPy 3.12 platform exclusions
+    Then macOS and Windows should remain upstream available and carry technical exclusion reasons
+
   Scenario: The first required Linux runtime cell is x86_64 in policy and CI
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     And the repository environment inventory is loaded

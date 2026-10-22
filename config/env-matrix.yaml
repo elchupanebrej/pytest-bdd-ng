@@ -320,6 +320,64 @@ runtime_policy:
       x86_64.'
     source_evidence:
     - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  - id: pypy-312-macos-product-excluded
+    runtime: PyPy
+    python: '3.12'
+    platform: macos
+    architecture: all
+    upstream_availability:
+      status: available
+      source_evidence:
+      - https://www.pypy.org/download.html
+    installability:
+      status: not-assessed
+      reason: The pytest-cuke PyPy 3.12 macOS source/native install path has not been verified; the optional pydantic-core integration has no PyPy 3.12 wheel.
+    product_support:
+      status: unsupported
+      reason: Product acceptance currently covers PyPy 3.12 only on Linux x86_64.
+    required_ci:
+      status: excluded
+      workflow_cell: null
+      tox_envs: []
+      reason: PyPy 3.12 product acceptance is limited to Linux x86_64; macOS source/native install and installed-consumer acceptance are unverified, and optional pydantic-core has no PyPy 3.12 wheel.
+    measured_evidence:
+      status: not-run
+      fields: *runtime_evidence_fields
+      reason: No PyPy 3.12 macOS acceptance lane is configured; its source/native install and installed-consumer path remain unverified.
+    reason: PyPy 3.12 product acceptance is limited to Linux x86_64; macOS source/native install and installed-consumer acceptance are unverified, and optional pydantic-core has no PyPy 3.12 wheel.
+    source_evidence:
+    - https://www.pypy.org/download.html
+    - https://pypi.org/project/pydantic_core/
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/322
+  - id: pypy-312-windows-product-excluded
+    runtime: PyPy
+    python: '3.12'
+    platform: windows
+    architecture: all
+    upstream_availability:
+      status: available
+      source_evidence:
+      - https://www.pypy.org/download.html
+    installability:
+      status: not-assessed
+      reason: The pytest-cuke PyPy 3.12 Windows source/native install path has not been verified; the optional pydantic-core integration has no PyPy 3.12 wheel.
+    product_support:
+      status: unsupported
+      reason: Product acceptance currently covers PyPy 3.12 only on Linux x86_64.
+    required_ci:
+      status: excluded
+      workflow_cell: null
+      tox_envs: []
+      reason: PyPy 3.12 product acceptance is limited to Linux x86_64; Windows source/native install and installed-consumer acceptance are unverified, and optional pydantic-core has no PyPy 3.12 wheel.
+    measured_evidence:
+      status: not-run
+      fields: *runtime_evidence_fields
+      reason: No PyPy 3.12 Windows acceptance lane is configured; its source/native install and installed-consumer path remain unverified.
+    reason: PyPy 3.12 product acceptance is limited to Linux x86_64; Windows source/native install and installed-consumer acceptance are unverified, and optional pydantic-core has no PyPy 3.12 wheel.
+    source_evidence:
+    - https://www.pypy.org/download.html
+    - https://pypi.org/project/pydantic_core/
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/322
 support_ledger:
   schema_version: 1
   historical_reference:

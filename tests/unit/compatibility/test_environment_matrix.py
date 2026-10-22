@@ -155,13 +155,16 @@ def _runtime_policy_exclusion(
     installability_reason: str,
     support_reason: str,
     reason: str,
+    platform_name: str = "all",
+    architecture: str = "all",
+    source_evidence: list[str] | None = None,
 ) -> dict[str, Any]:
     return {
         "id": cell_id,
         "runtime": runtime,
         "python": python_version,
-        "platform": "all",
-        "architecture": "all",
+        "platform": platform_name,
+        "architecture": architecture,
         "upstream_availability": {"status": "available", "source_evidence": [upstream_url]},
         "installability": {"status": installability_status, "reason": installability_reason},
         "product_support": {"status": "unsupported", "reason": support_reason},
@@ -177,7 +180,7 @@ def _runtime_policy_exclusion(
             "reason": reason,
         },
         "reason": reason,
-        "source_evidence": ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/300"],
+        "source_evidence": source_evidence or ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/300"],
     }
 
 
@@ -221,6 +224,50 @@ def _policy_document() -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[
                     support_reason="The runtime policy selects PyPy 3.12 on Linux x86_64.",
                     reason="The current runtime support policy selects PyPy 3.12.",
                 ),
+                _runtime_policy_exclusion(
+                    cell_id="pypy-312-macos-product-excluded",
+                    runtime="PyPy",
+                    python_version="3.12",
+                    upstream_url="https://www.pypy.org/download.html",
+                    installability_status="not-assessed",
+                    installability_reason=(
+                        "The pytest-cuke PyPy 3.12 macOS source/native install path has not been verified; "
+                        "the optional pydantic-core integration has no PyPy 3.12 wheel."
+                    ),
+                    support_reason="Product acceptance currently covers PyPy 3.12 only on Linux x86_64.",
+                    reason=(
+                        "PyPy 3.12 product acceptance is limited to Linux x86_64; macOS source/native install and "
+                        "installed-consumer acceptance are unverified, and optional pydantic-core has no PyPy 3.12 wheel."
+                    ),
+                    platform_name="macos",
+                    source_evidence=[
+                        "https://www.pypy.org/download.html",
+                        "https://pypi.org/project/pydantic_core/",
+                        "https://github.com/elchupanebrej/pytest-bdd-ng/issues/322",
+                    ],
+                ),
+                _runtime_policy_exclusion(
+                    cell_id="pypy-312-windows-product-excluded",
+                    runtime="PyPy",
+                    python_version="3.12",
+                    upstream_url="https://www.pypy.org/download.html",
+                    installability_status="not-assessed",
+                    installability_reason=(
+                        "The pytest-cuke PyPy 3.12 Windows source/native install path has not been verified; "
+                        "the optional pydantic-core integration has no PyPy 3.12 wheel."
+                    ),
+                    support_reason="Product acceptance currently covers PyPy 3.12 only on Linux x86_64.",
+                    reason=(
+                        "PyPy 3.12 product acceptance is limited to Linux x86_64; Windows source/native install and "
+                        "installed-consumer acceptance are unverified, and optional pydantic-core has no PyPy 3.12 wheel."
+                    ),
+                    platform_name="windows",
+                    source_evidence=[
+                        "https://www.pypy.org/download.html",
+                        "https://pypi.org/project/pydantic_core/",
+                        "https://github.com/elchupanebrej/pytest-bdd-ng/issues/322",
+                    ],
+                ),
             ],
         },
         "project": {"python_requirement": ">=3.11"},
@@ -235,6 +282,7 @@ def test_runtime_policy_accepts_the_canonical_required_cells() -> None:
 
     assert diagnostics == []
     assert summary["requiredCellCount"] == 17
+    assert summary["exclusionCount"] == 5
     assert summary["pytestMinimum"] == ">=7.0"
 
 

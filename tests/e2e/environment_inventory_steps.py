@@ -925,6 +925,216 @@ def cpython_315_preflight_is_recorded_before_tox(cpython_315_preflight: dict[str
     assert launch_preflight["architecture"] == result["expected_architecture"], launch_preflight
 
 
+@when("I run the PyPy 3.12 Linux acceptance cell with measured evidence", target_fixture="pypy_312_acceptance")
+def run_pypy_312_linux_acceptance_cell(
+    request: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> dict[str, Any]:
+    repository_root = Path(request.config.rootpath)
+    inventory_path = repository_root / "config" / "env-matrix.yaml"
+    scripts_directory = repository_root / "scripts"
+    monkeypatch.syspath_prepend(str(scripts_directory))
+    runner = importlib.import_module("run_env_matrix_cell")
+    selected = next(
+        cell for cell in runner.load_cells(inventory_path, "full-matrix") if cell.get("id") == "pypy-312-linux"
+    )
+
+    actual_runtime = "PyPy"
+    actual_python = "3.12.15"
+    actual_pytest = "9.1.1"
+    monkeypatch.setattr(
+        runner,
+        "platform",
+        SimpleNamespace(
+            python_implementation=lambda: actual_runtime,
+            python_version=lambda: actual_python,
+            platform=lambda: "Linux-test",
+            machine=lambda: "x86_64",
+        ),
+    )
+    monkeypatch.setattr(runner.sys, "platform", "linux")
+    monkeypatch.setattr(runner.shutil, "which", lambda name: "/fake/bin/tox")
+    monkeypatch.setenv(
+        "PYTEST_CUKE_JOB_URL", "https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/12345/job/67890"
+    )
+    monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "elchupanebrej/pytest-bdd-ng")
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+
+    output_path = tmp_path / "evidence" / "pypy-312-linux.json"
+    sha = "b" * 40
+    monkeypatch.setattr(
+        runner.sys,
+        "argv",
+        [
+            "run_env_matrix_cell.py",
+            "--job",
+            "full-matrix",
+            "--cell",
+            "pypy-312-linux",
+            "--inventory",
+            str(inventory_path),
+            "--output",
+            str(output_path),
+            "--sha",
+            sha,
+        ],
+    )
+
+    tox_launch: dict[str, Any] = {}
+
+    def run_tox(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        tox_launch["command"] = command
+        launch_payload = json.loads(output_path.read_text(encoding="utf-8"))
+        tox_launch["preflight"] = launch_payload.get("preflight")
+        Path(command[3]).write_text('{"result": "passed"}\n', encoding="utf-8")
+        environment_name = command[-1]
+        assert environment_name in selected["tox_envs"], command
+        stdout = (
+            f"{environment_name}> commands[0]> python -m pytest -m core\n"
+            "1 passed in 0.01s\n"
+            f"{environment_name}> commands[1]> python -m pytest features/compatibility/tutorial-example-acceptance.feature\n"
+            "1 passed in 0.01s\n"
+        )
+        return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(runner, "_run_and_stream", run_tox)
+    monkeypatch.setattr(
+        runner,
+        "_installed_versions",
+        lambda python: {
+            "runtime": actual_runtime,
+            "python": actual_python,
+            "packages": {"pytest": actual_pytest},
+        },
+    )
+    monkeypatch.setattr(runner, "_system_tool_evidence", lambda *args, **kwargs: ({}, {}))
+    monkeypatch.setattr(runner, "_python_in_tox_environment", lambda *args: Path("/fake/python"))
+    monkeypatch.setattr(runner, "required_optional_versions", lambda environment: ())
+    monkeypatch.setattr(runner, "required_system_tool_versions", lambda environment: ())
+
+    return_code = runner.main()
+    evidence = json.loads(output_path.read_text(encoding="utf-8"))
+    document = yaml.safe_load(inventory_path.read_text(encoding="utf-8"))
+    policy_cell = next(
+        cell for cell in document["runtime_policy"]["required_cells"] if cell.get("id") == "pypy-312-linux"
+    )
+    return {
+        "return_code": return_code,
+        "evidence": evidence,
+        "tox_launch": tox_launch,
+        "selected_cell": selected,
+        "policy_cell": policy_cell,
+        "sha": sha,
+        "actual_python": actual_python,
+        "actual_pytest": actual_pytest,
+    }
+
+
+@then("its measured evidence should record exact PyPy and pytest versions on Linux x86_64")
+def pypy_312_measured_versions_are_recorded(pypy_312_acceptance: dict[str, Any]) -> None:
+    result = pypy_312_acceptance
+    evidence = result["evidence"]
+    selected = result["selected_cell"]
+    policy_cell = result["policy_cell"]
+    assert result["return_code"] == 0, evidence
+    assert selected.get("runtime") == "PyPy", selected
+    assert selected.get("python") == "3.12", selected
+    assert selected.get("platform") == "linux", selected
+    assert selected.get("architecture") == "x86_64", selected
+    assert selected.get("expected_interpreter") == "3.12.*", selected
+    assert policy_cell.get("required_pytest_lines") == ["9.x"], policy_cell
+    assert evidence["preflight"] == result["tox_launch"].get("preflight"), result["tox_launch"]
+    preflight = evidence["preflight"]
+    assert preflight["runtime"] == "PyPy", preflight
+    assert preflight["python"] == result["actual_python"] == "3.12.15", preflight
+    assert preflight["platform_name"] == "linux", preflight
+    assert preflight["platform"] == "Linux-test", preflight
+    assert preflight["architecture"] == "x86_64", preflight
+
+    environments = evidence.get("environments")
+    assert isinstance(environments, list) and len(environments) == 1, environments
+    environment = environments[0]
+    assert environment["runtime"] == "PyPy", environment
+    assert environment["python"] == result["actual_python"], environment
+    assert environment["pytest"] == result["actual_pytest"] == "9.1.1", environment
+    assert re.fullmatch(r"3\.12\.\d+", environment["python"]), environment
+    assert re.fullmatch(r"9\.\d+\.\d+", environment["pytest"]), environment
+    assert environment["platform_name"] == "linux", environment
+    assert environment["architecture"] == "x86_64", environment
+
+
+@then("its acceptance evidence should prove the core and executable example commands with SHA and CI links")
+def pypy_312_acceptance_commands_and_ci_links_are_recorded(pypy_312_acceptance: dict[str, Any]) -> None:
+    result = pypy_312_acceptance
+    evidence = result["evidence"]
+    environments = evidence.get("environments")
+    assert isinstance(environments, list) and len(environments) == 1, environments
+    environment = environments[0]
+    expected_run_url = "https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/12345"
+    expected_job_url = f"{expected_run_url}/job/67890"
+    assert evidence["git_sha"] == result["sha"], evidence
+    assert evidence["outcome"] == environment["outcome"] == "passed", evidence
+    assert environment["git_sha"] == result["sha"], environment
+    assert environment["run_url"] == expected_run_url, environment
+    assert environment["job_url"] == expected_job_url, environment
+    assert environment["tox_environment"] == "pypy312-pytestlatest-coverage-lin", environment
+    assert environment["command"] == result["tox_launch"]["command"], environment
+    assert environment["selected_tests"] == environment["passed_tests"] == 2, environment
+    acceptance = environment.get("acceptance_commands")
+    assert isinstance(acceptance, dict), environment
+    assert set(acceptance) == {"core_tests", "tutorial_example"}, acceptance
+    for name, expected_index in {"core_tests": 0, "tutorial_example": 1}.items():
+        command_result = acceptance[name]
+        assert command_result["command_index"] == expected_index, command_result
+        assert command_result["selected_tests"] == command_result["passed_tests"] == 1, command_result
+        assert command_result["outcome"] == "passed", command_result
+
+
+@when("I inspect the PyPy 3.12 platform exclusions", target_fixture="pypy_312_platform_exclusions")
+def inspect_pypy_312_platform_exclusions(request: Any) -> list[dict[str, Any]]:
+    inventory_path = Path(request.config.rootpath) / "config" / "env-matrix.yaml"
+    document = yaml.safe_load(inventory_path.read_text(encoding="utf-8"))
+    exclusions = document.get("runtime_policy", {}).get("exclusions")
+    assert isinstance(exclusions, list), exclusions
+    return [
+        exclusion
+        for exclusion in exclusions
+        if isinstance(exclusion, dict)
+        and str(exclusion.get("runtime", "")).casefold() == "pypy"
+        and str(exclusion.get("python")) == "3.12"
+        and str(exclusion.get("platform", "")).casefold() in {"macos", "windows"}
+    ]
+
+
+@then("macOS and Windows should remain upstream available and carry technical exclusion reasons")
+def pypy_312_non_linux_exclusions_are_source_backed(
+    pypy_312_platform_exclusions: list[dict[str, Any]],
+) -> None:
+    exclusions = pypy_312_platform_exclusions
+    by_platform = {str(exclusion.get("platform", "")).casefold(): exclusion for exclusion in exclusions}
+    assert set(by_platform) == {"macos", "windows"}, by_platform
+
+    for platform_name, exclusion in by_platform.items():
+        assert exclusion.get("upstream_availability", {}).get("status") == "available", exclusion
+        assert exclusion.get("product_support", {}).get("status") == "unsupported", exclusion
+        required_ci = exclusion.get("required_ci")
+        assert isinstance(required_ci, dict) and required_ci.get("status") == "excluded", exclusion
+        assert required_ci.get("tox_envs") == [], exclusion
+        reason = str(exclusion.get("reason", "")).casefold()
+        assert reason, exclusion
+        assert "pydantic-core" in reason, (platform_name, exclusion)
+        assert "wheel" in reason, (platform_name, exclusion)
+        assert "source" in reason and any(term in reason for term in ("unverified", "not verified")), (
+            platform_name,
+            exclusion,
+        )
+        source_evidence = exclusion.get("source_evidence")
+        assert isinstance(source_evidence, list) and source_evidence, exclusion
+        assert all(str(source).startswith(("http://", "https://")) for source in source_evidence), exclusion
+
+
 @then("the CPython 3.14 macOS tox config should include uv>=0.8")
 def cpython_314_macos_runtime_tox_config_installs_uv(consumer: Any) -> None:
     context = _context(consumer)
@@ -1229,7 +1439,9 @@ def retired_pypy_runtime_and_capability_exclusions_remain_historical(consumer: A
     pypy_runtime_exclusions = {
         str(item.get("python")): item
         for item in policy_exclusions
-        if isinstance(item, dict) and str(item.get("runtime", "")).casefold() == "pypy"
+        if isinstance(item, dict)
+        and str(item.get("runtime", "")).casefold() == "pypy"
+        and str(item.get("python")) in {"3.10", "3.11"}
     }
     assert set(pypy_runtime_exclusions) == {"3.10", "3.11"}, pypy_runtime_exclusions
     for version, exclusion in pypy_runtime_exclusions.items():
