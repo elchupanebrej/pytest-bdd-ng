@@ -158,6 +158,7 @@ def _runtime_policy_exclusion(
     platform_name: str = "all",
     architecture: str = "all",
     source_evidence: list[str] | None = None,
+    runtime_version: str | None = None,
 ) -> dict[str, Any]:
     return {
         "id": cell_id,
@@ -181,6 +182,7 @@ def _runtime_policy_exclusion(
         },
         "reason": reason,
         "source_evidence": source_evidence or ["https://github.com/elchupanebrej/pytest-bdd-ng/issues/300"],
+        **({"runtime_version": runtime_version} if runtime_version is not None else {}),
     }
 
 
@@ -268,6 +270,54 @@ def _policy_document() -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[
                         "https://github.com/elchupanebrej/pytest-bdd-ng/issues/322",
                     ],
                 ),
+                _runtime_policy_exclusion(
+                    cell_id="graalpy-253-macos-product-excluded",
+                    runtime="GraalPy",
+                    runtime_version="25.3",
+                    python_version="3.13.14",
+                    platform_name="macos",
+                    upstream_url="https://www.graalvm.org/latest/python/docs/",
+                    installability_status="not-assessed",
+                    installability_reason=(
+                        "The pytest-cuke GraalPy 25.3 macOS source/native installation and installed-consumer path "
+                        "has not been verified; GraalPy documents macOS as less comprehensively tested and native "
+                        "packages require GraalPy-compatible wheels or source builds."
+                    ),
+                    support_reason="Product acceptance currently covers GraalPy 25.3 only on Linux x86_64.",
+                    reason=(
+                        "GraalPy documents macOS as less comprehensively tested; pytest-cuke has not verified its "
+                        "source/native install and installed-consumer path, and native packages need "
+                        "GraalPy-compatible wheels or source builds."
+                    ),
+                    source_evidence=[
+                        "https://www.graalvm.org/latest/python/docs/",
+                        "https://github.com/elchupanebrej/pytest-bdd-ng/issues/323",
+                    ],
+                ),
+                _runtime_policy_exclusion(
+                    cell_id="graalpy-253-windows-product-excluded",
+                    runtime="GraalPy",
+                    runtime_version="25.3",
+                    python_version="3.13.14",
+                    platform_name="windows",
+                    upstream_url="https://www.graalvm.org/latest/python/docs/",
+                    installability_status="not-assessed",
+                    installability_reason=(
+                        "The pytest-cuke GraalPy 25.3 Windows source/native installation and installed-consumer path "
+                        "has not been verified; GraalPy documents additional Windows limitations and native packages "
+                        "require GraalPy-compatible wheels or source builds."
+                    ),
+                    support_reason="Product acceptance currently covers GraalPy 25.3 only on Linux x86_64.",
+                    reason=(
+                        "GraalPy documents additional Windows limitations; pytest-cuke has not verified its "
+                        "source/native install and installed-consumer path, and native packages need "
+                        "GraalPy-compatible wheels or source builds."
+                    ),
+                    source_evidence=[
+                        "https://www.graalvm.org/latest/python/docs/",
+                        "https://github.com/elchupanebrej/pytest-bdd-ng/issues/323",
+                    ],
+                ),
             ],
         },
         "project": {"python_requirement": ">=3.11"},
@@ -282,7 +332,7 @@ def test_runtime_policy_accepts_the_canonical_required_cells() -> None:
 
     assert diagnostics == []
     assert summary["requiredCellCount"] == 17
-    assert summary["exclusionCount"] == 5
+    assert summary["exclusionCount"] == 7
     assert summary["pytestMinimum"] == ">=7.0"
 
 

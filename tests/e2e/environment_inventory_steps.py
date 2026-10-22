@@ -925,29 +925,36 @@ def cpython_315_preflight_is_recorded_before_tox(cpython_315_preflight: dict[str
     assert launch_preflight["architecture"] == result["expected_architecture"], launch_preflight
 
 
-@when("I run the PyPy 3.12 Linux acceptance cell with measured evidence", target_fixture="pypy_312_acceptance")
-def run_pypy_312_linux_acceptance_cell(
+def _serialize_runtime_acceptance_evidence(
     request: Any,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    *,
+    cell_id: str,
+    actual_runtime: str,
+    implementation_name: str,
+    actual_python: str,
+    actual_pytest: str,
+    sha: str,
+    run_url: str,
+    job_url: str,
+    core_command: str,
+    core_summary: str,
+    tutorial_command: str,
 ) -> dict[str, Any]:
     repository_root = Path(request.config.rootpath)
     inventory_path = repository_root / "config" / "env-matrix.yaml"
     scripts_directory = repository_root / "scripts"
     monkeypatch.syspath_prepend(str(scripts_directory))
     runner = importlib.import_module("run_env_matrix_cell")
-    selected = next(
-        cell for cell in runner.load_cells(inventory_path, "full-matrix") if cell.get("id") == "pypy-312-linux"
-    )
-
-    actual_runtime = "PyPy"
-    actual_python = "3.12.15"
-    actual_pytest = "9.1.1"
+    selected = next(cell for cell in runner.load_cells(inventory_path, "full-matrix") if cell.get("id") == cell_id)
+    tox_executable = shutil.which("tox")
+    assert tox_executable is not None, "tox is needed to inspect the measured runtime environment"
     monkeypatch.setattr(
         runner,
         "platform",
         SimpleNamespace(
-            python_implementation=lambda: actual_runtime,
+            python_implementation=lambda: implementation_name,
             python_version=lambda: actual_python,
             platform=lambda: "Linux-test",
             machine=lambda: "x86_64",
@@ -955,15 +962,12 @@ def run_pypy_312_linux_acceptance_cell(
     )
     monkeypatch.setattr(runner.sys, "platform", "linux")
     monkeypatch.setattr(runner.shutil, "which", lambda name: "/fake/bin/tox")
-    monkeypatch.setenv(
-        "PYTEST_CUKE_JOB_URL", "https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/12345/job/67890"
-    )
+    monkeypatch.setenv("PYTEST_CUKE_JOB_URL", job_url)
     monkeypatch.setenv("GITHUB_SERVER_URL", "https://github.com")
     monkeypatch.setenv("GITHUB_REPOSITORY", "elchupanebrej/pytest-bdd-ng")
-    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    monkeypatch.setenv("GITHUB_RUN_ID", run_url.rsplit("/", maxsplit=1)[-1])
 
-    output_path = tmp_path / "evidence" / "pypy-312-linux.json"
-    sha = "b" * 40
+    output_path = tmp_path / "evidence" / f"{cell_id}.json"
     monkeypatch.setattr(
         runner.sys,
         "argv",
@@ -972,7 +976,7 @@ def run_pypy_312_linux_acceptance_cell(
             "--job",
             "full-matrix",
             "--cell",
-            "pypy-312-linux",
+            cell_id,
             "--inventory",
             str(inventory_path),
             "--output",
@@ -992,9 +996,9 @@ def run_pypy_312_linux_acceptance_cell(
         environment_name = command[-1]
         assert environment_name in selected["tox_envs"], command
         stdout = (
-            f"{environment_name}> commands[0]> python -m pytest -m core\n"
-            "1 passed in 0.01s\n"
-            f"{environment_name}> commands[1]> python -m pytest features/compatibility/tutorial-example-acceptance.feature\n"
+            f"{environment_name}> commands[0]> {core_command}\n"
+            f"{core_summary}\n"
+            f"{environment_name}> commands[1]> {tutorial_command}\n"
             "1 passed in 0.01s\n"
         )
         return subprocess.CompletedProcess(command, 0, stdout=stdout, stderr="")
@@ -1017,9 +1021,7 @@ def run_pypy_312_linux_acceptance_cell(
     return_code = runner.main()
     evidence = json.loads(output_path.read_text(encoding="utf-8"))
     document = yaml.safe_load(inventory_path.read_text(encoding="utf-8"))
-    policy_cell = next(
-        cell for cell in document["runtime_policy"]["required_cells"] if cell.get("id") == "pypy-312-linux"
-    )
+    policy_cell = next(cell for cell in document["runtime_policy"]["required_cells"] if cell.get("id") == cell_id)
     return {
         "return_code": return_code,
         "evidence": evidence,
@@ -1029,7 +1031,36 @@ def run_pypy_312_linux_acceptance_cell(
         "sha": sha,
         "actual_python": actual_python,
         "actual_pytest": actual_pytest,
+        "run_url": run_url,
+        "job_url": job_url,
+        "tox_executable": tox_executable,
+        "repository_root": repository_root,
+        "inventory_path": inventory_path,
     }
+
+
+@when("I run the PyPy 3.12 Linux acceptance cell with measured evidence", target_fixture="pypy_312_acceptance")
+def run_pypy_312_linux_acceptance_cell(
+    request: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> dict[str, Any]:
+    return _serialize_runtime_acceptance_evidence(
+        request,
+        monkeypatch,
+        tmp_path,
+        cell_id="pypy-312-linux",
+        actual_runtime="PyPy",
+        implementation_name="PyPy",
+        actual_python="3.12.15",
+        actual_pytest="9.1.1",
+        sha="b" * 40,
+        run_url="https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/12345",
+        job_url="https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/12345/job/67890",
+        core_command="python -m pytest -m core",
+        core_summary="1 passed in 0.01s",
+        tutorial_command="python -m pytest features/compatibility/tutorial-example-acceptance.feature",
+    )
 
 
 @then("its measured evidence should record exact PyPy and pytest versions on Linux x86_64")
@@ -1133,6 +1164,202 @@ def pypy_312_non_linux_exclusions_are_source_backed(
         source_evidence = exclusion.get("source_evidence")
         assert isinstance(source_evidence, list) and source_evidence, exclusion
         assert all(str(source).startswith(("http://", "https://")) for source in source_evidence), exclusion
+
+
+@when(
+    "I serialize a previously measured GraalPy 25.3 Linux acceptance artifact",
+    target_fixture="graalpy_253_serialized_evidence",
+)
+def run_graalpy_253_linux_acceptance(
+    request: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> dict[str, Any]:
+    acceptance = _serialize_runtime_acceptance_evidence(
+        request,
+        monkeypatch,
+        tmp_path,
+        cell_id="graalpy-253-linux",
+        actual_runtime="GraalPy",
+        implementation_name="GraalVM",
+        actual_python="3.13.14",
+        actual_pytest="9.1.1",
+        sha="f32d1150893bf0227e13940abd83549f4d9dc748",
+        run_url="https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/39730654752",
+        job_url="https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/39730654752/job/119664736950",
+        core_command="coverage run --append -m pytest -m core",
+        core_summary="1260 passed, 49 skipped in 30.00s",
+        tutorial_command=("python -m pytest features/compatibility/tutorial-example-acceptance.feature -m e2e -q"),
+    )
+    repository_root = acceptance["repository_root"]
+    selected = acceptance["selected_cell"]
+    tox_config = subprocess.run(
+        [
+            acceptance["tox_executable"],
+            "config",
+            "-e",
+            selected["tox_envs"][0],
+            "-k",
+            "package",
+            "skip_install",
+            "deps",
+            "commands",
+        ],
+        cwd=repository_root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert tox_config.returncode == 0, f"GraalPy tox config failed: {tox_config.stdout}\n{tox_config.stderr}"
+
+    workflow_path = repository_root / ".github" / "workflows" / "main.yml"
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    artifact_names = [
+        step.get("with", {}).get("name")
+        for job in workflow["jobs"].values()
+        if isinstance(job, dict)
+        for step in job.get("steps", [])
+        if isinstance(step, dict) and step.get("uses") == "actions/upload-artifact@v4"
+    ]
+    return {
+        **acceptance,
+        "tox_config": tox_config.stdout,
+        "expected_run_url": acceptance["run_url"],
+        "expected_job_url": acceptance["job_url"],
+        "expected_artifact_name": f"full-supported-proof-{acceptance['sha']}",
+        "artifact_names": artifact_names,
+    }
+
+
+@then("serialized evidence should preserve exact GraalPy and pytest versions on Linux x86_64 and bundled pip")
+def graalpy_253_measured_versions_and_bundled_pip_are_recorded(graalpy_253_serialized_evidence: dict[str, Any]) -> None:
+    result = graalpy_253_serialized_evidence
+    evidence = result["evidence"]
+    selected = result["selected_cell"]
+    policy_cell = result["policy_cell"]
+    assert result["return_code"] == 0, evidence
+    assert selected.get("runtime") == "GraalPy", selected
+    assert selected.get("runtime_version") == "25.3", selected
+    assert selected.get("python") == result["actual_python"] == "3.13.14", selected
+    assert selected.get("platform") == "linux", selected
+    assert selected.get("architecture") == "x86_64", selected
+    assert selected.get("expected_interpreter") == "3.13.14", selected
+    assert selected.get("setup_python_input") == "graalpy-25.3", selected
+    assert policy_cell.get("required_pytest_lines") == ["9.x"], policy_cell
+    assert policy_cell.get("runtime_version") == "25.3", policy_cell
+    assert policy_cell.get("python") == "3.13.14", policy_cell
+    installability = policy_cell.get("installability")
+    assert isinstance(installability, dict), policy_cell
+    assert installability.get("acceptance") == ["core-install", "core-tests", "examples"], installability
+
+    assert evidence["preflight"] == result["tox_launch"].get("preflight"), result["tox_launch"]
+    preflight = evidence["preflight"]
+    assert preflight["runtime"] == "GraalPy", preflight
+    assert preflight["python"] == result["actual_python"], preflight
+    assert preflight["platform_name"] == "linux", preflight
+    assert preflight["platform"] == "Linux-test", preflight
+    assert preflight["architecture"] == "x86_64", preflight
+
+    environments = evidence.get("environments")
+    assert isinstance(environments, list) and len(environments) == 1, environments
+    environment = environments[0]
+    assert environment["runtime"] == "GraalPy", environment
+    assert environment["python"] == result["actual_python"], environment
+    assert environment["pytest"] == result["actual_pytest"] == "9.1.1", environment
+    assert environment["platform_name"] == "linux", environment
+    assert environment["architecture"] == "x86_64", environment
+    assert re.fullmatch(r"9\.\d+\.\d+", environment["pytest"]), environment
+
+    tox_config = result["tox_config"]
+    assert "package = sdist" in tox_config, tox_config
+    assert "skip_install = False" in tox_config, tox_config
+    assert not re.search(r"(?im)^\s*pip(?:\b|[<>=!~])", tox_config), tox_config
+    assert not re.search(r"(?i)(?:python\s+-m\s+)?pip\s+install\b", tox_config), tox_config
+
+
+@then("serialized acceptance evidence should preserve sdist installation core and tutorial results with exact CI links")
+def graalpy_253_acceptance_commands_and_ci_links_are_recorded(
+    graalpy_253_serialized_evidence: dict[str, Any],
+) -> None:
+    result = graalpy_253_serialized_evidence
+    evidence = result["evidence"]
+    environments = evidence.get("environments")
+    assert isinstance(environments, list) and len(environments) == 1, environments
+    environment = environments[0]
+    assert evidence["git_sha"] == result["sha"] == "f32d1150893bf0227e13940abd83549f4d9dc748", evidence
+    assert evidence["outcome"] == environment["outcome"] == "passed", evidence
+    assert environment["git_sha"] == result["sha"], environment
+    assert environment["run_url"] == result["expected_run_url"], environment
+    assert environment["job_url"] == result["expected_job_url"], environment
+    assert environment["tox_environment"] == "graalpy-253-pytestlatest-coverage-lin", environment
+    assert environment["command"] == result["tox_launch"]["command"], environment
+    assert environment["command"][1:2] == ["run"], environment
+    assert "--result-json" in environment["command"], environment
+    assert environment["command"][-2:] == ["-e", "graalpy-253-pytestlatest-coverage-lin"], environment
+    assert environment["selected_tests"] == 1310, environment
+    assert environment["passed_tests"] == 1261, environment
+
+    acceptance = environment.get("acceptance_commands")
+    assert isinstance(acceptance, dict), environment
+    core = acceptance.get("core_tests")
+    tutorial = acceptance.get("tutorial_example")
+    assert isinstance(core, dict) and isinstance(tutorial, dict), acceptance
+    assert core["command_index"] == 0, core
+    assert core["selected_tests"] == 1309 and core["passed_tests"] == 1260, core
+    assert core["outcome"] == "passed" and core["failed_tests"] == core["error_tests"] == 0, core
+    assert tutorial["command_index"] == 1, tutorial
+    assert tutorial["selected_tests"] == tutorial["passed_tests"] == 1, tutorial
+    assert tutorial["outcome"] == "passed", tutorial
+    artifact_template = "full-supported-proof-${{ github.sha }}"
+    assert result["artifact_names"].count(artifact_template) == 1, result["artifact_names"]
+    assert result["expected_artifact_name"] == artifact_template.replace("${{ github.sha }}", result["sha"]), result
+
+
+@when("I inspect the GraalPy 25.3 platform exclusions", target_fixture="graalpy_253_platform_exclusions")
+def inspect_graalpy_253_platform_exclusions(request: Any) -> list[dict[str, Any]]:
+    inventory_path = Path(request.config.rootpath) / "config" / "env-matrix.yaml"
+    document = yaml.safe_load(inventory_path.read_text(encoding="utf-8"))
+    exclusions = document.get("runtime_policy", {}).get("exclusions")
+    assert isinstance(exclusions, list), exclusions
+    return [
+        exclusion
+        for exclusion in exclusions
+        if isinstance(exclusion, dict)
+        and str(exclusion.get("runtime", "")).casefold() == "graalpy"
+        and str(exclusion.get("runtime_version")) == "25.3"
+        and str(exclusion.get("platform", "")).casefold() in {"macos", "windows"}
+    ]
+
+
+@then("macOS and Windows should remain upstream available and carry GraalPy-specific technical reasons")
+def graalpy_253_non_linux_exclusions_are_source_backed(
+    graalpy_253_platform_exclusions: list[dict[str, Any]],
+) -> None:
+    exclusions = graalpy_253_platform_exclusions
+    by_platform = {str(exclusion.get("platform", "")).casefold(): exclusion for exclusion in exclusions}
+    assert set(by_platform) == {"macos", "windows"}, by_platform
+    for platform_name, exclusion in by_platform.items():
+        assert exclusion.get("python") == "3.13.14", exclusion
+        assert exclusion.get("upstream_availability", {}).get("status") == "available", exclusion
+        assert exclusion.get("product_support", {}).get("status") == "unsupported", exclusion
+        required_ci = exclusion.get("required_ci")
+        assert isinstance(required_ci, dict) and required_ci.get("status") == "excluded", exclusion
+        assert required_ci.get("tox_envs") == [], exclusion
+        reason = str(exclusion.get("reason", "")).casefold()
+        assert reason, exclusion
+        assert "source/native" in reason and any(term in reason for term in ("not verified", "unverified")), (
+            platform_name,
+            exclusion,
+        )
+        assert "graalpy-compatible wheels" in reason and "source builds" in reason, (platform_name, exclusion)
+        upstream_reason = str(exclusion.get("installability", {}).get("reason", "")).casefold()
+        if platform_name == "macos":
+            assert "less comprehensively tested" in upstream_reason, exclusion
+        else:
+            assert "additional windows limitations" in upstream_reason, exclusion
+        source_evidence = exclusion.get("source_evidence")
+        assert isinstance(source_evidence, list) and source_evidence, exclusion
+        assert "https://www.graalvm.org/latest/python/docs/" in source_evidence, exclusion
 
 
 @then("the CPython 3.14 macOS tox config should include uv>=0.8")

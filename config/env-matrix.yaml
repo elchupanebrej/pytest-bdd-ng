@@ -378,6 +378,64 @@ runtime_policy:
     - https://www.pypy.org/download.html
     - https://pypi.org/project/pydantic_core/
     - https://github.com/elchupanebrej/pytest-bdd-ng/issues/322
+  - id: graalpy-253-macos-product-excluded
+    runtime: GraalPy
+    runtime_version: '25.3'
+    python: '3.13.14'
+    platform: macos
+    architecture: all
+    upstream_availability:
+      status: available
+      source_evidence:
+      - https://www.graalvm.org/latest/python/docs/
+    installability:
+      status: not-assessed
+      reason: The pytest-cuke GraalPy 25.3 macOS source/native installation and installed-consumer path has not been verified; GraalPy documents macOS as less comprehensively tested and native packages require GraalPy-compatible wheels or source builds.
+    product_support:
+      status: unsupported
+      reason: Product acceptance currently covers GraalPy 25.3 only on Linux x86_64.
+    required_ci:
+      status: excluded
+      workflow_cell: null
+      tox_envs: []
+      reason: GraalPy 25.3 product acceptance is limited to Linux x86_64; macOS source/native and installed-consumer acceptance are unverified.
+    measured_evidence:
+      status: not-run
+      fields: *runtime_evidence_fields
+      reason: No GraalPy 25.3 macOS acceptance lane is configured; its source/native install and installed-consumer path remain unverified.
+    reason: GraalPy documents macOS as less comprehensively tested; pytest-cuke has not verified its source/native install and installed-consumer path, and native packages need GraalPy-compatible wheels or source builds.
+    source_evidence:
+    - https://www.graalvm.org/latest/python/docs/
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/323
+  - id: graalpy-253-windows-product-excluded
+    runtime: GraalPy
+    runtime_version: '25.3'
+    python: '3.13.14'
+    platform: windows
+    architecture: all
+    upstream_availability:
+      status: available
+      source_evidence:
+      - https://www.graalvm.org/latest/python/docs/
+    installability:
+      status: not-assessed
+      reason: The pytest-cuke GraalPy 25.3 Windows source/native installation and installed-consumer path has not been verified; GraalPy documents additional Windows limitations and native packages require GraalPy-compatible wheels or source builds.
+    product_support:
+      status: unsupported
+      reason: Product acceptance currently covers GraalPy 25.3 only on Linux x86_64.
+    required_ci:
+      status: excluded
+      workflow_cell: null
+      tox_envs: []
+      reason: GraalPy 25.3 product acceptance is limited to Linux x86_64; Windows source/native and installed-consumer acceptance are unverified.
+    measured_evidence:
+      status: not-run
+      fields: *runtime_evidence_fields
+      reason: No GraalPy 25.3 Windows acceptance lane is configured; its source/native install and installed-consumer path remain unverified.
+    reason: GraalPy documents additional Windows limitations; pytest-cuke has not verified its source/native install and installed-consumer path, and native packages need GraalPy-compatible wheels or source builds.
+    source_evidence:
+    - https://www.graalvm.org/latest/python/docs/
+    - https://github.com/elchupanebrej/pytest-bdd-ng/issues/323
 support_ledger:
   schema_version: 1
   historical_reference:
