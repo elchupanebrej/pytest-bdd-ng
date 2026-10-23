@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import cached_property
+from inspect import getattr_static
 from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 import pytest
@@ -24,6 +25,9 @@ class StepRegistryProtocol(Protocol):
     __pytest_cuke_step_registry__: Registry
 
 
+_MISSING = object()
+
+
 @define
 class Registry:
     namespace: StepRegistryProtocol | None = field(default=None)
@@ -44,8 +48,8 @@ class Registry:
                 value = getattr(self.namespace, attr)
             except Exception:  # noqa: S112
                 continue
-            if isinstance(value, StepProtocol) and hasattr(value, "__pytest_cuke_step_definitions__"):
-                step_containers.append(value)
+            if getattr_static(value, "__pytest_cuke_step_definitions__", _MISSING) is not _MISSING:
+                step_containers.append(cast("StepProtocol", value))
 
         discovered_definitions: list[Definition] = []
         for step_container in step_containers:
