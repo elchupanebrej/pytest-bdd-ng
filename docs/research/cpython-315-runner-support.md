@@ -1,6 +1,6 @@
 # CPython 3.15 provisioning on retained GitHub Actions runners
 
-**Checked:** 2026-10-13  
+**Checked:** 2026-10-13
 **Scope:** Python installer availability and GitHub Actions runner compatibility. This report does not establish product runtime support or change CI.
 
 ## Finding
