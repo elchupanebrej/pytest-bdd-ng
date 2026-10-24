@@ -2430,7 +2430,7 @@ def proof_summary_fails_without_architecture(
 ) -> None:
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
-    assert "reports architecture None" in proof_aggregation_result.stderr, proof_aggregation_result.stderr
+    assert "missing architecture evidence" in proof_aggregation_result.stderr, proof_aggregation_result.stderr
 
 
 @then("the proof summary should fail with an invalid architecture diagnostic")

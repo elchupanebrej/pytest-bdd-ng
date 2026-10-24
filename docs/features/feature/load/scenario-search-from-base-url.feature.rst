@@ -10,7 +10,7 @@ also override features base path on a per-scenario basis, in order to
 override the path for specific tests.
 
 Background:
-           
+
 
 -  Given Localserver endpoint "/features/Passing" responding content:
 
@@ -46,7 +46,7 @@ Background:
       test = scenarios('Passing', features_path_type='url')
 
 Scenario:
-         
+
 
 -  Given File "pytest.ini" with fixture templated content:
 

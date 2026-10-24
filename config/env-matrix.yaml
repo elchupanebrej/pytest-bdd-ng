@@ -40,7 +40,7 @@ runtime_policy:
       upstream_availability: *cpython_source
       installability: *core_installability
       product_support: *product_supported
-      required_ci: {status: required, workflow_cell: cpython-311-linux, tox_envs: [py311-pytestlatest-coverage-lin, py311-pytest74-coverage-lin]}
+      required_ci: {status: required, workflow_cell: cpython-311-linux, tox_envs: [py311-pytestlatest-coverage-lin, py311-pytest74-coverage-lin, py311-pytest72-coverage-lin, py311-pytest9-coverage-lin, py311-pytestlatest-xdist-coverage-lin]}
       required_pytest_lines: ["9.x", "7.4.x"]
       measured_evidence: {status: per-run, fields: *runtime_evidence_fields}
     - id: cpython-311-macos
@@ -76,7 +76,7 @@ runtime_policy:
       upstream_availability: *cpython_source
       installability: *core_installability
       product_support: *product_supported
-      required_ci: {status: required, workflow_cell: cpython-312-linux, tox_envs: [py312-pytestlatest-coverage-lin, py312-pytest84-coverage-lin]}
+      required_ci: {status: required, workflow_cell: cpython-312-linux, tox_envs: [py312-pytestlatest-coverage-lin, py312-pytest84-coverage-lin, py312-pytest73-coverage-lin, py312-pytest74-coverage-lin, py312-pytest80-coverage-lin, py312-pytest81-coverage-lin, py312-pytestlatest-xdist-coverage-lin]}
       required_pytest_lines: ["9.x", "8.4.x"]
       measured_evidence: {status: per-run, fields: *runtime_evidence_fields}
     - id: cpython-312-macos
@@ -112,7 +112,7 @@ runtime_policy:
       upstream_availability: *cpython_source
       installability: *core_installability
       product_support: *product_supported
-      required_ci: {status: required, workflow_cell: cpython-313-linux, tox_envs: [py313-pytestlatest-coverage-lin]}
+      required_ci: {status: required, workflow_cell: cpython-313-linux, tox_envs: [py313-pytestlatest-coverage-lin, py313-pytest82-coverage-lin, py313-pytest83-coverage-lin]}
       required_pytest_lines: ["9.x"]
       measured_evidence: {status: per-run, fields: *runtime_evidence_fields}
     - id: cpython-313-macos
@@ -124,7 +124,7 @@ runtime_policy:
       upstream_availability: *cpython_source
       installability: *core_installability
       product_support: *product_supported
-      required_ci: {status: required, workflow_cell: cpython-313-macos, tox_envs: [py313-pytestlatest-coverage-mac]}
+      required_ci: {status: required, workflow_cell: cpython-313-macos, tox_envs: [py313-pytestlatest-coverage-mac, py313-pytest82-coverage-mac, py313-pytest83-coverage-mac]}
       required_pytest_lines: ["9.x"]
       measured_evidence: {status: per-run, fields: *runtime_evidence_fields}
     - id: cpython-313-windows
@@ -136,7 +136,7 @@ runtime_policy:
       upstream_availability: *cpython_source
       installability: *core_installability
       product_support: *product_supported
-      required_ci: {status: required, workflow_cell: cpython-313-windows, tox_envs: [py313-pytestlatest-coverage-win]}
+      required_ci: {status: required, workflow_cell: cpython-313-windows, tox_envs: [py313-pytestlatest-coverage-win, py313-pytest82-coverage-win, py313-pytest83-coverage-win]}
       required_pytest_lines: ["9.x"]
       measured_evidence: {status: per-run, fields: *runtime_evidence_fields}
     - id: cpython-314-linux
@@ -456,8 +456,8 @@ runtime_inventory:
         job: full-matrix
         cell: cpython-311-linux
         tox_environment: py311-pytest9-coverage-lin
-        artifact_name: env-evidence-full-cpython-311-linux-py311-pytest9-coverage-lin
-        artifact_path: artifacts/evidence-full-matrix-cpython-311-linux-py311-pytest9-coverage-lin.json
+        artifact_name: env-evidence-full-cpython-311-linux-all
+        artifact_path: artifacts/evidence-full-matrix-cpython-311-linux-all.json
         required_fields: [git_sha, job, cell, tox_environment, runtime, python, pytest, platform, platform_name, os_name, os_release, architecture, command, selected_tests, passed_tests, outcome, returncode, job_url, run_url]
       exclusion_reason: null
       optional_integrations:
@@ -1292,6 +1292,7 @@ support_ledger:
     - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
     - https://docs.pytest.org/en/7.4.x/changelog.html
 
+workflow_cells:
 - id: remote-socket
   job: remote
   runtime: CPython

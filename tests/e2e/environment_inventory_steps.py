@@ -862,6 +862,8 @@ def start_cpython_315_cell_with_preflight(
             python_version=lambda: actual_python,
             platform=lambda: platform,
             machine=lambda: machine,
+            system=lambda: {"linux": "Linux", "darwin": "Darwin", "win32": "Windows"}[platform_name],
+            release=lambda: "test-release",
         ),
     )
     monkeypatch.setattr(runner.sys, "platform", platform_name)
@@ -986,6 +988,8 @@ def _serialize_runtime_acceptance_evidence(
             python_version=lambda: actual_python,
             platform=lambda: "Linux-test",
             machine=lambda: "x86_64",
+            system=lambda: "Linux",
+            release=lambda: "test-release",
         ),
     )
     monkeypatch.setattr(runner.sys, "platform", "linux")
@@ -1632,7 +1636,10 @@ def below_floor_runtime_and_pytest_factors_are_not_selected(consumer: Any) -> No
             assert not lane.get("workflow_selector") and not lane.get("tox_env"), lane
         for tox_environment in selected_tox_environments:
             match = re.match(r"py\d+-pytest(?P<pytest>\d+)(?:-|$)", tox_environment.strip())
-            assert match is None or int(match.group("pytest")) >= 70, lane
+            if match is not None:
+                pytest_factor = match.group("pytest")
+                pytest_major = int(pytest_factor) if len(pytest_factor) > 1 else int(pytest_factor) * 10
+                assert pytest_major >= 70, lane
 
 
 @then("required CPython cells should use latest pytest 9 with the specified pytest 7 and 8 floor cells")
