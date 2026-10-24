@@ -33,6 +33,6 @@ the ignored policy does not turn them into passing steps.
 
 Enable the policy with ``--cuke-tolerant-status=ignored`` or
 ``cuke_tolerant_status = "ignored"``. The checked-in
-`tolerant-steps example <../../examples/tolerant-steps/README.md>`_ runs the
+`tolerant-steps example <../../examples/tolerant-steps/readme.md>`_ runs the
 same contract with Messages and Cucumber JSON output. Its consumer scenario is
 executed by the E2E suite.

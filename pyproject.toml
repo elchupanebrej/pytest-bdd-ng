@@ -67,7 +67,6 @@ dependencies = [
   "parse_type>=0.6.6",
   "pathvalidate",
   "py",
-  "pydantic>=2.0.3",
   "referencing>=0.30",
   "pytest>=7.0",
   "cucumber-tag-expressions",

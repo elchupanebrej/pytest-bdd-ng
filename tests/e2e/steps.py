@@ -11430,6 +11430,7 @@ def uninstall_debug_mcp_extra(consumer: ConsumerProject) -> None:
             "mcp",
             "mcp-pdb",
             "uvicorn",
+            "pydantic",
         ],
         cwd=consumer.path,
         env=consumer.env,
@@ -11443,7 +11444,7 @@ def uninstall_debug_mcp_extra(consumer: ConsumerProject) -> None:
         [
             str(consumer.python),
             "-c",
-            "import importlib.util, sys; sys.exit(1 if any(importlib.util.find_spec(name) for name in ('mcp', 'mcp_pdb', 'uvicorn')) else 0)",
+            "import importlib.util, sys; sys.exit(1 if any(importlib.util.find_spec(name) for name in ('mcp', 'mcp_pdb', 'uvicorn', 'pydantic')) else 0)",
         ],
         cwd=consumer.path,
         env=consumer.env,

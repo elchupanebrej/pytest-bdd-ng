@@ -18,7 +18,7 @@ lines; source reports retain the marker and physical dataset row
 locations separately. This checkout has no batch collector yet.
 
 Scenario: The installed public facade loads autoloaded and explicitly bound sources
-                                                                                   
+
 
 -  Given the pytest-cuke wheel built from this checkout is installed in
    a fresh consumer project
@@ -147,7 +147,7 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
    URIs, Background steps, and outcomes
 
 Scenario: Invalid external sources fail collection with both paths
-                                                                  
+
 
 -  Given the pytest-cuke wheel built from this checkout is installed in
    a fresh consumer project
@@ -178,7 +178,7 @@ Scenario: Invalid external sources fail collection with both paths
    and both paths
 
 Scenario: Explicit bindings and subsequent sessions read current source rows
-                                                                            
+
 
 -  Given the pytest-cuke wheel built from this checkout is installed in
    a fresh consumer project
