@@ -1414,6 +1414,7 @@ def proof_summary_fails_for_missing_debug_mcp_uv_version(
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "requires system tool 'uv' with an actual version" in proof_aggregation_result.stderr
 
+
 @then("every evidence record should retain its declared architecture")
 def proof_summary_preserves_declared_architecture(proof_aggregation: ProofAggregationContext) -> None:
     summary_environments = _summary(proof_aggregation).get("environments")

@@ -98,6 +98,8 @@ def _required_runtime_cells(context: EnvironmentInventoryContext) -> list[dict[s
 
 def _runtime_cell_key(cell: dict[str, Any]) -> tuple[str, str, str, str]:
     return tuple(str(cell.get(key, "")).casefold() for key in ("runtime", "python", "platform", "architecture"))  # type: ignore[return-value]
+
+
 def _runtime_inventory(context: EnvironmentInventoryContext) -> dict[str, Any]:
     inventory = context.document.get("runtime_inventory")
     assert isinstance(inventory, dict), "config/env-matrix.yaml must declare runtime_inventory"
@@ -1577,6 +1579,8 @@ def cpython_311_linux_cell_requires_x86_64(consumer: Any) -> None:
         "workflow_cell": workflow_cell.get("architecture"),
     }
     assert actual_architectures == {"runtime_policy": "x86_64", "workflow_cell": "x86_64"}, actual_architectures
+
+
 @then("required lanes should include CPython 3.11 and 3.14")
 def required_lanes_include_supported_cpython_targets(consumer: Any) -> None:
     required = [lane for lane in _lanes(_context(consumer)) if _status(lane) == "required"]
@@ -1942,9 +1946,9 @@ def obsolete_cpython_and_pypy_runtimes_are_canonical_exclusions(consumer: Any) -
             assert exclusion.get("required_ci") is False, exclusion
             assert exclusion.get("result") == "not_required", exclusion
             assert isinstance(exclusion.get("evidence"), dict) and exclusion["evidence"], exclusion
-            assert (
-                isinstance(exclusion.get("exclusion_reason"), str) and exclusion["exclusion_reason"].strip()
-            ), exclusion
+            assert isinstance(exclusion.get("exclusion_reason"), str) and exclusion["exclusion_reason"].strip(), (
+                exclusion
+            )
         supported_rows = [
             row
             for row in inventory["rows"]
@@ -2117,9 +2121,7 @@ def runtime_evidence_artifact_outside_aggregate_pattern_fails(
 @then("optional integration outcomes should remain independent from core runtime support")
 def optional_integration_outcomes_do_not_change_core_support(consumer: Any) -> None:
     inventory = _runtime_inventory(_context(consumer))
-    row = next(
-        (item for item in inventory["rows"] if item.get("id") == "cpython-311-linux-x86_64-pytest9latest"), None
-    )
+    row = next((item for item in inventory["rows"] if item.get("id") == "cpython-311-linux-x86_64-pytest9latest"), None)
     assert row is not None, inventory
     assert row["support"] == "supported", row
     optional_integrations = row.get("optional_integrations")
@@ -2132,11 +2134,7 @@ def optional_integration_outcomes_do_not_change_core_support(consumer: Any) -> N
         assert integration["evidence"] is None, (name, integration)
 
     changed_document = copy.deepcopy(_context(consumer).document)
-    changed_row = next(
-        item
-        for item in changed_document["runtime_inventory"]["rows"]
-        if item["id"] == row["id"]
-    )
+    changed_row = next(item for item in changed_document["runtime_inventory"]["rows"] if item["id"] == row["id"])
     core_support = changed_row["support"]
     for integration in changed_row["optional_integrations"].values():
         integration.update(
@@ -3281,9 +3279,7 @@ def installed_metadata_declares_runtime_floors_without_implementation_markers(co
     assert isinstance(requirement_lines, list), metadata
     requirements = [Requirement(line) for line in requirement_lines]
     pytest_requirements = [
-        requirement
-        for requirement in requirements
-        if re.sub(r"[-_.]+", "-", requirement.name).casefold() == "pytest"
+        requirement for requirement in requirements if re.sub(r"[-_.]+", "-", requirement.name).casefold() == "pytest"
     ]
     assert pytest_requirements, requirements
     assert all(requirement.specifier.contains("7.0") for requirement in pytest_requirements), pytest_requirements

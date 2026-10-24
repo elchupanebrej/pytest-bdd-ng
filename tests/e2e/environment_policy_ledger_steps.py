@@ -460,7 +460,9 @@ def pinned_r_support_baseline_is_loaded(request: Any, consumer: Any) -> Historic
     return HistoricalEnvironmentBaselineContext(consumer, baseline, baseline_path)
 
 
-@then("the live support ledger should retain the pinned cells and classify retired cells with source-backed policy exclusions")
+@then(
+    "the live support ledger should retain the pinned cells and classify retired cells with source-backed policy exclusions"
+)
 def live_support_ledger_retains_historical_cells_and_current_exclusions(
     historical_environment_baseline: HistoricalEnvironmentBaselineContext,
 ) -> None:
