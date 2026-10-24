@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from pytest_bdd.model.background import Background
-from pytest_bdd.model.rule import Rule
-from pytest_bdd.model.scenario import Scenario
-from pytest_bdd.model.step import Step
-from pytest_bdd.model.tag import Tag
+from pytest_cuke.model.background import Background
+from pytest_cuke.model.rule import Rule
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.step import Step
+from pytest_cuke.model.tag import Tag
 
 from pytest import mark
 

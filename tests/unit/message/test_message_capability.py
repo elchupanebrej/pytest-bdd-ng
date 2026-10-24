@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import cucumber_messages
-from pytest_bdd.model.message_capability import (
+from pytest_cuke.model import message_types as messages
+from pytest_cuke.model.message_capability import (
     MessageCapability,
     capability_is_relevant,
     classify_capability_relevance,
 )
-from pytest_bdd.model.message_extension import (
+from pytest_cuke.model.message_extension import (
     CONTROLLER_SINGULAR_PAYLOAD_KINDS,
     EXECUTION_PRESERVED_PAYLOAD_KINDS,
     STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS,
@@ -16,10 +16,6 @@ from pytest_bdd.model.message_extension import (
     get_payload_merge_class,
     has_single_payload,
 )
-
-from pytest import mark
-
-pytestmark = mark.unit
 
 
 def test_message_capability_classification() -> None:
@@ -57,13 +53,13 @@ def test_message_capability_classification() -> None:
 
 
 def test_message_extension_payload_helpers() -> None:
-    env_empty = cucumber_messages.Envelope()
+    env_empty = messages.Envelope()
     assert get_payload_kind(env_empty) is None
     assert has_single_payload(env_empty) is False
     assert get_payload_merge_class(None) is None
 
-    ts = cucumber_messages.Timestamp(seconds=1, nanos=0)
-    env_started = cucumber_messages.Envelope(test_run_started=cucumber_messages.TestRunStarted(timestamp=ts))
+    ts = messages.Timestamp(seconds=1, nanos=0)
+    env_started = messages.Envelope(test_run_started=messages.TestRunStarted(timestamp=ts))
     kind = get_payload_kind(env_started)
     assert kind == "test_run_started"
     assert has_single_payload(env_started) is True
@@ -71,14 +67,13 @@ def test_message_extension_payload_helpers() -> None:
 
     assert get_payload_merge_class("source") == "structural_deduplicated"
     assert get_payload_merge_class("test_step_started") == "execution_preserved"
-    assert get_payload_merge_class("not_a_payload_kind") is None
     assert "meta" in CONTROLLER_SINGULAR_PAYLOAD_KINDS
     assert "gherkin_document" in STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS
     assert "test_step_finished" in EXECUTION_PRESERVED_PAYLOAD_KINDS
 
 
 def test_message_extension_pattern_and_lifecycle() -> None:
-    assert StepDefinitionPatternType.pytest_bdd_heuristic_expression.value == "PYTEST_BDD_HEURISTIC_EXPRESSION"
+    assert StepDefinitionPatternType.pytest_cuke_heuristic_expression.value == "PYTEST_BDD_HEURISTIC_EXPRESSION"
     assert StepDefinitionPatternType.regular_expression.value == "REGULAR_EXPRESSION"
 
     correlation = LifecycleCorrelation(

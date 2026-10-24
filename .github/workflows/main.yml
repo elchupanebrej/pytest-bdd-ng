@@ -1,4 +1,3 @@
----
 name: Main testing workflow
 
 on:  # yamllint disable-line rule:truthy
@@ -6,146 +5,392 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
+  matrix-select:
+    runs-on: ubuntu-latest
+    outputs:
+      full_matrix: ${{ steps.full.outputs.cells }}
+      optional_integrations: ${{ steps.optional.outputs.cells }}
+      remote: ${{ steps.remote.outputs.cells }}
+      browser_report: ${{ steps.browser.outputs.cells }}
+      live_formatters: ${{ steps.live_formatters.outputs.cells }}
+      native: ${{ steps.native.outputs.cells }}
+      quality: ${{ steps.quality.outputs.cells }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install inventory reader
+        run: python -m pip install "PyYAML==6.0.3"
+      - id: full
+        name: Select full runtime cells from the inventory
+        run: python scripts/env_matrix.py --job full-matrix --split-tox-envs --github-output
+      - id: optional
+        name: Select optional integration cells from the inventory
+        run: python scripts/env_matrix.py --job optional-integrations --split-tox-envs --github-output
+      - id: remote
+        name: Select remote xdist cells from the inventory
+        run: python scripts/env_matrix.py --job remote --github-output
+      - id: browser
+        name: Select browser report cells from the inventory
+        run: python scripts/env_matrix.py --job browser-report --github-output
+      - id: live_formatters
+        name: Select live formatter acceptance cells from the inventory
+        run: python scripts/env_matrix.py --job live-formatters-acceptance --github-output
+      - id: native
+        name: Select native parser cells from the inventory
+        run: python scripts/env_matrix.py --job native-go-parser --github-output
+      - id: quality
+        name: Select quality cells from the inventory
+        run: python scripts/env_matrix.py --job quality --github-output
+
   fast-pr:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+          submodules: "recursive"
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "*"
-      - name: Install pandoc
-        uses: r-lib/actions/setup-pandoc@v2
-      - name: Install PyPi dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[struct-bdd,test,doc-gen]" pytest-xdist pre-commit mypy
-      - name: Install npm dependencies
-        run: |
-          npm install "@cucumber/gherkin"
-          npm install "@cucumber/html-formatter"
-          npm install cucumber-html-reporter
-          npm list
-      - name: Fast tests
-        run: |
-          python -m pytest -m "not e2e and not external and not slow" -n4 -q
-      - name: Lint
-        run: |
-          pre-commit run --all-files
-      - name: Type checking
-        run: |
-          python -m mypy
+          node-version: "22"
+      - uses: r-lib/actions/setup-pandoc@v2
+      - name: Install project and inventory dependencies
+        run: python -m pip install -e ".[test,struct-bdd,env-matrix]" "uv>=0.8"
+      - name: Install JavaScript formatters used by the test suite
+        run: npm install --no-save --no-package-lock "@cucumber/cucumber@13.3.0" "@cucumber/gherkin" "@cucumber/html-formatter" cucumber-html-reporter
+      - name: Verify tox and CI selectors against the inventory
+        run: cuke compatibility --check-environments --inventory config/env-matrix.yaml --json
+      - name: Verify the optional dependency probe selects tests
+        run: cuke compatibility --check-environments --inventory config/env-matrix.yaml --lane optional-dependency-probe --json
+      - name: Run the fast pull request test selector
+        run: python -m pytest -m "not e2e and not external and not slow and not typecheck and not doc_gen" -q
+      - name: Run the environment inventory BDD acceptance
+        run: python -m pytest features/compatibility/environment-inventory.feature -m e2e -q
 
-  test:
-    if: github.event_name != 'pull_request'
-
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+  live-formatters-acceptance:
+    name: Live formatter acceptance (${{ matrix.cell.id }})
+    needs: matrix-select
+    runs-on: ${{ matrix.cell.runner }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
-        python-version:
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "pypy3.10"
-        os:
-          - ubuntu-latest
-          - windows-latest
-          - macos-latest
-        exclude:
-          - python-version: "3.10"
-            os: windows-latest
-          - python-version: "3.11"
-            os: windows-latest
-          - python-version: "3.12"
-            os: windows-latest
-          - python-version: "3.10"
-            os: macos-latest
-          - python-version: "3.11"
-            os: macos-latest
-          - python-version: "3.12"
-            os: macos-latest
+        cell: ${{ fromJSON(needs.matrix-select.outputs.live_formatters) }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
         with:
-          submodules: 'recursive'
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+          python-version: ${{ matrix.cell.python }}
+      - uses: actions/setup-node@v4
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+          node-version: "22"
+      - name: Install tox and the inventory reader
+        run: python -m pip install "tox>=4.2" "PyYAML==6.0.3" "uv>=0.8"
+      - name: Verify the Allure 3 renderer used by native reporting acceptance
+        run: npx --yes allure@3.20.0 --version
+      - uses: ./.github/actions/export-job-url
         with:
-          node-version: "*"
-      - name: Install pandoc
-        uses: r-lib/actions/setup-pandoc@v2
-      - name: Install PyPi dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -U setuptools
-          pip install "tox>=4.0" "tox-gh-actions>=3.2" codecov
-      - name: Install npm dependencies
-        run: |
-          npm install "@cucumber/gherkin"
-          npm install "@cucumber/html-formatter"
-          npm install cucumber-html-reporter
-          npm list
-      - name: Test with tox
-        run: |
-          tox -- -m "not e2e"
-      - name: Gather codecov
-        if: matrix.python-version == '3.13'
-        run: |
-          codecov
-      - name: Build checking
-        if: "matrix.python-version == '3.13'"
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          python -m pip install --upgrade build twine
-          python -m build
-          twine check dist/*
+          job-name: ${{ format('Live formatter acceptance ({0})', matrix.cell.id) }}
+      - name: Run and record the selected live formatter acceptance cell
+        shell: bash
+        run: >-
+          python scripts/run_env_matrix_cell.py
+          --job live-formatters-acceptance
+          --cell "${{ matrix.cell.id }}"
+          --sha "${{ github.sha }}"
+          --output "artifacts/evidence-live-formatters-${{ matrix.cell.id }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: env-evidence-live-formatters-${{ matrix.cell.id }}
+          path: artifacts/evidence-live-formatters-${{ matrix.cell.id }}.json
+          if-no-files-found: warn
 
-  e2e:
+  full-matrix:
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: Full runtime matrix (${{ matrix.cell.id }} / ${{ matrix.cell.tox_environment || 'all' }})
+    needs: matrix-select
+    runs-on: ${{ matrix.cell.runner }}
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ${{ fromJSON(needs.matrix-select.outputs.full_matrix) }}
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: 'recursive'
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+          submodules: "recursive"
+      - uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+          python-version: ${{ matrix.cell.setup_python_input }}
+      - uses: actions/setup-node@v4
         with:
-          node-version: "*"
-      - name: Install pandoc
+          node-version: "22"
+      - uses: r-lib/actions/setup-pandoc@v2
+      - name: Install tox and the inventory reader
+        run: python -m pip install "tox>=4.2" "PyYAML==6.0.3"
+      - name: Install JavaScript formatters used by the test suite
+        run: npm install --no-save --no-package-lock "@cucumber/cucumber@13.3.0" "@cucumber/gherkin" "@cucumber/html-formatter" cucumber-html-reporter
+      - name: Record JavaScript and Pandoc tool versions
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          node --version > artifacts/tool-versions.txt
+          npm --version >> artifacts/tool-versions.txt
+          pandoc --version >> artifacts/tool-versions.txt
+          npm list --json --depth=0 > artifacts/npm-versions.json
+      - uses: ./.github/actions/export-job-url
+        with:
+          job-name: ${{ format('Full runtime matrix ({0} / {1})', matrix.cell.id, matrix.cell.tox_environment || 'all') }}
+      - name: Run the selected tox environment or runtime cell
+        shell: bash
+        run: python scripts/run_env_matrix_cell.py --job full-matrix --cell "${{ matrix.cell.id }}" --tox-env "${{ matrix.cell.tox_environment || '' }}" --sha "${{ github.sha }}" --output "artifacts/evidence-full-matrix-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: env-evidence-full-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}
+          path: |
+            artifacts/evidence-full-matrix-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json
+            artifacts/npm-versions.json
+            artifacts/tool-versions.txt
+          if-no-files-found: warn
+
+  optional-integrations:
+    if: github.event_name != 'pull_request'
+    name: Optional integration acceptance (${{ matrix.cell.id }} / ${{ matrix.cell.tox_environment || 'all' }})
+    needs: matrix-select
+    runs-on: ${{ matrix.cell.runner }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ${{ fromJSON(needs.matrix-select.outputs.optional_integrations) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.cell.setup_python_input || matrix.cell.python }}
+      - uses: actions/setup-node@v4
+        if: contains(matrix.cell.tox_environment, 'allure')
+        with:
+          node-version: "22"
+      - name: Install tox, inventory reader, and isolated-consumer tool
+        run: python -m pip install "tox>=4.2" "PyYAML==6.0.3" "uv>=0.8"
+      - name: Verify Allure CLI for the offline conversion acceptance lane
+        if: contains(matrix.cell.tox_environment, 'allure')
+        run: npx --yes allure@3.20.0 --version
+      - uses: ./.github/actions/export-job-url
+        with:
+          job-name: ${{ format('Optional integration acceptance ({0} / {1})', matrix.cell.id, matrix.cell.tox_environment || 'all') }}
+      - name: Run the selected optional integration contract
+        shell: bash
+        run: >-
+          python scripts/run_env_matrix_cell.py
+          --job optional-integrations
+          --cell "${{ matrix.cell.id }}"
+          --tox-env "${{ matrix.cell.tox_environment || '' }}"
+          --sha "${{ github.sha }}"
+          --output "artifacts/evidence-optional-integrations-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: env-evidence-optional-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}
+          path: artifacts/evidence-optional-integrations-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json
+          if-no-files-found: warn
+
+  remote:
+    if: github.event_name != 'pull_request'
+    name: Remote xdist acceptance (${{ matrix.cell.id }})
+    needs: matrix-select
+    runs-on: ${{ matrix.cell.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ${{ fromJSON(needs.matrix-select.outputs.remote) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.cell.python }}
+      - name: Verify Docker Compose and SSH prerequisites
+        run: |
+          docker info
+          docker compose version
+          python -c 'import shutil; assert shutil.which("ssh-keygen"), "OpenSSH ssh-keygen is required for the SSH remote lane"'
+      - name: Install tox and the inventory reader
+        run: python -m pip install "tox>=4.2" "PyYAML==6.0.3"
+      - uses: ./.github/actions/export-job-url
+        with:
+          job-name: ${{ format('Remote xdist acceptance ({0})', matrix.cell.id) }}
+      - name: Run the selected real remote xdist contract
+        shell: bash
+        run: python scripts/run_env_matrix_cell.py --job remote --cell "${{ matrix.cell.id }}" --sha "${{ github.sha }}" --output "artifacts/evidence-remote-${{ matrix.cell.id }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: env-evidence-remote-${{ matrix.cell.id }}
+          path: artifacts/evidence-remote-${{ matrix.cell.id }}.json
+          if-no-files-found: warn
+
+  browser-report:
+    if: github.event_name != 'pull_request'
+    name: Browser report acceptance (${{ matrix.cell.id }})
+    needs: matrix-select
+    runs-on: ${{ matrix.cell.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ${{ fromJSON(needs.matrix-select.outputs.browser_report) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.cell.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install and record the exact Allure CLI
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          npx --yes allure@3.20.0 --version | tee artifacts/allure-cli-version.txt
+          node --version > artifacts/tool-versions.txt
+          npm --version >> artifacts/tool-versions.txt
+      - name: Install tox and the inventory reader
+        run: python -m pip install "tox>=4.2" "PyYAML==6.0.3" "uv>=0.8"
+      - name: Record the uv version used by the isolated consumer
+        run: uv --version >> artifacts/tool-versions.txt
+      - uses: ./.github/actions/export-job-url
+        with:
+          job-name: ${{ format('Browser report acceptance ({0})', matrix.cell.id) }}
+      - name: Run the actual Chromium report review
+        shell: bash
+        run: python scripts/run_env_matrix_cell.py --job browser-report --cell "${{ matrix.cell.id }}" --sha "${{ github.sha }}" --output "artifacts/evidence-browser-report-${{ matrix.cell.id }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: env-evidence-browser-${{ matrix.cell.id }}
+          path: |
+            artifacts/evidence-browser-report-${{ matrix.cell.id }}.json
+            artifacts/allure-cli-version.txt
+            artifacts/tool-versions.txt
+          if-no-files-found: warn
+
+  native-go-parser:
+    if: github.event_name != 'pull_request'
+    name: Native Go parser acceptance (${{ matrix.cell.id }})
+    needs: matrix-select
+    runs-on: ${{ matrix.cell.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ${{ fromJSON(needs.matrix-select.outputs.native) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.cell.python }}
+      - name: Install MinGW C compiler
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-gcc
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: native/gherkin_go/go.mod
+      - name: Install tox and inventory reader
+        run: python -m pip install "tox>=4.2" "PyYAML==6.0.3"
+      - uses: ./.github/actions/export-job-url
+        with:
+          job-name: ${{ format('Native Go parser acceptance ({0})', matrix.cell.id) }}
+      - name: Run the source-distribution native parser contract
+        shell: bash
+        run: python scripts/run_env_matrix_cell.py --job native-go-parser --cell "${{ matrix.cell.id }}" --sha "${{ github.sha }}" --output "artifacts/evidence-native-go-parser-${{ matrix.cell.id }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: env-evidence-native-${{ matrix.cell.id }}
+          path: artifacts/evidence-native-go-parser-${{ matrix.cell.id }}.json
+          if-no-files-found: warn
+
+  quality:
+    needs: matrix-select
+    name: Quality lane (${{ matrix.cell.id }})
+    runs-on: ${{ matrix.cell.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        cell: ${{ fromJSON(needs.matrix-select.outputs.quality) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: "recursive"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.cell.python }}
+      - name: Install Pandoc for documentation generation
+        if: matrix.cell.id == 'doc-generation'
         uses: r-lib/actions/setup-pandoc@v2
-      - name: Install PyPi dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[struct-bdd,test,doc-gen]" pytest-xdist
-      - name: Install npm dependencies
-        run: |
-          npm install "@cucumber/gherkin"
-          npm install "@cucumber/html-formatter"
-          npm install cucumber-html-reporter
-          npm list
-      - name: E2E tests
-        run: |
-          python -m pytest -m e2e -n4 -q
+      - name: Install tox and the inventory reader
+        run: python -m pip install "tox>=4.2" "PyYAML==6.0.3"
+      - uses: ./.github/actions/export-job-url
+        with:
+          job-name: ${{ format('Quality lane ({0})', matrix.cell.id) }}
+      - name: Run the selected quality lane
+        shell: bash
+        run: python scripts/run_env_matrix_cell.py --job quality --cell "${{ matrix.cell.id }}" --sha "${{ github.sha }}" --output "artifacts/evidence-quality-${{ matrix.cell.id }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: env-evidence-quality-${{ matrix.cell.id }}
+          path: artifacts/evidence-quality-${{ matrix.cell.id }}.json
+          if-no-files-found: warn
+
+  aggregate-proof:
+    if: always() && github.event_name != 'pull_request'
+    needs: [matrix-select, full-matrix, optional-integrations, remote, browser-report, live-formatters-acceptance, native-go-parser, quality]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Install inventory reader
+        run: python -m pip install "PyYAML==6.0.3"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: env-evidence-*
+          path: artifacts
+          merge-multiple: true
+      - name: Verify every inventory environment and outcome for this exact SHA
+        run: python scripts/aggregate_env_evidence.py --input-dir artifacts --inventory config/env-matrix.yaml --sha "${{ github.sha }}" --output artifacts/full-proof-summary.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-supported-proof-${{ github.sha }}
+          path: artifacts/
+          if-no-files-found: warn

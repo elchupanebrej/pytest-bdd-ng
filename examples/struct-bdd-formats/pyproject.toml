@@ -1,0 +1,10 @@
+[project]
+name = "pytest-cuke-struct-bdd-formats"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["pytest", "pytest-cuke[struct-bdd]>=2.3.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["features"]
+cuke_autoload = true
+cuke_features_dir = "features"

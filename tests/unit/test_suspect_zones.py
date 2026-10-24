@@ -92,46 +92,83 @@ def test_is_wsl_bash_detects_system32_launcher(monkeypatch) -> None:
 @mark.parametrize(
     ("changed", "expected"),
     [
-        param("src/pytest_bdd/parser.py", ["tests/unit/parser", "tests/args", "tests/feature"], id="parser"),
         param(
-            "src/pytest_bdd/model/feature.py",
-            ["tests/unit/model", "tests/unit/parser", "tests/feature"],
+            "src/pytest_cuke/parser.py",
+            ["tests/unit/parser", "tests/integration/step-parsing", "tests/integration/features"],
+            id="parser",
+        ),
+        param(
+            "src/pytest_cuke/model/feature.py",
+            ["tests/unit/model", "tests/unit/parser", "tests/integration/features"],
             id="model",
         ),
-        param("src/pytest_bdd/reporting.py", ["tests/unit/reporting", "tests/feature"], id="reporting"),
-        param("src/pytest_bdd/compatibility/path.py", ["tests/unit/compatibility"], id="compatibility"),
-        param("src/pytest_bdd/generation.py", ["tests/generation", "tests/unit/plugins"], id="generation"),
         param(
-            "src/pytest_bdd/hook.py",
-            ["tests/hook", "tests/unit/execution", "tests/test_hooks.py"],
+            "src/pytest_cuke/reporting.py",
+            ["tests/unit/reporting", "tests/unit/plugins", "tests/integration/features", "features/live-cucumber-json.feature", "features/live-cucumber-junit-xml.feature"],
+            id="reporting",
+        ),
+        param(
+            "src/pytest_cuke/compatibility/path.py",
+            ["tests/unit/compatibility", "features/compatibility"],
+            id="compatibility",
+        ),
+        param(
+            "src/pytest_cuke/generation.py",
+            ["tests/integration/generation", "tests/unit/generation", "tests/unit/plugins"],
+            id="generation",
+        ),
+        param(
+            "src/pytest_cuke/hooks.py",
+            ["tests/integration/hooks", "tests/unit/execution"],
             id="hook",
         ),
         param(
-            "src/pytest_bdd/message_plugin.py",
-            ["tests/unit/message", "tests/messages", "tests/unit/plugins"],
+            "src/pytest_cuke/message_plugin.py",
+            ["tests/unit/message", "tests/contract/messages", "tests/unit/plugins", "features/cucumber-messages-reporting-spine.feature", "features/message-worker-consolidation.feature"],
             id="message",
         ),
         param(
-            "src/pytest_bdd/plugin.py",
-            ["tests/unit/bootstrap", "tests/unit/execution", "tests/contract", "tests/feature", "tests/e2e"],
+            "src/pytest_cuke/plugin.py",
+            ["tests/unit/bootstrap", "tests/unit/execution", "tests/contract", "tests/integration/features", "features/pytest-cuke-bootstrap.feature"],
             id="plugin",
         ),
         param(
-            "src/pytest_bdd/struct_bdd/parser.py",
-            ["tests/struct_bdd", "tests/unit/plugins", "tests/unit/parser", "tests/unit/compatibility"],
+            "src/pytest_cuke/struct_bdd/parser.py",
+            ["tests/integration/struct-bdd", "tests/unit/plugins", "tests/unit/parser", "tests/unit/compatibility", "features/compatibility/optional-struct-bdd-extra.feature"],
             id="struct-bdd",
         ),
-        param("src/pytest_bdd/utils.py", ["tests/unit/core", "tests/unit/execution"], id="core-module"),
-        param("tests/unit/parser/test_gherkin_parser.py", ["tests/unit/parser"], id="changed-test-own-dir"),
-        param("features/Feature/Tag.feature.md", ["tests/e2e"], id="feature-asset-e2e"),
-        param("testdata/allure_/outline.feature", ["tests/allure_"], id="allure-testdata"),
-        param("README.rst", ["tests/doc"], id="docs-only"),
+        param(
+            "src/pytest_cuke/utils.py",
+            ["tests/unit/core", "tests/unit/execution"],
+            id="core-module",
+        ),
+        param(
+            "tests/unit/parser/test_gherkin_parser.py",
+            ["tests/unit/parser"],
+            id="changed-test-own-dir",
+        ),
+        param(
+            "tests/e2e/runtime_steps.py",
+            ["features"],
+            id="shared-bdd-steps",
+        ),
+        param(
+            "features/feature/tag.feature.md",
+            ["features/feature/tag.feature.md"],
+            id="feature-asset",
+        ),
+        param(
+            "tests/data/offline-formatter-replay/input.ndjson",
+            ["tests/contract", "tests/integration"],
+            id="testdata",
+        ),
+        param("README.rst", ["tests/unit/docs"], id="docs-only"),
         param("conftest.py", ["FULL"], id="root-conftest-full"),
         param("tests/unit/conftest.py", ["FULL"], id="nested-conftest-full"),
         param("pyproject.toml", ["FULL"], id="pytest-config-full"),
-        param("src/pytest_bdd/brand_new_module.py", ["tests/unit", "tests/feature"], id="unknown-src-wide"),
-        param("some/unknown/path.txt", ["tests/unit", "tests/feature"], id="unknown-path-wide"),
-        param("stray/root.feature", ["tests/unit", "tests/feature"], id="unowned-feature-wide"),
+        param("src/pytest_cuke/brand_new_module.py", ["tests/unit", "tests/integration"], id="unknown-src-wide"),
+        param("some/unknown/path.txt", ["tests/unit", "tests/integration"], id="unknown-path-wide"),
+        param("stray/root.feature", ["tests/unit", "tests/integration/features"], id="unowned-feature-wide"),
     ],
 )
 def test_mapping_table(changed: str, expected: list[str]) -> None:
@@ -139,8 +176,8 @@ def test_mapping_table(changed: str, expected: list[str]) -> None:
 
 
 def test_output_is_deduplicated() -> None:
-    assert suspect_zones("src/pytest_bdd/parser.py", "src/pytest_bdd/parsers/base.py") == [
+    assert suspect_zones("src/pytest_cuke/parser.py", "src/pytest_cuke/parsers/base.py") == [
         "tests/unit/parser",
-        "tests/args",
-        "tests/feature",
+        "tests/integration/step-parsing",
+        "tests/integration/features",
     ]

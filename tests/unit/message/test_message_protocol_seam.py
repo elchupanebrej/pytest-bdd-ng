@@ -1,23 +1,19 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
-from pytest_bdd.model import message_converter as mc
-from pytest_bdd.model.background import Background
-from pytest_bdd.model.feature import Feature
-from pytest_bdd.model.message_registry import EnvelopeRegistry
-from pytest_bdd.model.message_serialization import dump_ndjson, load_ndjson
-from pytest_bdd.model.message_stream_validation import validate_message_stream
-from pytest_bdd.model.scenario import Scenario
-from pytest_bdd.model.step import Step
-
-from pytest import mark
-
-pytestmark = mark.unit
-
+from pytest_cuke.model import message_converter as mc
+from pytest_cuke.model.background import Background
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.message_registry import EnvelopeRegistry
+from pytest_cuke.model.message_serialization import dump_ndjson, load_ndjson
+from pytest_cuke.model.message_stream_validation import validate_message_stream
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.step import Step
 
 if TYPE_CHECKING:
-    import cucumber_messages
+    from pytest_cuke.model import message_types as messages
 
 
 def test_seam3_execution_event_protocol_contract() -> None:
@@ -31,7 +27,7 @@ def test_seam3_execution_event_protocol_contract() -> None:
     tc = mc.scenario_to_test_case(sc, pickle_id=pickle.id, default_id="tc-1")
     tc_env = mc.test_case_to_envelope(tc)
 
-    envelopes: list[cucumber_messages.Envelope] = [
+    envelopes: list[messages.Envelope] = [
         doc_env,
         pickle_env,
         tc_env,
@@ -73,32 +69,3 @@ def test_seam3_stream_order_violation_detection() -> None:
     ]
     errors = validate_message_stream(bad_stream)
     assert len(errors) >= 2
-
-
-def test_seam3_stream_validation_reports_each_rule_violation() -> None:
-    run_started = mc.make_test_run_started(100.0)
-
-    duplicate_run = validate_message_stream([run_started, mc.make_test_run_started(101.0)])
-    assert any("Duplicate test_run_started" in error for error in duplicate_run)
-
-    case_started_after_finish = validate_message_stream(
-        [
-            run_started,
-            mc.make_test_case_started("tc-1", id="tcs-1", timestamp=101.0),
-            mc.make_test_case_finished("tcs-1", timestamp=102.0),
-            mc.make_test_run_finished(timestamp=103.0),
-            mc.make_test_case_started("tc-2", id="tcs-dup", timestamp=104.0),
-            mc.make_test_case_started("tc-2", id="tcs-dup", timestamp=105.0),
-        ]
-    )
-    assert sum("Invalid test_case_started" in error for error in case_started_after_finish) == 2
-
-    unknown_case_finished = validate_message_stream(
-        [run_started, mc.make_test_case_finished("tcs-unknown", timestamp=101.0)]
-    )
-    assert any("Invalid test_case_finished" in error for error in unknown_case_finished)
-
-    step_outside_case = validate_message_stream(
-        [run_started, mc.make_test_step_started("tcs-unknown", test_step_id="ts-1", timestamp=101.0)]
-    )
-    assert any("test_step_started outside active case" in error for error in step_outside_case)

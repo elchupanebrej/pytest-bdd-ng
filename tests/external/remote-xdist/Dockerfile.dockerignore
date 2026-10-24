@@ -1,0 +1,16 @@
+**
+!pyproject.toml
+!setup.cfg
+!setup.py
+!README.rst
+!LICENSE.rst
+!src
+!src/pytest_cuke
+!src/pytest_cuke/**
+!tests
+!tests/external
+!tests/external/remote-xdist
+!tests/external/remote-xdist/**
+src/pytest_cuke/graphify-out
+src/pytest_cuke/**/__pycache__
+tests/external/remote-xdist/**/__pycache__

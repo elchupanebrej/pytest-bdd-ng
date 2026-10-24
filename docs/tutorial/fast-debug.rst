@@ -1,76 +1,75 @@
-Fast debugging: triaging a red run in minutes
-=============================================
+Fast debugging: triaging a red run
+==================================
 
-A recipe for developers. Assumes a checkout of branch ``rewrite-from-2.3.1``
-with the test extras installed (see ``tox.ini``) plus the npm packages from
-``.github/workflows/main.yml``.
+This recipe assumes a checkout of ``rewrite-from-2.3.1`` and a tox environment
+for the Python and pytest versions you are investigating. The project uses
+autoloaded feature files under ``features/`` and Python tests under
+``tests/unit``, ``tests/integration`` and ``tests/contract``.
 
-1. Reproduce the failure locally, failures first
-------------------------------------------------
+1. Reproduce the failure
+------------------------
 
-::
+Start with the failing node and keep the output short::
 
-    pytest tests/feature -x -q --tb=short --durations=10
+    tox -e py314-pytestlatest-coverage-lin -- <failing-node> -x -q --tb=short
 
-Green elsewhere is assumed until proven otherwise: start where it hurts.
+For a feature acceptance failure, pass its ``features/...`` path. For a Python
+test, pass its pytest node id. If the local tox environment is already active,
+run ``python -m pytest`` with the same arguments.
 
-2. It failed. Was it already failing before my change?
-------------------------------------------------------
+2. Check whether it fails on a clean tree
+-----------------------------------------
 
-::
+Run the failing node without local changes, using a separate worktree when the
+comparison needs to remain available::
 
-    git stash -u && pytest <failing-node> -q --tb=short; git stash pop
-    pytest --lf -q --tb=short   # tight loop while fixing
+    git worktree add ../pytest-cuke-baseline origin/rewrite-from-2.3.1
+    cd ../pytest-cuke-baseline
+    tox -e py314-pytestlatest-coverage-lin -- <failing-node> -x -q --tb=short
 
-If it fails on a clean tree, it is not your regression: note it and move on.
+A failure on the clean baseline is not caused by the current diff. Record the
+node id and environment, then continue with another failure.
 
-Warning: ``-u`` includes untracked files. If ``stash pop`` conflicts, resolve
-the conflict and pop again: nothing is lost while the entry exists (check
-``git stash list``). For long-lived comparisons prefer a separate worktree.
+3. Find the affected test zones
+-------------------------------
 
-3. Find the blast radius, not the world
----------------------------------------
+The mapper reads changed paths, includes untracked files, and prints ``FULL``
+when a shared config or conftest makes narrowing unsafe::
 
-Run only the zones your diff touches. ``scripts/suspect-zones.sh`` maps changed
-paths (tracked and untracked) to test directories, and prints ``FULL`` when a
-conftest or config change makes narrowing unsafe::
-
-    BASE=$(git merge-base HEAD origin/main)
+    BASE=$(git merge-base HEAD origin/rewrite-from-2.3.1)
     { git diff --name-only "$BASE"...HEAD; git ls-files --others --exclude-standard; } \
       | scripts/suspect-zones.sh
-    pytest $(git diff --name-only "$BASE"...HEAD | scripts/suspect-zones.sh) -q --ff
 
-If the output contains ``FULL``, run everything (``pytest tests``). A docs-only
-change maps to ``tests/doc``.
+Run the paths it prints. Run ``pytest tests`` and ``pytest features`` if it
+prints ``FULL``. Feature files are direct pytest targets; there are no mirror
+wrapper files under ``tests/``.
 
 4. Read the failure densely
 ---------------------------
 
-Default to ``-q --tb=short``. Escalate presentation only on one node::
+Default to ``-q --tb=short``. Escalate only the failing node::
 
-    pytest <node> -vv --tb=long --showlocals
+    python -m pytest <failing-node> -vv --tb=long --showlocals
 
-Check ``--cache-show`` if ``--lf`` behaves oddly (stale cache after branch
-switches); ``--cache-clear`` resets it.
+Use ``--cache-show`` when ``--lf`` behaves unexpectedly after switching
+branches; ``--cache-clear`` removes stale cache entries.
 
-5. Slow tests deserve suspicion first
--------------------------------------
+5. Run the curated slow tests
+-----------------------------
 
-The curated tail is checked in as ``tests/slow-tests.txt`` (25 tests on this
-branch: e2e report scenarios and the multi-second pytester-subprocess tier)::
+The prefixes in ``tests/slow-tests.txt`` are applied during Python test
+collection::
 
-    pytest tests -m slow -q --durations=10
+    python -m pytest tests -m slow -q --durations=10
+    python -m pytest tests -m "not slow" -q
 
-Flaky-looking e2e report test with +-40% wall variance? Re-run it alone three
-times before blaming your change.
+Feature acceptance scenarios are collected from ``features/`` and marked with
+``e2e``; run them with ``python -m pytest features -m e2e``.
 
-6. Before pushing
+6. Before merging
 -----------------
 
-Fast gate (what CI's PR path runs on one linux cell)::
-
-    pytest -m "not e2e and not external and not slow" -q -n4
-
-Acceptance is the full matrix: the ``test`` job's 9 cells (5 linux, 2 windows,
-2 macOS) plus the dedicated ``e2e`` job. Never a narrowed selection: linux
-cells can run locally via ``act``, windows/macOS only in CI.
+The pull request fast lane is a quick signal. For the full runtime, platform,
+optional integration, and quality matrix, dispatch ``main.yml`` on the exact
+candidate branch and wait for its ``aggregate-proof`` result. The matrix source
+is ``config/env-matrix.yaml``.

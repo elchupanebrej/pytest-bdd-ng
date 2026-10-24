@@ -1,28 +1,16 @@
 from __future__ import annotations
 
 import ast
-import sys
+import tomllib
 from pathlib import Path
 
 from pytest import mark
 
 pytestmark = mark.unit
 
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    try:
-        import tomllib  # type: ignore[no-redef]
-    except ImportError:
-        try:
-            import tomli as tomllib  # type: ignore[no-redef]
-        except ImportError:
-            import tomllib  # type: ignore[no-redef]
-
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LAYERS_CONFIG_PATH = REPO_ROOT / "docs" / "architecture" / "layers.toml"
-SRC_PATH = REPO_ROOT / "src" / "pytest_bdd"
+SRC_PATH = REPO_ROOT / "src" / "pytest_cuke"
 
 
 def load_layers_config() -> dict:
@@ -82,7 +70,7 @@ def test_layer_import_enforcement() -> None:
         mod_parts = list(rel_path.with_suffix("").parts)
         if mod_parts[-1] == "__init__":
             mod_parts = mod_parts[:-1]
-        mod_name = ".".join(mod_parts) if mod_parts else "pytest_bdd"
+        mod_name = ".".join(mod_parts) if mod_parts else "pytest_cuke"
 
         current_layer = get_layer_for_module(mod_name, modules)
         if not current_layer:
@@ -95,9 +83,9 @@ def test_layer_import_enforcement() -> None:
             imported_mod: str | None = None
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name.startswith("pytest_bdd"):
+                    if alias.name.startswith("pytest_cuke"):
                         imported_mod = alias.name
-            elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("pytest_bdd"):
+            elif isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("pytest_cuke"):
                 imported_mod = node.module
 
             if imported_mod:

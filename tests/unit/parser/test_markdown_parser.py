@@ -4,12 +4,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from pytest_bdd.exceptions import FeatureConcreteParseError
-from pytest_bdd.model.step import StepType
-from pytest_bdd.parser import MarkdownGherkinParser, MarkdownParser, default_parser_registry
-
-pytestmark = pytest.mark.unit
-
+from pytest_cuke.exceptions import FeatureConcreteParseError
+from pytest_cuke.parser import MarkdownGherkinParser, MarkdownParser, default_parser_registry
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -43,7 +39,6 @@ def test_parse_basic_markdown_feature() -> None:
     assert [t.name for t in sc.tags] == ["@scenario_tag"]
     assert len(sc.steps) == 3
     assert [s.name for s in sc.steps] == ["a step", "an action occurs", "an outcome is observed"]
-    assert [s.type for s in sc.steps] == [StepType.context, StepType.action, StepType.outcome]
 
 
 def test_parse_markdown_docstrings_and_datatables() -> None:

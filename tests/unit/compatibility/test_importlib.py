@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pytest_bdd.compatibility.importlib.metadata import version
-from pytest_bdd.compatibility.importlib.resources import files
+from pytest_cuke.compatibility.importlib.metadata import version
+from pytest_cuke.compatibility.importlib.resources import files
 
 from pytest import mark
 
@@ -14,5 +14,5 @@ def test_importlib_metadata_version() -> None:
 
 
 def test_importlib_resources_files() -> None:
-    res = files("pytest_bdd")
+    res = files("pytest_cuke")
     assert res is not None

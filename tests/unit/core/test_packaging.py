@@ -6,8 +6,8 @@ import sys
 from unittest.mock import patch
 
 from packaging.version import Version
-from pytest_bdd.npm_resource import check_npm, check_npm_package, find_resource, get_npm_root
-from pytest_bdd.packaging import compare_distribution_version, get_distribution_version, parse_version
+from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource, get_npm_root
+from pytest_cuke.packaging import compare_distribution_version, get_distribution_version, parse_version
 
 from pytest import mark, raises
 
@@ -16,7 +16,7 @@ pytestmark = mark.unit
 
 def test_packaging_versions() -> None:
     assert parse_version("1.2.3") == Version("1.2.3")
-    with patch("pytest_bdd.packaging.version", return_value="2.3.1"):
+    with patch("pytest_cuke.packaging.version", return_value="2.3.1"):
         assert get_distribution_version("pkg") == Version("2.3.1")
         assert compare_distribution_version("pkg", "2.3.1")
         assert not compare_distribution_version("pkg", "1.0.0")
@@ -75,9 +75,30 @@ def test_npm_helpers_find_shim_on_path(monkeypatch, tmp_path) -> None:
     assert get_npm_root() == "10.0.0"
 
 
+def test_npm_helpers_use_resolved_windows_cmd_executable() -> None:
+    npm_cmd = r"C:\Program Files\nodejs\npm.CMD"
+    with (
+        patch("shutil.which", return_value=npm_cmd),
+        patch("pytest_cuke.npm_resource.subprocess.check_output", return_value=b"result\n") as check_output,
+    ):
+        assert get_npm_root() == "result"
+        assert check_npm()
+        assert check_npm_package("some-pkg")
+        assert get_npm_root(global_install=True) == "result"
+        assert check_npm_package("some-pkg", global_install=True)
+
+    assert [call.args[0] for call in check_output.call_args_list] == [
+        [npm_cmd, "root"],
+        [npm_cmd, "--version"],
+        [npm_cmd, "list", "some-pkg"],
+        [npm_cmd, "root", "-g"],
+        [npm_cmd, "list", "-g", "some-pkg"],
+    ]
+
+
 def test_find_resource() -> None:
     with (
-        patch("pytest_bdd.npm_resource.get_npm_root", side_effect=["/l", "/g"]),
+        patch("pytest_cuke.npm_resource.get_npm_root", side_effect=["/l", "/g"]),
         patch("glob.iglob", side_effect=[["/l/pkg/r.js"], ["/g/pkg/r.js"]]),
     ):
         assert list(find_resource("pkg", "r.js")) == ["/l/pkg/r.js", "/g/pkg/r.js"]

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pytest_bdd.scenario import (
+from pytest_cuke.scenario import (
     FeaturePathType,
     add_options,
     get_python_name_generator,
@@ -30,7 +30,7 @@ def test_python_name_generator() -> None:
 def test_add_options() -> None:
     mock_parser = MagicMock()
     add_options(mock_parser)
-    mock_parser.getgroup.assert_called_once_with("bdd", "Scenario")
+    mock_parser.getgroup.assert_called_once_with("cuke", "Scenario collection")
 
 
 def test_scenario_decorator_validation() -> None:
@@ -39,11 +39,11 @@ def test_scenario_decorator_validation() -> None:
 
 
 def test_scenario_and_scenarios_returns_test() -> None:
-    test_fn = scenarios("tests/feature/test.feature", return_test_decorator=False)
+    test_fn = scenarios("tests/integration/features/test.feature", return_test_decorator=False)
     assert callable(test_fn)
     assert hasattr(test_fn, "pytestmark")
 
-    decorator = scenario("tests/feature/test.feature", return_test_decorator=True)
+    decorator = scenario("tests/integration/features/test.feature", return_test_decorator=True)
     assert callable(decorator)
 
     @decorator

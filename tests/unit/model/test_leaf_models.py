@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pytest_bdd.model.doc_string import DocString
-from pytest_bdd.model.examples import Example, Examples
-from pytest_bdd.model.table import DataTable, TableCell, TableRow
-from pytest_bdd.model.tag import Tag
+from pytest_cuke.model.doc_string import DocString
+from pytest_cuke.model.examples import Example, Examples
+from pytest_cuke.model.table import DataTable, TableCell, TableRow
+from pytest_cuke.model.tag import Tag
 
 from pytest import mark
 
@@ -49,11 +49,11 @@ def test_table_and_examples_without_data_rows() -> None:
     assert DataTable(rows=(TableRow(cells=(TableCell("only"),)),)).as_dicts() == []
 
 
-def test_legacy_model_module_shims_reexport_canonical_objects() -> None:
-    from pytest_bdd.model.document import GherkinDocument
-    from pytest_bdd.model.gherkin_document import GherkinDocument as LegacyGherkinDocument
-    from pytest_bdd.model.message_extension import ExpressionType, StepDefinitionPatternType
-    from pytest_bdd.model.messages_extension import (
+def test_model_module_shims_reexport_canonical_objects() -> None:
+    from pytest_cuke.model.document import GherkinDocument
+    from pytest_cuke.model.gherkin_document import GherkinDocument as LegacyGherkinDocument
+    from pytest_cuke.model.message_extension import ExpressionType, StepDefinitionPatternType
+    from pytest_cuke.model.messages_extension import (
         ExpressionType as LegacyExpressionType,
         StepDefinitionPatternType as LegacyStepDefinitionPatternType,
     )
@@ -61,4 +61,4 @@ def test_legacy_model_module_shims_reexport_canonical_objects() -> None:
     assert LegacyGherkinDocument is GherkinDocument
     assert LegacyExpressionType is ExpressionType
     assert LegacyStepDefinitionPatternType is StepDefinitionPatternType
-    assert LegacyStepDefinitionPatternType.pytest_bdd_string_expression.value == "PYTEST_BDD_STRING_EXPRESSION"
+    assert LegacyStepDefinitionPatternType.pytest_cuke_string_expression.value == "PYTEST_BDD_STRING_EXPRESSION"

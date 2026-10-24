@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
+
+import pytest
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-from pytest_bdd.cucumber_json import LogBDDCucumberJSON
+from pytest_cuke.cucumber_json import LogBDDCucumberJSON
 
 from pytest import mark
 
@@ -15,6 +18,8 @@ pytestmark = mark.unit
 
 
 def test_log_bdd_cucumber_json_lifecycle_and_output(tmp_path: Path) -> None:
+    pytest.importorskip("pydantic")
+
     out_file = tmp_path / "subdir" / "cucumber.json"
     logger = LogBDDCucumberJSON(str(out_file))
     logger.pytest_sessionstart()
@@ -49,7 +54,7 @@ def test_log_bdd_cucumber_json_lifecycle_and_output(tmp_path: Path) -> None:
     }
 
     logger.pytest_runtest_logreport(report)
-    logger.pytest_sessionfinish()
+    logger.pytest_sessionfinish(SimpleNamespace(config=SimpleNamespace(stash={})))
 
     assert out_file.exists()
     content = json.loads(out_file.read_text(encoding="utf-8"))
@@ -88,6 +93,8 @@ def test_log_bdd_cucumber_json_status_fallback_and_stepless_scenario(tmp_path: P
 
 
 def test_log_bdd_cucumber_json_strips_file_uri_from_relative_filename(tmp_path: Path) -> None:
+    pytest.importorskip("pydantic")
+
     out_file = tmp_path / "cucumber.json"
     logger = LogBDDCucumberJSON(str(out_file))
 
@@ -113,7 +120,7 @@ def test_log_bdd_cucumber_json_strips_file_uri_from_relative_filename(tmp_path: 
     }
 
     logger.pytest_runtest_logreport(report)
-    logger.pytest_sessionfinish()
+    logger.pytest_sessionfinish(SimpleNamespace(config=SimpleNamespace(stash={})))
 
     content = json.loads(out_file.read_text(encoding="utf-8"))
     assert content[0]["uri"] == "features/feature.feature"

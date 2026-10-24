@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pytest_bdd.model.background import Background
-from pytest_bdd.model.doc_string import DocString
-from pytest_bdd.model.step import Step
-from pytest_bdd.model.table import DataTable, TableCell, TableRow
+from pytest_cuke.model.background import Background
+from pytest_cuke.model.doc_string import DocString
+from pytest_cuke.model.step import Step
+from pytest_cuke.model.table import DataTable, TableCell, TableRow
 
 from pytest import mark
 

@@ -1,0 +1,495 @@
+schema_version: 1
+historical_reference:
+  repository: elchupanebrej/pytest-bdd-ng
+  revision: fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce
+  tox_file: tox.ini
+  workflow_file: .github/workflows/main.yml
+source_catalog:
+  historical_matrix_decisions:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/issues/149
+  - https://github.com/elchupanebrej/pytest-bdd-ng/issues/200
+  - https://github.com/elchupanebrej/pytest-bdd-ng/issues/300
+  pytest_7_python_support: https://docs.pytest.org/en/7.4.x/changelog.html
+  pytest_8_python_support: https://docs.pytest.org/en/8.4.x/changelog.html
+historical_cells:
+- id: r-workflow-cpython-310-linux
+  runtime: CPython
+  python: '3.10'
+  platform: linux
+  runner: ubuntu-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-cpython-311-linux
+  runtime: CPython
+  python: '3.11'
+  platform: linux
+  runner: ubuntu-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-cpython-312-linux
+  runtime: CPython
+  python: '3.12'
+  platform: linux
+  runner: ubuntu-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-cpython-313-linux
+  runtime: CPython
+  python: '3.13'
+  platform: linux
+  runner: ubuntu-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-cpython-313-macos
+  runtime: CPython
+  python: '3.13'
+  platform: macos
+  runner: macos-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-cpython-313-windows
+  runtime: CPython
+  python: '3.13'
+  platform: windows
+  runner: windows-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-cpython-314-linux
+  runtime: CPython
+  python: '3.14'
+  platform: linux
+  runner: ubuntu-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-cpython-314-macos
+  runtime: CPython
+  python: '3.14'
+  platform: macos
+  runner: macos-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-cpython-314-windows
+  runtime: CPython
+  python: '3.14'
+  platform: windows
+  runner: windows-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-pypy-311-linux
+  runtime: PyPy
+  python: '3.11'
+  platform: linux
+  runner: ubuntu-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-pypy-311-macos
+  runtime: PyPy
+  python: '3.11'
+  platform: macos
+  runner: macos-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+- id: r-workflow-pypy-311-windows
+  runtime: PyPy
+  python: '3.11'
+  platform: windows
+  runner: windows-latest
+  disposition: required
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/.github/workflows/main.yml#L17-L41
+historical_tox_families:
+- id: py314-pre-commit
+  selector: py314-pre-commit-lin
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L5
+  environments:
+  - tox_env: py314-pre-commit-lin
+    disposition: required
+- id: py314-mypy
+  selector: py314-pytest{90, latest}-mypy
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L6
+  environments:
+  - tox_env: py314-pytest90-mypy
+    disposition: required
+  - tox_env: py314-pytestlatest-mypy
+    disposition: required
+- id: py314-playwright-report
+  selector: py314-pytestlatest-playwright-report
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L7
+  environments:
+  - tox_env: py314-pytestlatest-playwright-report
+    disposition: required
+- id: py314-mypy-messages
+  selector: py314-pytestlatest-mypy-messages
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L8
+  environments:
+  - tox_env: py314-pytestlatest-mypy-messages
+    disposition: required
+- id: py314-xdist-remote
+  selector: py314-pytestlatest-xdist-remote-{socket, via, ssh}-{lin, win}
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L9
+  environments:
+  - tox_env: py314-pytestlatest-xdist-remote-socket-lin
+    disposition: required
+  - tox_env: py314-pytestlatest-xdist-remote-socket-win
+    disposition: manual
+  - tox_env: py314-pytestlatest-xdist-remote-via-lin
+    disposition: required
+  - tox_env: py314-pytestlatest-xdist-remote-via-win
+    disposition: manual
+  - tox_env: py314-pytestlatest-xdist-remote-ssh-lin
+    disposition: required
+  - tox_env: py314-pytestlatest-xdist-remote-ssh-win
+    disposition: manual
+- id: py314-coverage
+  selector: py314-pytest{90, 84, latest}-coverage-{lin, mac, win}
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L10
+  environments:
+  - tox_env: py314-pytest90-coverage-lin
+    disposition: required
+  - tox_env: py314-pytest90-coverage-mac
+    disposition: required
+  - tox_env: py314-pytest90-coverage-win
+    disposition: required
+  - tox_env: py314-pytest84-coverage-lin
+    disposition: required
+  - tox_env: py314-pytest84-coverage-mac
+    disposition: required
+  - tox_env: py314-pytest84-coverage-win
+    disposition: required
+  - tox_env: py314-pytestlatest-coverage-lin
+    disposition: required
+  - tox_env: py314-pytestlatest-coverage-mac
+    disposition: required
+  - tox_env: py314-pytestlatest-coverage-win
+    disposition: required
+- id: py314-gherkin-xdist
+  selector: py314-pytestlatest-gherkin{33, latest}-xdist-coverage-{lin, win, mac}
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L11
+  environments:
+  - tox_env: py314-pytestlatest-gherkin33-xdist-coverage-lin
+    disposition: required
+  - tox_env: py314-pytestlatest-gherkin33-xdist-coverage-win
+    disposition: required
+  - tox_env: py314-pytestlatest-gherkin33-xdist-coverage-mac
+    disposition: required
+  - tox_env: py314-pytestlatest-gherkinlatest-xdist-coverage-lin
+    disposition: required
+  - tox_env: py314-pytestlatest-gherkinlatest-xdist-coverage-win
+    disposition: required
+  - tox_env: py314-pytestlatest-gherkinlatest-xdist-coverage-mac
+    disposition: required
+- id: py314-ruff
+  selector: py314-ruff
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L12
+  environments:
+  - tox_env: py314-ruff
+    disposition: required
+- id: py313-coverage
+  selector: py313-pytest{83, 82, 81, 80, latest}-coverage-{lin, mac, win}
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13
+  environments:
+  - tox_env: py313-pytest83-coverage-lin
+    disposition: required
+  - tox_env: py313-pytest83-coverage-mac
+    disposition: required
+  - tox_env: py313-pytest83-coverage-win
+    disposition: required
+  - tox_env: py313-pytest82-coverage-lin
+    disposition: required
+  - tox_env: py313-pytest82-coverage-mac
+    disposition: required
+  - tox_env: py313-pytest82-coverage-win
+    disposition: required
+  - tox_env: py313-pytest81-coverage-lin
+    disposition: excluded
+  - tox_env: py313-pytest81-coverage-mac
+    disposition: excluded
+  - tox_env: py313-pytest81-coverage-win
+    disposition: excluded
+  - tox_env: py313-pytest80-coverage-lin
+    disposition: excluded
+  - tox_env: py313-pytest80-coverage-mac
+    disposition: excluded
+  - tox_env: py313-pytest80-coverage-win
+    disposition: excluded
+  - tox_env: py313-pytestlatest-coverage-lin
+    disposition: required
+  - tox_env: py313-pytestlatest-coverage-mac
+    disposition: required
+  - tox_env: py313-pytestlatest-coverage-win
+    disposition: required
+- id: py312-coverage
+  selector: py312-pytest{74, 73, 72, 71, 70}-coverage-{lin, mac, win}
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L14
+  environments:
+  - tox_env: py312-pytest74-coverage-lin
+    disposition: required
+  - tox_env: py312-pytest74-coverage-mac
+    disposition: manual
+  - tox_env: py312-pytest74-coverage-win
+    disposition: manual
+  - tox_env: py312-pytest73-coverage-lin
+    disposition: required
+  - tox_env: py312-pytest73-coverage-mac
+    disposition: manual
+  - tox_env: py312-pytest73-coverage-win
+    disposition: manual
+  - tox_env: py312-pytest72-coverage-lin
+    disposition: excluded
+  - tox_env: py312-pytest72-coverage-mac
+    disposition: excluded
+  - tox_env: py312-pytest72-coverage-win
+    disposition: excluded
+  - tox_env: py312-pytest71-coverage-lin
+    disposition: excluded
+  - tox_env: py312-pytest71-coverage-mac
+    disposition: excluded
+  - tox_env: py312-pytest71-coverage-win
+    disposition: excluded
+  - tox_env: py312-pytest70-coverage-lin
+    disposition: excluded
+  - tox_env: py312-pytest70-coverage-mac
+    disposition: excluded
+  - tox_env: py312-pytest70-coverage-win
+    disposition: excluded
+- id: pypy311-coverage
+  selector: pypy311-pytestlatest-coverage-{win, mac, lin}
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L15
+  environments:
+  - tox_env: pypy311-pytestlatest-coverage-win
+    disposition: required
+  - tox_env: pypy311-pytestlatest-coverage-mac
+    disposition: required
+  - tox_env: pypy311-pytestlatest-coverage-lin
+    disposition: required
+- id: cpython-latest-coverage-linux
+  selector: py{313, 312, 311, 310}-pytestlatest-coverage-lin
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L16
+  environments:
+  - tox_env: py313-pytestlatest-coverage-lin
+    disposition: required
+  - tox_env: py312-pytestlatest-coverage-lin
+    disposition: required
+  - tox_env: py311-pytestlatest-coverage-lin
+    disposition: required
+  - tox_env: py310-pytestlatest-coverage-lin
+    disposition: required
+- id: latest-xdist-coverage-linux
+  selector: py{py311, 313, 312, 311, 310}-pytestlatest-xdist-coverage-lin
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L17
+  environments:
+  - tox_env: pypy311-pytestlatest-xdist-coverage-lin
+    disposition: required
+  - tox_env: py313-pytestlatest-xdist-coverage-lin
+    disposition: required
+  - tox_env: py312-pytestlatest-xdist-coverage-lin
+    disposition: required
+  - tox_env: py311-pytestlatest-xdist-coverage-lin
+    disposition: required
+  - tox_env: py310-pytestlatest-xdist-coverage-lin
+    disposition: required
+historical_exclusions:
+- id: r-exclusion-cpython-313-pytest80-linux
+  tox_env: py313-pytest80-coverage-lin
+  runtime: CPython
+  python: '3.13'
+  pytest: '8.0'
+  platform: linux
+  basis: pytest-python-compatibility
+  reason: Pytest 8.2 is the first release line in this historical matrix supporting
+    CPython 3.13; pytest 8.0 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/8.4.x/changelog.html
+- id: r-exclusion-cpython-313-pytest80-macos
+  tox_env: py313-pytest80-coverage-mac
+  runtime: CPython
+  python: '3.13'
+  pytest: '8.0'
+  platform: macos
+  basis: pytest-python-compatibility
+  reason: Pytest 8.2 is the first release line in this historical matrix supporting
+    CPython 3.13; pytest 8.0 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/8.4.x/changelog.html
+- id: r-exclusion-cpython-313-pytest80-windows
+  tox_env: py313-pytest80-coverage-win
+  runtime: CPython
+  python: '3.13'
+  pytest: '8.0'
+  platform: windows
+  basis: pytest-python-compatibility
+  reason: Pytest 8.2 is the first release line in this historical matrix supporting
+    CPython 3.13; pytest 8.0 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/8.4.x/changelog.html
+- id: r-exclusion-cpython-313-pytest81-linux
+  tox_env: py313-pytest81-coverage-lin
+  runtime: CPython
+  python: '3.13'
+  pytest: '8.1'
+  platform: linux
+  basis: pytest-python-compatibility
+  reason: Pytest 8.2 is the first release line in this historical matrix supporting
+    CPython 3.13; pytest 8.1 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/8.4.x/changelog.html
+- id: r-exclusion-cpython-313-pytest81-macos
+  tox_env: py313-pytest81-coverage-mac
+  runtime: CPython
+  python: '3.13'
+  pytest: '8.1'
+  platform: macos
+  basis: pytest-python-compatibility
+  reason: Pytest 8.2 is the first release line in this historical matrix supporting
+    CPython 3.13; pytest 8.1 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/8.4.x/changelog.html
+- id: r-exclusion-cpython-313-pytest81-windows
+  tox_env: py313-pytest81-coverage-win
+  runtime: CPython
+  python: '3.13'
+  pytest: '8.1'
+  platform: windows
+  basis: pytest-python-compatibility
+  reason: Pytest 8.2 is the first release line in this historical matrix supporting
+    CPython 3.13; pytest 8.1 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/8.4.x/changelog.html
+- id: r-exclusion-cpython-312-pytest70-linux
+  tox_env: py312-pytest70-coverage-lin
+  runtime: CPython
+  python: '3.12'
+  pytest: '7.0'
+  platform: linux
+  basis: pytest-python-compatibility
+  reason: Pytest 7.3 is the first release line in this historical matrix supporting
+    CPython 3.12; pytest 7.0 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/7.4.x/changelog.html
+- id: r-exclusion-cpython-312-pytest70-macos
+  tox_env: py312-pytest70-coverage-mac
+  runtime: CPython
+  python: '3.12'
+  pytest: '7.0'
+  platform: macos
+  basis: pytest-python-compatibility
+  reason: Pytest 7.3 is the first release line in this historical matrix supporting
+    CPython 3.12; pytest 7.0 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/7.4.x/changelog.html
+- id: r-exclusion-cpython-312-pytest70-windows
+  tox_env: py312-pytest70-coverage-win
+  runtime: CPython
+  python: '3.12'
+  pytest: '7.0'
+  platform: windows
+  basis: pytest-python-compatibility
+  reason: Pytest 7.3 is the first release line in this historical matrix supporting
+    CPython 3.12; pytest 7.0 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/7.4.x/changelog.html
+- id: r-exclusion-cpython-312-pytest71-linux
+  tox_env: py312-pytest71-coverage-lin
+  runtime: CPython
+  python: '3.12'
+  pytest: '7.1'
+  platform: linux
+  basis: pytest-python-compatibility
+  reason: Pytest 7.3 is the first release line in this historical matrix supporting
+    CPython 3.12; pytest 7.1 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/7.4.x/changelog.html
+- id: r-exclusion-cpython-312-pytest71-macos
+  tox_env: py312-pytest71-coverage-mac
+  runtime: CPython
+  python: '3.12'
+  pytest: '7.1'
+  platform: macos
+  basis: pytest-python-compatibility
+  reason: Pytest 7.3 is the first release line in this historical matrix supporting
+    CPython 3.12; pytest 7.1 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/7.4.x/changelog.html
+- id: r-exclusion-cpython-312-pytest71-windows
+  tox_env: py312-pytest71-coverage-win
+  runtime: CPython
+  python: '3.12'
+  pytest: '7.1'
+  platform: windows
+  basis: pytest-python-compatibility
+  reason: Pytest 7.3 is the first release line in this historical matrix supporting
+    CPython 3.12; pytest 7.1 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/7.4.x/changelog.html
+- id: r-exclusion-cpython-312-pytest72-linux
+  tox_env: py312-pytest72-coverage-lin
+  runtime: CPython
+  python: '3.12'
+  pytest: '7.2'
+  platform: linux
+  basis: pytest-python-compatibility
+  reason: Pytest 7.3 is the first release line in this historical matrix supporting
+    CPython 3.12; pytest 7.2 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/7.4.x/changelog.html
+- id: r-exclusion-cpython-312-pytest72-macos
+  tox_env: py312-pytest72-coverage-mac
+  runtime: CPython
+  python: '3.12'
+  pytest: '7.2'
+  platform: macos
+  basis: pytest-python-compatibility
+  reason: Pytest 7.3 is the first release line in this historical matrix supporting
+    CPython 3.12; pytest 7.2 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/7.4.x/changelog.html
+- id: r-exclusion-cpython-312-pytest72-windows
+  tox_env: py312-pytest72-coverage-win
+  runtime: CPython
+  python: '3.12'
+  pytest: '7.2'
+  platform: windows
+  basis: pytest-python-compatibility
+  reason: Pytest 7.3 is the first release line in this historical matrix supporting
+    CPython 3.12; pytest 7.2 is incompatible.
+  source_evidence:
+  - https://github.com/elchupanebrej/pytest-bdd-ng/blob/fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce/tox.ini#L13-L14
+  - https://docs.pytest.org/en/7.4.x/changelog.html
