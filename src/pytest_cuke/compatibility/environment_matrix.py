@@ -975,6 +975,7 @@ def _validate_runtime_policy(
         diagnostics,
     )
 
+
 def _validate_runtime_inventory(
     document: dict[str, Any],
     lanes: list[dict[str, Any]],
@@ -1435,9 +1436,7 @@ def _runtime_artifact_reference_error(
             continue
         rendered_name = _render_matrix_cell_template(artifact_name, cell)
         rendered_paths = {
-            _render_matrix_cell_template(line.strip(), cell)
-            for line in artifact_path.splitlines()
-            if line.strip()
+            _render_matrix_cell_template(line.strip(), cell) for line in artifact_path.splitlines() if line.strip()
         }
         if rendered_name == expected_name and expected_path in rendered_paths:
             matching_upload = True
@@ -1477,9 +1476,7 @@ def _command_option_value(command: str, option: str) -> str | None:
     return tokens[option_index + 1] if option_index + 1 < len(tokens) else None
 
 
-_MATRIX_CELL_EXPRESSION = re.compile(
-    r"\$\{\{\s*matrix\.cell\.([A-Za-z_][A-Za-z0-9_]*)(?:\s*\|\|\s*'([^']*)')?\s*\}\}"
-)
+_MATRIX_CELL_EXPRESSION = re.compile(r"\$\{\{\s*matrix\.cell\.([A-Za-z_][A-Za-z0-9_]*)(?:\s*\|\|\s*'([^']*)')?\s*\}\}")
 
 
 def _render_matrix_cell_template(template: str, cell: dict[str, Any]) -> str:
