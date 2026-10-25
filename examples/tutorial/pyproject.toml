@@ -6,5 +6,6 @@ dependencies = ["pytest-cuke>=2.3.1"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "features"]
+pythonpath = ["."]
 cuke_autoload = true
 cuke_features_dir = "features"

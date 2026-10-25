@@ -17768,25 +17768,23 @@ def consumer_reporting_spine_preserves_run_hook_lifecycle(
     )
 
 
-@when("I run the tutorial example as its own pytest project", target_fixture="tutorial_pytest_result")
+@when("I run the tutorial example with its repository Tox invocation", target_fixture="tutorial_pytest_result")
 def run_tutorial_example_as_own_pytest_project() -> subprocess.CompletedProcess[str]:
     repository_root = Path(__file__).resolve().parents[2]
-    tutorial_root = repository_root / "examples" / "tutorial"
     command = [
         sys.executable,
         "-m",
         "pytest",
         "-c",
-        "pyproject.toml",
-        "--rootdir=.",
-        "--cuke-autoload",
-        "--cuke-features-dir=features",
+        "examples/tutorial/pyproject.toml",
+        "--rootdir=examples/tutorial",
+        "examples/tutorial/tests",
+        "examples/tutorial/features",
         "-q",
-        ".",
     ]
     return subprocess.run(
         command,
-        cwd=tutorial_root,
+        cwd=repository_root,
         env=_consumer_environment(),
         check=False,
         capture_output=True,

@@ -1,8 +1,8 @@
 @e2e
 Feature: Tutorial example runs as an isolated pytest project
   The tutorial keeps its own pytest configuration, feature root, fixtures, and
-  step definitions when invoked from its project root.
+  step definitions when invoked from the repository root by its Tox command.
 
-  Scenario: Autoload discovers the tutorial scenario from the tutorial directory
-    When I run the tutorial example as its own pytest project
+  Scenario: The repository Tox invocation autoloads the tutorial scenario
+    When I run the tutorial example with its repository Tox invocation
     Then the tutorial acceptance should pass one autoloaded scenario
