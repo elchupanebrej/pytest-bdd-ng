@@ -12,6 +12,7 @@ import string
 import sys
 import tarfile
 import time
+import tomllib
 import venv
 import zipfile
 from collections import Counter, defaultdict
@@ -4759,10 +4760,15 @@ def runtime_type_gate_has_expected_error(code: str, typecheck_result: subprocess
 
 
 @then("the runtime type gate should pass with visible policy identity")
-def runtime_type_gate_passes_with_policy_identity(typecheck_result: subprocess.CompletedProcess[str]) -> None:
+def runtime_type_gate_passes_with_policy_identity(
+    request: Any,
+    typecheck_result: subprocess.CompletedProcess[str],
+) -> None:
     output = f"{typecheck_result.stdout}\n{typecheck_result.stderr}"
     assert typecheck_result.returncode == 0, output
-    assert "MYPY_VERSION=2.3.1" in output, output
+    config = tomllib.loads((Path(request.config.rootpath) / "pyproject.toml").read_text(encoding="utf-8"))
+    checker_version = config["tool"]["pytest-cuke"]["typecheck"]["checker_version"]
+    assert f"MYPY_VERSION={checker_version}" in output, output
     assert "MYPY_CONFIG=" in output, output
     assert "MYPY_CONFIG_SHA256=" in output, output
     assert "MYPY_SCOPE=src/pytest_cuke" in output, output
@@ -9311,7 +9317,7 @@ def add_tolerant_target_fixture_consumer(consumer: ConsumerProject) -> None:
 def stage_checked_in_tolerant_steps_example(consumer: ConsumerProject) -> None:
     example_root = Path(__file__).resolve().parents[2] / "examples" / "tolerant-steps"
     relative_files = (
-        Path("README.md"),
+        Path("readme.md"),
         Path("pyproject.toml"),
         Path("requirements.txt"),
         Path("conftest.py"),
@@ -11496,6 +11502,8 @@ def configure_consumer_pytest_signal_group(consumer: ConsumerProject) -> None:
 def install_debug_mcp_extra(consumer: ConsumerProject) -> None:
     implementation, sys_platform = _consumer_python_implementation_and_platform(consumer)
     _require_debug_mcp_capability(implementation, sys_platform)
+    if implementation.casefold() != "cpython":
+        pytest.skip("Debug MCP extra installation acceptance targets CPython")
 
     uv_executable = shutil.which("uv")
     assert uv_executable, "the installed-consumer contract requires uv to install the optional MCP extra"

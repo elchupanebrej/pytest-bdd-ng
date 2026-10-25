@@ -306,7 +306,7 @@ module = [
 follow_untyped_imports = true
 
 [tool.pytest-cuke.typecheck]
-checker_version = "2.3.1"
+checker_version = "2.4.0"
 source_scope = "src/pytest_cuke"
 required_distributions = [
   "attrs==26.1.0",
