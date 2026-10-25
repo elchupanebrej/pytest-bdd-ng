@@ -59,7 +59,7 @@ jobs:
           submodules: "recursive"
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.14"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
