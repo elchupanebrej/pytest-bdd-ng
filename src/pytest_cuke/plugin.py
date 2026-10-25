@@ -82,7 +82,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Generator, Iterable, Sequence
 
     from _pytest.nodes import Collector
-    from cucumber_messages import PickleStep as Step
 
     from pytest_cuke.formatter_api import FormatterRequest
     from pytest_cuke.model.step import Step

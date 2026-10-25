@@ -1,27 +1,17 @@
 #!/usr/bin/env bash
-# suspect-zones.sh - map changed paths to Suspect Zones (issue #210).
+# Map changed paths to the pytest-cuke test zones (issue #210).
 #
-# Reference implementation of the diff-affected arm of the Suspect Zone rule:
-#     SUSPECT = diff-affected  UNION  --lf  UNION  durations-tail
-#
-# Reads changed paths from stdin (one per line) and prints the pytest paths
-# to run (one per line, deduplicated, relative to the checkout root). Prints
-# `FULL` when narrowing is unsafe (conftest or pytest config changed) - run
-# the whole suite in that case. Output is never empty: unknown paths fall
-# back wide to `tests/unit` + `tests/feature`.
+# Reads changed paths from stdin and prints pytest paths relative to the
+# checkout root. Prints FULL when a shared fixture or project config changes.
+# Unknown paths fall back to the unit and integration suites.
 #
 # Usage:
-#   BASE=$(git merge-base HEAD origin/main)
+#   BASE=$(git merge-base HEAD origin/rewrite-from-2.3.1)
 #   { git diff --name-only "$BASE"...HEAD; git ls-files --others --exclude-standard; } \
 #     | scripts/suspect-zones.sh
-#   pytest $(git diff --name-only "$BASE"...HEAD | scripts/suspect-zones.sh) --ff -q --durations=10
+#   pytest $(git diff --name-only "$BASE"...HEAD | scripts/suspect-zones.sh) -q
 #
-# If the output contains `FULL`, run the full suite (`pytest tests`) instead
-# of the printed zones.
-#
-# `git ls-files --others --exclude-standard` adds untracked files (unlike
-# `git status --porcelain`, it never quotes paths that contain spaces).
-# Portable to macOS bash 3.2: de-duplication is done with awk, first-seen order.
+# Portable to macOS bash 3.2: de-duplication uses awk in first-seen order.
 set -euo pipefail
 
 FULL=0
@@ -37,58 +27,108 @@ while IFS= read -r path; do
   path="${path%$'\r'}"
   [[ -n "$path" ]] || continue
   case "$path" in
-    # Shared fixtures / config: narrowing is unsafe, run everything.
+    # Shared fixtures or config make targeted selection unsafe.
     conftest.py|*/conftest.py|pytest.ini|pyproject.toml|tox.ini|setup.cfg)
       full ;;
 
-    # src/pytest_bdd: one row per module family, extended from the research
-    # seed table to match this repo's test layout.
-    src/pytest_bdd/parser.py|src/pytest_bdd/parsers.py|src/pytest_bdd/parsers/*|\
-    src/pytest_bdd/scenario_locator.py|src/pytest_bdd/markdown_parser.js|src/pytest_bdd/markdown_token_matcher.py)
-      emit "tests/unit/parser"; emit "tests/args"; emit "tests/feature" ;;
-    src/pytest_bdd/model/message_*|src/pytest_bdd/message_plugin.py)
-      emit "tests/unit/message"; emit "tests/messages"; emit "tests/unit/plugins" ;;
-    src/pytest_bdd/model/*)
-      emit "tests/unit/model"; emit "tests/unit/parser"; emit "tests/feature" ;;
-    src/pytest_bdd/plugin.py|src/pytest_bdd/collector.py)
-      emit "tests/unit/bootstrap"; emit "tests/unit/execution"; emit "tests/contract"; emit "tests/feature"; emit "tests/e2e" ;;
-    src/pytest_bdd/runner.py|src/pytest_bdd/scenario.py)
-      emit "tests/unit/execution"; emit "tests/feature"; emit "tests/e2e"; emit "tests/generation" ;;
-    src/pytest_bdd/compatibility/*)
-      emit "tests/unit/compatibility" ;;
-    src/pytest_bdd/reporting.py|src/pytest_bdd/cucumber_json.py|src/pytest_bdd/gherkin_terminal_reporter.py)
-      emit "tests/unit/reporting"; emit "tests/feature" ;;
-    src/pytest_bdd/allure_logging.py)
-      emit "tests/unit/reporting"; emit "tests/allure_" ;;
-    src/pytest_bdd/generation.py|src/pytest_bdd/template/*)
-      emit "tests/generation"; emit "tests/unit/plugins" ;;
-    src/pytest_bdd/hook.py|src/pytest_bdd/hooks.py)
-      emit "tests/hook"; emit "tests/unit/execution"; emit "tests/test_hooks.py" ;;
-    src/pytest_bdd/struct_bdd/*)
-      emit "tests/struct_bdd"; emit "tests/unit/plugins"; emit "tests/unit/parser"; emit "tests/unit/compatibility" ;;
-    src/pytest_bdd/steps.py|src/pytest_bdd/steps/*)
-      emit "tests/unit/steps"; emit "tests/steps"; emit "tests/feature" ;;
-    src/pytest_bdd/script/*)
-      emit "tests/doc" ;;
-    src/pytest_bdd/testing_utils.py)
-      emit "tests/e2e"; emit "tests/unit" ;;
-    src/pytest_bdd/util/*|src/pytest_bdd/types/*|src/pytest_bdd/const.py|src/pytest_bdd/exceptions.py|\
-    src/pytest_bdd/utils.py|src/pytest_bdd/webloc.py|src/pytest_bdd/packaging.py|src/pytest_bdd/mimetype.py|\
-    src/pytest_bdd/mimetypes.py|src/pytest_bdd/npm_resource.py|src/pytest_bdd/warning_types.py)
-      emit "tests/unit/core"; emit "tests/unit/execution" ;;
-    src/pytest_bdd/*)
-      emit "tests/unit"; emit "tests/feature" ;;  # unknown module: wide, not empty
+    config/env-matrix.yaml|scripts/env_matrix.py|scripts/run_env_matrix_cell.py|scripts/aggregate_env_evidence.py)
+      emit "tests/unit/compatibility/test_environment_matrix.py"
+      emit "features/compatibility/environment-inventory.feature"
+      emit "features/compatibility/environment-proof-aggregation.feature" ;;
 
-    # Fixture assets owned by a known test dir.
+    src/pytest_cuke/message_plugin.py|src/pytest_cuke/model/message_*)
+      emit "tests/unit/message"
+      emit "tests/contract/messages"
+      emit "tests/unit/plugins"
+      emit "features/cucumber-messages-reporting-spine.feature"
+      emit "features/message-worker-consolidation.feature" ;;
+    src/pytest_cuke/model/*)
+      emit "tests/unit/model"
+      emit "tests/unit/parser"
+      emit "tests/integration/features" ;;
+    src/pytest_cuke/parser.py|src/pytest_cuke/parsers/*|src/pytest_cuke/gherkin_builder.py|\
+    src/pytest_cuke/feature_sources.py|src/pytest_cuke/batch_collection.py|\
+    src/pytest_cuke/markdown_parser.js|src/pytest_cuke/markdown_token_matcher.py|\
+    src/pytest_cuke/scenario_locator.py|src/pytest_cuke/parser_backend.py)
+      emit "tests/unit/parser"
+      emit "tests/integration/step-parsing"
+      emit "tests/integration/features" ;;
+    src/pytest_cuke/plugin.py|src/pytest_cuke/collector.py|src/pytest_cuke/scenario.py)
+      emit "tests/unit/bootstrap"
+      emit "tests/unit/execution"
+      emit "tests/contract"
+      emit "tests/integration/features"
+      emit "features/pytest-cuke-bootstrap.feature" ;;
+    src/pytest_cuke/runner.py)
+      emit "tests/unit/execution"
+      emit "tests/integration/features"
+      emit "features" ;;
+    src/pytest_cuke/compatibility/*)
+      emit "tests/unit/compatibility"
+      emit "features/compatibility" ;;
+    src/pytest_cuke/reporting.py|src/pytest_cuke/cucumber_json*|\
+    src/pytest_cuke/cucumber_junit*|src/pytest_cuke/cucumber_pretty.py|\
+    src/pytest_cuke/cucumber_progress*|src/pytest_cuke/cucumber_summary.py|\
+    src/pytest_cuke/cucumber_snippets.py|src/pytest_cuke/cucumber_usage*)
+      emit "tests/unit/reporting"
+      emit "tests/unit/plugins"
+      emit "tests/integration/features"
+      emit "features/live-cucumber-json.feature"
+      emit "features/live-cucumber-junit-xml.feature" ;;
+    src/pytest_cuke/allure_*.py|src/pytest_cuke/native_allure*.py|src/pytest_cuke/allure_*/)
+      emit "tests/unit/reporting"
+      emit "tests/integration/allure"
+      emit "features/allure-message-conversion.feature"
+      emit "features/native-allure-reporting.feature" ;;
+    src/pytest_cuke/generation.py|src/pytest_cuke/generation_command.py|\
+    src/pytest_cuke/generation_*.py)
+      emit "tests/integration/generation"
+      emit "tests/unit/generation"
+      emit "tests/unit/plugins" ;;
+    src/pytest_cuke/hook.py|src/pytest_cuke/hooks.py)
+      emit "tests/integration/hooks"
+      emit "tests/unit/execution" ;;
+    src/pytest_cuke/struct_bdd/*)
+      emit "tests/integration/struct-bdd"
+      emit "tests/unit/plugins"
+      emit "tests/unit/parser"
+      emit "tests/unit/compatibility"
+      emit "features/compatibility/optional-struct-bdd-extra.feature" ;;
+    src/pytest_cuke/steps.py|src/pytest_cuke/steps/*)
+      emit "tests/unit/steps"
+      emit "tests/integration/steps"
+      emit "tests/integration/features" ;;
+    src/pytest_cuke/script/*)
+      emit "tests/unit/docs" ;;
+    src/pytest_cuke/debug_mcp/*)
+      emit "tests/unit/plugins"
+      emit "tests/unit/runtime"
+      emit "features/debug-mcp-failure-inspection.feature"
+      emit "features/debug-mcp-xdist-worker-discovery.feature" ;;
+    src/pytest_cuke/util/*|src/pytest_cuke/types.py|src/pytest_cuke/const.py|\
+    src/pytest_cuke/exceptions.py|src/pytest_cuke/utils.py|src/pytest_cuke/webloc.py|\
+    src/pytest_cuke/packaging.py|src/pytest_cuke/mimetype.py|src/pytest_cuke/mimetypes.py|\
+    src/pytest_cuke/npm_resource.py|src/pytest_cuke/warning_types.py)
+      emit "tests/unit/core"
+      emit "tests/unit/execution" ;;
+    src/pytest_cuke/*)
+      emit "tests/unit"
+      emit "tests/integration" ;;  # unknown module: broad, not empty
+
+    # Autoloaded feature files are directly runnable pytest targets.
     features/*)
-      emit "tests/e2e" ;;  # tests/e2e/test_e2e.py collects scenarios("features")
-    testdata/allure_/*)
-      emit "tests/allure_" ;;
-    tests/*.feature|tests/*.feature.md|tests/*/*.feature|tests/*/*.feature.md|tests/*/*.gherkin)
-      emit "$(dirname "$path")" ;;  # fixture next to the tests that read it
+      emit "$path" ;;
 
-    # Changed tests: run the owning directory; root-level support files
-    # (e.g. tests/slow-tests.txt) affect the whole tree.
+    # Shared BDD step definitions support features collected from the root.
+    tests/e2e/*|tests/support/*)
+      emit "features" ;;
+    tests/*.feature|tests/*.feature.md|tests/*/*.feature|tests/*/*.feature.md|tests/*/*.gherkin)
+      emit "$(dirname "$path")" ;;
+
+    # Fixture assets are consumed by contract and integration tests.
+    tests/data/*|tests/fixtures/*)
+      emit "tests/contract"
+      emit "tests/integration" ;;
     tests/*)
       dir="$(dirname "$path")"
       if [[ "$dir" != tests ]]; then
@@ -99,23 +139,16 @@ while IFS= read -r path; do
         emit "tests"
       fi ;;
 
-    # Vendored submodules with a known consumer.
-    gherkin|gherkin/*)
-      emit "tests/gherkin_integration" ;;
-    compatibility-kit|compatibility-kit/*)
-      emit "tests/messages" ;;
+    docs/*|*.rst|*.md|README*|CHANGES*|AUTHORS*|LICENSE*)
+      emit "tests/unit/docs" ;;
 
-    # Docs-only changes.
-    docs/*|*.rst|*.md|README*|CHANGELOG*|AUTHORS*|LICENSE*)
-      emit "tests/doc" ;;
-
-    # Feature asset with no known owning test dir: wide, not empty.
     *.feature|*.feature.md|*.gherkin)
-      emit "tests/unit"; emit "tests/feature" ;;
+      emit "tests/unit"
+      emit "tests/integration/features" ;;
 
-    # Unknown path: wide fallback, never empty.
     *)
-      emit "tests/unit"; emit "tests/feature" ;;
+      emit "tests/unit"
+      emit "tests/integration" ;;
   esac
 done
 

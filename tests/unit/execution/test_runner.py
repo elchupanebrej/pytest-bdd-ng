@@ -29,6 +29,8 @@ def active_run(feature: Feature, scenario: Scenario, step: Step, previous_step: 
     run.start_step(step)
     return run
 
+pytestmark = pytest.mark.unit
+
 
 def test_step_runner_inject_target_fixtures() -> None:
     runner = StepRunner()

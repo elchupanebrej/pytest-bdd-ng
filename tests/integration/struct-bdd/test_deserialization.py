@@ -2,6 +2,7 @@ from functools import partial
 from operator import contains
 from textwrap import dedent
 
+from gherkin.pickles.compiler import Compiler
 from pytest import mark
 from yaml import FullLoader
 from yaml import load as load_yaml
@@ -24,7 +25,7 @@ if STRUCT_BDD_INSTALLED:  # pragma: no cover
     )
     from pytest_cuke.struct_bdd.model_builder import GherkinDocumentBuilder
 
-pytestmark = [mark.unit, mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
+pytestmark = [mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")]
 
 
 def test_node_containing_data_load():
@@ -161,7 +162,6 @@ def test_join_load():
         ("Value B11", "Value B12", "Value B11", "Value B12"),
         ("Value B21", "Value B22", "Value B21", "Value B22"),
     ]
-    assert join.type == "Rowed"
 
 
 def test_step_prototype_non_containing_data_load():

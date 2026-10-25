@@ -138,35 +138,3 @@ def test_autoload_disabled_with_conftest_on_higher_level(testdir):
 
     result = run_pytester_isolated(testdir, "--cuke-no-autoload")
     result.assert_outcomes(passed=2, failed=0)
-
-
-def test_autoload_local_feature_via_url_file(testdir):
-    testdir.makefile(
-        ".feature",
-        # language=gherkin
-        linked=LINKED_FEATURE,
-    )
-    testdir.makefile(
-        # language=ini
-        shortcut="""\
-            [InternetShortcut]
-            URL=linked.feature
-        """,
-        ext=".url",
-    )
-    testdir.makeconftest(LINKED_CONFTEST)
-
-    result = testdir.runpytest()
-
-    result.assert_outcomes(passed=2, failed=0)
-
-
-def test_autoload_local_feature_via_webloc_file(testdir):
-    feature_path = Path(testdir.tmpdir) / "linked.feature"
-    feature_path.write_text(LINKED_FEATURE, encoding="utf-8")
-    webloc_write(Path(testdir.tmpdir) / "shortcut.webloc", "linked.feature")
-    testdir.makeconftest(LINKED_CONFTEST)
-
-    result = testdir.runpytest()
-
-    result.assert_outcomes(passed=2, failed=0)

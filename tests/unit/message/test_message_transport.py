@@ -6,7 +6,7 @@ from pytest_cuke.model.message_transport import MessageFanOutEmitter, MessageTra
 
 def test_message_transport_buffering_and_sinks() -> None:
     transport = MessageTransport()
-    received: list[cucumber_messages.Envelope] = []
+    received: list[messages.Envelope] = []
     transport.add_sink(received.append)
     transport.emit_all([mc.make_test_run_started(100.0), mc.make_test_run_finished(timestamp=101.0)])
     assert len(received) == 2
@@ -19,7 +19,7 @@ def test_message_transport_buffering_and_sinks() -> None:
     assert transport.get_envelopes() == []
 
     emitter = MessageFanOutEmitter()
-    calls: list[cucumber_messages.Envelope] = []
+    calls: list[messages.Envelope] = []
     unsub = emitter.subscribe(calls.append)
     emitter.emit(mc.make_test_run_started(100.0))
     assert len(calls) == 1

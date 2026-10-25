@@ -1,5 +1,13 @@
 [run]
 branch = true
-include =
-    pytest_cuke/*
-    tests/*
+source = pytest_cuke
+
+[paths]
+source =
+    src/pytest_cuke
+    .tox/*/lib/python*/site-packages/pytest_cuke
+    .tox/*/Lib/site-packages/pytest_cuke
+
+[report]
+fail_under = 85
+precision = 2

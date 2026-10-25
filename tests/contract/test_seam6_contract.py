@@ -17,10 +17,6 @@ from pytest_cuke.scenario_locator import FileScenarioLocator
 from pytest_cuke.steps import Matcher, Registry, given
 from pytest_cuke.utils import IdGenerator
 
-from pytest import mark
-
-pytestmark = mark.contract
-
 
 def test_seam6_liberal_steps_configuration_contract() -> None:
     config = MagicMock()

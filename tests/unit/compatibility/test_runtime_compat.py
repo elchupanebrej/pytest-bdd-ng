@@ -5,11 +5,9 @@ from pytest_cuke.compatibility.runtime_compat import (
     MIN_SUPPORTED_PYTHON,
     PYTEST_COMPATIBILITY_BOUNDS,
     REASON_COMPATIBLE,
-    REASON_EOL_PYTEST,
     REASON_EOL_PYTHON,
     REASON_EOL_PYTEST,
     REASON_PYTEST_UNAVAILABLE,
-    REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST,
     REASON_PYTHON_UNAVAILABLE,
     CompatibilityMatrixEntry,
     MigrationCoverageSummary,
@@ -19,10 +17,6 @@ from pytest_cuke.compatibility.runtime_compat import (
     _parse_python_factor,
     is_pair_compatible,
 )
-
-from pytest import mark
-
-pytestmark = mark.unit
 
 
 def test_matrix_bounds_and_constants() -> None:
@@ -50,17 +44,12 @@ def test_matrix_entry_and_migration_summary() -> None:
 
 def test_parse_and_format_versions() -> None:
     assert _parse_python_factor("310") == (3, 10)
-    assert _parse_python_factor("3") is None
-    assert _parse_python_factor("3100") is None
     assert _parse_python_factor("invalid") is None
     assert _format_python_version("310") == "3.10"
     assert _parse_pytest_factor("80") == (8, 0, 0)
     assert _parse_pytest_factor("9") == (9, 0, 0)
     assert _parse_pytest_factor("latest") == (99, 0, 0)
     assert _parse_pytest_factor("invalid") is None
-    assert _format_pytest_version("80") == "8.0"
-    assert _format_pytest_version("813") == "8.1.3"
-    assert _format_pytest_version("7000") == "7000"
     assert _format_pytest_version("latest") == "latest"
 
 

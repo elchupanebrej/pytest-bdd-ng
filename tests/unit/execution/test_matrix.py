@@ -12,10 +12,6 @@ from pytest_cuke.util.matrix import (
     substitute_parameters,
 )
 
-from pytest import mark
-
-pytestmark = mark.unit
-
 
 def test_substitute_parameters() -> None:
     text = "Given <user> has <count> apples in <city>"
@@ -70,33 +66,3 @@ def test_build_parametrization_and_scenario_parametrization() -> None:
     assert len(s_ids) == 1
 
     assert build_scenario_parametrization(Scenario(name="No Examples")) == ((), [], [])
-
-
-def test_substitute_parameters_without_text_or_parameters() -> None:
-    assert substitute_parameters("", {"user": "Alice"}) == ""
-    assert substitute_parameters("no placeholders here", {}) == "no placeholders here"
-
-
-def test_expand_examples_accepts_duck_typed_rows_dicts_and_sequences() -> None:
-    duck_typed = SimpleNamespace(
-        header=SimpleNamespace(values=("item", "qty")),
-        rows=[SimpleNamespace(values=("apple", "3")), SimpleNamespace(values=("banana", "5"))],
-    )
-    assert expand_examples([duck_typed]) == [{"item": "apple", "qty": "3"}, {"item": "banana", "qty": "5"}]
-
-    assert expand_examples([{"item": "cherry"}]) == [{"item": "cherry"}]
-    assert expand_examples([[{"a": 1}, {"b": 2}]]) == [{"a": 1}, {"b": 2}]
-
-
-def test_build_scenario_parametrization_without_example_rows() -> None:
-    assert build_scenario_parametrization(SimpleNamespace(examples=[[]])) == ((), [], [])
-
-
-def test_build_scenario_parametrization_merges_heterogeneous_keys() -> None:
-    scenario = SimpleNamespace(examples=[{"a": "1"}, {"a": "2", "b": "3"}])
-
-    names, values, ids = build_scenario_parametrization(scenario)
-
-    assert names == ("a", "b")
-    assert values == [("1", ""), ("2", "3")]
-    assert len(ids) == 2

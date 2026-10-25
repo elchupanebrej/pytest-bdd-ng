@@ -12,16 +12,16 @@ if TYPE_CHECKING:
     from pytest_cuke.model import message_types as messages
 
 
-def serialize_envelope(envelope: cucumber_messages.Envelope) -> str:
+def serialize_envelope(envelope: messages.Envelope) -> str:
     validate_envelope_shape(envelope)
     return json.dumps(envelope_to_dict(envelope))
 
 
-def deserialize_envelope(data: str | dict[str, Any]) -> cucumber_messages.Envelope:
+def deserialize_envelope(data: str | dict[str, Any]) -> messages.Envelope:
     return envelope_from_dict(json.loads(data) if isinstance(data, str) else data)
 
 
-def dump_ndjson(envelopes: Iterable[cucumber_messages.Envelope], target: IO[str] | Path | str | None = None) -> str:
+def dump_ndjson(envelopes: Iterable[messages.Envelope], target: IO[str] | Path | str | None = None) -> str:
     lines = [serialize_envelope(env) for env in envelopes]
     ndjson_str = "\n".join(lines) + ("\n" if lines else "")
     if target is not None:
@@ -32,7 +32,7 @@ def dump_ndjson(envelopes: Iterable[cucumber_messages.Envelope], target: IO[str]
     return ndjson_str
 
 
-def load_ndjson(source: IO[str] | Path | str) -> list[cucumber_messages.Envelope]:
+def load_ndjson(source: IO[str] | Path | str) -> list[messages.Envelope]:
     if isinstance(source, Path):
         content = source.read_text(encoding="utf-8")
     elif isinstance(source, str):

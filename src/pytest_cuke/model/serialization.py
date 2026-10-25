@@ -74,7 +74,7 @@ def from_dict(cls: type[T], data: dict[str, Any]) -> T:
         return cast("T", data)
     schema = _SCHEMA_MAPPING.get(cls, {})
     kwargs: dict[str, Any] = {}
-    field_names = {f.name for f in attrs.fields(cast("type[attrs.AttrsInstance]", cls))}
+    field_names = {f.name for f in attrs.fields(cls)}
     for key, val in data.items():
         if key not in field_names:
             continue

@@ -444,19 +444,6 @@ def _strict_heading_policy_enabled(config: Any) -> bool:
             is_strict = False
     return bool(is_strict)
 
-    @staticmethod
-    def _resolve_parser_from_hooks(feature_path: Path, config: Any) -> ParserProtocol | None:
-        hook = getattr(config, "hook", None)
-        if hook is None:
-            return None
-        mimetype = hook.pytest_bdd_get_mimetype(config=config, path=feature_path)
-        if not mimetype:
-            return None
-        parser = hook.pytest_bdd_get_parser(config=config, mimetype=mimetype)
-        if callable(parser):
-            return parser()
-        return parser
-
 
 def _parser_backend_options(parser: ParserProtocol, config: Any) -> dict[str, str]:
     if isinstance(parser, (GherkinParser, MarkdownParser)):

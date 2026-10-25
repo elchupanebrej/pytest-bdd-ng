@@ -26,10 +26,6 @@ from pytest_cuke.runner import ScenarioRunner
 from pytest_cuke.steps import Matcher, Registry
 from pytest_cuke.utils import IdGenerator
 
-from pytest import mark
-
-pytestmark = mark.unit
-
 
 def test_pytest_addhooks() -> None:
     pluginmanager = MagicMock()

@@ -19,7 +19,7 @@ from threading import Event, Lock, Thread
 from time import monotonic, sleep, time_ns
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
-import chevron  # type: ignore[import-untyped]  # chevron ships no type information
+import chevron
 import pytest
 from attr import attrib, attrs
 from ci_environment import detect_ci_environment
@@ -34,6 +34,7 @@ from pytest_cuke.compatibility.pytest import (
     Parser,
     get_config_root_path,
     get_metafunc_call_arg,
+    is_set,
 )
 from pytest_cuke.formatter_catalog import resolve_formatter_requests
 from pytest_cuke.formatter_runtime import FormatterSession
@@ -186,10 +187,6 @@ class PendingTestStepFinish:
 
 @attrs(eq=False)
 class MessagePlugin:
-    # These registries deduplicate messages emitted once per pytest session. They must not be
-    # ClassVars: in-process pytest runs (e.g. pytester) share one process, and a process-global
-    # id-keyed registry leaks across sessions. A freed hook function's address can be reused by
-    # the next session's function, so the "already emitted" check silently skips a message (#232).
     config: Config = attrib()
     formatter_requests: tuple[FormatterRequest, ...] = attrib(factory=tuple)
     formatter_session: FormatterSession | None = attrib(default=None)
@@ -605,25 +602,6 @@ class MessagePlugin:
             ),
             encoding="utf-8",
         )
-
-    @staticmethod
-    def build_source(feature: Feature) -> Source | None:
-        filename = feature.filename
-        if filename is None:
-            return None
-        path = Path(filename)
-        try:
-            data = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            return None
-        media_type = Mimetype.markdown.value if path.name.endswith(".md") else Mimetype.gherkin_plain.value
-        return Source(uri=feature.uri or path.as_posix(), data=data, media_type=media_type)
-
-    @staticmethod
-    def build_pickle_id(feature: Feature, scenario: Scenario) -> str:
-        uri = feature.uri or feature.filename or "feature"
-        scenario_ref = scenario.id or f"{scenario.name}-{scenario.line}"
-        return f"{uri}:{scenario_ref}"
 
     @hookimpl(hookwrapper=True)
     def pytest_generate_tests(self, metafunc: Metafunc) -> Generator[None, None, None]:
@@ -1958,7 +1936,6 @@ class MessagePlugin:
             test_case_started=current_test_case_start,
             test_step=step_definition,
         )
-        self.current_test_case_started_step_ids.add(step_definition.id)
 
     def pytest_cuke_step_bypassed(
         self,
@@ -2003,7 +1980,6 @@ class MessagePlugin:
             start_timestamp=self.current_test_step_start_timestamps[step_definition.id],
             status=Status.passed,
         )
-        self.current_test_case_finished_step_ids.add(step_definition.id)
 
     def pytest_cuke_step_error(
         self,
@@ -2271,13 +2247,13 @@ class MessagePlugin:
             active_test_step_id = None
 
         if isinstance(attachment, str | TextIOBase):
-            content_encoding = AttachmentContentEncoding.identity
+            content_encoding = ContentEncoding.identity
             _media_type = "text/plain;charset=UTF-8" if media_type is None else media_type
         elif isinstance(attachment, bytes | bytearray | BufferedIOBase):
-            content_encoding = AttachmentContentEncoding.base64
+            content_encoding = ContentEncoding.base64
             _media_type = "application/octet-stream" if media_type is None else media_type
         else:
-            content_encoding = AttachmentContentEncoding.identity
+            content_encoding = ContentEncoding.identity
             _media_type = "text/plain;charset=UTF-8" if media_type is None else media_type
 
         if isinstance(attachment, str):

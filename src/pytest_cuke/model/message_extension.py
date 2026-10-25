@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import TYPE_CHECKING, Final, TypeAlias
+from typing import Final, TypeAlias
 
 from attrs import frozen
 

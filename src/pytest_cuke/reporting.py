@@ -81,9 +81,8 @@ class StepReport:
         )
         serialized: dict[str, Any] = {
             "name": getattr(self.step, "name", getattr(self.step, "text", "")),
-            "type": serialize_step_type(self.step),
-            "keyword": serialize_step_keyword(self.step)
-            or (feature._get_step_keyword(self.step) if hasattr(feature, "_get_step_keyword") else ""),
+            "type": step_type,
+            "keyword": step_kw,
             "line_number": step_line,
             "failed": self.failed,
             "skipped": self.skipped,
@@ -205,7 +204,7 @@ class ScenarioReport:
 
         serialized = {
             "steps": steps_data,
-            "name": str(pickle.name).split("[table_rows:")[0],
+            "name": pickle.name,
             "line_number": pickle_line,
             "tags": sorted(set(pickle_tags).difference(feature_tags)),
             "feature": {
@@ -274,21 +273,6 @@ class ScenarioReport:
                 current_report.error_message = self.error_message
                 return
         self._skip_unstarted_steps(scenario_steps)
-
-
-def get_feature_and_scenario(item: Item) -> tuple[Feature, Pickle] | None:
-    """Resolve the feature/scenario pair of an item without setting up fixtures.
-
-    Items skipped in setup never request their fixtures, so the scenario metadata has to come
-    from the parametrization. Used to report runs that did not reach the test call phase.
-    """
-    callspec = getattr(item, "callspec", None)
-    params = getattr(callspec, "params", {}) if callspec else {}
-    feature = params.get("feature") or getattr(item, "feature", None)
-    scenario = params.get("scenario") or getattr(item, "scenario", None)
-    if feature is None or scenario is None:
-        return None
-    return feature, scenario
 
 
 class ScenarioReporterPlugin:

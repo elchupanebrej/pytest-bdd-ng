@@ -1,15 +1,10 @@
 import sys
-from filecmp import dircmp
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-import pytest
 from pytest import mark
-
-pytestmark = mark.integration
-
 
 if TYPE_CHECKING:  # pragma: no cover
     from pytest_cuke.compatibility.pytest import Testdir

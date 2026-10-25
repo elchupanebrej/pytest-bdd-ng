@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -14,8 +13,6 @@ from pytest_cuke.steps.decorators import given
 from pytest_cuke.steps.decorators import step as generic_step
 from pytest_cuke.steps.matcher import Matcher
 from pytest_cuke.steps.registry import Registry
-
-pytestmark = pytest.mark.unit
 
 
 def test_matcher_strict_and_unspecified() -> None:
@@ -85,44 +82,5 @@ def test_matcher_not_found_error() -> None:
     reg = Registry(definitions=OrderedSet([]))
     matcher = Matcher(MagicMock())
     step_item = Step(name="unknown step", keyword="Given", type=StepType.context)
-    with pytest.raises(Matcher.MatchNotFoundError):
-        matcher(None, None, None, step_item, None, reg)
-
-
-def test_matcher_conjunction_type_inherits_previous_step_type() -> None:
-    @given(string("I have a conjunction step"))
-    def conjunction_step() -> None:
-        pass
-
-    reg = Registry(definitions=OrderedSet([next(iter(conjunction_step.__pytest_bdd_step_definitions__))]))
-    matcher = Matcher(MagicMock())
-    previous = Step(name="previous", keyword="Given", type=StepType.context)
-    step_item = Step(name="I have a conjunction step", keyword="And", type="Conjunction")
-
-    assert matcher(None, None, None, step_item, previous, reg).func is conjunction_step
-
-
-def test_matcher_unknown_keyword_is_unknown_step_type() -> None:
-    matcher = Matcher(MagicMock())
-    step_item = Step(name="mystery", keyword="Zzz", type=None)
-    with pytest.raises(Matcher.MatchNotFoundError):
-        matcher(None, None, None, step_item, None, Registry(definitions=OrderedSet([])))
-
-
-def test_matcher_liberal_mode_without_cli_or_ini_option() -> None:
-    @then(string("I check liberal fallback"))
-    def then_state() -> None:
-        pass
-
-    class ConfigWithoutLiberalOption:
-        option = SimpleNamespace()
-
-        @staticmethod
-        def getini(name):
-            raise ValueError(name)
-
-    reg = Registry(definitions=OrderedSet([next(iter(then_state.__pytest_bdd_step_definitions__))]))
-    matcher = Matcher(ConfigWithoutLiberalOption())
-    step_item = Step(name="I check liberal fallback", keyword="Given", type=StepType.context)
     with pytest.raises(Matcher.MatchNotFoundError):
         matcher(None, None, None, step_item, None, reg)

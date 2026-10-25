@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import partial
 from itertools import filterfalse
 from operator import contains
-from re import Match, RegexFlag
+from re import Match
 from re import Pattern as _RePattern
 from re import compile as re_compile
 from typing import TYPE_CHECKING, Any, cast

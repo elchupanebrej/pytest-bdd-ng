@@ -209,9 +209,9 @@ class Join(BaseModel):
 
 def _before_convert_to_step(value: Any) -> Any:
     if isinstance(value, str):
-        return Step(Action=value)
+        return Step(action=value)
     if isinstance(value, dict) and len(value) == 1 and next(iter(value)) not in SubKeyword.__members__:
-        return Step(Type=next(iter(value.keys())), Action=next(iter(value.values())))
+        return Step(type=next(iter(value.keys())), action=next(iter(value.values())))
     return value
 
 
@@ -255,7 +255,7 @@ class StepPrototype(Node):
     examples: list[Annotated[Table | Join | SubTable, convert_sub_tables_to_tables]] = Field(
         default_factory=list, alias="Examples"
     )
-    keyword_type: KeywordType | None = Field(default=KeywordType.unknown)
+    keyword_type: KeywordType | None = Field(KeywordType.unknown)
 
     class Route(NamedTuple):
         tags: Sequence[str] | None
@@ -384,7 +384,7 @@ class Alternative(Node):
 
 class Step(StepPrototype):
     type: StepKeywordType | None = Field(default=Keyword.Star, alias="Type")
-    action: str | None = Field(default=None, alias="Action")
+    action: str | None = Field(None, alias="Action")
 
 
 class SubStep(BaseModel):
@@ -392,33 +392,33 @@ class SubStep(BaseModel):
 
 
 class StarStep(StepPrototype):
-    type: StepKeywordType = Field(default=Keyword.Star, alias="Type")
-    action: str | None = Field(alias="*")
+    type: StepKeywordType = Field(Keyword.Star, alias="Type")
+    action: str | None = Field(alias=Keyword.Star.value)
 
 
 class GivenStep(StepPrototype):
-    type: StepKeywordType = Field(default=Keyword.Given, alias="Type")
-    action: str | None = Field(alias="Given")
+    type: StepKeywordType = Field(Keyword.Given, alias="Type")
+    action: str | None = Field(alias=Keyword.Given.value)
 
 
 class WhenStep(StepPrototype):
-    type: StepKeywordType = Field(default=Keyword.When, alias="Type")
-    action: str | None = Field(alias="When")
+    type: StepKeywordType = Field(Keyword.When, alias="Type")
+    action: str | None = Field(alias=Keyword.When.value)
 
 
 class ThenStep(StepPrototype):
-    type: StepKeywordType = Field(default=Keyword.Then, alias="Type")
-    action: str | None = Field(alias="Then")
+    type: StepKeywordType = Field(Keyword.Then, alias="Type")
+    action: str | None = Field(alias=Keyword.Then.value)
 
 
 class AndStep(StepPrototype):
-    type: StepKeywordType = Field(default=Keyword.And, alias="Type")
-    action: str | None = Field(alias="And")
+    type: StepKeywordType = Field(Keyword.And, alias="Type")
+    action: str | None = Field(alias=Keyword.And.value)
 
 
 class ButStep(StepPrototype):
-    type: StepKeywordType = Field(default=Keyword.But, alias="Type")
-    action: str | None = Field(alias="But")
+    type: StepKeywordType = Field(Keyword.But, alias="Type")
+    action: str | None = Field(alias=Keyword.But.value)
 
 
 Join.model_rebuild()

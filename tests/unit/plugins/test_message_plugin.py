@@ -65,15 +65,6 @@ def _drain_messages(plugin: MessagePlugin) -> list[dict[str, Any]]:
     return result
 
 
-def _enabled_config(**overrides):
-    config = MagicMock()
-    config.option.messages_ndjson_path = "messages.ndjson"
-    config.option.cucumber_html_path = None
-    for key, value in overrides.items():
-        setattr(config.option, key, value)
-    return config
-
-
 def test_message_plugin_add_options() -> None:
     parser = MagicMock()
     group = MagicMock()

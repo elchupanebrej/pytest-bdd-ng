@@ -6,7 +6,7 @@ import sys
 
 from pytest import mark
 
-pytestmark = [mark.integration, mark.skipif(sys.version_info < (3, 13), reason="Verify only on the latest version")]
+pytestmark = mark.skipif(sys.version_info < (3, 13), reason="Verify only on the latest version")
 
 
 def assert_generated_steps(source: str, expected_bindings: dict[str, str]) -> None:

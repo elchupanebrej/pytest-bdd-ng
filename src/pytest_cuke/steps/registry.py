@@ -55,7 +55,7 @@ class Registry:
         for step_container in step_containers:
             raw_definitions = getattr(step_container, "__pytest_cuke_step_definitions__", ())
             if isinstance(raw_definitions, set | list | tuple | OrderedSet):
-                discovered_definitions.extend(d for d in raw_definitions if isinstance(d, Definition))
+                discovered_definitions.extend(raw_definitions)
 
         return OrderedSet(discovered_definitions)
 

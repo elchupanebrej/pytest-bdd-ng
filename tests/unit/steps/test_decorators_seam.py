@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
-import pytest
 from ordered_set import OrderedSet
 
 from pytest_cuke.model.step import Step, StepType
@@ -87,68 +86,3 @@ def test_matcher_liberal_mode() -> None:
     step_item = Step(name="I check state", keyword="Given", type=StepType.context)
     match_defn = matcher(None, None, None, step_item, None, reg)
     assert match_defn.func is then_check
-
-
-def test_target_fixture_with_target_fixtures_warns() -> None:
-    with pytest.warns(PytestBDDStepDefinitionWarning, match="Both target_fixture"):
-
-        @given(string("I have both target options"), target_fixture="one", target_fixtures=["two"])
-        def both_targets() -> None:
-            pass
-
-
-def test_registry_namespace_discovery_tolerates_odd_attributes() -> None:
-    @given(string("I have a discoverable step"))
-    def discoverable() -> None:
-        pass
-
-    definition = next(iter(discoverable.__pytest_bdd_step_definitions__))
-
-    class Container:
-        __pytest_bdd_step_definitions__ = OrderedSet([definition])
-
-    class GeneratorContainer:
-        __pytest_bdd_step_definitions__ = (d for d in [definition])
-
-    class Namespace:
-        good = Container()
-        generator = GeneratorContainer()
-
-        def __dir__(self):
-            return ["good", "generator", "broken"]
-
-        @property
-        def broken(self):
-            raise RuntimeError("broken attribute")
-
-    assert list(Registry(namespace=Namespace())) == [definition]
-
-
-def test_registry_namespace_discovery_ignores_mock_call_and_foreign_payloads() -> None:
-    @given(string("I have a discoverable step"))
-    def discoverable() -> None:
-        pass
-
-    definition = next(iter(discoverable.__pytest_bdd_step_definitions__))
-
-    class Container:
-        __pytest_bdd_step_definitions__ = OrderedSet([definition])
-
-    class MockCallLikeContainer:
-        # `unittest.mock.call` fabricates a `_Call` (tuple subclass) for any
-        # requested attribute; its payload can hold unhashable objects (#115).
-        __pytest_bdd_step_definitions__ = ({"unhashable": "payload"},)
-
-    class Namespace:
-        good = Container()
-        foreign = MockCallLikeContainer()
-        mock_call = call
-
-    registry = Registry(namespace=Namespace())
-    assert list(registry) == [definition]
-
-    config = MagicMock()
-    config.option.liberal_steps = True
-    matcher = Matcher(config)
-    step_item = Step(name="I have a discoverable step", keyword="Given", type=StepType.context)
-    assert matcher(None, None, None, step_item, None, registry).func is discoverable

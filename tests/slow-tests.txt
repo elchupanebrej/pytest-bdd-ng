@@ -27,7 +27,7 @@
 #   commit, and append the prefix here. Removing an entry needs the same
 #   evidence; do not re-measure until something crosses the bar.
 #
-# Evidence: local run 2026-09-16 on rewrite-from-2.3.1 @ e1d3ede6 (Python
+# Original evidence: local run 2026-09-16 on rewrite-from-2.3.1 @ e1d3ede6 (Python
 # 3.13.15, pytest 9.1.1), commands with `-p no:cacheprovider`:
 #   pytest tests --ignore tests/unit -q --durations=40
 #     1 failed (env-only messages sample), 279 passed, 46 skipped, 1 xfailed,
@@ -40,22 +40,21 @@
 #   4.41 and 4.15.
 # Tier 2 seconds from the non-unit run: Tag-1 2.68; test_no_scenarios 2.48;
 #   test_step_hooks 2.43; test_step_trace 2.36; Autoload 2.06-2.20 (x3).
+# The feature files now run in the `e2e` marker group; only Python test node IDs
+# remain in this selector after the #300 test-layout migration.
 
-# Tier 1 - pytester-subprocess import-mode repeats and the e2e report scenarios
-tests/e2e/test_e2e.py::test[file:features/Report/Gathering.feature.md--
-tests/feature/test_scenario.py::test_simple[
-tests/feature/test_scenario.py::test_scenario_not_found[
-tests/feature/test_scenarios.py::test_scenarios_none_found[
-tests/feature/test_tags.py::test_at_in_scenario
-tests/library/test_parent.py::test_local_both_target_fixture_and_target_fixtures
+# Tier 1 - import-mode repeats, nested pytest sessions, and measured lifecycle checks
+tests/integration/features/test_scenario.py::test_simple[
+tests/integration/features/test_scenario.py::test_scenario_not_found[
+tests/integration/features/test_scenarios.py::test_scenarios_none_found[
+tests/integration/features/test_tags.py::test_at_in_scenario
+tests/integration/library/test_parent.py::test_local_both_target_fixture_and_target_fixtures
 
 # Tier 1 - bootstrap lifecycle tests (plugin registration path, >= 4 s)
 tests/unit/bootstrap/test_plugin.py::test_pytest_configure_lifecycle
 tests/contract/test_seam6_contract.py::test_seam6_plugin_lifecycle_and_stash_contract
 
 # Tier 2 - inner pytest sessions measured >= 2 s
-tests/e2e/test_e2e.py::test[file:features/Feature/Load/Autoload.feature.md-
-tests/e2e/test_e2e.py::test[file:features/Feature/Tag.feature.md-Features could be tagged-1]
-tests/feature/test_no_scenario.py::test_no_scenarios
-tests/feature/test_steps.py::test_step_hooks
-tests/feature/test_steps.py::test_step_trace
+tests/integration/features/test_no_scenario.py::test_no_scenarios
+tests/integration/features/test_steps.py::test_step_hooks
+tests/integration/features/test_steps.py::test_step_trace

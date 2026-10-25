@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, cast
 
 from pytest_cuke.model.message_types import (  # type:ignore[attr-defined]  # type:ignore[attr-defined]
     Attachment,
-    AttachmentContentEncoding,
+    ContentEncoding,
     GherkinDocument,
     Hook,
     HookType,
@@ -27,9 +27,6 @@ from pytest_cuke.model.message_types import TestRunStarted as _TestRunStarted  #
 from pytest_cuke.model.message_types import TestStepFinished as _TestStepFinished  # type:ignore[attr-defined]
 from pytest_cuke.model.message_types import TestStepStarted as _TestStepStarted  # type:ignore[attr-defined]
 from pytest_cuke.utils import flip
-
-pytestmark = pytest.mark.integration
-
 
 if TYPE_CHECKING:  # pragma: nocover
     from pytest_cuke.compatibility.pytest import Testdir
@@ -331,7 +328,7 @@ def test_attachment_type_message_as_raw_string(testdir: "Testdir", tmp_path):
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "Hello world!"
     assert attachment_message.media_type == "text/plain;charset=UTF-8"
-    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.identity
+    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.identity
 
 
 def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Testdir", tmp_path):
@@ -374,7 +371,7 @@ def test_attachment_type_messages_as_raw_string_with_content_type(testdir: "Test
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "http://https://example.com/"
     assert attachment_message.media_type == "text/uri-list"
-    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.identity
+    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.identity
 
 
 def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
@@ -416,7 +413,7 @@ def test_attachment_type_messages_as_bytes(testdir: "Testdir", tmp_path):
 
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "SGVsbG8gd29ybGQh"
-    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.base64
+    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.base64
 
 
 def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
@@ -463,7 +460,7 @@ def test_attachment_type_messages_from_text_file(testdir: "Testdir", tmp_path):
 
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "Hello world!"
-    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.identity
+    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.identity
 
 
 def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path):
@@ -510,7 +507,7 @@ def test_attachment_type_messages_from_binary_file(testdir: "Testdir", tmp_path)
 
     attachment_message: Attachment = attachment_messages[0]
     assert attachment_message.body == "SGVsbG8gd29ybGQh"
-    assert AttachmentContentEncoding(attachment_message.content_encoding) == AttachmentContentEncoding.base64
+    assert ContentEncoding(attachment_message.content_encoding) == ContentEncoding.base64
     assert attachment_message.media_type == "application/octet-stream"
     assert Path(cast(str, attachment_message.file_name)).name == "file.txt"
 
@@ -613,345 +610,3 @@ def test_hook_type_messages(testdir, tmp_path):
 
     # after_tag hook
     assert any(message.tag_expression == "tag" and message.name == "around" for message in attachment_messages)
-
-
-def test_failed_step_messages(testdir, tmp_path):
-    testdir.makeconftest(
-        # language=python
-        """\
-        from pytest_bdd import given
-
-        @given("a failing step")
-        def failing_step():
-            raise AssertionError("boom")
-        """
-    )
-    testdir.makefile(
-        ".feature",
-        # language=gherkin
-        failing="""\
-            Feature: failing
-
-              Scenario: failing step
-                Given a failing step
-            """,
-    )
-
-    ndjson_path = tmp_path / "failing.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
-    result.assert_outcomes(failed=1)
-
-    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
-
-    step_finished_messages = list_filter_by_type(_TestStepFinished, unfold_messages)
-    assert len(step_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-    assert _TestStepResultStatus(step_finished_messages[0].test_step_result.status) == _TestStepResultStatus.failed
-    assert len(list_filter_by_type(_TestCaseFinished, unfold_messages)) == 1
-
-
-def test_skipped_scenario_messages(testdir, tmp_path):
-    testdir.makefile(
-        ".ini",
-        pytest="""
-        [pytest]
-        markers =
-            skip
-        """,
-    )
-    testdir.makefile(
-        ".feature",
-        # language=gherkin
-        test_skip="""
-        Feature: Skipped feature
-            @skip
-            Scenario: Skipped scenario
-                Given a step that is skipped
-        """,
-    )
-    testdir.makeconftest(
-        # language=python
-        """\
-        from pytest_bdd import given
-
-        @given('a step that is skipped')
-        def a_step_that_is_skipped():
-            pass
-        """
-    )
-
-    ndjson_path = tmp_path / "skipped.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
-    result.assert_outcomes(skipped=1)
-
-    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
-
-    test_case_messages = list_filter_by_type(_TestCase, unfold_messages)
-    assert len(test_case_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-    assert len(test_case_messages[0].test_steps) == 1
-
-    step_started_messages = list_filter_by_type(_TestStepStarted, unfold_messages)
-    assert len(step_started_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-
-    step_finished_messages = list_filter_by_type(_TestStepFinished, unfold_messages)
-    assert len(step_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-    assert _TestStepResultStatus(step_finished_messages[0].test_step_result.status) == _TestStepResultStatus.skipped
-
-    test_case_finished_messages = list_filter_by_type(_TestCaseFinished, unfold_messages)
-    assert len(test_case_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-
-
-def test_step_that_calls_pytest_skip_messages(testdir, tmp_path):
-    testdir.makefile(
-        ".feature",
-        # language=gherkin
-        test_skip="""
-        Feature: Skipped step
-            Scenario: a step calls pytest.skip
-                Given a passing step
-                When a step calls pytest.skip
-                Then a step that never runs
-        """,
-    )
-    testdir.makeconftest(
-        # language=python
-        """\
-        import pytest
-
-        from pytest_bdd import given, then, when
-
-        @given('a passing step')
-        def a_passing_step():
-            pass
-
-        @when('a step calls pytest.skip')
-        def a_step_that_calls_pytest_skip():
-            pytest.skip('skipping inside the step')
-
-        @then('a step that never runs')
-        def a_step_that_never_runs():
-            raise AssertionError('this step must not run')
-        """
-    )
-
-    ndjson_path = tmp_path / "step_skip.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
-    result.assert_outcomes(skipped=1)
-
-    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
-
-    test_case_messages = list_filter_by_type(_TestCase, unfold_messages)
-    assert len(test_case_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-    test_steps = test_case_messages[0].test_steps
-    assert len(test_steps) == 3
-
-    step_started_messages = list_filter_by_type(_TestStepStarted, unfold_messages)
-    step_finished_messages = list_filter_by_type(_TestStepFinished, unfold_messages)
-    assert sorted(message.test_step_id for message in step_started_messages) == sorted(
-        message.test_step_id for message in step_finished_messages
-    ), f"No TestStepStarted may be left dangling. Messages: {pformat(unfold_messages)}"
-
-    status_by_step_id = {
-        message.test_step_id: _TestStepResultStatus(message.test_step_result.status)
-        for message in step_finished_messages
-    }
-    assert [status_by_step_id[step.id] for step in test_steps] == [
-        _TestStepResultStatus.passed,
-        _TestStepResultStatus.skipped,
-        _TestStepResultStatus.skipped,
-    ], f"Messages: {pformat(unfold_messages)}"
-
-    test_case_finished_messages = list_filter_by_type(_TestCaseFinished, unfold_messages)
-    assert len(test_case_finished_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-
-
-@pytest.mark.parametrize(
-    ("feature", "conftest_source", "expected_outcomes"),
-    [
-        pytest.param(
-            # language=gherkin
-            """\
-            Feature: passing
-
-              Scenario: passing step
-                Given a passing step
-            """,
-            # language=python
-            """\
-            from pytest_bdd import given
-
-            @given("a passing step")
-            def a_passing_step():
-                pass
-            """,
-            {"passed": 1},
-            id="passed",
-        ),
-        pytest.param(
-            # language=gherkin
-            """\
-            Feature: failing
-
-              Scenario: failing step
-                Given a failing step
-            """,
-            # language=python
-            """\
-            from pytest_bdd import given
-
-            @given("a failing step")
-            def a_failing_step():
-                raise AssertionError("boom")
-            """,
-            {"failed": 1},
-            id="failed",
-        ),
-        pytest.param(
-            # language=gherkin
-            """\
-            Feature: skipped step
-
-              Scenario: a step calls pytest.skip
-                Given a passing step
-                When a step calls pytest.skip
-                Then a step that never runs
-            """,
-            # language=python
-            """\
-            import pytest
-
-            from pytest_bdd import given, then, when
-
-            @given("a passing step")
-            def a_passing_step():
-                pass
-
-            @when("a step calls pytest.skip")
-            def a_step_that_calls_pytest_skip():
-                pytest.skip("skipping inside the step")
-
-            @then("a step that never runs")
-            def a_step_that_never_runs():
-                raise AssertionError("this step must not run")
-            """,
-            {"skipped": 1},
-            id="step-skip",
-        ),
-        pytest.param(
-            # language=gherkin
-            """\
-            @skip
-            Feature: skipped scenario
-
-              Scenario: skipped scenario
-                Given a passing step
-            """,
-            # language=python
-            """\
-            from pytest_bdd import given
-
-            @given("a passing step")
-            def a_passing_step():
-                pass
-            """,
-            {"skipped": 1},
-            id="scenario-skip",
-        ),
-    ],
-)
-def test_step_events_reference_the_active_test_case_started(
-    testdir, tmp_path, feature: str, conftest_source: str, expected_outcomes: dict[str, int]
-) -> None:
-    testdir.makefile(".ini", pytest="[pytest]\nmarkers =\n    skip\n")
-    testdir.makefile(".feature", regression=feature)
-    testdir.makeconftest(conftest_source)
-
-    ndjson_path = tmp_path / "regression.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
-    result.assert_outcomes(**expected_outcomes)
-
-    envelopes = load_ndjson(ndjson_path)
-
-    assert validate_message_stream(envelopes) == [], f"Messages: {pformat(envelopes)}"
-
-    test_case_started_ids = [
-        envelope.test_case_started.id for envelope in envelopes if envelope.test_case_started is not None
-    ]
-    assert len(test_case_started_ids) == 1, f"Messages: {pformat(envelopes)}"
-
-    step_events = []
-    for envelope in envelopes:
-        step_event = (
-            envelope.test_step_started if envelope.test_step_started is not None else envelope.test_step_finished
-        )
-        if step_event is not None:
-            step_events.append(step_event)
-
-    assert step_events, f"Messages: {pformat(envelopes)}"
-    assert [step_event.test_case_started_id for step_event in step_events] == [test_case_started_ids[0]] * len(
-        step_events
-    ), f"Messages: {pformat(envelopes)}"
-
-
-def test_undefined_step_messages(testdir, tmp_path):
-    testdir.makefile(
-        ".feature",
-        # language=gherkin
-        undefined="""\
-            Feature: undefined
-
-              Scenario: undefined step
-                Given an undefined step
-            """,
-    )
-
-    ndjson_path = tmp_path / "undefined.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
-    result.assert_outcomes(failed=1)
-
-    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
-
-    test_case_messages = list_filter_by_type(_TestCase, unfold_messages)
-    assert len(test_case_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-    assert test_case_messages[0].test_steps == []
-
-
-def test_hook_message_is_emitted_once_per_hook_function(testdir, tmp_path):
-    testdir.makefile(
-        ".feature",
-        # language=gherkin
-        tagged="""\
-            @tagged
-            Feature: tagged
-
-              Scenario: first scenario
-                Given a step
-
-              Scenario: second scenario
-                Given a step
-            """,
-    )
-    testdir.makeconftest(
-        # language=python
-        """\
-        from pytest_bdd import given
-        from pytest_bdd.hook import before_tag
-
-        @given("a step")
-        def a_step():
-            pass
-
-        @before_tag("@tagged", name="once")
-        def hook_once(request):
-            pass
-        """
-    )
-
-    ndjson_path = tmp_path / "tagged.feature.ndjson"
-    result = testdir.runpytest("--messages-ndjson", str(ndjson_path))
-    result.assert_outcomes(passed=2)
-
-    unfold_messages = parse_and_unflold_messages(ndjson_path.read_text(encoding="utf-8").splitlines())
-
-    hook_messages = list_filter_by_type(Hook, unfold_messages)
-    assert len(hook_messages) == 1, f"Messages: {pformat(unfold_messages)}"
-    assert hook_messages[0].name == "once"

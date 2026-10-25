@@ -4,7 +4,6 @@ from collections.abc import Collection, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, TypeAlias
 
-import cucumber_messages
 from attrs import define, field
 
 from pytest_cuke.compatibility.path import resolvepath
@@ -42,7 +41,7 @@ class Definition:
     not_implemented: bool = False
     tolerant: bool = False
     id: str = field(init=False)
-    __cache: dict[int, cucumber_messages.StepDefinition] = field(factory=dict)
+    __cache: dict[int, messages.StepDefinition] = field(factory=dict)
 
     @property
     def fixtures_mapped_from_step_definition(self) -> set[str]:
@@ -63,7 +62,7 @@ class Definition:
             fixtures.update(known.difference(conv))
         return fixtures
 
-    def as_message(self, config: Config | HasPytestStash) -> cucumber_messages.StepDefinition:
+    def as_message(self, config: Config | HasPytestStash) -> messages.StepDefinition:
         id_gen = IdGenerator.from_stash(config.stash)
         if id(id_gen) in self.__cache:
             return self.__cache[id(id_gen)]
@@ -72,7 +71,7 @@ class Definition:
         expr_type = pet if isinstance(pet, StepDefinitionPatternType) else StepDefinitionPatternType(str(pet))
         src_file, src_line = _resolve_callable_source_location(self.func)
         fn = str(self.func.__name__)
-        msg = self.__cache[id(id_gen)] = cucumber_messages.StepDefinition(
+        msg = self.__cache[id(id_gen)] = messages.StepDefinition(
             id=self.id,
             pattern=messages.StepDefinitionPattern(
                 source=str(self.parser), type=to_wire_step_definition_pattern_type(expr_type)
@@ -90,7 +89,7 @@ class Definition:
         )
         return msg
 
-    def get_parameters(self, request: FixtureRequest, step: Step | cucumber_messages.PickleStep) -> dict[str, object]:
+    def get_parameters(self, request: FixtureRequest, step: Step | messages.PickleStep) -> dict[str, object]:
         step_text = getattr(step, "text", getattr(step, "name", ""))
         parsed = self.parser.parse_arguments(request, step_text, anonymous_group_names=self.anonymous_group_names) or {}
         converted = {k: self.converters[k](value) if k in self.converters else value for k, value in parsed.items()}

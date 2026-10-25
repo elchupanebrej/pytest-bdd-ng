@@ -10,6 +10,10 @@ from pytest_cuke.steps import add_options as steps_add_options
 
 pytestmark = pytest.mark.unit
 
+from pytest import mark
+
+pytestmark = mark.unit
+
 
 def test_add_bdd_ini() -> None:
     parser = MagicMock()

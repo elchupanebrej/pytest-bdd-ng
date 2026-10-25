@@ -174,11 +174,8 @@ class AllurePytestBDD:
             allure_plugin_manager.get_plugins()
 
             listener = next(
-                (plugin for plugin in allure_plugin_manager.get_plugins() if isinstance(plugin, AllureListener)),
-                None,
+                filter(lambda plugin: isinstance(plugin, AllureListener), allure_plugin_manager.get_plugins())
             )
-            if listener is None:
-                return None
 
             allure_listener = cast("_AllureListener", listener)
             bdd_listener = cls(
@@ -202,11 +199,7 @@ class AllurePytestBDD:
                 if recurse:
                     try:
                         return patched_asdict(
-                            value,
-                            *args[1:],
-                            recurse=True,
-                            value_serializer=patched_value_serializer,
-                            **{k: v for k, v in kwargs.items() if k != "value_serializer"},
+                            value, *args[1:], recurse=True, value_serializer=patched_value_serializer, **kwargs
                         )
                     except NotAnAttrsClassError:
                         return value
