@@ -253,7 +253,7 @@ def _test_counts(output: str) -> dict[str, int] | None:
 
 
 def _test_counts_by_tox_command(output: str) -> dict[int, dict[str, int]]:
-    """Return pytest summary counts grouped by tox command index."""
+    """Use each tox command's final pytest summary, after any nested test runs."""
     command_counts: dict[int, dict[str, int]] = {}
     command_index: int | None = None
     command_pattern = re.compile(r"\bcommands\[(\d+)\]>")
@@ -268,8 +268,7 @@ def _test_counts_by_tox_command(output: str) -> dict[int, dict[str, int]]:
         line_counts = _test_counts(line)
         if line_counts is None:
             continue
-        for outcome, count in line_counts.items():
-            command_counts[command_index][outcome] = command_counts[command_index].get(outcome, 0) + count
+        command_counts[command_index] = line_counts
     return command_counts
 
 

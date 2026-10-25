@@ -196,6 +196,10 @@ Feature: Aggregate the full supported environment proof
     When I run the matrix runner for one tox environment selected from its cell
     Then it should execute only that environment and record the canonical proof key and SHA
 
+  Scenario: The matrix runner records the outer pytest result when a test runs a failing nested session
+    When I run the matrix runner with a failing nested pytest summary and a passing outer summary
+    Then it should record the outer pytest counts for core acceptance
+
   Scenario: The matrix runner normalizes an AMD64 architecture alias
     When I run the matrix runner on a host reporting the AMD64 architecture
     Then the matrix runner should record the normalized x86_64 architecture

@@ -2612,6 +2612,61 @@ def run_matrix_runner_for_one_selected_environment(
     )
 
 
+@when(
+    "I run the matrix runner with a failing nested pytest summary and a passing outer summary",
+    target_fixture="nested_pytest_matrix_run",
+)
+def run_matrix_runner_with_nested_pytest_summary(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> dict[str, Any]:
+    environment = "py313-pytestlatest-runner-selected"
+    return _run_selected_matrix_environment(
+        request,
+        tmp_path,
+        monkeypatch,
+        requested_environment=environment,
+        tox_stdout=(
+            f"{environment}: commands[0]> python -m pytest\n"
+            "========================= 2 failed in 0.15s =========================\n"
+            "========================= 1321 passed, 47 skipped, 325 deselected, "
+            "1 xfailed, 22 warnings in 5658.07s =========================\n"
+            f"{environment}: commands[1]> python -m pytest tutorial-example-acceptance.feature\n"
+            "1 passed in 0.01s\n"
+        ),
+    )
+
+
+@then("it should record the outer pytest counts for core acceptance")
+def nested_pytest_summary_does_not_replace_outer_acceptance(
+    nested_pytest_matrix_run: dict[str, Any],
+) -> None:
+    capture = nested_pytest_matrix_run
+    assert capture["returncode"] == 0, capture
+    evidence = json.loads(capture["output_path"].read_text(encoding="utf-8"))
+    record = evidence["environments"][0]
+    assert record["acceptance_commands"] == {
+        "core_tests": {
+            "command_index": 0,
+            "selected_tests": 1369,
+            "passed_tests": 1321,
+            "failed_tests": 0,
+            "error_tests": 0,
+            "outcome": "passed",
+        },
+        "tutorial_example": {
+            "command_index": 1,
+            "selected_tests": 1,
+            "passed_tests": 1,
+            "failed_tests": 0,
+            "error_tests": 0,
+            "outcome": "passed",
+        },
+    }, record
+    assert record["outcome"] == "passed", record
+
+
 @then("it should execute only that environment and record the canonical proof key and SHA")
 def selected_matrix_environment_has_canonical_evidence(selected_matrix_environment_run: dict[str, Any]) -> None:
     capture = selected_matrix_environment_run
