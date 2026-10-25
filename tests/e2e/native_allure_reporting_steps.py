@@ -485,19 +485,19 @@ def _install_duplicate_worker_batch_replay(context: NativeAllureConsumer) -> Non
     (context.project / "native_allure_duplicate_batch_probe.py").write_text(
         "from copy import deepcopy\n"
         "import json\n"
+        "import os\n"
         "from pathlib import Path\n"
         "import pytest\n\n"
         "_first_batch = None\n"
-        "_observed_batches = Path('native-allure-observed-worker-batches.jsonl')\n"
-        "_first_batch_path = Path('native-allure-first-worker-batch.json')\n\n\n"
+        "_observed_batches = []\n"
+        "_batch_probe_path = Path('native-allure-batch-probe.json')\n\n\n"
         "@pytest.hookimpl(tryfirst=True)\n"
         "def pytest_cuke_message_batch(config, batch):\n"
         "    if isinstance(getattr(config, 'workerinput', None), dict):\n"
         "        return\n"
         "    global _first_batch\n"
         "    observation = {'worker_id': batch.get('worker_id'), 'sequence': batch.get('sequence')}\n"
-        "    with _observed_batches.open('a', encoding='utf-8') as stream:\n"
-        "        stream.write(json.dumps(observation, sort_keys=True) + '\\n')\n"
+        "    _observed_batches.append(observation)\n"
         "    if _first_batch is None:\n"
         "        _first_batch = deepcopy(batch)\n"
         "\n\n"
@@ -513,7 +513,17 @@ def _install_duplicate_worker_batch_replay(context: NativeAllureConsumer) -> Non
         "    if not callable(replay):\n"
         "        raise RuntimeError('pytest-cuke has no worker Messages batch receiver to replay')\n"
         "    replay_batch = deepcopy(_first_batch)\n"
-        "    _first_batch_path.write_text(json.dumps(replay_batch), encoding='utf-8')\n"
+        "    _batch_probe_path.write_text(\n"
+        "        json.dumps(\n"
+        "            {\n"
+        "                'controller_pid': os.getpid(),\n"
+        "                'first_batch': replay_batch,\n"
+        "                'observations': _observed_batches,\n"
+        "            },\n"
+        "            sort_keys=True,\n"
+        "        ),\n"
+        "        encoding='utf-8',\n"
+        "    )\n"
         "    replay(replay_batch)\n",
         encoding="utf-8",
     )
@@ -1745,15 +1755,19 @@ def duplicate_worker_batches_are_rejected_before_allure_publication(
     combined_output = f"{run_result.stdout}\n{run_result.stderr}"
     assert "duplicate_worker_batch" in combined_output, combined_output
 
-    first_batch_path = _consumer_path(native_allure_consumer, "native-allure-first-worker-batch.json")
-    first_batch = json.loads(first_batch_path.read_text(encoding="utf-8"))
+    batch_probe_path = _consumer_path(native_allure_consumer, "native-allure-batch-probe.json")
+    batch_probe = json.loads(batch_probe_path.read_text(encoding="utf-8"))
+    controller_pid = batch_probe.get("controller_pid")
+    assert isinstance(controller_pid, int) and controller_pid > 0, batch_probe
+    first_batch = batch_probe.get("first_batch")
+    assert isinstance(first_batch, dict), batch_probe
     worker_id = first_batch.get("worker_id")
     sequence = first_batch.get("sequence")
     assert isinstance(worker_id, str) and worker_id, first_batch
     assert isinstance(sequence, int) and not isinstance(sequence, bool), first_batch
 
-    observed_path = _consumer_path(native_allure_consumer, "native-allure-observed-worker-batches.jsonl")
-    observations = [json.loads(line) for line in observed_path.read_text(encoding="utf-8").splitlines()]
+    observations = batch_probe.get("observations")
+    assert isinstance(observations, list), batch_probe
     matching_observations = [
         observation
         for observation in observations
