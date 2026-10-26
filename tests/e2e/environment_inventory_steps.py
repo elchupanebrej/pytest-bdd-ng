@@ -3632,8 +3632,7 @@ def fast_pr_acceptance_uses_four_xdist_workers(
     install_commands = [
         step.get("run")
         for step in steps
-        if isinstance(step, dict)
-        and step.get("name") == "Install project and inventory dependencies"
+        if isinstance(step, dict) and step.get("name") == "Install project and inventory dependencies"
     ]
     assert len(install_commands) == 1 and isinstance(install_commands[0], str), install_commands
     assert "pytest-xdist<4" in shlex.split(install_commands[0]), install_commands[0]
