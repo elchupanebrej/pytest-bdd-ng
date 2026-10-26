@@ -15,7 +15,7 @@ from io import BufferedIOBase, TextIOBase
 from pathlib import Path
 from platform import machine, processor, system, version
 from queue import Empty, Queue
-from threading import Event, Lock, Thread
+from threading import Event, Lock, RLock, Thread
 from time import monotonic, sleep, time_ns
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
@@ -195,6 +195,7 @@ class MessagePlugin:
     process_messages_error_reported: bool = attrib(default=False)
     process_messages_closed: bool = attrib(default=False)
     process_messages_lock: Any = attrib(factory=Lock)
+    message_publication_lock: Any = attrib(factory=RLock)
     test_cases_by_nodeid: dict[str, TestCase] = attrib(factory=dict)
     test_case_hook_steps_by_nodeid: dict[str, dict[str, TestStep]] = attrib(factory=dict)
     parameter_type_registry: set[int] = attrib(factory=set)
@@ -673,14 +674,15 @@ class MessagePlugin:
 
         if self.message_transport is None:
             return
-        message = self._with_exception_stack_trace(message)
-        try:
-            sink_diagnostics = self.message_transport.emit(message)
-        except MessageValidationError as error:
-            self._report_message_diagnostics(error.diagnostics)
-            return
+        with self.message_publication_lock:
+            message = self._with_exception_stack_trace(message)
+            try:
+                sink_diagnostics = self.message_transport.emit(message)
+            except MessageValidationError as error:
+                self._report_message_diagnostics(error.diagnostics)
+                return
 
-        self._report_message_diagnostics(sink_diagnostics)
+            self._report_message_diagnostics(sink_diagnostics)
 
     def _capture_accepted_message(self, message: Message) -> None:
         self.accepted_message_payloads.append(message_to_dict(message))
@@ -719,16 +721,18 @@ class MessagePlugin:
         return self.worker_message_batcher.make_batch(envelopes).to_payload()
 
     def _receive_worker_message_batch(self, payload: Any) -> None:
-        if not isinstance(payload, dict) or self.worker_message_receiver is None:
-            return
-        try:
-            batch = MessageBatch.from_payload(payload)
-        except ValueError:
-            self.worker_message_receiver.receive_batch(payload)
-            return
-        if self.worker_message_receiver.receive_batch(batch.to_payload()):
-            for ready_batch in self.worker_message_receiver.take_ready_batches(batch.worker_id):
-                self._publish_worker_message_batch(ready_batch)
+        # xdist invokes report deserialization concurrently from gateway receiver threads.
+        with self.message_publication_lock:
+            if not isinstance(payload, dict) or self.worker_message_receiver is None:
+                return
+            try:
+                batch = MessageBatch.from_payload(payload)
+            except ValueError:
+                self.worker_message_receiver.receive_batch(payload)
+                return
+            if self.worker_message_receiver.receive_batch(batch.to_payload()):
+                for ready_batch in self.worker_message_receiver.take_ready_batches(batch.worker_id):
+                    self._publish_worker_message_batch(ready_batch)
 
     def _publish_worker_message_batch(self, batch: MessageBatch) -> None:
         live_batch = {
@@ -772,7 +776,8 @@ class MessagePlugin:
             return
         worker_id = self._worker_id_for_node(node)
         if worker_id is not None:
-            self.worker_message_receiver.register_expected_worker(worker_id)
+            with self.message_publication_lock:
+                self.worker_message_receiver.register_expected_worker(worker_id)
 
     def _with_exception_stack_trace(self, message: Message) -> Message:
         finished_step = message.test_step_finished
@@ -980,16 +985,17 @@ class MessagePlugin:
             )
         if not self.is_xdist_controller or self.worker_message_receiver is None:
             return
-        if isinstance(worker_output, dict):
-            transport_output = worker_output.get(_WORKER_MESSAGE_OUTPUT_KEY)
-            if isinstance(transport_output, dict):
-                tail_batch = transport_output.get("tail_batch")
-                if isinstance(tail_batch, dict):
-                    self._receive_worker_message_batch(tail_batch)
-                manifest = transport_output.get("manifest")
-                if isinstance(manifest, dict):
-                    self.worker_message_receiver.record_manifest(manifest, expected_worker_id=worker_id)
-        self.worker_message_receiver.mark_worker_down(worker_id, error)
+        with self.message_publication_lock:
+            if isinstance(worker_output, dict):
+                transport_output = worker_output.get(_WORKER_MESSAGE_OUTPUT_KEY)
+                if isinstance(transport_output, dict):
+                    tail_batch = transport_output.get("tail_batch")
+                    if isinstance(tail_batch, dict):
+                        self._receive_worker_message_batch(tail_batch)
+                    manifest = transport_output.get("manifest")
+                    if isinstance(manifest, dict):
+                        self.worker_message_receiver.record_manifest(manifest, expected_worker_id=worker_id)
+            self.worker_message_receiver.mark_worker_down(worker_id, error)
 
     def _get_current_test_case(self) -> TestCase:
         if self.current_test_case is None:
@@ -1259,10 +1265,11 @@ class MessagePlugin:
                 RuntimeError("The xdist controller has no worker Messages receiver to finalize."),
             )
             return False
-        received = receiver.finalize()
-        fragments = [
-            MessageFragment(worker_id="master", role="controller", envelopes=tuple(self.accepted_message_payloads))
-        ]
+        with self.message_publication_lock:
+            received = receiver.finalize()
+            fragments = [
+                MessageFragment(worker_id="master", role="controller", envelopes=tuple(self.accepted_message_payloads))
+            ]
         fragments.extend(
             MessageFragment(worker_id=fragment.worker_id, role="worker", envelopes=fragment.envelopes)
             for fragment in received.fragments

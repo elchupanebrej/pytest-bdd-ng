@@ -844,6 +844,15 @@ def consumer_has_two_reportable_scenarios_with_colliding_ids(native_allure_consu
     )
 
 
+@given("the consumer coordinates overlapping xdist reporting batches")
+def coordinate_native_allure_worker_batches(native_allure_consumer: NativeAllureConsumer) -> None:
+    probe = Path(__file__).resolve().parents[1] / "support" / "native_allure_xdist_race_probe.py"
+    shutil.copyfile(probe, native_allure_consumer.project / "native_allure_xdist_race_probe.py")
+    (native_allure_consumer.project / "conftest.py").write_text(
+        'pytest_plugins = ["native_report_steps", "native_allure_xdist_race_probe"]\n', encoding="utf-8"
+    )
+
+
 @given("the consumer contains failed skipped and undefined native Allure scenarios")
 def consumer_has_terminal_outcome_scenarios(native_allure_consumer: NativeAllureConsumer) -> None:
     _write_terminal_outcomes_feature(native_allure_consumer)
@@ -1667,6 +1676,15 @@ def native_allure_preserves_xdist_nested_reporting(native_allure_consumer: Nativ
         attachment_path.relative_to(output_root)
         assert attachment_path.is_file(), attachment
         assert attachment_path.read_bytes() == contract["content"], attachment
+
+
+@then("the xdist reporting batches should reach the coordinated pickle")
+def xdist_reporting_batches_reach_coordinated_pickle(native_allure_consumer: NativeAllureConsumer) -> None:
+    probe = native_allure_consumer.project / "native-allure-xdist-race-probe.json"
+    assert probe.is_file(), "the worker batches did not reach the coordinated pickle"
+    observation = json.loads(probe.read_text(encoding="utf-8"))
+    assert observation["workers"] == ["gw0", "gw1"], observation
+    assert observation["owner"] in observation["workers"], observation
 
 
 @then("the two xdist workers should reuse a local Messages TestCase ID for different pickles")

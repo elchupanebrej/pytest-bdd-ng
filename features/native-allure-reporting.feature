@@ -86,8 +86,10 @@ Feature: Live native Allure reporting
     And the consumer contains two native Allure scenarios with colliding worker-local Messages IDs
     And the consumer installs pytest-cuke with its Allure extra
     And the consumer installs pinned pytest-xdist
+    And the consumer coordinates overlapping xdist reporting batches
     When I run the native Allure consumer with arguments "--cuke-autoload --cuke-features-dir=features --cuke-allure=allure-results -n 2 --dist=load -q"
     Then the native Allure consumer should exit with code 0
+    And the xdist reporting batches should reach the coordinated pickle
     And the two xdist workers should reuse a local Messages TestCase ID for different pickles
     And native Allure results should contain both controller scenarios exactly once
     And native Allure results should preserve each xdist case nested steps and attachments exactly once
