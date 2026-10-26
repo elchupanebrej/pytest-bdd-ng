@@ -95,7 +95,7 @@ lint = [
   "pip-audit>=2.10.1"
 ]
 typecheck = [
-  "pyright>=1.1.350",
+  "pyright>=1.1.414",
   "mypy>=2.4.0"
 ]
 test = [
