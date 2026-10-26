@@ -3615,6 +3615,47 @@ def every_product_workflow_uses_pinned_setup_python(
         )
 
 
+@then("fast PR acceptance should install xdist and use four workers")
+def fast_pr_acceptance_uses_four_xdist_workers(
+    temporary_environment_inventory: TemporaryEnvironmentInventoryContext,
+) -> None:
+    workflow_path = temporary_environment_inventory.project_root / ".github" / "workflows" / "main.yml"
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    assert isinstance(workflow, dict), f"{workflow_path} must contain a workflow object"
+    jobs = workflow.get("jobs")
+    assert isinstance(jobs, dict), f"{workflow_path} must declare jobs"
+    fast_pr = jobs.get("fast-pr")
+    assert isinstance(fast_pr, dict), "main.yml must declare the fast-pr job"
+    steps = fast_pr.get("steps")
+    assert isinstance(steps, list), "fast-pr must declare steps"
+
+    install_commands = [
+        step.get("run")
+        for step in steps
+        if isinstance(step, dict)
+        and step.get("name") == "Install project and inventory dependencies"
+    ]
+    assert len(install_commands) == 1 and isinstance(install_commands[0], str), install_commands
+    assert "pytest-xdist<4" in shlex.split(install_commands[0]), install_commands[0]
+
+    selector_commands = [
+        step.get("run")
+        for step in steps
+        if isinstance(step, dict) and step.get("name") == "Run the fast pull request test selector"
+    ]
+    assert len(selector_commands) == 1 and isinstance(selector_commands[0], str), selector_commands
+    selector_tokens = shlex.split(selector_commands[0])
+    worker_counts: list[str] = []
+    for index, token in enumerate(selector_tokens):
+        if token in {"-n", "--numprocesses"} and index + 1 < len(selector_tokens):
+            worker_counts.append(selector_tokens[index + 1])
+        elif token.startswith("-n") and token != "-n":
+            worker_counts.append(token[2:])
+        elif token.startswith("--numprocesses="):
+            worker_counts.append(token.partition("=")[2])
+    assert worker_counts == ["4"], selector_tokens
+
+
 def _native_parser_tox_python(context: TemporaryEnvironmentInventoryContext) -> str:
     tox_config = configparser.ConfigParser(interpolation=None)
     tox_path = context.project_root / "tox.ini"

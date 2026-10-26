@@ -276,6 +276,10 @@ Feature: Supported environment inventory and acceptance proof
     Given the repository environment inventory is copied to a temporary project
     Then every product workflow should use actions/setup-python@v6
 
+  Scenario: Fast PR acceptance runs its selector with four xdist workers
+    Given the repository environment inventory is copied to a temporary project
+    Then fast PR acceptance should install xdist and use four workers
+
   Scenario: Native parser workflow cells and capability lanes match the tox Python
     Given the repository environment inventory is copied to a temporary project
     Then native parser workflow cells should use the tox base Python
