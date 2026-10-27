@@ -139,10 +139,9 @@ class TestGroupBarrier:
 def _write_json_atomically(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-    deadline = time.monotonic() + 2.0
-    last_error: OSError | None = None
+    deadline: float | None = None
 
-    while time.monotonic() < deadline:
+    while True:
         temporary_path: Path | None = None
         try:
             with tempfile.NamedTemporaryFile(
@@ -155,18 +154,18 @@ def _write_json_atomically(path: Path, payload: dict[str, Any]) -> None:
             os.replace(temporary_path, path)
             return
         except OSError as error:
-            last_error = error
             if error.errno not in _RETRYABLE_FILESYSTEM_ERRORS:
+                raise
+            now = time.monotonic()
+            if deadline is None:
+                deadline = now + 2.0
+            elif now >= deadline:
                 raise
             time.sleep(0.02)
         finally:
             if temporary_path is not None:
                 with suppress(OSError):
                     temporary_path.unlink(missing_ok=True)
-
-    if last_error is not None:
-        raise last_error
-    raise OSError(f"Could not atomically publish test-group state at {path}")
 
 
 def _read_json_with_retry(path: Path, *, timeout: float) -> dict[str, Any] | None:

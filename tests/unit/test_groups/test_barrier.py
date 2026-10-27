@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -86,6 +87,67 @@ def test_atomic_state_replace_retries_transient_permission_error(
 
     assert calls == 2
     assert json.loads(target.read_text(encoding="utf-8")) == {"published": True}
+
+
+def test_barrier_retries_a_transient_replace_error_after_a_slow_initial_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pytest_cuke.test_groups.barrier as barrier_module
+
+    clock = [0.0]
+    attempts = 0
+
+    def slow_first_fsync(fd: int) -> None:
+        os.fsync(fd)
+        if clock[0] == 0:
+            clock[0] = 3.0
+
+    def transient_replace(source: str | bytes | Path, destination: str | bytes | Path) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise PermissionError(13, "file is temporarily in use")
+        os.replace(source, destination)
+
+    def advance(seconds: float) -> None:
+        clock[0] += seconds
+
+    monkeypatch.setattr(barrier_module, "time", SimpleNamespace(monotonic=lambda: clock[0], sleep=advance))
+    monkeypatch.setattr(barrier_module, "os", SimpleNamespace(fsync=slow_first_fsync, replace=transient_replace))
+    barrier = TestGroupBarrier(tmp_path / "run", timeout=1, groups=("unit",))
+
+    barrier.initialize((_assignment("tests/test_unit.py::test_unit", "unit", 0),))
+
+    assert attempts == 2
+    assert json.loads(barrier.manifest_path.read_text(encoding="utf-8"))["items"][0]["group"] == "unit"
+
+
+def test_barrier_stops_retrying_a_persistent_replace_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import pytest_cuke.test_groups.barrier as barrier_module
+
+    clock = [0.0]
+    attempts = 0
+
+    def failing_replace(source: str | bytes | Path, destination: str | bytes | Path) -> None:
+        nonlocal attempts
+        attempts += 1
+        raise PermissionError(13, "file is temporarily in use")
+
+    def advance(seconds: float) -> None:
+        clock[0] += seconds
+
+    monkeypatch.setattr(barrier_module, "time", SimpleNamespace(monotonic=lambda: clock[0], sleep=advance))
+    monkeypatch.setattr(barrier_module, "os", SimpleNamespace(fsync=os.fsync, replace=failing_replace))
+    barrier = TestGroupBarrier(tmp_path / "run", timeout=1, groups=("unit",))
+
+    with pytest.raises(PermissionError, match="temporarily in use"):
+        barrier.initialize((_assignment("tests/test_unit.py::test_unit", "unit", 0),))
+
+    assert attempts > 1
+    assert 2.0 <= clock[0] < 2.1
+    assert not list(barrier.state_dir.glob("*.tmp"))
 
 
 @pytest.mark.parametrize(

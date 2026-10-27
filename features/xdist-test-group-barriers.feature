@@ -2,6 +2,65 @@ Feature: Local xdist test-group completion barriers
   With ordered groups enabled, a later group waits for every selected earlier item to settle
   across local workers. Failed, skipped, and setup-failed items settle the barrier.
 
+  Scenario: A transient state replacement error is retried after a slow write
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And consumer file "pytest.ini" contains:
+      """ini
+      [pytest]
+      cuke_test_group_order = unit integration
+      cuke_test_group_default = unit
+      """
+    And consumer file "conftest.py" contains:
+      """python
+      import os
+      import time
+      from pathlib import Path
+      from types import SimpleNamespace
+
+      from pytest_cuke.test_groups import barrier
+
+
+      def pytest_configure(config):
+          if not hasattr(config, "workerinput"):
+              return
+
+          offset = 0
+          attempts = 0
+
+          def monotonic():
+              return time.monotonic() + offset
+
+          def slow_first_fsync(fd):
+              nonlocal offset
+              os.fsync(fd)
+              if offset == 0:
+                  offset = 3
+
+          def transient_replace(source, destination):
+              nonlocal attempts
+              attempts += 1
+              if attempts == 1:
+                  raise PermissionError(13, "file is temporarily in use")
+              os.replace(source, destination)
+              if attempts == 2:
+                  Path("replacement-retried").write_text("yes", encoding="utf-8")
+
+          barrier.time = SimpleNamespace(monotonic=monotonic, sleep=time.sleep)
+          barrier.os = SimpleNamespace(fsync=slow_first_fsync, replace=transient_replace)
+      """
+    And consumer file "tests/test_unit.py" contains:
+      """python
+      from pathlib import Path
+
+
+      def test_unit_runs_after_state_is_published():
+          assert Path("replacement-retried").read_text(encoding="utf-8") == "yes"
+      """
+    When I run installed pytest with a 60-second watchdog and arguments "-c pytest.ini -n1 --cuke-no-autoload -q"
+    Then the installed pytest run should finish before its watchdog
+    And pytest should exit with code 0
+    And pytest output should include "1 passed"
+
   Scenario: A later group waits for earlier assertion failure, skip, and fixture setup failure
     Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
     And the consumer records monotonic test start and terminal events
