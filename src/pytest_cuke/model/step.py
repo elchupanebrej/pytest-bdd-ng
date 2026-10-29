@@ -5,6 +5,14 @@ from typing import TYPE_CHECKING
 
 from attrs import frozen
 
+from pytest_cuke.model.message_types import (
+    PickleDocString,
+    PickleStepArgument,
+    PickleTable,
+    PickleTableCell,
+    PickleTableRow,
+)
+
 if TYPE_CHECKING:
     from pytest_cuke.model.doc_string import DocString
     from pytest_cuke.model.table import DataTable
@@ -34,6 +42,29 @@ class Step:
     @property
     def text(self) -> str:
         return self.name
+
+    @property
+    def argument(self) -> PickleStepArgument | None:
+        """Return the legacy Cucumber argument view without exposing mutable model state."""
+        if self.doc_string is None and self.data_table is None:
+            return None
+        return PickleStepArgument(
+            doc_string=(
+                PickleDocString(content=self.doc_string.content, media_type=self.doc_string.media_type)
+                if self.doc_string is not None
+                else None
+            ),
+            data_table=(
+                PickleTable(
+                    rows=[
+                        PickleTableRow(cells=[PickleTableCell(value=cell.value) for cell in row.cells])
+                        for row in self.data_table.rows
+                    ]
+                )
+                if self.data_table is not None
+                else None
+            ),
+        )
 
 
 __all__ = ["Step", "StepType"]

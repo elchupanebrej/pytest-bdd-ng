@@ -49,6 +49,34 @@ def assert_cucumbers(cucumbers):
     assert cucumbers["cucumbers"] == 3
 ```
 
+### Step argument data
+
+The injected `step` fixture keeps its immutable domain `Step` object. Its
+`doc_string` and `data_table` fields expose the current data model. Existing
+consumers can also read `step.argument.doc_string` and
+`step.argument.data_table.rows`: the `argument` property returns the official
+Cucumber `PickleStepArgument` view with the same content, media type and cell
+values. A step without either argument returns `None`.
+
+```python
+from pytest_cuke import given
+
+@given("a document")
+def document(step):
+    assert step.argument.doc_string.content == step.doc_string.content
+
+@given("a table")
+def table(step):
+    rows = [[cell.value for cell in row.cells]
+            for row in step.argument.data_table.rows]
+    assert rows == step.data_table.raw
+```
+
+Each `argument` access creates a data snapshot. Changing that snapshot does
+not change the step, its direct data fields or a later `argument` view. Source
+locations and model IDs remain available on the direct domain fields; the
+compiled Pickle argument contains content rather than AST locations.
+
 ### Scenario Discovery & Execution
 Use `scenarios()` for automatic feature discovery and parameterization:
 
