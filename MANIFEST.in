@@ -1,0 +1,3 @@
+include setup.py
+include src/pytest_cuke/py.typed
+recursive-include native/gherkin_go *.go go.mod go.sum

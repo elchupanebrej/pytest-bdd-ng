@@ -1,0 +1,12 @@
+Name = "StructBDD formats"
+Steps = [
+  {
+    Step = {
+      Name = "A HOCON file is collected"
+      Steps = [
+        { Given = "the StructBDD format example is runnable" }
+        { Then = "the StructBDD format example passes" }
+      ]
+    }
+  }
+]

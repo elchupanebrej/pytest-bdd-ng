@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+import re as std_re
+
+import parse as base_parse
+import pytest
+from cucumber_expressions.expression import CucumberExpression
+from cucumber_expressions.parameter_type_registry import ParameterTypeRegistry
+
+from pytest_cuke.parsers.base import ParserBuildValueError, RegistryMode, StepMatch, StepParser, StepParserProtocol
+from pytest_cuke.parsers.cucumber_expression import cucumber_expression
+from pytest_cuke.parsers.cucumber_regex import cucumber_regular_expression
+from pytest_cuke.parsers.heuristic import heuristic
+from pytest_cuke.parsers.parse_parser import cfparse, parse
+from pytest_cuke.parsers.re_parser import re as bdd_re
+from pytest_cuke.parsers.string_parser import string
+
+from pytest import mark
+
+pytestmark = mark.unit
+
+
+def test_step_match_and_enums() -> None:
+    match = StepMatch(parameters={"x": "1"}, span=(0, 5))
+    assert match.parameters == {"x": "1"} and match.span == (0, 5) and match.parser is None
+    assert RegistryMode.NEW.value == "NEW" and RegistryMode.NOT_DEFINED.value is None
+    assert "bad" in str(ParserBuildValueError("bad"))
+
+
+def test_step_parser_protocol() -> None:
+    class Dummy(StepParser):
+        def parse_arguments(self, request, name, anonymous_group_names=None):
+            return {}
+
+        @property
+        def arguments(self):
+            return []
+
+        def is_matching(self, request, name):
+            return True
+
+        def __str__(self):
+            return "dummy"
+
+    d = Dummy()
+    assert isinstance(d, StepParserProtocol) and StepParser.build(d) is d
+
+
+def test_string_parser() -> None:
+    parser = string("I have 5 apples")
+    assert parser.is_matching(None, "I have 5 apples")
+    assert not parser.is_matching(None, "I have 6 apples")
+    assert parser.parse_arguments(None, "I have 5 apples") == {}
+    assert parser.arguments == []
+    assert str(parser) == "I have 5 apples"
+
+
+def test_re_parser_named_and_anonymous() -> None:
+    parser = bdd_re(r"I have (?P<count>\d+) (?P<fruit>\w+)")
+    assert parser.is_matching(None, "I have 5 apples")
+    assert parser.arguments == ["count", "fruit"]
+    assert parser.parse_arguments(None, "I have 5 apples") == {"count": "5", "fruit": "apples"}
+
+    compiled = bdd_re(std_re.compile(r"I have (\d+) (\w+)"))
+    assert compiled.is_matching(None, "I have 3 oranges")
+    args = compiled.parse_arguments(None, "I have 3 oranges", anonymous_group_names=["num", "item"])
+    assert args == {"num": "3", "item": "oranges"}
+
+
+def test_cucumber_expression_parser() -> None:
+    parser = cucumber_expression("I have {int} cucumbers", parameter_type_registry=RegistryMode.GLOBAL)
+    assert parser.is_matching(None, "I have 5 cucumbers") and not parser.is_matching(None, "I have five cucumbers")
+    args = parser.parse_arguments(None, "I have 5 cucumbers", anonymous_group_names=["count"])
+    assert args == {"count": 5}
+
+
+def test_cucumber_regular_expression_parser() -> None:
+    reg_parser = cucumber_regular_expression(r"I have (\d+) cucumbers", parameter_type_registry=RegistryMode.GLOBAL)
+    assert reg_parser.is_matching(None, "I have 10 cucumbers")
+    args = reg_parser.parse_arguments(None, "I have 10 cucumbers", anonymous_group_names=["num"])
+    assert args == {"num": 10}
+
+
+def test_parse_and_cfparse_parser() -> None:
+    p = parse("I have {count:d} cucumbers and {fruit}")
+    assert p.is_matching(None, "I have 5 cucumbers and apples")
+    assert not p.is_matching(None, "I have five cucumbers and apples")
+    assert p.arguments == ["count", "fruit"]
+    assert p.parse_arguments(None, "I have 5 cucumbers and apples") == {"count": 5, "fruit": "apples"}
+
+    cf = cfparse("I have {count:d} cucumbers")
+    assert cf.is_matching(None, "I have 12 cucumbers")
+    assert cf.parse_arguments(None, "I have 12 cucumbers") == {"count": 12}
+
+
+def test_heuristic_parser() -> None:
+    h = heuristic("I have {count:d} cucumbers")
+    assert h.is_matching(None, "I have 7 cucumbers")
+    assert h.parse_arguments(None, "I have 7 cucumbers") == {"count": 7}
+    assert str(h) == "I have {count:d} cucumbers"
+
+
+def test_step_parser_build_factory() -> None:
+    p_re = StepParser.build(std_re.compile(r"hello (?P<name>\w+)"))
+    assert isinstance(p_re, bdd_re)
+
+    p_parse = StepParser.build(base_parse.compile("hello {name}"))
+    assert isinstance(p_parse, parse)
+
+    p_cuke = StepParser.build(CucumberExpression("hello {word}", ParameterTypeRegistry()))
+    assert isinstance(p_cuke, cucumber_expression)
+
+    p_str = StepParser.build("hello world")
+    assert isinstance(p_str, heuristic)
+
+
+def test_parse_cfparse_classmethod() -> None:
+    assert parse.cfparse("I have {count:d}").is_matching(None, "I have 3")
+
+
+def test_parser_constructors_reject_unsupported_input() -> None:
+    with pytest.raises(NotImplementedError):
+        cucumber_expression(123)
+    with pytest.raises(NotImplementedError):
+        cucumber_regular_expression(123)
+    with pytest.raises(NotImplementedError):
+        bdd_re(123)
+
+
+def test_cucumber_expression_uses_fresh_registry() -> None:
+    parser = cucumber_expression("I have {int} cucumbers", parameter_type_registry=RegistryMode.NEW)
+    assert parser.is_matching(None, "I have 5 cucumbers")
+
+
+def test_heuristic_skips_unbuildable_parsers_and_is_idempotent() -> None:
+    parser = heuristic("[")
+    assert parser.re_parser is None
+    assert parser.is_matching(None, "[")
+
+    parser.build_parsers()
+    assert parser.parsers_are_built is True
+
+    assert parser.parse_arguments(None, "no match") is None

@@ -1,0 +1,3 @@
+Feature: Trapped saved run
+Scenario: One real scenario is recorded before its sources are removed
+✔ Given the saved Messages scenario step passes

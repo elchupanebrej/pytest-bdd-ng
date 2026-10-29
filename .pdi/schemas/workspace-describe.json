@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["root", "clean"],
+  "properties": {
+    "root": {
+      "type": "string",
+      "description": "Absolute path to the product repository root as resolved by Git."
+    },
+    "clean": {
+      "type": "boolean",
+      "description": "True when the product working tree is clean (no uncommitted changes)."
+    }
+  },
+  "additionalProperties": false
+}

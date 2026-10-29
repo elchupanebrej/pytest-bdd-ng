@@ -1,0 +1,29 @@
+name: Export workflow job URL
+description: Find the current matrix job URL and expose it to evidence collection
+inputs:
+  job-name:
+    description: Exact GitHub Actions job display name
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@v7
+      env:
+        EXPECTED_JOB_NAME: ${{ inputs.job-name }}
+      with:
+        script: |
+          const expectedName = process.env.EXPECTED_JOB_NAME;
+          for (let attempt = 0; attempt < 6; attempt += 1) {
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              ...context.repo,
+              run_id: context.runId,
+              per_page: 100,
+            });
+            const currentJob = jobs.find((job) => job.name === expectedName);
+            if (currentJob) {
+              core.exportVariable('PYTEST_CUKE_JOB_URL', currentJob.html_url);
+              return;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+          throw new Error(`Could not find workflow job ${expectedName} in run ${context.runId}`);

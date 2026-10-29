@@ -1,1 +1,1 @@
-"""Contract test package."""
+"""Product contract tests."""

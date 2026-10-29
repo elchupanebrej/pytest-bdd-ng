@@ -5,38 +5,25 @@ Tutorial for Behave/Cucumber users
 
 Leslie's tutorial_ ...
 
-Tutorial files
---------------
+The runnable project lives in ``examples/tutorial``. Pytest discovers its
+feature file automatically, without a mirror test module.
 
-Feature definition:
+Feature
+-------
 
-.. literalinclude:: features/books.feature
+.. literalinclude:: ../../examples/tutorial/features/books.feature
+   :language: gherkin
 
-Application source:
+Step definitions
+----------------
 
-.. literalinclude:: src/catalog.py
-   :language: python
-
-Test bootstrap:
-
-.. literalinclude:: tests/conftest.py
-   :language: python
-
-Desktop launcher:
-
-.. literalinclude:: tests/books.desktop
-   :language: text
-
-Step definitions:
-
-.. literalinclude:: tests/steps/library_steps.py
+.. literalinclude:: ../../examples/tutorial/tests/steps/library_steps.py
    :language: python
 
 
 Set up the tutorial
 -------------------
 
-From the project root, run:
-``uv pip install -r docs/tutorial/requirements.txt``
-
-This assumes you have `uv` installed. If not, please install it first from https://docs.astral.sh/uv/
+From ``examples/tutorial``, activate a virtual environment and run:
+``pip install -r requirements.txt``
+Then run ``python -m pytest`` from the same directory.

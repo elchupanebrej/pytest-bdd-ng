@@ -1,0 +1,95 @@
+{
+  "baseline_release": "28.0.0",
+  "decisions": [
+    {
+      "capability_id": "attachment.test_run_started_id",
+      "comment": "Cucumber Messages 28 marks this field unused and directs producers to testRunHookStartedId for run-hook attachments.",
+      "release_target": "28.0.0",
+      "status": "Not-Applicable"
+    },
+    {
+      "capability_id": "test_case_finished.test_case_started_id",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_case_finished.will_be_retried",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_case_started.attempt",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_case_started.id",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_case_started.test_case_id",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_case_started.timestamp.seconds",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_run_finished.timestamp.seconds",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_run_started.timestamp.seconds",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_step_finished.test_case_started_id",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_step_finished.test_step_id",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_step_finished.test_step_result.status",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_step_started.test_case_started_id",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_step_started.test_step_id",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    },
+    {
+      "capability_id": "test_step_started.timestamp.seconds",
+      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
+      "release_target": "28.0.0",
+      "status": "Implemented"
+    }
+  ]
+}

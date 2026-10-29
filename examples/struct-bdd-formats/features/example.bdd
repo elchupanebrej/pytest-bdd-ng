@@ -1,0 +1,7 @@
+Name: StructBDD formats
+Steps:
+  - Step:
+      Name: A bare BDD file is YAML
+      Steps:
+        - Given: the StructBDD format example is runnable
+        - Then: the StructBDD format example passes

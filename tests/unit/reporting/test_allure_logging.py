@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+from types import SimpleNamespace
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
+
+import pytest
+
+import pytest_cuke.allure_logging as allure_mod
+from pytest_cuke.allure_logging import AllurePytestBDD
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.scenario import Scenario
+from pytest_cuke.model.session_run import RunContext
+from pytest_cuke.model.step import Step
+
+if TYPE_CHECKING:
+    import pytest
+
+
+def test_allure_pytest_cuke_helpers() -> None:
+    feature = MagicMock()
+    feature.rel_filename = "features/foo.feature"
+    feature.name = "Foo Feature"
+
+    scenario = MagicMock()
+    scenario.name = "Bar Scenario"
+
+    full_name = AllurePytestBDD.get_full_name(feature, scenario)
+    assert full_name == "features/foo.feature:Bar Scenario"
+
+    node = MagicMock()
+    del node.callspec
+    assert AllurePytestBDD.get_name(node, scenario) == "Bar Scenario"
+    assert AllurePytestBDD.get_params(node) is None
+
+    node_with_params = MagicMock()
+    node_with_params.nodeid = "test_file.py::test[1-2]"
+    node_with_params.callspec.params = {"a": 1, "b": "2"}
+    assert AllurePytestBDD.get_name(node_with_params, scenario) == "Bar Scenario [1-2]"
+    params = AllurePytestBDD.get_params(node_with_params)
+    assert params is not None
+    assert len(params) == 2
+
+
+@pytest.mark.parametrize(
+    "feature_path",
+    ["features/foo.feature", r"features\foo.feature", "features/./nested/../foo.feature"],
+)
+def test_allure_full_name_normalizes_feature_path_to_posix(feature_path: str) -> None:
+    feature = MagicMock()
+    feature.rel_filename = feature_path
+    scenario = MagicMock()
+    scenario.name = "Bar Scenario"
+
+    assert AllurePytestBDD.get_full_name(feature, scenario) == "features/foo.feature:Bar Scenario"
+
+
+def test_allure_pytest_cuke_lifecycle_hooks(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Provide mocks for allure objects if not installed
+    monkeypatch.setattr(allure_mod, "ALLURE_INSTALLED", True)
+    monkeypatch.setattr(allure_mod, "TestStepResult", MagicMock())
+    monkeypatch.setattr(allure_mod, "md5", lambda s: "md5-hash")
+    monkeypatch.setattr(allure_mod, "now", lambda: 12345.0)
+    monkeypatch.setattr(allure_mod, "Status", MagicMock(BROKEN="broken"))
+
+    allure_logger = MagicMock()
+    allure_cache = MagicMock()
+    allure_cache.get.return_value = None
+    allure_cache.push.return_value = "scenario-uuid"
+
+    bdd = AllurePytestBDD(allure_logger, allure_cache)
+
+    request = SimpleNamespace(node=SimpleNamespace(nodeid="node-id-123"))
+    feature = Feature(name="My Feature", uri="test.feature")
+    step = Step(name="a lookup step", keyword="Given ")
+    scenario = Scenario(name="My Scenario", steps=(step,))
+    run = RunContext.for_step_inspection(
+        feature=feature,
+        scenario=scenario,
+        step=step,
+        previous_step=None,
+        nodeid=request.node.nodeid,
+    )
+
+    bdd.pytest_cuke_before_scenario(request, run)
+    allure_logger.start_step.assert_called_once()
+
+    bdd.pytest_cuke_after_scenario(request, run)
+    allure_logger.stop_step.assert_called_once()
+
+    exc = ValueError("lookup error")
+    bdd.pytest_cuke_step_func_lookup_error(request, run, exc)
+    assert allure_logger.stop_step.call_count == 2

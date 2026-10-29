@@ -1,0 +1,17 @@
+from __future__ import annotations
+
+from pytest_cuke.compatibility.enum import StrEnum
+
+from pytest import mark
+
+pytestmark = mark.unit
+
+
+def test_str_enum() -> None:
+    class Color(StrEnum):
+        RED = "red"
+        BLUE = "blue"
+
+    assert Color.RED == "red"
+    assert str(Color.RED) == "red"
+    assert Color("red") is Color.RED

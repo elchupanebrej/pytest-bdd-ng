@@ -1,0 +1,111 @@
+[
+  {
+    "matches": [],
+    "code": "() => {}",
+    "line": 31,
+    "pattern": "the Usage JSON example documents an unused definition",
+    "patternType": "CucumberExpression",
+    "uri": "file:///workspace/cucumber_usage_json_example_steps.py"
+  },
+  {
+    "matches": [
+      {
+        "line": 9,
+        "text": "the Usage JSON example handles alpha",
+        "uri": "file:cucumber-usage-json-example.feature",
+        "duration": {
+          "nanos": 0,
+          "seconds": 0
+        }
+      },
+      {
+        "line": 9,
+        "text": "the Usage JSON example handles bravo",
+        "uri": "file:cucumber-usage-json-example.feature",
+        "duration": {
+          "nanos": 0,
+          "seconds": 0
+        }
+      }
+    ],
+    "code": "() => {}",
+    "line": 15,
+    "pattern": "the Usage JSON example handles {word}",
+    "patternType": "CucumberExpression",
+    "uri": "file:///workspace/cucumber_usage_json_example_steps.py",
+    "meanDuration": {
+      "seconds": 0,
+      "nanos": 0
+    }
+  },
+  {
+    "matches": [],
+    "code": "() => {}",
+    "line": 36,
+    "pattern": "the Usage JSON example introduces a new unused definition",
+    "patternType": "CucumberExpression",
+    "uri": "file:///workspace/cucumber_usage_json_example_steps.py"
+  },
+  {
+    "matches": [
+      {
+        "line": 10,
+        "text": "the Usage JSON example records alpha",
+        "uri": "file:cucumber-usage-json-example.feature",
+        "duration": {
+          "nanos": 0,
+          "seconds": 0
+        }
+      },
+      {
+        "line": 10,
+        "text": "the Usage JSON example records bravo",
+        "uri": "file:cucumber-usage-json-example.feature",
+        "duration": {
+          "nanos": 0,
+          "seconds": 0
+        }
+      }
+    ],
+    "code": "() => {}",
+    "line": 23,
+    "pattern": "the Usage JSON example records {word}",
+    "patternType": "CucumberExpression",
+    "uri": "file:///workspace/cucumber_usage_json_example_steps.py",
+    "meanDuration": {
+      "seconds": 0,
+      "nanos": 0
+    }
+  },
+  {
+    "matches": [
+      {
+        "line": 6,
+        "text": "the Usage JSON example starts a clean request",
+        "uri": "file:cucumber-usage-json-example.feature",
+        "duration": {
+          "nanos": 0,
+          "seconds": 0
+        }
+      },
+      {
+        "line": 6,
+        "text": "the Usage JSON example starts a clean request",
+        "uri": "file:cucumber-usage-json-example.feature",
+        "duration": {
+          "nanos": 0,
+          "seconds": 0
+        }
+      }
+    ],
+    "code": "() => {}",
+    "line": 10,
+    "pattern": "the Usage JSON example starts a clean request",
+    "patternType": "CucumberExpression",
+    "uri": "file:///workspace/cucumber_usage_json_example_steps.py",
+    "meanDuration": {
+      "seconds": 0,
+      "nanos": 0
+    }
+  }
+]

@@ -1,0 +1,58 @@
+services:
+  controller:
+    image: pytest-cuke-remote-xdist:local
+    build:
+      context: ../../..
+      dockerfile: tests/external/remote-xdist/Dockerfile
+    hostname: controller
+    command: ["sleep", "infinity"]
+    environment:
+      REMOTE_XDIST_MODE: ${REMOTE_XDIST_MODE:?set REMOTE_XDIST_MODE}
+      REMOTE_XDIST_CRASH_WORKER: ${REMOTE_XDIST_CRASH_WORKER:-}
+    volumes:
+      - artifacts:/artifacts
+      - type: bind
+        source: ${REMOTE_XDIST_SSH_DIR:?set REMOTE_XDIST_SSH_DIR}
+        target: /run/remote-ssh
+        read_only: true
+
+  worker1:
+    image: pytest-cuke-remote-xdist:local
+    hostname: worker1
+    command: ["python", "/workspace/tests/external/remote-xdist/worker_service.py"]
+    environment:
+      REMOTE_XDIST_MODE: ${REMOTE_XDIST_MODE:?set REMOTE_XDIST_MODE}
+      REMOTE_XDIST_CRASH_WORKER: ${REMOTE_XDIST_CRASH_WORKER:-}
+    volumes:
+      - artifacts:/artifacts
+      - type: bind
+        source: ${REMOTE_XDIST_SSH_DIR:?set REMOTE_XDIST_SSH_DIR}
+        target: /run/remote-ssh
+        read_only: true
+
+  worker2:
+    image: pytest-cuke-remote-xdist:local
+    hostname: worker2
+    command: ["python", "/workspace/tests/external/remote-xdist/worker_service.py"]
+    environment:
+      REMOTE_XDIST_MODE: ${REMOTE_XDIST_MODE:?set REMOTE_XDIST_MODE}
+      REMOTE_XDIST_CRASH_WORKER: ${REMOTE_XDIST_CRASH_WORKER:-}
+    volumes:
+      - artifacts:/artifacts
+      - type: bind
+        source: ${REMOTE_XDIST_SSH_DIR:?set REMOTE_XDIST_SSH_DIR}
+        target: /run/remote-ssh
+        read_only: true
+
+  proxy:
+    image: pytest-cuke-remote-xdist:local
+    hostname: proxy
+    command: ["python", "/workspace/tests/external/remote-xdist/worker_service.py", "--proxy"]
+    environment:
+      REMOTE_XDIST_MODE: ${REMOTE_XDIST_MODE:?set REMOTE_XDIST_MODE}
+      REMOTE_XDIST_CRASH_WORKER: ${REMOTE_XDIST_CRASH_WORKER:-}
+    volumes:
+      - artifacts:/artifacts
+
+volumes:
+  artifacts:

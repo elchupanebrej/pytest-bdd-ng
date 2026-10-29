@@ -1,0 +1,5 @@
+.pytest_cache/
+__pycache__/
+continuations.log
+cucumber.json
+messages.ndjson

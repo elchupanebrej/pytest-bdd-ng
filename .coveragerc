@@ -1,27 +1,13 @@
 [run]
 branch = true
-source = pytest_bdd
-omit =
-    */_gherkin_go/*
-    */.ruff/*
-    */script/*
-    */testing/*
-    */types/*
-    */compatibility/*
-    */entrypoint.py
-    */plugin/cucumber_*/*
-    */plugin/gherkin_terminal_reporter/*
+source = pytest_cuke
+
+[paths]
+source =
+    src/pytest_cuke
+    .tox/*/lib/python*/site-packages/pytest_cuke
+    .tox/*/Lib/site-packages/pytest_cuke
 
 [report]
-fail_under = 70
-show_missing = true
-omit =
-    */_gherkin_go/*
-    */.ruff/*
-    */script/*
-    */testing/*
-    */types/*
-    */compatibility/*
-    */entrypoint.py
-    */plugin/cucumber_*/*
-    */plugin/gherkin_terminal_reporter/*
+fail_under = 85
+precision = 2
