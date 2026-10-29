@@ -91,6 +91,13 @@ cuke = "pytest_cuke.cli:main"
 [project.entry-points."pytest_cuke.formatters"]
 cucumber-json = "pytest_cuke.cucumber_json_formatter:replay_cucumber_json_formatter_request"
 cucumber-junit = "pytest_cuke.cucumber_junit_formatter:replay_cucumber_junit_formatter_request"
+pretty = "pytest_cuke.formatter_replay_builtin:replay_builtin_formatter_request"
+progress = "pytest_cuke.formatter_replay_builtin:replay_builtin_formatter_request"
+progress-bar = "pytest_cuke.formatter_replay_builtin:replay_builtin_formatter_request"
+snippets = "pytest_cuke.formatter_replay_builtin:replay_builtin_formatter_request"
+summary = "pytest_cuke.formatter_replay_builtin:replay_builtin_formatter_request"
+usage = "pytest_cuke.formatter_replay_builtin:replay_builtin_formatter_request"
+usage-json = "pytest_cuke.formatter_replay_builtin:replay_builtin_formatter_request"
 
 
 [project.optional-dependencies]

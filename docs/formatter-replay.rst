@@ -6,9 +6,9 @@ NDJSON stream without starting pytest or importing a test suite:
 
 .. code-block:: console
 
-   cuke replay messages.ndjson --formatter html=reports/cucumber.html
+   cuke replay messages.ndjson --formatter pretty=reports/pretty.txt
    pytest-cuke replay messages.ndjson \
-      --formatter html=reports/cucumber.html \
+      --formatter usage-json=reports/usage.json \
       --formatter summary=reports/summary.txt
 
 The input and output paths are resolved from the current working directory.
@@ -16,6 +16,26 @@ Pass at least one ``--formatter NAME=DESTINATION`` selection. Repeat the option
 to write multiple reports through the shared formatter catalog. Use
 ``--formatter NAME=-`` for a terminal formatter; only one formatter may write
 to the terminal. The input path cannot also be used as an output destination.
+
+The built-in selectors are ``pretty``, ``progress``, ``progress-bar``,
+``snippets``, ``summary``, ``usage``, ``usage-json``, ``cucumber-json`` and
+``cucumber-junit``. They use the same Node adapters as the corresponding live
+formatters. Install Node.js and the formatter packages in the current working
+directory before replay; the tested package versions are:
+
+.. code-block:: console
+
+   npm install @cucumber/cucumber@13.3.0 @cucumber/pretty-formatter@4.0.2
+   cuke replay messages.ndjson --formatter summary=-
+
+``pretty``, ``progress`` and ``progress-bar`` use
+``@cucumber/pretty-formatter``; the remaining built-ins use
+``@cucumber/cucumber``. File and piped progress-bar output uses readable
+progress characters without cursor controls. ``snippets`` emits the official
+Cucumber JavaScript suggestions for undefined steps; a fully defined stream
+has no snippets. Replay returns zero when conversion succeeds, even if the
+saved test run contains failed or undefined steps. Input validation or a
+formatter/runtime error returns 2 and preserves existing file reports.
 
 Formatter distributions register factories in the
 ``pytest_cuke.formatters`` entry-point group. The entry-point name is the value
