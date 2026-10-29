@@ -23,3 +23,12 @@ commit. A missing or moved tag fails with an actionable error.
 
    https://github.com/cucumber/messages/tree/f5b1f30dc3ea234f44ea4cc6289726e7d8f2cbe0/jsonschema
    https://codeload.github.com/cucumber/messages/tar.gz/f5b1f30dc3ea234f44ea4cc6289726e7d8f2cbe0
+
+Run summary diagnostics
+-----------------------
+
+A failed pytest run includes ``testRunFinished.message`` and an
+``exception`` with type ``PytestExitCode`` and the numeric exit status.
+Consumers can inspect this terminal envelope without parsing terminal output.
+Successful runs omit these diagnostic fields. Messages validation failures
+instead identify ``MessageValidationError`` in the terminal envelope.

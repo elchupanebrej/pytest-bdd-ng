@@ -1169,6 +1169,11 @@ class MessagePlugin:
                 timestamp=terminal_timestamp,
                 success=is_testrun_success and not (self.message_transport and self.message_transport.has_errors),
                 test_run_started_id=self.test_run_started_id,
+                message=f"pytest session exit status: {int(exitstatus)}" if not is_testrun_success else None,
+                exception=(
+                    ExceptionMessage(type="PytestExitCode", message=str(int(exitstatus)))
+                    if not is_testrun_success else None
+                ),
             )
         )
         if self.message_transport is not None and self.message_transport.preview_finish(terminal_message):
@@ -1177,6 +1182,8 @@ class MessagePlugin:
                     timestamp=terminal_timestamp,
                     success=False,
                     test_run_started_id=self.test_run_started_id,
+                    message=f"pytest session exit status: {int(exitstatus)}; Messages validation failed",
+                    exception=ExceptionMessage(type="MessageValidationError", message="Messages validation failed"),
                 )
             )
         hook_handler.pytest_cuke_message(
