@@ -9,6 +9,7 @@ import pytest
 
 from pytest_cuke.debug_mcp.artifacts import ArtifactSink
 from pytest_cuke.debug_mcp.discovery import DiscoveryPublisher
+from pytest_cuke.debug_mcp.redaction import redacted_environment
 from pytest_cuke.debug_mcp.server import (
     DebuggerMcpProcess,
     DebugMcpDependencyError,
@@ -52,6 +53,7 @@ class DebugMcpPlugin:
         self.root_session_id = uuid4().hex
         self._xdist_controller = False
         self._closed = False
+        self._holds = 0
 
     def pytest_sessionstart(self, session: Any) -> None:
         if session.config is not self.config:
@@ -81,6 +83,10 @@ class DebugMcpPlugin:
         if queue is None or not report.failed or report.when not in {"setup", "call", "teardown"}:
             return
 
+        if self.options.max_holds and self._holds >= self.options.max_holds:
+            return
+        self._holds += 1
+        environment = redacted_environment(self.options.redact_patterns) if self.options.expose_env else None
         exc_info = getattr(call, "excinfo", None)
         exception = getattr(exc_info, "value", None)
         error_type = type(exception).__name__ if exception is not None else "PytestFailure"
@@ -97,6 +103,7 @@ class DebugMcpPlugin:
                 error_type=error_type,
                 error_message=error_message,
                 bdd_context=_bdd_context(item),
+                environment=environment,
             )
         except KeyboardInterrupt:
             self._cleanup(remove_discovery=False)

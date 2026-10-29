@@ -146,3 +146,27 @@ workers must be able to publish to the controller's cache directory on a
 shared local filesystem. Enabling Debug MCP with a remote gateway reports an
 error before starting workers. Run without Debug MCP or use local xdist
 workers for this workflow.
+
+Failure hold controls and environment inspection
+-----------------------------------------------
+
+``--cuke-mcp-max-holds=N`` limits the number of failure holds in each pytest
+process. ``0`` (the default) keeps unlimited holds. Under local xdist each
+worker owns its own counter; one worker reaching its cap does not consume the
+other workers' allowance. Later failures still fail normally without a hold.
+The corresponding ini setting is ``cuke_mcp_max_holds``.
+
+Environment inspection is disabled by default. With
+``--cuke-mcp-expose-env`` (or ``cuke_mcp_expose_env = true``), the inspection
+server's ``inspect_failure`` response includes
+``active_failure.environment`` while the failure is held. Names containing
+``secret``, ``password``, ``token``, ``key``, ``credential`` or ``api_key``
+(case-insensitive) receive ``<redacted>`` values. Other values are limited to
+500 characters. ``--cuke-mcp-redact-patterns=account,internal`` adds
+case-insensitive name substrings to this denylist; the corresponding ini
+setting is ``cuke_mcp_redact_patterns``. CLI values take precedence over ini.
+
+The redacted mapping is captured at the failure hold boundary, before it is
+published to MCP inspection or discovery. This is name-based filtering;
+choose additional patterns for secrets stored under application-specific names.
+Environment inspection does not enable fixture or traceback snapshots.

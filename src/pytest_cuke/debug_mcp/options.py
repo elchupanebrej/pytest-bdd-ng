@@ -54,6 +54,14 @@ def parse_port(value: str | int) -> int | str:
     return port
 
 
+def parse_max_holds(value: str | int) -> int:
+    """Parse a non-negative per-worker hold limit; zero is unlimited."""
+    text = str(value).strip()
+    if not text.isdecimal():
+        raise ValueError(f"max holds must be a non-negative integer; got {value!r}")
+    return int(text)
+
+
 def _host(value: Any) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError("cuke_mcp_host must be a non-empty host name or IP address")
@@ -91,6 +99,9 @@ class DebugMcpOptions:
     host: str = "127.0.0.1"
     port: int | None = None
     artifacts_root: Path | None = None
+    max_holds: int = 0
+    expose_env: bool = False
+    redact_patterns: tuple[str, ...] = ()
 
     @classmethod
     def from_config(cls, config: Config) -> DebugMcpOptions:
@@ -121,6 +132,13 @@ class DebugMcpOptions:
             host=host,
             port=port,
             artifacts_root=artifacts_root,
+            max_holds=parse_max_holds(configured("cuke_mcp_max_holds", "cuke_mcp_max_holds")),
+            expose_env=_as_bool(configured("cuke_mcp_expose_env", "cuke_mcp_expose_env")),
+            redact_patterns=tuple(
+                pattern.strip()
+                for pattern in str(configured("cuke_mcp_redact_patterns", "cuke_mcp_redact_patterns")).split(",")
+                if pattern.strip()
+            ),
         )
 
     @property
@@ -198,3 +216,31 @@ def add_options(parser: Parser) -> None:
         help="directory where Debug MCP investigation JSON and Markdown artifacts are written",
     )
     parser.addini("cuke_mcp_artifacts", "Directory for Debug MCP investigation artifacts.", default="")
+
+    group.addoption(
+        "--cuke-mcp-max-holds",
+        action="store",
+        type=parse_max_holds,
+        default=None,
+        help="maximum failure holds per worker; zero means unlimited (default: 0)",
+    )
+    group.addoption(
+        "--cuke-mcp-expose-env",
+        action="store_true",
+        default=None,
+        help="include redacted environment variables in failure inspection (default: off)",
+    )
+    group.addoption(
+        "--cuke-mcp-redact-patterns",
+        action="store",
+        default=None,
+        metavar="PATTERNS",
+        help="additional comma-separated environment name substrings to redact",
+    )
+    parser.addini("cuke_mcp_max_holds", "Maximum failure holds per worker; zero is unlimited.", default="0")
+    parser.addini(
+        "cuke_mcp_expose_env", "Expose redacted environment in failure inspection.", type="bool", default=False
+    )
+    parser.addini(
+        "cuke_mcp_redact_patterns", "Additional comma-separated environment name substrings to redact.", default=""
+    )

@@ -54,6 +54,7 @@ class FailureQueue:
         error_type: str,
         error_message: str,
         bdd_context: dict[str, Any] | None,
+        environment: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Publish a failed report, block its pytest hook, then return its release record."""
         with self._condition:
@@ -71,6 +72,8 @@ class FailureQueue:
                 "error_message": error_message,
                 "bdd_context": copy.deepcopy(bdd_context),
             }
+            if environment is not None:
+                self._active_failure["environment"] = dict(environment)
             self._status = "holding_failure"
             self._last_release = None
             self._last_heartbeat_at = None

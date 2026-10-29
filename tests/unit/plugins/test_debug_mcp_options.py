@@ -10,6 +10,7 @@ from pytest_cuke.debug_mcp.options import (
     _host,
     parse_duration,
     parse_port,
+    parse_max_holds,
 )
 
 
@@ -55,6 +56,9 @@ def test_debug_mcp_options_use_cli_values_before_ini_values() -> None:
             "cuke_mcp_host": "localhost",
             "cuke_mcp_port": "9000",
             "cuke_mcp_artifacts": "reports/debug-artifacts",
+            "cuke_mcp_max_holds": "0",
+            "cuke_mcp_expose_env": False,
+            "cuke_mcp_redact_patterns": "",
         }[name],
     )
 
@@ -77,6 +81,9 @@ def test_debug_mcp_artifact_cli_path_overrides_ini_path() -> None:
         "cuke_mcp_host": "127.0.0.1",
         "cuke_mcp_port": "auto",
         "cuke_mcp_artifacts": "ini-artifacts",
+        "cuke_mcp_max_holds": "0",
+        "cuke_mcp_expose_env": False,
+        "cuke_mcp_redact_patterns": "",
     }
     config = SimpleNamespace(
         option=SimpleNamespace(cuke_mcp_artifacts="cli-artifacts"),
@@ -105,12 +112,18 @@ def test_debug_mcp_options_have_inert_loopback_defaults() -> None:
             "cuke_mcp_host": "127.0.0.1",
             "cuke_mcp_port": "auto",
             "cuke_mcp_artifacts": "",
+            "cuke_mcp_max_holds": "0",
+            "cuke_mcp_expose_env": False,
+            "cuke_mcp_redact_patterns": "",
         }[name],
     )
 
     options = DebugMcpOptions.from_config(config)
 
     assert options.enabled is False
+    assert options.max_holds == 0
+    assert options.expose_env is False
+    assert options.redact_patterns == ()
     assert options.timeout_seconds == 30.0
     assert options.lease_seconds == 10.0
     assert options.host == "127.0.0.1"
@@ -135,6 +148,9 @@ def test_debug_mcp_options_reject_invalid_ini_values() -> None:
             "cuke_mcp_host": "127.0.0.1",
             "cuke_mcp_port": "auto",
             "cuke_mcp_artifacts": "",
+            "cuke_mcp_max_holds": "0",
+            "cuke_mcp_expose_env": False,
+            "cuke_mcp_redact_patterns": "",
         }[name],
     )
 
@@ -156,3 +172,39 @@ def test_wildcard_host_is_rejected_because_it_cannot_be_advertised(value: str) -
 def test_invalid_bracketed_host_is_rejected(value: str) -> None:
     with pytest.raises(ValueError, match=r"IPv6 brackets|IPv6 address"):
         _host(value)
+
+
+@pytest.mark.parametrize("value", ["-1", "1.5", "nan", "", "true"])
+def test_hold_limit_rejects_invalid_values(value: str) -> None:
+    with pytest.raises(ValueError, match="non-negative integer"):
+        parse_max_holds(value)
+
+
+@pytest.mark.parametrize(("value", "expected"), [("0", 0), ("1", 1), ("42", 42)])
+def test_hold_limit_preserves_unlimited_and_finite_values(value: str, expected: int) -> None:
+    assert parse_max_holds(value) == expected
+
+
+def test_new_controls_resolve_ini_and_cli_precedence() -> None:
+    ini = {
+        "cuke_mcp_on_fail": False,
+        "cuke_mcp_timeout": "30s",
+        "cuke_mcp_lease": "10s",
+        "cuke_mcp_host": "127.0.0.1",
+        "cuke_mcp_port": "auto",
+        "cuke_mcp_artifacts": "",
+        "cuke_mcp_max_holds": "2",
+        "cuke_mcp_expose_env": True,
+        "cuke_mcp_redact_patterns": "ini-secret, private",
+    }
+    config = SimpleNamespace(option=SimpleNamespace(), getini=lambda name: ini[name])
+    from_ini = DebugMcpOptions.from_config(config)
+    assert from_ini.max_holds == 2
+    assert from_ini.expose_env is True
+    assert from_ini.redact_patterns == ("ini-secret", "private")
+
+    config.option = SimpleNamespace(cuke_mcp_max_holds=0, cuke_mcp_expose_env=False, cuke_mcp_redact_patterns="cli")
+    from_cli = DebugMcpOptions.from_config(config)
+    assert from_cli.max_holds == 0
+    assert from_cli.expose_env is False
+    assert from_cli.redact_patterns == ("cli",)

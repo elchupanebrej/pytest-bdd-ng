@@ -58,3 +58,5 @@ tests/contract/test_seam6_contract.py::test_seam6_plugin_lifecycle_and_stash_con
 tests/integration/features/test_no_scenario.py::test_no_scenarios
 tests/integration/features/test_steps.py::test_step_hooks
 tests/integration/features/test_steps.py::test_step_trace
+
+tests/integration/debug-mcp/test_controls.py

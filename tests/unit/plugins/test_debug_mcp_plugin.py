@@ -104,7 +104,7 @@ def test_xdist_controller_reports_inaccessible_discovery_root_without_starting_s
     with pytest.raises(
         pytest.UsageError,
         match=(
-            "could not (clear stale Debug MCP discovery record|create worker discovery root directory)"
+            r"could not (clear stale Debug MCP discovery record|create worker discovery root directory)"
         ),
     ):
         plugin.pytest_sessionstart(SimpleNamespace(config=config))
@@ -144,6 +144,7 @@ def test_failed_pytest_reports_hold_with_their_phase(phase: str) -> None:
             "error_type": "RuntimeError",
             "error_message": "failure sentinel",
             "bdd_context": None,
+            "environment": None,
         }
     ]
 
