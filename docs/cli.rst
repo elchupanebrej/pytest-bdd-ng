@@ -122,6 +122,15 @@ Absolute HTTP(S) feature URLs are used as given. URL bases must be absolute
 HTTP(S) URLs without a query or fragment, and URL-backed bindings fetch only
 the named feature paths.
 
+With autoload enabled, an explicitly selected local feature file can be outside
+the configured feature root, including when the default ``features`` directory
+does not exist. For example, ``pytest doc.feature.md`` collects that Markdown
+feature directly. Directory discovery remains limited to the configured root;
+use ``--cuke-features-dir`` to discover a different directory. Markdown feature
+parsing is available through the Python parser without Node or npm. This also
+applies to ``.gherkin.md`` files and explicit scenario bindings with their own
+``features_base_dir``. ``--cuke-no-autoload`` disables direct feature collection.
+
 .. code-block:: console
 
    pytest --cuke-features-dir=specs/features

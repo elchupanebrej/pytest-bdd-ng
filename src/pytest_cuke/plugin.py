@@ -6,7 +6,7 @@ import sys
 from argparse import ArgumentTypeError
 from collections import deque
 from contextlib import suppress
-from functools import lru_cache, partial
+from functools import partial
 from inspect import signature
 from itertools import chain
 from operator import attrgetter, methodcaller
@@ -63,7 +63,6 @@ from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.native_allure import NativeAllureDependencyError, NativeAllureReporter
 from pytest_cuke.native_allure_worker import NativeAllureWorkerBridge, NativeAllureWorkerDependencyError
-from pytest_cuke.npm_resource import check_npm, check_npm_package
 from pytest_cuke.parser import GherkinParser, MarkdownGherkinParser, clear_parser_registrations
 from pytest_cuke.parsers import cucumber_expression
 from pytest_cuke.reporting import ScenarioReporterPlugin
@@ -89,13 +88,6 @@ if TYPE_CHECKING:
 
 if STRUCT_BDD_INSTALLED:
     from pytest_cuke.struct_bdd.plugin import StructBDDPlugin
-
-
-@lru_cache(maxsize=1)
-def _is_npm_gherkin_installed() -> bool:
-    return check_npm() and (
-        check_npm_package("@cucumber/gherkin", global_install=True) or check_npm_package("@cucumber/gherkin")
-    )
 
 
 def pytest_addhooks(pluginmanager: PytestPluginManager) -> None:
@@ -1168,15 +1160,19 @@ def _pytest_collect_file(parent: Collector, file_path: Any = None) -> FeatureFil
     if not is_enabled_feature_autoload:
         return None
 
-    feature_root = resolve_feature_sources(config).features_base_dir
-    if not feature_root.is_dir():
-        # An explicit binding can provide its own valid root even when the
-        # autoload root is missing; its locator reports errors for paths it uses.
-        return None
-    try:
-        file_path.resolve().relative_to(feature_root.resolve())
-    except ValueError:
-        return None
+    invocation_dir = Path(config.invocation_params.dir)
+    explicitly_selected = any(
+        (invocation_dir / str(argument).split("::", maxsplit=1)[0]).resolve() == file_path.resolve()
+        for argument in config.args
+    )
+    if not explicitly_selected:
+        feature_root = resolve_feature_sources(config).features_base_dir
+        if not feature_root.is_dir():
+            return None
+        try:
+            file_path.resolve().relative_to(feature_root.resolve())
+        except ValueError:
+            return None
 
     config = parent.config
     hook = parent.config.hook
@@ -1224,7 +1220,7 @@ def pytest_cuke_get_mimetype(config: Config, path: Path) -> str | None:
     name = path.name.casefold()
     if name.endswith((".gherkin", ".feature")):
         return Mimetype.gherkin_plain.value
-    if name.endswith((".gherkin.md", ".feature.md")) and _is_npm_gherkin_installed():
+    if name.endswith((".gherkin.md", ".feature.md")):
         return Mimetype.markdown.value
     return None
 
