@@ -2244,6 +2244,10 @@ class MessagePlugin:
         attachment: Any,
         media_type: str | None,
         file_name: str | None,
+        source_data: str | None,
+        source_media_type: str | None,
+        source_uri: str | None,
+        url: str | None,
     ) -> None:
         if self.is_disabled:
             return
@@ -2288,6 +2292,14 @@ class MessagePlugin:
         else:
             body = str(attachment)
 
+        source = None
+        if source_data is not None and source_media_type is not None and source_uri is not None:
+            source = Source(
+                data=source_data,
+                media_type=cast("SourceMediaType", source_media_type),
+                uri=source_uri,
+            )
+
         hook_handler.pytest_cuke_message(
             config=config,
             message=Message(
@@ -2298,6 +2310,8 @@ class MessagePlugin:
                     file_name=str(file_name) if file_name is not None else None,
                     content_encoding=content_encoding,
                     body=body,
+                    source=source,
+                    url=url,
                 )
             ),
         )

@@ -193,15 +193,30 @@ def parameter_type_registry() -> Any:
 
 @pytest.fixture
 def attach(request: FixtureRequest) -> Callable[..., None]:
-    """Fixture parameter type registry for Cucumber expressions"""
+    """Publish an attachment with optional source metadata and a URL."""
 
-    def add_attachment(attachment: Any, media_type: str | None = None, file_name: str | None = None) -> None:
+    def add_attachment(
+        attachment: Any,
+        media_type: str | None = None,
+        file_name: str | None = None,
+        *,
+        source_data: str | None = None,
+        source_media_type: str | None = None,
+        source_uri: str | None = None,
+        url: str | None = None,
+        as_external: bool = False,
+    ) -> None:
         request.config.hook.pytest_cuke_attach(
             request=request,
             run=RunContext.from_config(request.config),
             attachment=attachment,
             media_type=media_type,
             file_name=file_name,
+            source_data=source_data,
+            source_media_type=source_media_type,
+            source_uri=source_uri,
+            url=url,
+            as_external=as_external,
         )
 
     return add_attachment

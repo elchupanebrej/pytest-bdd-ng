@@ -432,7 +432,17 @@ def test_message_plugin_pytest_cuke_attach() -> None:
 
     request = SimpleNamespace(config=config)
 
-    plugin.pytest_cuke_attach(request, context, "hello attachment", "text/plain", "file.txt")
+    plugin.pytest_cuke_attach(
+        request,
+        context,
+        "hello attachment",
+        "text/plain",
+        "file.txt",
+        source_data=None,
+        source_media_type=None,
+        source_uri=None,
+        url=None,
+    )
     config.hook.pytest_cuke_message.assert_called_once()
 
 

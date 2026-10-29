@@ -68,3 +68,43 @@ For plugins migrated from pytest-bdd, rename the ``pytest_bdd_`` prefix to
 ``pickle`` argument names and official Messages payload types are preserved.
 These hooks observe collection inputs; the run-aware hooks above observe live
 execution state.
+
+Attachment source metadata and links
+-------------------------------------
+
+The ``attach`` fixture accepts optional keyword-only source metadata and a URL:
+
+.. code-block:: python
+
+   def publish_evidence(attach):
+       attach(
+           "inspection result",
+           media_type="text/plain",
+           source_data="Feature: Evidence",
+           source_media_type="text/x.cucumber.gherkin+plain",
+           source_uri="file:evidence.feature",
+       )
+       attach(
+           "external evidence",
+           media_type="text/plain",
+           url="https://example.com/evidence.txt",
+           as_external=True,
+       )
+
+A complete ``source_data``, ``source_media_type`` and ``source_uri`` triple
+populates ``Attachment.source``. An incomplete triple leaves ``source`` absent.
+The Messages v28 source media types are ``text/x.cucumber.gherkin+plain`` and
+``text/x.cucumber.gherkin+markdown``. Other values are rejected by the existing
+Messages validation gate; for example, ``text/plain`` is an attachment media
+type but is not a valid source media type in that protocol.
+
+``url`` populates ``Attachment.url`` and preserves the supplied body.
+``as_external`` is accepted for migration compatibility and is visible to
+attachment observers. It does not change the envelope type or upload the body.
+The URL is retained with either value of ``as_external``.
+
+``pytest_cuke_attach`` observers may receive ``source_data``,
+``source_media_type``, ``source_uri``, ``url`` and ``as_external`` in addition to
+the existing arguments. As with other pytest hooks, declare only the arguments
+needed by the observer. Text, bytes, streams and positional ``media_type`` and
+``file_name`` arguments retain their existing behavior.

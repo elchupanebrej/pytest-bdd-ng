@@ -188,8 +188,13 @@ def pytest_cuke_attach(
     attachment: str | bytes | bytearray | BufferedIOBase | TextIOBase,
     media_type: str | None,
     file_name: str | None,
+    source_data: str | None,
+    source_media_type: str | None,
+    source_uri: str | None,
+    url: str | None,
+    as_external: bool,
 ) -> None:
-    """Internal hook to add attachment to a test case"""
+    """Observe an attachment and its optional source metadata or URL."""
 
 
 def pytest_cuke_debug_mcp_artifact_created(
