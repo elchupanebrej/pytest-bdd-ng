@@ -286,6 +286,13 @@ def pytest_addoption(parser: Parser) -> None:
         default=None,
         help="feature count at which collection switches to spawn-based batch parsing",
     )
+    feature_group.addoption(
+        "--cuke-disable-batch-collection",
+        action="store_true",
+        dest="cuke_disable_batch_collection",
+        default=None,
+        help="parse feature files serially without spawning batch parser workers",
+    )
     tolerant_group = parser.getgroup("cuke", "Tolerant steps")
     tolerant_group.addoption(
         "--cuke-tolerant-status",
@@ -325,6 +332,9 @@ def add_bdd_ini(parser: Parser) -> None:
     parser.addini("cuke_features_dir", "Base features directory.", default="features", type="string")
     parser.addini("cuke_features_base_url", "Base features URL.", default="", type="string")
     parser.addini("cuke_parser", "Gherkin parser backend: python, auto, or go.", default="auto", type="string")
+    parser.addini(
+        "cuke_disable_batch_collection", "Disable spawn-based batch parsing.", default=False, type="bool"
+    )
     batch_threshold_ini_type: Literal["int", "string"] = "int" if pytest.version_tuple >= (8, 4) else "string"
     batch_threshold_ini_default = None if batch_threshold_ini_type == "int" else ""
     parser.addini(

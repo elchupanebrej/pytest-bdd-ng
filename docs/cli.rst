@@ -465,3 +465,16 @@ paths and paths that conflict with an existing command are rejected during
 registration.
 
 Optional Debug MCP failure inspection is documented in :doc:`debug-mcp`.
+
+Batch collection controls
+-------------------------
+
+``--cuke-disable-batch-collection`` (or ``cuke_disable_batch_collection = true``)
+keeps feature parsing serial, including when the configured batch threshold is
+reached. The session cache remains active. By default spawn-based parsing stays
+enabled above the platform threshold.
+
+``--cuke-batch-threshold`` requires a positive integer. For compatibility with
+legacy ini configuration, zero or a negative ``cuke_batch_threshold`` selects
+the platform default (50 on POSIX, 1000 on Windows). Invalid integer settings
+produce a configuration error instead of an internal pytest failure.

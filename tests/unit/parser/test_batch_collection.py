@@ -26,10 +26,14 @@ class _Config:
         self.ini = ini
 
     def getoption(self, name: str) -> int | None:
+        if name == "cuke_disable_batch_collection":
+            return False
         assert name == "cuke_batch_threshold"
         return self.option
 
     def getini(self, name: str) -> int | None:
+        if name == "cuke_disable_batch_collection":
+            return False
         assert name == "cuke_batch_threshold"
         return self.ini
 

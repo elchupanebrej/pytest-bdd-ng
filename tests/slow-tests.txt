@@ -60,3 +60,5 @@ tests/integration/features/test_steps.py::test_step_hooks
 tests/integration/features/test_steps.py::test_step_trace
 
 tests/integration/debug-mcp/test_controls.py
+
+tests/integration/features/test_batch_controls.py

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, cast
 
+import pytest
 from attrs import evolve
 
 from pytest_cuke.compatibility.parser import LegacyParserAdapter
@@ -197,10 +198,13 @@ def resolve_batch_threshold(config: Any) -> int:
         return int(command_line)
     try:
         configured = config.getini("cuke_batch_threshold")
-    except (AttributeError, KeyError, ValueError):
-        configured = None
-    if configured not in (None, ""):
-        return int(configured)
+        threshold = int(configured) if configured not in (None, "") else 0
+    except ValueError as error:
+        raise pytest.UsageError("cuke_batch_threshold must be an integer") from error
+    except (AttributeError, KeyError):
+        threshold = 0
+    if threshold > 0:
+        return threshold
     return platform_default_batch_threshold()
 
 
@@ -212,10 +216,11 @@ class CollectionBatchService:
         "Cached feature parse results and pending batch reads for one pytest session.",
     )
 
-    def __init__(self, threshold: int, config: Any = None) -> None:
+    def __init__(self, threshold: int, config: Any = None, *, batch_enabled: bool = True) -> None:
         if threshold < 1:
             raise ValueError("feature collection batch threshold must be at least 1")
         self.threshold = threshold
+        self.batch_enabled = batch_enabled
         self.config = config
         self.pending: dict[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], BatchFeatureRequest] = {}
         self.results: dict[
@@ -235,7 +240,13 @@ class CollectionBatchService:
         stash = SessionStash.from_session(session)
         service = stash.get(cls.STASH_KEY)
         if not isinstance(service, cls):
-            service = cls(resolve_batch_threshold(config), config=config)
+            service = cls(
+                resolve_batch_threshold(config), config=config,
+                batch_enabled=not (
+                    config.getoption("cuke_disable_batch_collection")
+                    or config.getini("cuke_disable_batch_collection")
+                ),
+            )
             stash[cls.STASH_KEY] = service
         else:
             service.config = config
@@ -301,6 +312,10 @@ class CollectionBatchService:
         if self._closed or not self.pending:
             return
         requests = list(self.pending.values())
+        if not self.batch_enabled:
+            for request in requests:
+                self._parse_serial(request.key)
+            return
         batch_parse_requests = [request for request in requests if _worker_parser_kind(request.parser) is not None]
         for request in requests:
             if _worker_parser_kind(request.parser) is None:
