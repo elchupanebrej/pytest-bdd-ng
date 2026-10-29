@@ -269,11 +269,16 @@ def step_to_pickle_step(
             )
         )
     resolved_ast_node_id = step.id or ast_node_id
+    try:
+        step_type = messages.PickleStepType(step.type)
+    except (TypeError, ValueError):
+        step_type = messages.PickleStepType.unknown
     return messages.PickleStep(
         id=st_id,
         text=step.name,
         ast_node_ids=[resolved_ast_node_id] if resolved_ast_node_id is not None else [],
         argument=arg,
+        type=step_type,
     )
 
 

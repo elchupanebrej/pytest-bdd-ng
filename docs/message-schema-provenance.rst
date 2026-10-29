@@ -32,3 +32,26 @@ A failed pytest run includes ``testRunFinished.message`` and an
 Consumers can inspect this terminal envelope without parsing terminal output.
 Successful runs omit these diagnostic fields. Messages validation failures
 instead identify ``MessageValidationError`` in the terminal envelope.
+
+Step types, definitions and match arguments
+------------------------------------------
+
+``pickle.steps[].type`` reflects the parsed step's Context, Action, Outcome or
+Unknown type. Scenario Outline expansion and Background steps retain their
+parsed type. Steps without a recognized type use Unknown.
+
+Within each reporter session or xdist worker, a ``stepDefinition`` id is
+published once. Each test case continues to reference that definition's id;
+reusing a definition in another scenario does not publish another envelope
+with the same id. Definitions with distinct ids remain distinct, even if their
+patterns are equal.
+
+For an unambiguous parameterized match, ``testCase.testSteps`` includes the
+official ``stepMatchArgumentsLists`` field. Cucumber Expression captures retain
+their recursive groups, source offsets and values. Explicit anonymous group
+names become ``parameterTypeName``. Other parsers retain the legacy fallback:
+parsed parameter names and string values, with the first matching text offset
+when available. Definition-level converters are not run for this projection.
+These protocol fields accompany the existing step-binding attachments.
+Ambiguous matches and unsuccessful diagnostic extraction omit the argument
+list; reporting does not select a different step or change execution policy.

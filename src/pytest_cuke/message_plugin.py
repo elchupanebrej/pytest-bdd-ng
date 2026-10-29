@@ -64,6 +64,7 @@ from pytest_cuke.model.message_types import (
     ContentEncoding,
     Duration,
     ExceptionMessage,
+    Group,
     Hook,
     HookType,
     Location,
@@ -74,6 +75,8 @@ from pytest_cuke.model.message_types import (
     SourceMediaType,
     SourceReference,
     Status,
+    StepMatchArgument,
+    StepMatchArgumentsList,
     TestCase,
     TestCaseFinished,
     TestCaseStarted,
@@ -106,6 +109,7 @@ from pytest_cuke.model.run_access import get_run_context
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource
 from pytest_cuke.packaging import get_distribution_version
+from pytest_cuke.parsers.cucumber_expression import _CucumberExpression
 from pytest_cuke.scenario_locator import ScenarioLocatorFilterMixin
 from pytest_cuke.steps import Matcher
 from pytest_cuke.utils import PytestBDDIdGeneratorHandler, deepattrgetter
@@ -120,6 +124,59 @@ if TYPE_CHECKING:
     from pytest_cuke.formatter_api import FormatterRequest
     from pytest_cuke.model import Step
     from pytest_cuke.model.message_validation import MessageValidationDiagnostic
+    from pytest_cuke.steps.definition import Definition
+
+
+def _step_match_arguments_lists(
+    request: FixtureRequest, definition: Definition, step: Step
+) -> list[StepMatchArgumentsList]:
+    """Project parser captures without invoking the definition's converters."""
+    try:
+        names = tuple(definition.anonymous_group_names or ())
+        if definition.anonymous_group_names is not None:
+            definition.anonymous_group_names = names
+        if isinstance(definition.parser, _CucumberExpression):
+            matches = definition.parser.rebuild_expression_in_test_context(request).match(step.name)
+            if matches:
+
+                def build_group(group: Any) -> Group:
+                    return Group(
+                        start=group.start,
+                        value=group.value,
+                        children=[build_group(child) for child in (group.children or [])],
+                    )
+
+                return [
+                    StepMatchArgumentsList(
+                        step_match_arguments=[
+                            StepMatchArgument(
+                                group=build_group(match.group),
+                                parameter_type_name=str(names[index]) if index < len(names) else None,
+                            )
+                            for index, match in enumerate(matches)
+                        ]
+                    )
+                ]
+        parsed = (
+            definition.parser.parse_arguments(
+                request, step.name, anonymous_group_names=definition.anonymous_group_names
+            )
+            or {}
+        )
+        arguments = []
+        for name, value in parsed.items():
+            text = str(value) if value is not None else ""
+            start = step.name.find(text) if text else -1
+            arguments.append(
+                StepMatchArgument(
+                    group=Group(children=[], start=start if start >= 0 else None, value=text or None),
+                    parameter_type_name=str(name) if name is not None else None,
+                )
+            )
+        return [StepMatchArgumentsList(step_match_arguments=arguments)] if arguments else []
+    except Exception:
+        return []
+
 
 _WORKER_MESSAGE_BATCH_KEY = "pytest_cuke_message_batch"
 _WORKER_MESSAGE_OUTPUT_KEY = "pytest_cuke_message_transport"
@@ -199,6 +256,7 @@ class MessagePlugin:
     test_cases_by_nodeid: dict[str, TestCase] = attrib(factory=dict)
     test_case_hook_steps_by_nodeid: dict[str, dict[str, TestStep]] = attrib(factory=dict)
     parameter_type_registry: set[int] = attrib(factory=set)
+    published_step_definition_ids: set[str] = attrib(factory=set)
     hook_registry: set[int] = attrib(factory=set)
     ide_bindings: IdeBindingCollection = attrib(factory=IdeBindingCollection)
     test_run_started_id: str | None = attrib(default=None)
@@ -1420,9 +1478,12 @@ class MessagePlugin:
                 if id(step_definition) not in seen_steps:
                     seen_steps.add(id(step_definition))
                     available_step_definitions.append(step_definition)
-                    hook_handler.pytest_cuke_message(
-                        config=config, message=Message(step_definition=step_definition.as_message(config=config))
-                    )
+                    definition_message = step_definition.as_message(config=config)
+                    if definition_message.id not in self.published_step_definition_ids:
+                        hook_handler.pytest_cuke_message(
+                            config=config, message=Message(step_definition=definition_message)
+                        )
+                        self.published_step_definition_ids.add(definition_message.id)
             step_registry = step_registry.parent
 
         step_registry = request.getfixturevalue("step_registry")
@@ -1526,6 +1587,11 @@ class MessagePlugin:
 
             step_matches = tuple(getattr(step_matcher, "last_matches", ()))
             step_binding_records.append((step, step_definition, step_matches))
+            argument_lists = (
+                _step_match_arguments_lists(request, step_definition, step)
+                if step_definition is not None and len(step_matches) <= 1
+                else []
+            )
 
             cached_step_index = step_index + int("before" in case_hook_steps)
             test_step = (
@@ -1535,6 +1601,7 @@ class MessagePlugin:
                     id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
                     pickle_step_id=f"{scenario_id}-step-{step_index}",
                     step_definition_ids=step_definition_ids,
+                    step_match_arguments_lists=argument_lists or None,
                 )
             )
             test_steps.append(test_step)
