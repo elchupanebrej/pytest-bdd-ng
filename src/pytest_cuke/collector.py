@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
     from types import ModuleType
 
-    from _pytest.nodes import Node
+    from _pytest.nodes import Collector
 
     from pytest_cuke.compatibility.pytest import Config
 
@@ -216,7 +216,7 @@ class ScenarioItem(PytestItem):
         self.scenario = scenario
 
     @classmethod
-    def from_parent(cls, parent: Node, **kwargs: Any) -> ScenarioItem:
+    def from_parent(cls, parent: Collector, **kwargs: Any) -> ScenarioItem:
         return super().from_parent(
             parent=parent,
             **kwargs,
