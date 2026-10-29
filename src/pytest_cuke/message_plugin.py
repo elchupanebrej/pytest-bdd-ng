@@ -1230,7 +1230,8 @@ class MessagePlugin:
                 message=f"pytest session exit status: {int(exitstatus)}" if not is_testrun_success else None,
                 exception=(
                     ExceptionMessage(type="PytestExitCode", message=str(int(exitstatus)))
-                    if not is_testrun_success else None
+                    if not is_testrun_success
+                    else None
                 ),
             )
         )
@@ -2146,7 +2147,7 @@ class MessagePlugin:
         step = run.require_step("pytest_cuke_step_func_lookup_error")
         test_step = self.current_test_case_step_id_to_step_mapping[id(step)]
 
-        for expression, name in self._undefined_parameter_types_from(exception):
+        for expression, name in self._undefined_parameter_types_from(exception, fallback_expression=step.name):
             config.hook.pytest_cuke_message(
                 config=config,
                 message=Message(undefined_parameter_type=UndefinedParameterType(expression=expression, name=name)),
@@ -2169,8 +2170,11 @@ class MessagePlugin:
         )
 
     @staticmethod
-    def _undefined_parameter_types_from(exception: BaseException) -> tuple[tuple[str, str], ...]:
+    def _undefined_parameter_types_from(
+        exception: BaseException, *, fallback_expression: str | None = None
+    ) -> tuple[tuple[str, str], ...]:
         diagnostics: dict[tuple[str, str], None] = {}
+        fallback_names: dict[str, None] = {}
         pending: list[BaseException] = [exception]
         visited: set[int] = set()
         while pending:
@@ -2199,10 +2203,17 @@ class MessagePlugin:
             ):
                 diagnostics.setdefault(chained_diagnostic, None)
 
+            if fallback_expression is not None:
+                text_match = re.search(r"Undefined parameter type (?:'([^'\n]+)'|\{([^}\n]+)\})", str(current))
+                if text_match is not None:
+                    fallback_names.setdefault(text_match.group(1) or text_match.group(2), None)
+
             cause = current.__cause__ or current.__context__
             if cause is not None:
                 pending.append(cause)
 
+        if not diagnostics and fallback_expression is not None:
+            diagnostics.update(((fallback_expression, name), None) for name in fallback_names)
         return tuple(diagnostics)
 
     def _start_test_step(self, *, config: Config, test_case_started: TestCaseStarted, test_step: TestStep) -> Timestamp:

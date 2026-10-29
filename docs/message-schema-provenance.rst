@@ -55,3 +55,13 @@ when available. Definition-level converters are not run for this projection.
 These protocol fields accompany the existing step-binding attachments.
 Ambiguous matches and unsuccessful diagnostic extraction omit the argument
 list; reporting does not select a different step or change execution policy.
+
+Extension matcher diagnostics
+------------------------------
+
+Structured unknown-parameter diagnostics take precedence. When an extension
+matcher raises a lookup error with ``Undefined parameter type 'name'`` or
+``Undefined parameter type {name}`` in its exception chain, the Messages reader
+receives ``undefinedParameterType`` with that name and the current step text as
+its expression. Ordinary matcher errors and exceptions from step bodies do not
+trigger this text fallback.
