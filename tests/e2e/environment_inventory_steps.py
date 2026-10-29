@@ -3654,6 +3654,20 @@ def fast_pr_acceptance_uses_four_xdist_workers(
             worker_counts.append(token.partition("=")[2])
     assert worker_counts == ["4"], selector_tokens
 
+    inventory = temporary_environment_inventory.document
+    fast_inventory = inventory["project"]["fast_pr"]
+    assert fast_inventory["runner"] == fast_pr["runs-on"]
+    setup_versions = [
+        step["with"]["python-version"]
+        for step in steps
+        if isinstance(step, dict) and str(step.get("uses", "")).startswith("actions/setup-python@")
+    ]
+    assert setup_versions == [fast_inventory["python"]]
+    assert fast_inventory["runtime"] == "CPython"
+    assert shlex.split(fast_inventory["command"]) == selector_tokens
+    marker_index = selector_tokens.index("-m", selector_tokens.index("pytest") + 1)
+    assert selector_tokens[marker_index + 1] == fast_inventory["marker"]
+
 
 def _native_parser_tox_python(context: TemporaryEnvironmentInventoryContext) -> str:
     tox_config = configparser.ConfigParser(interpolation=None)
