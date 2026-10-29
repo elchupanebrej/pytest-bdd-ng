@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from io import BufferedIOBase, TextIOBase
     from pathlib import Path
 
+    from cucumber_messages import GherkinDocument, Pickle, Source
+
     from pytest_cuke.compatibility.pytest import Config, FixtureRequest, Mark
     from pytest_cuke.formatter_api import FormatterRequest
     from pytest_cuke.model import Feature
@@ -17,6 +19,18 @@ if TYPE_CHECKING:
     from pytest_cuke.model.session_run import RunContext
 
 """Pytest-bdd pytest hooks."""
+
+
+def pytest_cuke_source_read(config: Config, gherkin_document: GherkinDocument, source: Source) -> None:
+    """Observe a parsed source before its feature and compiled pickles are read."""
+
+
+def pytest_cuke_feature_read(config: Config, gherkin_document: GherkinDocument) -> None:
+    """Observe a parsed feature as an official Cucumber GherkinDocument."""
+
+
+def pytest_cuke_pickle_read(config: Config, gherkin_document: GherkinDocument, pickle: Pickle) -> None:
+    """Observe an expanded Cucumber Pickle before scenario filtering."""
 
 
 def pytest_cuke_before_scenario(request: FixtureRequest, run: RunContext) -> None:

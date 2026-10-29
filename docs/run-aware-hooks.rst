@@ -42,3 +42,29 @@ attachment event in ``run-aware-observations.jsonl``. Its matcher, caller, and
 dispatcher return ``None`` to use pytest-cuke's default implementations. The
 E2E suite executes this checked-in directory from an installed consumer
 project.
+
+Collection read hooks
+---------------------
+
+Source observers do not need a Messages reporter. During scenario resolution,
+pytest-cuke calls these hooks in order:
+
+* ``pytest_cuke_source_read(config, gherkin_document, source)`` receives the
+  original source text and URI as an official ``cucumber_messages.Source``.
+  Parsers that do not retain source text omit this event.
+* ``pytest_cuke_feature_read(config, gherkin_document)`` receives an official
+  ``cucumber_messages.GherkinDocument`` for the parsed feature.
+* ``pytest_cuke_pickle_read(config, gherkin_document, pickle)`` receives each
+  official ``cucumber_messages.Pickle`` after expanding Scenario Outline rows
+  and before applying the locator's scenario filter.
+
+The document and pickle are protocol projections of pytest-cuke's immutable
+models; changing them does not change collection or execution. A source may be
+resolved more than once when consumers bind it through separate locators.
+Observers that aggregate by source should use the URI to identify the source.
+
+For plugins migrated from pytest-bdd, rename the ``pytest_bdd_`` prefix to
+``pytest_cuke_`` for these hooks. Their ``gherkin_document``, ``source`` and
+``pickle`` argument names and official Messages payload types are preserved.
+These hooks observe collection inputs; the run-aware hooks above observe live
+execution state.

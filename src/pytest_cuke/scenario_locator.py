@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from urllib.request import urlopen
 
 from attrs import define, evolve, field
+from cucumber_messages import Source
 
 from pytest_cuke.batch_collection import BatchFeatureRequest, get_batch_service
 from pytest_cuke.compatibility.parser import LegacyParserAdapter
@@ -18,6 +19,7 @@ from pytest_cuke.feature_sources import FeatureSourceError, resolve_feature_sour
 from pytest_cuke.heading_scanner import enforce_feature_heading_policy
 from pytest_cuke.mimetypes import STRUCT_BDD_FORMATS, Mimetype
 from pytest_cuke.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
+from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
 from pytest_cuke.parser import (
     GherkinParser,
     MarkdownParser,
@@ -30,6 +32,7 @@ from pytest_cuke.parser_backend import resolve_parser_backend
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+    from pytest_cuke.model.message_types import SourceMediaType
     from pytest_cuke.parser import ParserProtocol
 
 
@@ -149,14 +152,45 @@ class ScenarioLocatorFilterMixin:
                                 node_id for node_id in (scenario.id, row.id) if node_id is not None
                             ),
                         )
+                        self._notify_pickle_read(config, feature, expanded_scenario)
                         if self.filter_ is None or self.filter_(config, feature, expanded_scenario):
                             yield feature, expanded_scenario
-            elif self.filter_ is None or self.filter_(config, feature, scenario):
-                yield feature, scenario
+            else:
+                self._notify_pickle_read(config, feature, scenario)
+                if self.filter_ is None or self.filter_(config, feature, scenario):
+                    yield feature, scenario
+
+    @staticmethod
+    def _notify_pickle_read(config: Any, feature: Feature, scenario: Scenario) -> None:
+        hook = getattr(config, "hook", None)
+        if hook is not None:
+            uri = feature.uri or feature.filename or feature.name
+            hook.pytest_cuke_pickle_read(
+                config=config,
+                gherkin_document=feature_to_gherkin_document(feature, uri=uri),
+                pickle=scenario_to_pickle(scenario, uri=uri, feature=feature),
+            )
 
     def resolve(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[tuple[Feature, Scenario]]:
         feature_resolver = cast("ScenarioLocatorFeatureResolver", self)
         for feature in feature_resolver.resolve_features(config, registry=registry):
+            hook = getattr(config, "hook", None)
+            if hook is not None:
+                uri = feature.uri or feature.filename or feature.name
+                document = feature_to_gherkin_document(feature, uri=uri)
+                if feature.source_content is not None:
+                    hook.pytest_cuke_source_read(
+                        config=config,
+                        gherkin_document=document,
+                        source=Source(
+                            uri=uri,
+                            data=feature.source_content,
+                            media_type=cast(
+                                "SourceMediaType", feature.source_media_type or Mimetype.gherkin_plain.value
+                            ),
+                        ),
+                    )
+                hook.pytest_cuke_feature_read(config=config, gherkin_document=document)
             yield from self.filter_scenarios(feature, config)
 
 
