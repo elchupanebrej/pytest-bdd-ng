@@ -13,6 +13,11 @@ from pytest_cuke import (
 
 
 % endif
+% if feature_pickle_steps:
+from pytest_cuke.steps import not_implemented
+
+
+% endif
 % for feature, pickle in feature_pickles :
 @scenario(Path('${feature.rel_filename}'), ${ make_string_literal(pickle.name)})
 def test_${ make_python_name(pickle.name)}():
@@ -22,6 +27,7 @@ def test_${ make_python_name(pickle.name)}():
 % endfor
 % for feature_pickle, step in feature_pickle_steps:
 @${make_step_method_name(step.type, step.keyword)}(${ make_string_literal(step.text)})
+@not_implemented
 def ${ make_python_name(step.text)}():
     ${make_python_docstring(step.text)}
     raise NotImplementedError

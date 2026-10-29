@@ -587,6 +587,14 @@ def _render_additions(
             imports.add(path_import)
 
     lines: list[str] = []
+    not_implemented_name = _available_name(namespace, "_pytest_cuke_not_implemented", "not_implemented")
+    if steps:
+        marker_import = (
+            f"not_implemented as {not_implemented_name}"
+            if not_implemented_name != "not_implemented"
+            else "not_implemented"
+        )
+        lines.extend((f"from pytest_cuke.steps import {marker_import}", ""))
     if imports:
         public_imports = sorted(item for item in imports if not item.startswith("from pathlib import "))
         pathlib_imports = sorted(item for item in imports if item.startswith("from pathlib import "))
@@ -605,6 +613,7 @@ def _render_additions(
         lines.extend(
             (
                 f"@{decorator}({step.text!a})",
+                f"@{not_implemented_name}",
                 f"def {function_name}():",
                 '    """Implement the matching feature step."""',
                 f"    raise NotImplementedError({'Implement: ' + step.text!a})",

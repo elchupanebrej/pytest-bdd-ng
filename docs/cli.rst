@@ -240,6 +240,14 @@ consumer contract in ``features/generation/transactional-step-generation.feature
 covers preview, update, rollback, keep-on-error, and generated-project
 collection.
 
+Generated step stubs are marked with ``@not_implemented``, imported from
+``pytest_cuke.steps``. This applies both to ``cuke generate steps`` and pytest's
+``--cuke-generate`` / ``--cuke-generate-missing`` output. They still raise
+``NotImplementedError`` under the default or explicit ``failed`` WIP policy.
+``--cuke-wip-status=skipped`` skips their execution so a generated scaffold can
+be collected and run while its steps await implementation. Existing user step
+functions retain their behavior; generation does not mark them as stubs.
+
 Synchronizing Cucumber Messages schemas
 ---------------------------------------
 

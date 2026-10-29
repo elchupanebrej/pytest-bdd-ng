@@ -652,7 +652,7 @@ def pytest_load_initial_conftests(early_config: Config) -> None:
     )
 
 
-@pytest.mark.trylast
+@pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
     try:
@@ -1210,7 +1210,7 @@ pytest_collect_file: Any
 pytest_collect_file = _pytest_collect_file_pytest7 if PYTEST7 else _pytest_collect_file_legacy
 
 
-@pytest.mark.trylast
+@pytest.hookimpl(trylast=True)
 def pytest_cuke_convert_tag_to_marks(
     feature: Feature, scenario: Scenario, tag: str
 ) -> Collection[Mark | MarkDecorator] | None:
