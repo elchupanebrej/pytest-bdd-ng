@@ -18,6 +18,7 @@ from unittest.mock import patch
 from warnings import catch_warnings, simplefilter
 
 import pytest
+from cucumber_messages import PickleTag
 from ordered_set import OrderedSet
 from pathvalidate import is_valid_filepath
 
@@ -60,6 +61,7 @@ from pytest_cuke.message_plugin import MessagePlugin, MessageSessionFinishHookAd
 from pytest_cuke.mimetypes import Mimetype, struct_bdd_format_for_mimetype, struct_bdd_format_for_path
 from pytest_cuke.model import Feature, Scenario
 from pytest_cuke.model.execution_steps import execution_steps
+from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.native_allure import NativeAllureDependencyError, NativeAllureReporter
 from pytest_cuke.native_allure_worker import NativeAllureWorkerBridge, NativeAllureWorkerDependencyError
@@ -81,6 +83,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Generator, Iterable, Sequence
 
     from _pytest.nodes import Collector
+    from cucumber_messages import GherkinDocument
 
     from pytest_cuke.formatter_api import FormatterRequest
     from pytest_cuke.model.step import Step
@@ -1067,15 +1070,39 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
     return chain(*locators_iterables)
 
 
-def _build_scenario_param(feature: Feature, scenario: Scenario, config: Config) -> Any:
+def _build_scenario_param(
+    feature: Feature,
+    scenario: Scenario,
+    config: Config,
+    *,
+    documents: dict[int, GherkinDocument] | None = None,
+) -> Any:
     marks: list[Mark | MarkDecorator] = []
     feature_tags = getattr(feature, "tag_names", ()) or ()
     scenario_tags = getattr(scenario, "tag_names", ()) or ()
     all_tags = set(feature_tags).union(scenario_tags)
-    for tag in all_tags:
-        tag_marks = config.hook.pytest_cuke_convert_tag_to_marks(feature=feature, scenario=scenario, tag=tag)
-        if tag_marks is not None:
-            marks.extend(tag_marks)
+    if all_tags:
+        hook = config.hook.pytest_cuke_convert_tag_to_marks
+        protocol_arguments: dict[str, Any] = {"gherkin_document": None, "pickle": None}
+        if all_tags and any(
+            {"gherkin_document", "pickle"}.intersection(implementation.argnames)
+            for implementation in hook.get_hookimpls()
+        ):
+            uri = feature.uri or feature.filename or feature.name
+            document = documents.get(id(feature)) if documents is not None else None
+            if document is None:
+                document = feature_to_gherkin_document(feature, uri=uri)
+                if documents is not None:
+                    documents[id(feature)] = document
+            compiled_pickle = scenario_to_pickle(scenario, uri=uri, feature=feature)
+            compiled_pickle.tags = [
+                PickleTag(name=tag.name, ast_node_id=tag.id or "") for tag in (*feature.tags, *scenario.tags)
+            ]
+            protocol_arguments = {"gherkin_document": document, "pickle": compiled_pickle}
+        for tag in all_tags:
+            tag_marks = hook(feature=feature, scenario=scenario, tag=tag, **protocol_arguments)
+            if tag_marks is not None:
+                marks.extend(tag_marks)
     feature_source = _normalize_xdist_rsync_root(feature.uri or feature.filename or "feature")
     return pytest.param(
         feature,
@@ -1154,9 +1181,10 @@ def pytest_generate_tests(metafunc: Metafunc) -> None:
             if run_context is not None:
                 for feature, scenario in feature_scenarios:
                     run_context.bind_feature(feature).register_scenario(scenario)
+            documents: dict[int, GherkinDocument] = {}
             metafunc.parametrize(
                 ("feature", "scenario"),
-                [_build_scenario_param(feat, sc, config=config) for feat, sc in feature_scenarios],
+                [_build_scenario_param(feat, sc, config=config, documents=documents) for feat, sc in feature_scenarios],
             )
 
 

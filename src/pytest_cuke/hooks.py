@@ -110,12 +110,16 @@ def pytest_cuke_apply_tag(tag: Any, function: Any) -> Any:
 
 
 @hookspec(firstresult=True)
-def pytest_cuke_convert_tag_to_marks(feature: Feature, scenario: Scenario, tag: Any) -> Iterable[Mark] | None:
+def pytest_cuke_convert_tag_to_marks(
+    feature: Feature, scenario: Scenario, tag: Any, gherkin_document: GherkinDocument, pickle: Pickle
+) -> Iterable[Mark] | None:
     """Apply a tag (from a .feature file) to the given test item.
 
     The default implementation does the equivalent of
     getattr(pytest.mark, tag)(function), but you can override this hook and
-    return True to do more sophisticated handling of tags.
+    return marks to do more sophisticated handling of tags. Implementations
+    may request the current ``feature``/``scenario`` models, the official
+    ``gherkin_document``/``pickle`` protocol models, or a subset of these.
     """
 
 

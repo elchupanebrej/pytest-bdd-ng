@@ -111,3 +111,6 @@ The URL is retained with either value of ``as_external``.
 the existing arguments. As with other pytest hooks, declare only the arguments
 needed by the observer. Text, bytes, streams and positional ``media_type`` and
 ``file_name`` arguments retain their existing behavior.
+
+Tag conversion supports both current models and official protocol payloads;
+see :doc:`tag-conversion-protocol`.
