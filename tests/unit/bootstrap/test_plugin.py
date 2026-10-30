@@ -66,6 +66,9 @@ def test_pytest_configure_lifecycle() -> None:
     config.option.cuke_mcp_lease = None
     config.option.cuke_mcp_host = None
     config.option.cuke_mcp_port = None
+    config.option.cuke_mcp_max_holds = None
+    config.option.cuke_mcp_expose_env = None
+    config.option.cuke_mcp_redact_patterns = None
     config.getini.side_effect = lambda name: {
         "cuke_tolerant_status": "failed",
         "cuke_wip_status": "failed",
@@ -74,6 +77,9 @@ def test_pytest_configure_lifecycle() -> None:
         "cuke_mcp_lease": "10s",
         "cuke_mcp_host": "127.0.0.1",
         "cuke_mcp_port": "auto",
+        "cuke_mcp_max_holds": "0",
+        "cuke_mcp_expose_env": False,
+        "cuke_mcp_redact_patterns": "",
     }.get(name, "")
 
     pytest_configure(config)
