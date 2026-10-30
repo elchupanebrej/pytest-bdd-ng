@@ -30,8 +30,12 @@ Run summary diagnostics
 A failed pytest run includes ``testRunFinished.message`` and an
 ``exception`` with type ``PytestExitCode`` and the numeric exit status.
 Consumers can inspect this terminal envelope without parsing terminal output.
-Successful runs omit these diagnostic fields. Messages validation failures
-instead identify ``MessageValidationError`` in the terminal envelope.
+Successful runs omit these diagnostic fields. Accumulated reporting failures
+(such as rejected schema payloads or failed sinks) identify
+``MessageReportingError``, even when the original pytest exit status was zero.
+New terminal-stream validation errors identify ``MessageValidationError``.
+A reporting failure changes the run result, while preserving the existing
+classification of the individual step.
 
 Step types, definitions and match arguments
 ------------------------------------------

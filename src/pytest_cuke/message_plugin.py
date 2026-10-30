@@ -1216,18 +1216,23 @@ class MessagePlugin:
             and not self.test_run_hook_failed
             and not (self.formatter_session and self.formatter_session.failed)
         )
+        reporting_failed = bool(self.message_transport and self.message_transport.has_errors)
+        failure_message: str | None = None
+        failure_exception: ExceptionMessage | None = None
+        if reporting_failed:
+            failure_message = f"pytest session exit status: {int(exitstatus)}; Messages reporting failed"
+            failure_exception = ExceptionMessage(type="MessageReportingError", message="Messages reporting failed")
+        elif not is_testrun_success:
+            failure_message = f"pytest session exit status: {int(exitstatus)}"
+            failure_exception = ExceptionMessage(type="PytestExitCode", message=str(int(exitstatus)))
         terminal_timestamp = self.get_timestamp()
         terminal_message = Message(
             test_run_finished=TestRunFinished(
                 timestamp=terminal_timestamp,
-                success=is_testrun_success and not (self.message_transport and self.message_transport.has_errors),
+                success=is_testrun_success and not reporting_failed,
                 test_run_started_id=self.test_run_started_id,
-                message=f"pytest session exit status: {int(exitstatus)}" if not is_testrun_success else None,
-                exception=(
-                    ExceptionMessage(type="PytestExitCode", message=str(int(exitstatus)))
-                    if not is_testrun_success
-                    else None
-                ),
+                message=failure_message,
+                exception=failure_exception,
             )
         )
         if self.message_transport is not None and self.message_transport.preview_finish(terminal_message):

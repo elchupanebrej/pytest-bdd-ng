@@ -91,3 +91,12 @@ def invalid_source(attach):
     assert "PYTEST_CUKE_MESSAGE_DIAGNOSTIC=" in result.stdout.str()
     envelopes = [json.loads(line) for line in (pytester.path / "messages.ndjson").read_text().splitlines()]
     assert not any(event.get("attachment", {}).get("body") == "invalid-source" for event in envelopes)
+    assert [
+        event["testStepFinished"]["testStepResult"]["status"] for event in envelopes if "testStepFinished" in event
+    ] == ["PASSED"]
+    finished = [event["testRunFinished"] for event in envelopes if "testRunFinished" in event]
+    assert len(finished) == 1
+    assert finished[0]["success"] is False
+    assert finished[0]["message"] == "pytest session exit status: 0; Messages reporting failed"
+    assert finished[0]["exception"]["type"] == "MessageReportingError"
+    assert finished[0]["exception"]["message"] == "Messages reporting failed"
