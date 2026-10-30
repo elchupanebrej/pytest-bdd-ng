@@ -52,6 +52,11 @@ their recursive groups, source offsets and values. Explicit anonymous group
 names become ``parameterTypeName``. Other parsers retain the legacy fallback:
 parsed parameter names and string values, with the first matching text offset
 when available. Definition-level converters are not run for this projection.
+Parser arguments are captured once and projected independently into protocol
+groups and JSON-safe step-binding attachments. The protocol keeps the legacy
+string representation of raw values, including tuples; the IDE attachment
+keeps its JSON representation. Reporting adds no parser calls relative to the
+existing attachment consumer.
 These protocol fields accompany the existing step-binding attachments.
 Ambiguous matches and unsuccessful diagnostic extraction omit the argument
 list; reporting does not select a different step or change execution policy.

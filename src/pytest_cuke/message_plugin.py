@@ -44,6 +44,7 @@ from pytest_cuke.ide_bindings import (
     IDE_LAUNCH_MEDIA_TYPE,
     IDE_STEP_BINDING_MEDIA_TYPE,
     IdeBindingCollection,
+    capture_match_arguments,
     definition_reference,
     match_arguments,
     source_identity,
@@ -128,7 +129,7 @@ if TYPE_CHECKING:
 
 
 def _step_match_arguments_lists(
-    request: FixtureRequest, definition: Definition, step: Step
+    request: FixtureRequest, definition: Definition, step: Step, parsed_arguments: dict[str, Any]
 ) -> list[StepMatchArgumentsList]:
     """Project parser captures without invoking the definition's converters."""
     try:
@@ -157,14 +158,8 @@ def _step_match_arguments_lists(
                         ]
                     )
                 ]
-        parsed = (
-            definition.parser.parse_arguments(
-                request, step.name, anonymous_group_names=definition.anonymous_group_names
-            )
-            or {}
-        )
         arguments = []
-        for name, value in parsed.items():
+        for name, value in parsed_arguments.items():
             text = str(value) if value is not None else ""
             start = step.name.find(text) if text else -1
             arguments.append(
@@ -1548,7 +1543,7 @@ class MessagePlugin:
         callspec_id = getattr(getattr(request.node, "callspec", None), "id", "")
         fallback_id = f"{feature_uri}#{callspec_id}" if callspec_id else ""
         scenario_id = scenario_pickle_id(scenario, uri=feature_uri, default_id=fallback_id)
-        step_binding_records: list[tuple[Step, Any | None, tuple[Any, ...]]] = []
+        step_binding_records: list[tuple[Step, Any | None, tuple[Any, ...], list[dict[str, Any]]]] = []
 
         scenario_steps = list(execution_steps(feature, scenario))
         if cached_test_case is not None and (
@@ -1587,9 +1582,17 @@ class MessagePlugin:
                 previous_step = step
 
             step_matches = tuple(getattr(step_matcher, "last_matches", ()))
-            step_binding_records.append((step, step_definition, step_matches))
+            parsed_arguments = (
+                capture_match_arguments(step_definition, request, step) if step_definition is not None else {}
+            )
+            binding_arguments = (
+                match_arguments(step_definition, request, step, parsed_arguments=parsed_arguments)
+                if step_definition is not None
+                else []
+            )
+            step_binding_records.append((step, step_definition, step_matches, binding_arguments))
             argument_lists = (
-                _step_match_arguments_lists(request, step_definition, step)
+                _step_match_arguments_lists(request, step_definition, step, parsed_arguments)
                 if step_definition is not None and len(step_matches) <= 1
                 else []
             )
@@ -1673,7 +1676,9 @@ class MessagePlugin:
         self._emit_ide_attachment(config, IDE_LAUNCH_MEDIA_TYPE, launch_payload)
 
         available_definitions = [definition_reference(definition, config) for definition in available_step_definitions]
-        for test_step, (step, definition, candidates) in zip(test_steps, step_binding_records, strict=True):
+        for test_step, (step, definition, candidates, binding_arguments) in zip(
+            test_steps, step_binding_records, strict=True
+        ):
             if definition is None:
                 self._emit_ide_attachment(
                     config,
@@ -1698,7 +1703,7 @@ class MessagePlugin:
                     "pickleStepId": test_step.pickle_step_id,
                     "stepDefinitionId": matched_definition["stepDefinitionId"],
                     "sourceReference": matched_definition["sourceReference"],
-                    "matchArguments": match_arguments(definition, request, step),
+                    "matchArguments": binding_arguments,
                 },
             )
             if len(candidates) > 1:

@@ -189,18 +189,35 @@ def definition_reference(definition: Definition, config: Config) -> dict[str, An
     }
 
 
-def match_arguments(definition: Definition, request: FixtureRequest, step: Step) -> list[dict[str, Any]]:
-    """Extract named arguments without running the definition's converters."""
+def capture_match_arguments(definition: Definition, request: FixtureRequest, step: Step) -> dict[str, Any]:
+    """Capture raw parser arguments once for reporting projections."""
     try:
         anonymous_group_names = definition.anonymous_group_names
         if anonymous_group_names is not None:
             anonymous_group_names = tuple(anonymous_group_names)
             definition.anonymous_group_names = anonymous_group_names
-        parsed = definition.parser.parse_arguments(
-            request,
-            step.name,
-            anonymous_group_names=anonymous_group_names,
-        ) or {}
+        return (
+            definition.parser.parse_arguments(
+                request,
+                step.name,
+                anonymous_group_names=anonymous_group_names,
+            )
+            or {}
+        )
+    except Exception:
+        return {}
+
+
+def match_arguments(
+    definition: Definition,
+    request: FixtureRequest,
+    step: Step,
+    *,
+    parsed_arguments: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Extract named arguments without running the definition's converters."""
+    try:
+        parsed = capture_match_arguments(definition, request, step) if parsed_arguments is None else parsed_arguments
         return [{"name": name, "value": _json_value(value)} for name, value in parsed.items()]
     except Exception:
         # Reporting must not change whether a scenario passes or fails.
@@ -238,6 +255,7 @@ __all__ = [
     "IDE_LAUNCH_MEDIA_TYPE",
     "IDE_STEP_BINDING_MEDIA_TYPE",
     "IdeBindingCollection",
+    "capture_match_arguments",
     "definition_reference",
     "match_arguments",
     "source_identity",

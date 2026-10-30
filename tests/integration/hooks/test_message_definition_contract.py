@@ -133,3 +133,121 @@ def second(value):
     assert any(child.get("value") == "red" for child in group["children"])
     assert "stepMatchArgumentsLists" not in case["testSteps"][1]
     assert "Alternative step definitions are found" in result.stdout.str()
+
+
+@pytest.mark.parametrize("messages", [False, True])
+def test_reporting_does_not_add_stateful_parser_calls(pytester, messages):
+    pytester.makeini("[pytest]\ncuke_features_dir = features\ncuke_parser = python\n")
+    features = pytester.path / "features"
+    features.mkdir()
+    (features / "stateful-parser.feature").write_text(
+        "Feature: Stateful parser\n  Scenario: Count\n    Given count a value\n", encoding="utf-8"
+    )
+    pytester.makeconftest(
+        r"""
+import json
+from pathlib import Path
+from pytest_cuke import given
+from pytest_cuke.parsers import StepParser
+
+parse_calls = []
+executed_values = []
+
+class CountingParser(StepParser):
+    def is_matching(self, request, name):
+        return name == "count a value"
+
+    @property
+    def arguments(self):
+        return ["value"]
+
+    def parse_arguments(self, request, name, anonymous_group_names=None):
+        parse_calls.append(name)
+        return {"value": len(parse_calls)}
+
+    def __str__(self):
+        return "count a value"
+
+@given(CountingParser())
+def count(value):
+    executed_values.append(value)
+
+def pytest_sessionfinish(session):
+    Path("observed.json").write_text(json.dumps({"parse_calls": parse_calls, "executed_values": executed_values}))
+"""
+    )
+    arguments = ["features/stateful-parser.feature", "-q"]
+    if messages:
+        arguments.append("--cuke-messages-ndjson=messages.ndjson")
+    result = pytester.runpytest_subprocess(*arguments)
+    result.assert_outcomes(passed=1)
+    expected_calls = 2 if messages else 1
+    assert json.loads((pytester.path / "observed.json").read_text()) == {
+        "parse_calls": ["count a value"] * expected_calls,
+        "executed_values": [expected_calls],
+    }
+    if messages:
+        events = [json.loads(line) for line in (pytester.path / "messages.ndjson").read_text().splitlines()]
+        case = next(event["testCase"] for event in events if "testCase" in event)
+        capture = case["testSteps"][0]["stepMatchArgumentsLists"][0]["stepMatchArguments"][0]
+        assert capture["group"]["value"] == "1"
+        binding = next(
+            json.loads(event["attachment"]["body"])
+            for event in events
+            if event.get("attachment", {}).get("mediaType") == "application/vnd.pytest-bdd.step-binding+json"
+        )
+        assert binding["matchArguments"] == [{"name": "value", "value": 1}]
+
+
+def test_raw_capture_values_are_independent_from_ide_json_projection(pytester):
+    pytester.makeini("[pytest]\ncuke_features_dir = features\ncuke_parser = python\n")
+    features = pytester.path / "features"
+    features.mkdir()
+    (features / "raw-values.feature").write_text(
+        "Feature: Raw parser values\n  Scenario: Projection\n    Given raw values\n", encoding="utf-8"
+    )
+    pytester.makeconftest(
+        r"""
+from pytest_cuke import given
+from pytest_cuke.parsers import StepParser
+
+class RawParser(StepParser):
+    def is_matching(self, request, name):
+        return name == "raw values"
+
+    @property
+    def arguments(self):
+        return ["value", "complex"]
+
+    def parse_arguments(self, request, name, anonymous_group_names=None):
+        return {"value": (1, 2), "complex": {"items": (3, 4)}}
+
+    def __str__(self):
+        return "raw values"
+
+@given(RawParser())
+def raw_values(value, complex):
+    assert value == (1, 2)
+    assert complex == {"items": (3, 4)}
+"""
+    )
+    result = pytester.runpytest_subprocess(
+        "features/raw-values.feature", "--cuke-messages-ndjson=messages.ndjson", "-q"
+    )
+    result.assert_outcomes(passed=1)
+    events = [json.loads(line) for line in (pytester.path / "messages.ndjson").read_text().splitlines()]
+    case = next(event["testCase"] for event in events if "testCase" in event)
+    captures = case["testSteps"][0]["stepMatchArgumentsLists"][0]["stepMatchArguments"]
+    assert [(capture["parameterTypeName"], capture["group"]["value"]) for capture in captures] == [
+        ("value", "(1, 2)"),
+        ("complex", "{'items': (3, 4)}"),
+    ]
+    binding = next(
+        json.loads(event["attachment"]["body"])
+        for event in events
+        if event.get("attachment", {}).get("mediaType") == "application/vnd.pytest-bdd.step-binding+json"
+    )
+    assert binding["matchArguments"] == [
+        {"name": "value", "value": [1, 2]},
+        {"name": "complex", "value": {"items": [3, 4]}},
+    ]
