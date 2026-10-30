@@ -96,3 +96,56 @@ def test_bind_scenarios_still_generates_steps(project):
     functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
     assert functions
     assert any("a missing definition" in ast.unparse(node) for node in functions)
+
+
+@pytest.mark.parametrize("feature_root", ["features", "custom-features"])
+def test_bind_only_does_not_execute_autouse_fixtures(project, feature_root):
+    root, target = project
+    if feature_root != "features":
+        (root / "features").rename(root / feature_root)
+        (root / "pytest.ini").write_text(f"[pytest]\ncuke_features_dir = {feature_root}\n")
+    marker = root / "fixture-executed"
+    (root / "conftest.py").write_text(
+        "from pathlib import Path\nimport pytest\n"
+        "@pytest.fixture(autouse=True)\n"
+        "def no_runtime_setup():\n"
+        "    Path(__file__).with_name('fixture-executed').write_text('executed')\n"
+        "    raise RuntimeError('bind-only must not run fixtures')\n"
+    )
+    command = [
+        sys.executable,
+        "-m",
+        "pytest_cuke.cli",
+        "generate",
+        "steps",
+        "--feature",
+        f"{feature_root}/binding.feature",
+        "--target",
+        str(target),
+        "--bind-only",
+    ]
+    environment = os.environ.copy()
+    environment.pop("PYTEST_DISABLE_PLUGIN_AUTOLOAD", None)
+    original = target.read_bytes()
+    applied = None
+    for index, arguments in enumerate([[*command, "--preview"], command, command]):
+        result = subprocess.run(
+            arguments, cwd=root, env=environment, check=False, capture_output=True, text=True, timeout=120
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert not marker.exists()
+        if index == 0:
+            assert target.read_bytes() == original
+        elif index == 1:
+            applied = target.read_bytes()
+        else:
+            assert target.read_bytes() == applied
+    source = target.read_bytes()
+    assert source.startswith(original)
+    assert "a missing definition" not in source.decode()
+    tree = ast.parse(source)
+    compile(tree, str(target), "exec")
+    functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)]
+    assert len(functions) == 1
+    assert functions[0].name == "test_selected_scenario"
+    assert isinstance(functions[0].body[-1], ast.Pass)

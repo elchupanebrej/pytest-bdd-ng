@@ -13,3 +13,8 @@ if ``--bind-scenarios`` is also supplied. Success returns 0; rejected requests
 return 2, including ``--bind-only`` without ``--target``. This additive workflow
 restores the former binding-only capability using the current CLI namespace;
 it does not restore the former exit code 100.
+
+Binding-only collection reads the project's pytest configuration and feature-root
+setting without setting up runtime fixtures or matching step definitions. In
+particular, autouse fixtures do not run. Target imports and collection hooks
+still execute as part of discovering existing bindings.

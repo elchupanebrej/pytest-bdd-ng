@@ -112,14 +112,14 @@ def run_generate_steps(namespace: argparse.Namespace) -> int:
             raise GenerationCommandError(f"target must be an existing Python file: {target}")
 
         module, syntax_tree = _load_target_module(target)
-        missing_steps, project_root, features_base_dir = _missing_steps(features, module, target)
+        missing_steps, project_root, features_base_dir = _inspect_target(
+            features, module, target, match_steps=not bind_only
+        )
         missing_scenarios = (
             _missing_scenarios(features, module, target, project_root, features_base_dir)
             if namespace.bind_scenarios or bind_only
             else []
         )
-        if bind_only:
-            missing_steps = []
         source = _render_additions(missing_steps, missing_scenarios, module, syntax_tree, target=target)
         result = update_source_file(
             target,
@@ -241,8 +241,10 @@ def _normalized_step_type(step: Step) -> StepType:
     return StepType.unknown
 
 
-def _missing_steps(features: Sequence[Feature], module: ModuleType, target: Path) -> tuple[list[Step], Path, Path]:
-    """Match steps with pytest's real fixture request and target module registry."""
+def _inspect_target(
+    features: Sequence[Feature], module: ModuleType, target: Path, *, match_steps: bool
+) -> tuple[list[Step], Path, Path]:
+    """Collect configured paths and optionally match steps using runtime fixtures."""
     module_name = module.__name__
     prior_module = sys.modules.get(module_name)
     sys.modules[module_name] = module
@@ -251,7 +253,7 @@ def _missing_steps(features: Sequence[Feature], module: ModuleType, target: Path
     root_directory, pytest_config = _pytest_context(target)
     feature_root = str(root_directory)
     test_module = _render_inspection_module(module_name, feature_paths, feature_root)
-    inspector = _StepInspectionPlugin()
+    inspector = _StepInspectionPlugin() if match_steps else _CollectionContextPlugin()
     captured_stdout = StringIO()
     captured_stderr = StringIO()
     try:
@@ -364,8 +366,8 @@ def _render_inspection_module(module_name: str, feature_paths: Sequence[str], fe
     )
 
 
-class _StepInspectionPlugin:
-    """Inspect collected scenario items without entering pytest's call phase."""
+class _CollectionContextPlugin:
+    """Read configured paths from collection without requesting runtime fixtures."""
 
     def __init__(self) -> None:
         self.missing: dict[tuple[str, str], Step] = {}
@@ -377,6 +379,14 @@ class _StepInspectionPlugin:
     def pytest_collection_finish(self, session: Session) -> None:
         self.project_root = Path(session.config.rootpath).resolve()
         self.features_base_dir = _configured_features_base_dir(session.config, self.project_root)
+
+
+class _StepInspectionPlugin(_CollectionContextPlugin):
+    """Inspect collected scenario items using their real fixture requests."""
+
+    @pytest.hookimpl(trylast=True)
+    def pytest_collection_finish(self, session: Session) -> None:
+        super().pytest_collection_finish(session)
         for item in session.items:
             if not {"feature", "scenario"}.issubset(getattr(item, "fixturenames", ())):
                 continue
