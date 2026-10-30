@@ -72,6 +72,11 @@ def configure_generate_steps_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="also add missing scenario bindings to the selected target module",
     )
+    parser.add_argument(
+        "--bind-only",
+        action="store_true",
+        help="add missing scenario bindings without generating step definitions; requires --target",
+    )
 
 
 def run_generate_steps(namespace: argparse.Namespace) -> int:
@@ -83,6 +88,10 @@ def run_generate_steps(namespace: argparse.Namespace) -> int:
             raise GenerationCommandError("--keep-on-error requires --target")
         if namespace.bind_scenarios and namespace.target is None:
             raise GenerationCommandError("--bind-scenarios requires --target")
+
+        bind_only = getattr(namespace, "bind_only", False)
+        if bind_only and namespace.target is None:
+            raise GenerationCommandError("--bind-only requires --target")
 
         features = _load_features(cast("Sequence[str]", namespace.feature))
         steps = _unique_steps(features)
@@ -106,9 +115,11 @@ def run_generate_steps(namespace: argparse.Namespace) -> int:
         missing_steps, project_root, features_base_dir = _missing_steps(features, module, target)
         missing_scenarios = (
             _missing_scenarios(features, module, target, project_root, features_base_dir)
-            if namespace.bind_scenarios
+            if namespace.bind_scenarios or bind_only
             else []
         )
+        if bind_only:
+            missing_steps = []
         source = _render_additions(missing_steps, missing_scenarios, module, syntax_tree, target=target)
         result = update_source_file(
             target,

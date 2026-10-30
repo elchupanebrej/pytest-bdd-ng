@@ -466,6 +466,9 @@ registration.
 
 Optional Debug MCP failure inspection is documented in :doc:`debug-mcp`.
 
+For adding scenario bindings without step skeletons, see
+:doc:`generation-bind-only`.
+
 Batch collection controls
 -------------------------
 
