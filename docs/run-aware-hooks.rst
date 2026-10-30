@@ -62,6 +62,9 @@ The document and pickle are protocol projections of pytest-cuke's immutable
 models; changing them does not change collection or execution. A source may be
 resolved more than once when consumers bind it through separate locators.
 Observers that aggregate by source should use the URI to identify the source.
+The document is projected once for each feature resolution and shared by its
+source, feature and pickle callbacks. No protocol projection is created when
+none of these read hooks has observers.
 
 For plugins migrated from pytest-bdd, rename the ``pytest_bdd_`` prefix to
 ``pytest_cuke_`` for these hooks. Their ``gherkin_document``, ``source`` and

@@ -62,3 +62,70 @@ def pytest_collection_finish(session):
         ["pickle", "Expanded <value>[table_rows:[line: 8]]", ["value one"]],
         ["pickle", "Expanded <value>[table_rows:[line: 9]]", ["value two"]],
     ]
+
+
+@pytest.mark.parametrize("observe", [False, True])
+def test_read_hook_document_projection_is_bounded(pytester, observe):
+    pytester.makeini("[pytest]\ncuke_features_dir = features\ncuke_parser = python\n")
+    features = pytester.path / "features"
+    features.mkdir()
+    (features / "projections.feature").write_text(
+        "Feature: Projection work\n" + "".join(f"  Scenario: item {index}\n    Given a value\n" for index in range(20)),
+        encoding="utf-8",
+    )
+    observer = (
+        r"""
+document = None
+pickle_calls = 0
+
+def pytest_cuke_source_read(gherkin_document):
+    global document
+    document = gherkin_document
+
+def pytest_cuke_feature_read(gherkin_document):
+    assert gherkin_document is document
+
+def pytest_cuke_pickle_read(gherkin_document, pickle):
+    global pickle_calls
+    assert gherkin_document is document
+    pickle_calls += 1
+"""
+        if observe
+        else ""
+    )
+    pytester.makeconftest(
+        r"""
+import json
+from pathlib import Path
+import pytest
+from pytest_cuke import given
+from pytest_cuke import scenario_locator
+
+stats = {"document_projections": 0}
+original = scenario_locator.feature_to_gherkin_document
+
+def counted(feature, *args, **kwargs):
+    stats["document_projections"] += 1
+    return original(feature, *args, **kwargs)
+
+@pytest.hookimpl(trylast=True)
+def pytest_configure(config):
+    scenario_locator.feature_to_gherkin_document = counted
+
+@given("a value")
+def value():
+    pass
+
+def pytest_sessionfinish(session):
+    stats["pickle_calls"] = globals().get("pickle_calls", 0)
+    Path("observed.json").write_text(json.dumps(stats))
+"""
+        + observer
+    )
+    result = pytester.runpytest_subprocess("features/projections.feature", "--collect-only", "-q")
+    assert result.ret == 0
+    assert "20 tests collected" in result.stdout.str()
+    assert json.loads((pytester.path / "observed.json").read_text()) == {
+        "document_projections": 1 if observe else 0,
+        "pickle_calls": 20 if observe else 0,
+    }

@@ -32,8 +32,38 @@ from pytest_cuke.parser_backend import resolve_parser_backend
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+    from cucumber_messages import GherkinDocument
+
     from pytest_cuke.model.message_types import SourceMediaType
     from pytest_cuke.parser import ParserProtocol
+
+
+def _read_hook(config: Any, name: str) -> Any:
+    callback = getattr(getattr(config, "hook", None), name, None)
+    return callback if callback is not None and callback.get_hookimpls() else None
+
+
+def _notify_feature_read(config: Any, feature: Feature) -> GherkinDocument | None:
+    source_read = _read_hook(config, "pytest_cuke_source_read")
+    feature_read = _read_hook(config, "pytest_cuke_feature_read")
+    pickle_read = _read_hook(config, "pytest_cuke_pickle_read")
+    if all(callback is None for callback in (source_read, feature_read, pickle_read)):
+        return None
+    uri = feature.uri or feature.filename or feature.name
+    document = feature_to_gherkin_document(feature, uri=uri)
+    if source_read is not None and feature.source_content is not None:
+        source_read(
+            config=config,
+            gherkin_document=document,
+            source=Source(
+                uri=uri,
+                data=feature.source_content,
+                media_type=cast("SourceMediaType", feature.source_media_type or Mimetype.gherkin_plain.value),
+            ),
+        )
+    if feature_read is not None:
+        feature_read(config=config, gherkin_document=document)
+    return document
 
 
 @runtime_checkable
@@ -53,6 +83,7 @@ class ScenarioLocatorFilterMixin:
     filter_: Callable[[Any, Feature, Scenario], bool] | None = field(default=None, kw_only=True)
 
     def filter_scenarios(self, feature: Feature, config: Any = None) -> Iterable[tuple[Feature, Scenario]]:
+        document = _notify_feature_read(config, feature)
         all_scenarios = getattr(feature, "all_scenarios", feature.scenarios)
         for scenario in all_scenarios:
             if scenario.examples:
@@ -152,45 +183,30 @@ class ScenarioLocatorFilterMixin:
                                 node_id for node_id in (scenario.id, row.id) if node_id is not None
                             ),
                         )
-                        self._notify_pickle_read(config, feature, expanded_scenario)
+                        self._notify_pickle_read(config, feature, expanded_scenario, document)
                         if self.filter_ is None or self.filter_(config, feature, expanded_scenario):
                             yield feature, expanded_scenario
             else:
-                self._notify_pickle_read(config, feature, scenario)
+                self._notify_pickle_read(config, feature, scenario, document)
                 if self.filter_ is None or self.filter_(config, feature, scenario):
                     yield feature, scenario
 
     @staticmethod
-    def _notify_pickle_read(config: Any, feature: Feature, scenario: Scenario) -> None:
-        hook = getattr(config, "hook", None)
-        if hook is not None:
+    def _notify_pickle_read(
+        config: Any, feature: Feature, scenario: Scenario, document: GherkinDocument | None
+    ) -> None:
+        callback = _read_hook(config, "pytest_cuke_pickle_read")
+        if callback is not None and document is not None:
             uri = feature.uri or feature.filename or feature.name
-            hook.pytest_cuke_pickle_read(
+            callback(
                 config=config,
-                gherkin_document=feature_to_gherkin_document(feature, uri=uri),
+                gherkin_document=document,
                 pickle=scenario_to_pickle(scenario, uri=uri, feature=feature),
             )
 
     def resolve(self, config: Any = None, registry: ParserRegistry | None = None) -> Iterable[tuple[Feature, Scenario]]:
         feature_resolver = cast("ScenarioLocatorFeatureResolver", self)
         for feature in feature_resolver.resolve_features(config, registry=registry):
-            hook = getattr(config, "hook", None)
-            if hook is not None:
-                uri = feature.uri or feature.filename or feature.name
-                document = feature_to_gherkin_document(feature, uri=uri)
-                if feature.source_content is not None:
-                    hook.pytest_cuke_source_read(
-                        config=config,
-                        gherkin_document=document,
-                        source=Source(
-                            uri=uri,
-                            data=feature.source_content,
-                            media_type=cast(
-                                "SourceMediaType", feature.source_media_type or Mimetype.gherkin_plain.value
-                            ),
-                        ),
-                    )
-                hook.pytest_cuke_feature_read(config=config, gherkin_document=document)
             yield from self.filter_scenarios(feature, config)
 
 
