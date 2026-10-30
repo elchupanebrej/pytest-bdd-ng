@@ -77,10 +77,17 @@ def configure_generate_steps_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="add missing scenario bindings without generating step definitions; requires --target",
     )
+    parser.add_argument(
+        "--exit-status",
+        choices=("current", "legacy100"),
+        default="current",
+        help="exit policy: current uses 0/2; legacy100 uses 100 for changes and handled errors",
+    )
 
 
 def run_generate_steps(namespace: argparse.Namespace) -> int:
     """Inspect selected features and print or transactionally apply additions."""
+    legacy_status = getattr(namespace, "exit_status", "current") == "legacy100"
     try:
         if namespace.preview and namespace.target is None:
             raise GenerationCommandError("--preview requires --target")
@@ -101,7 +108,7 @@ def run_generate_steps(namespace: argparse.Namespace) -> int:
                 print(source, end="")
             else:
                 print("No steps found in the selected features.")
-            return 0
+            return 100 if legacy_status and source else 0
 
         target = cast("Path", namespace.target).expanduser()
         try:
@@ -128,10 +135,10 @@ def run_generate_steps(namespace: argparse.Namespace) -> int:
             keep_on_error=namespace.keep_on_error,
         )
         _report_result(result, target, len(missing_steps), len(missing_scenarios), namespace.preview)
-        return 0
+        return 100 if legacy_status and result.changed else 0
     except (GenerationCommandError, SourceEditError, OSError, SyntaxError, ValueError) as error:
         print(f"cuke generate steps: {error}", file=sys.stderr)
-        return 2
+        return 100 if legacy_status else 2
 
 
 def _load_features(feature_arguments: Sequence[str]) -> list[Feature]:
