@@ -152,3 +152,56 @@ def test_error():
     failed.assert_outcomes(failed=1)
     assert failed.ret == 1
     assert "ordinary-error-sentinel" in failed.stdout.str()
+
+
+@pytest.mark.parametrize("generator", ["pytest", "pytest-missing"])
+def test_generated_marker_alias_avoids_stub_names(pytester, generator):
+    pytester.makeini("[pytest]\ncuke_features_dir = .\ncuke_parser = python\n")
+    feature = pytester.makefile(
+        ".feature",
+        collision="""Feature: Marker collision
+    Scenario: skeleton
+        Given not implemented
+        And _pytest cuke not implemented
+        Then z result
+    """,
+    )
+    if generator == "pytest":
+        generated = pytester.runpytest("--cuke-generate", "--cuke-feature", str(feature))
+        assert generated.ret == 0
+        source = generated.stdout.str()
+    else:
+        original = """from pathlib import Path
+from pytest_cuke import scenario
+
+@scenario(Path("collision.feature"), "skeleton")
+def test_skeleton():
+    pass
+"""
+        target = pytester.makepyfile(test_generated=original)
+        generated = pytester.runpytest(
+            str(target), "--cuke-no-autoload", "--cuke-generate-missing", "--cuke-feature", str(feature)
+        )
+        assert generated.ret == 0
+        snippet = generated.stdout.str().split("Please place the code above to the test file(s):", 1)[1].strip()
+        sections = re.split(r"(?m)^=+ no tests ran[^\n]*=+$", snippet)
+        assert len(sections) == 2 and not sections[1].strip()
+        snippet = sections[0].strip()
+        _assert_complete_generated_module(snippet)
+        source = original + "\n\n" + snippet
+    _assert_complete_generated_module(source)
+    tree = ast.parse(source)
+    function_names = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+    assert {"not_implemented", "_pytest_cuke_not_implemented", "z_result"}.issubset(function_names)
+    marker_names = {
+        alias.asname or alias.name
+        for node in tree.body
+        if isinstance(node, ast.ImportFrom) and node.module == "pytest_cuke.steps"
+        for alias in node.names
+        if alias.name == "not_implemented"
+    }
+    assert marker_names.isdisjoint(function_names)
+    target = pytester.makepyfile(test_generated=source)
+    result = pytester.runpytest(str(target), "--cuke-no-autoload", "--cuke-wip-status=skipped", "-q")
+    assert result.ret == 0
+    result.assert_outcomes(skipped=1)

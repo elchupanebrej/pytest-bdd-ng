@@ -478,3 +478,11 @@ enabled above the platform threshold.
 legacy ini configuration, zero or a negative ``cuke_batch_threshold`` selects
 the platform default (50 on POSIX, 1000 on Windows). Invalid integer settings
 produce a configuration error instead of an internal pytest failure.
+
+Generated not-implemented marker names
+---------------------------------------
+
+Generated full modules and missing-step fragments import the not-implemented
+marker under a private alias chosen to avoid the generated function names.
+A step such as ``Given not implemented`` retains its normal function name and
+can be imported and executed under the configured WIP policy.

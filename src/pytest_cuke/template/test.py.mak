@@ -14,7 +14,10 @@ from pytest_cuke import (
 
 % endif
 % if feature_pickle_steps:
-from pytest_cuke.steps import not_implemented
+% if not features:
+from pytest_cuke import given, when, then, step
+% endif
+from pytest_cuke.steps import not_implemented as ${not_implemented_name}
 
 
 % endif
@@ -27,7 +30,7 @@ def test_${ make_python_name(pickle.name)}():
 % endfor
 % for feature_pickle, step in feature_pickle_steps:
 @${make_step_method_name(step.type, step.keyword)}(${ make_string_literal(step.text)})
-@not_implemented
+@${not_implemented_name}
 def ${ make_python_name(step.text)}():
     ${make_python_docstring(step.text)}
     raise NotImplementedError

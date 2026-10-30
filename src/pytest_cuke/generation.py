@@ -202,10 +202,16 @@ def generate_code(
     with as_file(files("pytest_cuke.template").joinpath("test.py.mak")) as path:
         template_factory = cast("Callable[..., _TemplateProtocol]", Template)
         template = template_factory(filename=str(path))
+    generated_names = {make_python_name(step.text) for _, step in feature_pickle_steps}
+    generated_names.update(f"test_{make_python_name(pickle.name)}" for _, pickle in feature_pickles)
+    not_implemented_name = "_pytest_cuke_not_implemented"
+    while not_implemented_name in generated_names:
+        not_implemented_name = "_" + not_implemented_name
     return template.render(
         features=features,
         feature_pickles=feature_pickles,
         feature_pickle_steps=feature_pickle_steps,
+        not_implemented_name=not_implemented_name,
         make_python_name=make_python_name,
         make_python_docstring=make_python_docstring,
         make_string_literal=make_string_literal,
