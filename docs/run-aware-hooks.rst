@@ -114,3 +114,5 @@ needed by the observer. Text, bytes, streams and positional ``media_type`` and
 
 Tag conversion supports both current models and official protocol payloads;
 see :doc:`tag-conversion-protocol`.
+Tag and mark hook expression languages are described in
+:doc:`tag-expression-contract`.

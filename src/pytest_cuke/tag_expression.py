@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 from attrs import frozen
 from cucumber_tag_expressions import TagExpressionError, TagExpressionParser
 
+from pytest_cuke.compatibility.pytest import PYTEST83, Expression, Mark, MarkMatcher, ParseError, make_mark
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
@@ -48,9 +50,50 @@ def parse_tag_expression(expression: str) -> TagExpression:
     return TagExpression.parse(expression)
 
 
-# Compatibility aliases
-GherkinTagExpression = TagExpression
-MarksTagExpression = TagExpression
+class GherkinTagExpression(TagExpression):
+    """Match source tag names exactly, including their ``@`` prefix."""
+
+    def evaluate(self, tags: Iterable[str | Any]) -> bool:
+        if self.compiled is None:
+            return True
+        return bool(self.compiled.evaluate([getattr(tag, "name", str(tag)) for tag in tags]))
+
+
+class MarksTagExpression(TagExpression):
+    """Match pytest markers using the installed pytest expression grammar."""
+
+    @classmethod
+    def parse(cls, expression: str) -> MarksTagExpression:
+        cleaned = expression.strip()
+        try:
+            compiled = Expression.compile(cleaned) if cleaned else None
+        except ParseError as error:
+            # Modern pytest raises SyntaxError; the compatibility fallback is
+            # Exception, so only translate the older dedicated ParseError.
+            if ParseError is Exception or not isinstance(error, ParseError):
+                raise
+            raise ValueError(f"Unable parse mark expression: {expression}: {error}") from error
+        return cls(expression_str=cleaned, compiled=compiled)
+
+    def evaluate(self, tags: Iterable[str | Any]) -> bool:
+        if self.compiled is None:
+            return True
+        marks = [
+            tag
+            if isinstance(tag, Mark)
+            else make_mark(
+                getattr(tag, "name", str(tag)),
+                args=getattr(tag, "args", ()),
+                kwargs=getattr(tag, "kwargs", {}),
+            )
+            for tag in tags
+        ]
+        matcher = (
+            MarkMatcher.from_markers(marks)
+            if PYTEST83
+            else MarkMatcher({getattr(mark, "name", str(mark)): [mark] for mark in marks})
+        )
+        return bool(self.compiled.evaluate(matcher))
 
 __all__ = [
     "GherkinTagExpression",
