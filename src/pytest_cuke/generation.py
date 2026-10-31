@@ -142,6 +142,14 @@ def add_options(parser: Parser) -> None:
     group = parser.getgroup("cuke", "Generation")
 
     group._addoption(
+        "--cuke-gather-missing-steps",
+        action="store_true",
+        dest="cuke_gather_missing_steps",
+        default=False,
+        help="Emit collection-only NDJSON events for missing scenario bindings and step definitions.",
+    )
+
+    group._addoption(
         "--cuke-generate-missing",
         action="store_true",
         dest="cuke_generate_missing",
@@ -173,6 +181,11 @@ def add_options(parser: Parser) -> None:
 
 def cmdline_main(config: Config) -> int | ExitCode | None:
     """Check config option to show missing code."""
+    if getattr(config.option, "cuke_gather_missing_steps", False):
+        from pytest_cuke.generation_events import gather_and_print_missing_events
+
+        return gather_and_print_missing_events(config, _feature_paths(config))
+
     generate_missing = config.option.cuke_generate_missing
     if generate_missing is None:
         generate_missing = config.getini("cuke_generate_missing")

@@ -53,11 +53,12 @@ def test_generation_add_options() -> None:
 
     add_options(parser)
     parser.getgroup.assert_called_once_with("cuke", "Generation")
-    assert group._addoption.call_count == 3
+    assert group._addoption.call_count == 4
 
 
 def test_cmdline_main_none() -> None:
     config = MagicMock()
+    config.option.cuke_gather_missing_steps = False
     config.option.cuke_generate_missing = False
     config.option.cuke_generate = False
 

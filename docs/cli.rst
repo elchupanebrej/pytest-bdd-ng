@@ -468,6 +468,8 @@ Optional Debug MCP failure inspection is documented in :doc:`debug-mcp`.
 
 For adding scenario bindings without step skeletons, see
 :doc:`generation-bind-only`.
+For collection-only machine events, see :doc:`generation-events`.
+For opt-in automation exit codes, see :doc:`generation-exit-status`.
 
 Batch collection controls
 -------------------------

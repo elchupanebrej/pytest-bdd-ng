@@ -400,7 +400,7 @@ def _allow_empty_scenarios_enabled(config: Config) -> bool:
 
 
 def _generation_mode_enabled(config: Config) -> bool:
-    for name in ("cuke_generate_missing", "cuke_generate"):
+    for name in ("cuke_generate_missing", "cuke_generate", "cuke_gather_missing_steps"):
         option = getattr(getattr(config, "option", None), name, None)
         if option is None:
             try:
