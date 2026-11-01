@@ -2635,8 +2635,8 @@ def consumer_external_examples_reports(consumer: ConsumerProject):
         examples = [example for scenario in scenario_nodes for example in scenario["examples"]]
         assert examples
         for example in examples:
-            assert example["tableHeader"]["location"]["line"] == 0
-            assert all(row["location"]["line"] == 0 for row in example["tableBody"])
+            assert "tableHeader" not in example
+            assert not example["tableBody"]
 
     document_ast_ids: dict[str, set[str]] = {}
     for document in documents:
@@ -2677,7 +2677,7 @@ def consumer_external_examples_reports(consumer: ConsumerProject):
         }
         assert pickle["uri"].endswith(filename)
         assert not pickle["uri"].endswith(".csv") and not pickle["uri"].endswith(".tab")
-        assert len(pickle["astNodeIds"]) == 2
+        assert len(pickle["astNodeIds"]) == (2 if filename == "inline-users.feature" else 1)
         assert set(pickle["astNodeIds"]).issubset(document_ast_ids[pickle["uri"]])
         assert step_texts[0] in {
             "the lookup service is ready",

@@ -1,13 +1,17 @@
 from pathlib import Path
 
+import pytest
+
 from attrs import evolve
 from gherkin.parser import Parser
 
+from pytest_cuke.parser import GherkinParser
+from pytest_cuke.model.message_validation import validate_envelope
 from pytest_cuke.gherkin_builder import build_feature_from_dict
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.serialization import as_dict, from_dict, from_json, to_json
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
-from pytest_cuke.model.message_types import GherkinDocument, message_from_dict
+from pytest_cuke.model.message_types import Envelope, GherkinDocument, message_from_dict
 
 SOURCE = Path(__file__).parents[2].joinpath("data", "source-navigation.feature").read_text()
 
@@ -76,3 +80,42 @@ def test_model_deserialization_does_not_accept_internal_projection_data():
     restored = from_dict(Feature, payload)
     assert restored.source_projection is None
     assert restored == feature
+
+
+@pytest.mark.parametrize(
+    "heading",
+    [
+        "Examples: table: users.csv",
+        "Examples: <table:users.csv>",
+        "Examples: | table: users.csv |",
+        "Examples:\n      | table: users.csv |",
+    ],
+)
+def test_external_rows_keep_runtime_data_without_inventing_source_positions(tmp_path, heading):
+    path = tmp_path / "external.feature"
+    source = (
+        "Feature: External source\n  Scenario Outline: external\n    Given value <value>\n    "
+        + heading
+        + "\n  Scenario: following\n    Given following step\n"
+    )
+    path.write_text(source)
+    (tmp_path / "users.csv").write_text("value\nfirst\nsecond\n")
+    feature = GherkinParser().parse(path)
+    scenario = feature.scenarios[0]
+    rows = scenario.examples[0].rows
+    assert [row.values for row in rows] == [("first",), ("second",)]
+    document = feature_to_gherkin_document(feature, uri=feature.uri)
+    assert not validate_envelope(Envelope(gherkin_document=document))
+    assert document.feature is not None
+    assert len(document.comments) == 1
+    assert f"External Examples source: {tmp_path / 'users.csv'}" in document.comments[0].text
+    assert 1 <= document.comments[0].location.line <= len(source.splitlines())
+    external, following = [child.scenario for child in document.feature.children]
+    assert external.examples[0].table_header is None
+    assert not external.examples[0].table_body
+    assert following.location.line == source.splitlines().index("  Scenario: following") + 1
+    assert following.steps[0].location.line == source.splitlines().index("    Given following step") + 1
+    expanded = evolve(scenario, examples=(), source_ast_node_ids=(scenario.id, rows[0].id))
+    pickle = scenario_to_pickle(expanded, uri=feature.uri, feature=feature)
+    assert pickle.location is None
+    assert pickle.ast_node_ids == [scenario.id]

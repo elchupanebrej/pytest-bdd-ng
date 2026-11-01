@@ -137,3 +137,20 @@ Parser source projections are internal observations. They are excluded from
 ``as_dict`` and JSON model serialization, and input dictionaries cannot replace
 them. Serialized Feature models retain the existing public shape and rebuild
 Messages documents from the model when original parser metadata is unavailable.
+
+External Examples source coordinates
+-----------------------------------
+
+External CSV/JSON rows are runtime data, rather than physical Gherkin source
+rows. Generated table nodes with no original feature location are excluded
+from the source document. Remaining nodes keep their original mapped lines.
+The expanded runtime model and scenario identities retain the external rows.
+Standard Pickle AST references include only actual source nodes; external
+row IDs remain runtime identities and do not acquire invented source locations.
+This keeps source lineage valid for downstream formatters.
+
+Unknown external-row positions are not encoded as ``line=0``: that value is
+invalid in the current protocol. External-outline Pickles can therefore have
+only their Scenario AST ID, while inline outlines retain their source row ID.
+Consumers should use Pickle identity and the external-source provenance when
+identifying external rows, rather than requiring a second source AST node.

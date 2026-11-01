@@ -430,7 +430,7 @@ def map_feature_source_lines(feature: Feature, line_map: Sequence[SourceLine]) -
         )
         for rule in feature.rules
     )
-    return evolve(
+    mapped = evolve(
         feature,
         line=source_line(feature.line),
         tags=tuple(map_tag(tag) for tag in feature.tags),
@@ -438,6 +438,13 @@ def map_feature_source_lines(feature: Feature, line_map: Sequence[SourceLine]) -
         scenarios=scenarios,
         rules=rules,
     )
+    projection = feature.source_projection
+    if projection is not None and any(line.original_line != number for number, line in enumerate(line_map, 1)):
+        mapped = evolve(
+            mapped,
+            source_projection=projection.remap_lines(mapped, tuple(line.original_line for line in line_map)),
+        )
+    return mapped
 
 
 def remap_parse_error(error: FeatureConcreteParseError, expanded: ExpandedFeatureText, source: str, uri: str) -> None:

@@ -38,6 +38,26 @@ class SourceProjection:
     def matches(self, feature: Feature) -> bool:
         return self.structure == _structure(feature)
 
+    def remap_lines(self, feature: Feature, source_lines: tuple[int | None, ...]) -> SourceProjection:
+        """Retain source nodes and discard generated nodes with no source position."""
+
+        def restore(value: Any) -> Any:
+            if isinstance(value, dict):
+                location = value.get("location")
+                if isinstance(location, dict):
+                    line = location.get("line")
+                    if isinstance(line, int) and 1 <= line <= len(source_lines):
+                        original_line = source_lines[line - 1]
+                        if original_line is None:
+                            return None
+                        value = {**value, "location": {**location, "line": original_line}}
+                return {key: restored for key, item in value.items() if (restored := restore(item)) is not None}
+            if isinstance(value, list):
+                return [restored for item in value if (restored := restore(item)) is not None]
+            return value
+
+        return capture_source_projection(restore(json.loads(self.document_json)), feature)
+
     def document(self, uri: str) -> messages.GherkinDocument:
         document = messages.message_from_dict(json.loads(self.document_json), messages.GherkinDocument)
         document.uri = uri

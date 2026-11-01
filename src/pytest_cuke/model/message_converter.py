@@ -180,22 +180,7 @@ def rule_to_message(rule: Rule, default_id: str = "", uri: str = "") -> messages
     )
 
 
-def feature_to_gherkin_document(feature: Feature, uri: str = "") -> messages.GherkinDocument:
-    projection = feature.source_projection
-    if projection is not None and projection.matches(feature):
-        return projection.document(uri or feature.uri or "")
-    f_id = feature.id or "feature-1"
-    feature_uri = uri or feature.uri or ""
-    tags = [tag_to_message(t, f"{f_id}-tag-{i}") for i, t in enumerate(feature.tags)]
-    children: list[messages.FeatureChild] = []
-    if feature.background:
-        children.append(messages.FeatureChild(background=background_to_message(feature.background, f"{f_id}-bg")))
-    for sc in feature.scenarios:
-        scenario_id = scenario_message_id(sc, uri=feature_uri)
-        children.append(messages.FeatureChild(scenario=scenario_to_message(sc, scenario_id)))
-    for i, rl in enumerate(feature.rules):
-        children.append(messages.FeatureChild(rule=rule_to_message(rl, f"{f_id}-rl-{i}", uri=feature_uri)))
-
+def _external_examples_comments(feature: Feature) -> list[messages.Comment]:
     comments: list[messages.Comment] = []
     scenarios = [*feature.scenarios, *(scenario for rule in feature.rules for scenario in rule.scenarios)]
     for scenario in scenarios:
@@ -213,6 +198,28 @@ def feature_to_gherkin_document(feature: Feature, uri: str = "") -> messages.Ghe
                         ),
                     )
                 )
+
+    return comments
+
+
+def feature_to_gherkin_document(feature: Feature, uri: str = "") -> messages.GherkinDocument:
+    comments = _external_examples_comments(feature)
+    projection = feature.source_projection
+    if projection is not None and projection.matches(feature):
+        document = projection.document(uri or feature.uri or "")
+        document.comments.extend(comments)
+        return document
+    f_id = feature.id or "feature-1"
+    feature_uri = uri or feature.uri or ""
+    tags = [tag_to_message(t, f"{f_id}-tag-{i}") for i, t in enumerate(feature.tags)]
+    children: list[messages.FeatureChild] = []
+    if feature.background:
+        children.append(messages.FeatureChild(background=background_to_message(feature.background, f"{f_id}-bg")))
+    for sc in feature.scenarios:
+        scenario_id = scenario_message_id(sc, uri=feature_uri)
+        children.append(messages.FeatureChild(scenario=scenario_to_message(sc, scenario_id)))
+    for i, rl in enumerate(feature.rules):
+        children.append(messages.FeatureChild(rule=rule_to_message(rl, f"{f_id}-rl-{i}", uri=feature_uri)))
 
     msg_feat = messages.Feature(
         name=feature.name,
@@ -358,6 +365,9 @@ def scenario_to_pickle(
             location = feature.source_projection.location(node_id)
             if location is not None:
                 break
+        scenario_ast_node_ids = [
+            node_id for node_id in scenario_ast_node_ids if feature.source_projection.location(node_id) is not None
+        ]
     if (
         location is None
         and not scenario.source_ast_node_ids
