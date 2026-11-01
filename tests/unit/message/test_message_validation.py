@@ -90,7 +90,7 @@ def test_validate_envelope_checks_meta_protocol_against_pinned_release() -> None
     product = messages.Product(name="pytest-cuke", version="2.3.1")
     supported = messages.Envelope(
         meta=messages.Meta(
-            protocol_version="28.0.0",
+            protocol_version="34.2.1",
             implementation=product,
             runtime=product,
             os=product,

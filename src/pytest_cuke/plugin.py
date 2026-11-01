@@ -208,6 +208,8 @@ def attach(request: FixtureRequest) -> Callable[..., None]:
         source_uri: str | None = None,
         url: str | None = None,
         as_external: bool = False,
+        test_run_hook_started_id: str | None = None,
+        test_run_started_id: str | None = None,
     ) -> None:
         request.config.hook.pytest_cuke_attach(
             request=request,
@@ -220,6 +222,8 @@ def attach(request: FixtureRequest) -> Callable[..., None]:
             source_uri=source_uri,
             url=url,
             as_external=as_external,
+            test_run_hook_started_id=test_run_hook_started_id,
+            test_run_started_id=test_run_started_id,
         )
 
     return add_attachment

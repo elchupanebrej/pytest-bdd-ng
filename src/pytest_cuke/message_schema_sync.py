@@ -34,14 +34,15 @@ class UpstreamRelease:
     protocol_version: str
 
 
-# Pin the generated official Python binding to the exact upstream schema source
-# and wire protocol. The distribution's release tag is also the protocol version
-# for this release.
+# Python's latest published generated binding is 34.2.0. Upstream v34.2.1 is
+# the latest protocol release; its JSON schemas are byte-identical to v34.2.0
+# across the patch release. Pin the latest schema commit explicitly while
+# keeping the binding distribution version separate from the wire version.
 UPSTREAM_RELEASES: Final[Mapping[str, UpstreamRelease]] = {
-    "28.0.0": UpstreamRelease(
-        tag="v28.0.0",
-        commit="f5b1f30dc3ea234f44ea4cc6289726e7d8f2cbe0",
-        protocol_version="28.0.0",
+    "34.2.0": UpstreamRelease(
+        tag="v34.2.1",
+        commit="e5769e89dd8dd7aa7e8c8163023f38bad539e3aa",
+        protocol_version="34.2.1",
     ),
 }
 
@@ -360,7 +361,10 @@ def _schemas_from_archive(archive: tarfile.TarFile, release: UpstreamRelease) ->
             raise SchemaSyncError(f"pinned schema archive has duplicate normalized schema {normalized_name!r}")
         schema_map[normalized_name] = content
 
-    schemas = direct or nested
+    # Modern releases keep individual schemas under jsonschema/src alongside
+    # root package manifests and a monolithic generated schema. Select the
+    # complete individual-schema source, not unrelated root JSON metadata.
+    schemas = nested if "Envelope.schema.json" in nested else direct
     if not schemas:
         raise SchemaSyncError(f"pinned {UPSTREAM_REPOSITORY} {release.tag} archive contains no JSON schemas")
     if "Envelope.schema.json" not in schemas:

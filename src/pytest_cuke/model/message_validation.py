@@ -128,8 +128,10 @@ def _schema_registry() -> tuple[dict[str, dict[str, object]], Registry]:
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         if not isinstance(schema, dict):
             continue
-        schema_uri = urljoin(f"{_SCHEMA_BASE_URI}{release.tag}/", schema_name)
-        schema["$id"] = schema_uri
+        schema_uri = schema.get("$id")
+        if not isinstance(schema_uri, str) or not schema_uri:
+            schema_uri = urljoin(f"{_SCHEMA_BASE_URI}{release.tag}/", schema_path.name)
+            schema["$id"] = schema_uri
         schemas[schema_name] = schema
         resources_by_uri.append((schema_uri, Resource.from_contents(schema)))
 
@@ -268,7 +270,7 @@ def validate_envelope(
     *,
     position: int = 0,
 ) -> tuple[MessageValidationDiagnostic, ...]:
-    """Validate payload cardinality and one envelope against its official v28 schema."""
+    """Validate payload cardinality and one envelope against the pinned official schema."""
     payload_kind = get_payload_kind(envelope)
     payload_count = sum(getattr(envelope, name, None) is not None for name in PAYLOAD_KINDS)
     if payload_count != 1 or payload_kind is None:

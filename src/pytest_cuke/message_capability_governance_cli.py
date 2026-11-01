@@ -223,7 +223,8 @@ def _load_installed_or_explicit_inventory(
                 f"requested baseline {baseline_release!r} does not match inventory baseline {inventory_release!r}"
             )
         return inventory_release, capabilities
-    installed_release, _ = resolve_upstream_release()
+    _, release = resolve_upstream_release()
+    installed_release = release.protocol_version
     selected_release = baseline_release or installed_release
     if selected_release != installed_release:
         raise ValueError(
@@ -304,7 +305,8 @@ def _run_action(arguments: argparse.Namespace) -> tuple[int, str, bool]:
     if action == "sync":
         baseline = arguments.baseline_release
         if arguments.schema_dir is None:
-            installed_baseline, _ = resolve_upstream_release()
+            _, release = resolve_upstream_release()
+            installed_baseline = release.protocol_version
             if baseline != installed_baseline:
                 raise ValueError(
                     f"requested baseline {baseline!r} does not match installed schema baseline "

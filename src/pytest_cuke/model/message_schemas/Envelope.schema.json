@@ -1,65 +1,70 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "Envelope.json",
+  "$id": "https://cucumber.io/schema/Envelope.schema.json",
   "additionalProperties": false,
-  "description": "When removing a field, replace it with reserved, rather than deleting the line.\n When adding a field, add it to the end and increment the number by one.\n See https://developers.google.com/protocol-buffers/docs/proto#updating for details\n\n*\n All the messages that are passed between different components/processes are Envelope\n messages.",
   "properties": {
     "attachment": {
-      "$ref": "./Attachment.json"
+      "$ref": "./Attachment.schema.json"
+    },
+    "externalAttachment": {
+      "$ref": "./ExternalAttachment.schema.json"
     },
     "gherkinDocument": {
-      "$ref": "./GherkinDocument.json"
+      "$ref": "./GherkinDocument.schema.json"
     },
     "hook": {
-      "$ref": "./Hook.json"
+      "$ref": "./Hook.schema.json"
     },
     "meta": {
-      "$ref": "./Meta.json"
+      "$ref": "./Meta.schema.json"
     },
     "parameterType": {
-      "$ref": "./ParameterType.json"
+      "$ref": "./ParameterType.schema.json"
     },
     "parseError": {
-      "$ref": "./ParseError.json"
+      "$ref": "./ParseError.schema.json"
     },
     "pickle": {
-      "$ref": "./Pickle.json"
+      "$ref": "./Pickle.schema.json"
+    },
+    "suggestion": {
+      "$ref": "./Suggestion.schema.json"
     },
     "source": {
-      "$ref": "./Source.json"
+      "$ref": "./Source.schema.json"
     },
     "stepDefinition": {
-      "$ref": "./StepDefinition.json"
+      "$ref": "./StepDefinition.schema.json"
     },
     "testCase": {
-      "$ref": "./TestCase.json"
+      "$ref": "./TestCase.schema.json"
     },
     "testCaseFinished": {
-      "$ref": "./TestCaseFinished.json"
+      "$ref": "./TestCaseFinished.schema.json"
     },
     "testCaseStarted": {
-      "$ref": "./TestCaseStarted.json"
+      "$ref": "./TestCaseStarted.schema.json"
     },
     "testRunFinished": {
-      "$ref": "./TestRunFinished.json"
+      "$ref": "./TestRunFinished.schema.json"
     },
     "testRunStarted": {
-      "$ref": "./TestRunStarted.json"
+      "$ref": "./TestRunStarted.schema.json"
     },
     "testStepFinished": {
-      "$ref": "./TestStepFinished.json"
+      "$ref": "./TestStepFinished.schema.json"
     },
     "testStepStarted": {
-      "$ref": "./TestStepStarted.json"
+      "$ref": "./TestStepStarted.schema.json"
     },
     "testRunHookStarted": {
-      "$ref": "TestRunHookStarted.json"
+      "$ref": "TestRunHookStarted.schema.json"
     },
     "testRunHookFinished": {
-      "$ref": "TestRunHookFinished.json"
+      "$ref": "TestRunHookFinished.schema.json"
     },
     "undefinedParameterType": {
-      "$ref": "./UndefinedParameterType.json"
+      "$ref": "./UndefinedParameterType.schema.json"
     }
   },
   "type": "object"

@@ -442,6 +442,8 @@ def test_message_plugin_pytest_cuke_attach() -> None:
         source_media_type=None,
         source_uri=None,
         url=None,
+        test_run_hook_started_id=None,
+        test_run_started_id=None,
     )
     config.hook.pytest_cuke_message.assert_called_once()
 

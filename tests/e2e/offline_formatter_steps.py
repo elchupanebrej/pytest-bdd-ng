@@ -270,7 +270,7 @@ def write_valid_saved_messages(consumer: Any) -> None:
     messages = (
         {
             "meta": {
-                "protocolVersion": "28.0.0",
+                "protocolVersion": "34.2.1",
                 "implementation": product,
                 "runtime": product,
                 "os": product,
@@ -445,7 +445,7 @@ def missing_saved_messages_error_names_path(input_path: str, consumer: Any) -> N
 def write_malformed_saved_messages(input_path: str, case: str, consumer: Any) -> None:
     valid_meta = {
         "meta": {
-            "protocolVersion": "28.0.0",
+            "protocolVersion": "34.2.1",
             "implementation": {"name": "pytest-cuke", "version": "2.3.1"},
             "runtime": {"name": "pytest-cuke", "version": "2.3.1"},
             "os": {"name": "pytest-cuke", "version": "2.3.1"},

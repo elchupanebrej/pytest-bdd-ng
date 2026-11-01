@@ -1,28 +1,30 @@
 Cucumber Messages schema provenance
 ====================================
 
-The bundled schemas correspond to the installed ``cucumber-messages``
-distribution version ``28.0.0`` and upstream Cucumber Messages release
-``v28.0.0``. The upstream tag resolves to immutable commit
-``f5b1f30dc3ea234f44ea4cc6289726e7d8f2cbe0``. The vendored set contains only
-the JSON files from that commit's ``jsonschema/`` directory, with filenames
-normalized from ``.json`` to ``.schema.json``.
+pytest-cuke targets the latest Cucumber Messages protocol, ``34.2.1``.
+The latest official Python binding is ``cucumber-messages==34.2.0``.
+The ``v34.2.1`` release notes list a Java dependency fix. Its individual
+JSON schemas are byte-identical to ``v34.2.0``; the tagged Python source is
+not assumed identical to the published Python wheel. The binding and
+schema patch versions therefore differ without defining a legacy profile.
 
-The ``cucumber-messages`` wheel does not publish its source schema release in
-distribution metadata. The tool therefore keeps this association as an
-explicit compatibility mapping and rejects any unrecognized distribution
-version. Before adding a mapping for a newer contract package, compare its
-generated message models with the candidate upstream release and review the
-schema change.
+The schema release is pinned to immutable upstream commit
+``e5769e89dd8dd7aa7e8c8163023f38bad539e3aa``. The vendored set contains
+28 individual schemas from ``jsonschema/src/``, with filenames normalized to
+``.schema.json``. Package metadata and the monolithic bundle are not included
+as individual runtime schemas.
 
-The source tree and archive used by the tool are pinned to the same commit:
-before downloading, the tool checks that ``v28.0.0`` still resolves to that
-commit. A missing or moved tag fails with an actionable error.
+The wheel does not declare its source schema release in package metadata.
+The sync command records the verified binding-to-schema association explicitly
+and rejects unrecognized binding versions. Updating the pin requires comparing
+models and schemas, regenerating assets and validating real emitted streams.
+Before downloading an archive, the tool verifies the release tag still resolves
+to the pinned commit; a missing or moved tag fails the check.
 
 .. code-block:: text
 
-   https://github.com/cucumber/messages/tree/f5b1f30dc3ea234f44ea4cc6289726e7d8f2cbe0/jsonschema
-   https://codeload.github.com/cucumber/messages/tar.gz/f5b1f30dc3ea234f44ea4cc6289726e7d8f2cbe0
+   https://github.com/cucumber/messages/tree/e5769e89dd8dd7aa7e8c8163023f38bad539e3aa/jsonschema/src
+   https://codeload.github.com/cucumber/messages/tar.gz/e5769e89dd8dd7aa7e8c8163023f38bad539e3aa
 
 Run summary diagnostics
 -----------------------
@@ -74,3 +76,14 @@ matcher raises a lookup error with ``Undefined parameter type 'name'`` or
 receives ``undefinedParameterType`` with that name and the current step text as
 its expression. Ordinary matcher errors and exceptions from step bodies do not
 trigger this text fallback.
+
+Attachment correlation and lifecycle
+------------------------------------
+
+The attachment fixture accepts explicit ``test_run_started_id`` and
+``test_run_hook_started_id`` correlations and emits a timestamp. Run-hook
+start messages identify their worker. Correlations must refer to an active
+lifecycle scope: attaching to an already completed hook fails validation and
+marks the run unsuccessful. External attachments obey the same correlation
+checks as inline attachments. Suggestion IDs must be unique and reference a
+declared pickle step.

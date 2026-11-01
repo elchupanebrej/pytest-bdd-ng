@@ -17,7 +17,7 @@ def _messages_file(path: Path) -> bytes:
     product = Product(name="pytest-cuke", version="2.3.1")
     meta = Envelope(
         meta=Meta(
-            protocol_version="28.0.0",
+            protocol_version="34.2.1",
             implementation=product,
             runtime=product,
             os=product,

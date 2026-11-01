@@ -264,7 +264,8 @@ def load_capability_ids_file(path: Path) -> tuple[str, ...]:
 
 def installed_capability_inventory() -> tuple[str, tuple[MessageCapability, ...]]:
     """Build an inventory from the installed package's pinned official schema baseline."""
-    baseline_release, _ = resolve_upstream_release()
+    _, release = resolve_upstream_release()
+    baseline_release = release.protocol_version
     schema_dir = Path(__file__).parent / "model" / "message_schemas"
     return baseline_release, build_capability_inventory(schema_dir, baseline_release=baseline_release)
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "SourceReference.json",
+  "$id": "https://cucumber.io/schema/SourceReference.schema.json",
   "additionalProperties": false,
   "definitions": {
     "JavaMethod": {
@@ -47,7 +47,7 @@
       "type": "object"
     }
   },
-  "description": "*\n Points to a [Source](#io.cucumber.messages.Source) identified by `uri` and a\n [Location](#io.cucumber.messages.Location) within that file.",
+  "description": "Points to a [Source](#io.cucumber.messages.Source) identified by `uri` and a\n[Location](#io.cucumber.messages.Location) within that file.",
   "properties": {
     "uri": {
       "type": "string"
@@ -59,7 +59,7 @@
       "$ref": "#/definitions/JavaStackTraceElement"
     },
     "location": {
-      "$ref": "./Location.json"
+      "$ref": "./Location.schema.json"
     }
   },
   "type": "object"

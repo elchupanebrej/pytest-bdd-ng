@@ -142,7 +142,7 @@ def _step_match_arguments_lists(
 
                 def build_group(group: Any) -> Group:
                     return Group(
-                        start=group.start,
+                        start=group.start if group.start is not None and group.start >= 0 else None,
                         value=group.value,
                         children=[build_group(child) for child in (group.children or [])],
                     )
@@ -929,6 +929,7 @@ class MessagePlugin:
                 test_run_hook_started=TestRunHookStarted(
                     id=started_id,
                     test_run_started_id=run_id,
+                    worker_id=self.xdist_worker_id or "master",
                     hook_id=hook_id,
                     timestamp=self.get_timestamp(),
                 )
@@ -982,6 +983,7 @@ class MessagePlugin:
                     body=json.dumps(payload, ensure_ascii=False),
                     content_encoding=ContentEncoding.identity,
                     media_type=media_type,
+                    timestamp=self.get_timestamp(),
                 )
             ),
         )
@@ -2156,7 +2158,6 @@ class MessagePlugin:
         current_test_case_start = self._get_current_test_case_start()
         step = run.require_step("pytest_cuke_step_func_lookup_error")
         test_step = self.current_test_case_step_id_to_step_mapping[id(step)]
-
         for expression, name in self._undefined_parameter_types_from(exception, fallback_expression=step.name):
             config.hook.pytest_cuke_message(
                 config=config,
@@ -2336,6 +2337,8 @@ class MessagePlugin:
         source_media_type: str | None,
         source_uri: str | None,
         url: str | None,
+        test_run_hook_started_id: str | None,
+        test_run_started_id: str | None,
     ) -> None:
         if self.is_disabled:
             return
@@ -2400,6 +2403,9 @@ class MessagePlugin:
                     body=body,
                     source=source,
                     url=url,
+                    timestamp=self.get_timestamp(),
+                    test_run_hook_started_id=test_run_hook_started_id,
+                    test_run_started_id=test_run_started_id,
                 )
             ),
         )

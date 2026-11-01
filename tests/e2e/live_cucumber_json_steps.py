@@ -778,7 +778,7 @@ def cucumber_json_report_preserves_messages_run_hooks(consumer: Any) -> None:
     messages_path = consumer._cucumber_json_workspace / "artifacts/hooks.ndjson"
     envelopes = [json.loads(line) for line in messages_path.read_text(encoding="utf-8").splitlines() if line]
     meta = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
-    assert len(meta) == 1 and meta[0].get("protocolVersion") == "28.0.0", meta
+    assert len(meta) == 1 and meta[0].get("protocolVersion") == "34.2.1", meta
     run_started = [envelope["testRunStarted"] for envelope in envelopes if "testRunStarted" in envelope]
     run_finished = [envelope["testRunFinished"] for envelope in envelopes if "testRunFinished" in envelope]
     assert len(run_started) == len(run_finished) == 1, (run_started, run_finished)

@@ -2346,7 +2346,7 @@ def consumer_messages_failure_attachment_correlations(relative_path: str, consum
         return matches[0]
 
     meta = raw_one("meta")
-    assert meta.get("protocolVersion") == "28.0.0", meta
+    assert meta.get("protocolVersion") == "34.2.1", meta
     pickle_message = one("pickle")
     test_case = one("test_case")
     case_started = one("test_case_started")
@@ -2433,7 +2433,7 @@ def consumer_messages_failed_background_step(relative_path: str, consumer: Consu
     assert all(isinstance(envelope, dict) for envelope in envelopes), envelopes
 
     meta = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
-    assert len(meta) == 1 and meta[0].get("protocolVersion") == "28.0.0", meta
+    assert len(meta) == 1 and meta[0].get("protocolVersion") == "34.2.1", meta
 
     pickles = [envelope["pickle"] for envelope in envelopes if isinstance(envelope.get("pickle"), dict)]
     test_cases = [envelope["testCase"] for envelope in envelopes if isinstance(envelope.get("testCase"), dict)]
@@ -2968,7 +2968,7 @@ def consumer_messages_pytest_generated_run_hooks(relative_path: str, consumer: C
     assert all(isinstance(envelope, dict) for envelope in envelopes), envelopes
 
     metas = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
-    assert len(metas) == 1 and metas[0].get("protocolVersion") == "28.0.0", metas
+    assert len(metas) == 1 and metas[0].get("protocolVersion") == "34.2.1", metas
 
     run_started_events = [
         envelope["testRunStarted"]
@@ -4286,7 +4286,7 @@ def consumer_capability_report_covers_policy_ids(
 
 @then(
     re.compile(
-        r'the report should show the v28 non-runtime classification for "(?P<capability_id>[^"]+)" '
+        r'the report should show the unobserved implemented capability "(?P<capability_id>[^"]+)" '
         r"and actionable unresolved IDs"
     )
 )
@@ -4298,7 +4298,7 @@ def consumer_capability_report_shows_non_runtime_classification_and_gaps(
     assert result is not None, "a capability report command has not been run"
     report = json.loads(result.stdout)
     assert isinstance(report, dict), report
-    assert report.get("baseline_release") == "28.0.0", report
+    assert report.get("baseline_release") == "34.2.1", report
 
     observations = report.get("observations")
     assert isinstance(observations, dict), report
@@ -4317,7 +4317,7 @@ def consumer_capability_report_shows_non_runtime_classification_and_gaps(
     missing_ids = matching_failures[0][len(failure_prefix) :].split(", ")
     assert missing_ids and all(missing_ids), matching_failures[0]
     assert missing_ids == sorted(set(missing_ids)), missing_ids
-    assert capability_id not in missing_ids, missing_ids
+    assert capability_id in missing_ids, missing_ids
 
     capabilities = report.get("capabilities")
     assert isinstance(capabilities, list), report
@@ -4328,11 +4328,11 @@ def consumer_capability_report_shows_non_runtime_classification_and_gaps(
     }
     assert capability_id in rows_by_id, capabilities
     classified_row = rows_by_id[capability_id]
-    assert classified_row.get("status") == "Not-Applicable", classified_row
+    assert classified_row.get("status") == "Implemented", classified_row
     assert classified_row.get("runtime_required") is False, classified_row
     assert classified_row.get("observed_runtime") is False, classified_row
     rationale = classified_row.get("comment")
-    assert isinstance(rationale, str) and "testRunHookStartedId" in rationale, classified_row
+    assert isinstance(rationale, str) and "test_run_started_id" in rationale, classified_row
 
     decisions = report.get("decisions")
     assert isinstance(decisions, list), report
@@ -4345,8 +4345,8 @@ def consumer_capability_report_shows_non_runtime_classification_and_gaps(
         {
             "capability_id": capability_id,
             "comment": rationale,
-            "release_target": "28.0.0",
-            "status": "Not-Applicable",
+            "release_target": "34.2.1",
+            "status": "Implemented",
         }
     ], matching_decisions
 
@@ -8855,13 +8855,13 @@ def consumer_with_schema_sync_drift_fixture(consumer: ConsumerProject) -> None:
         (destination / f"{name}.schema.json").write_text(json.dumps(existing, sort_keys=True), encoding="utf-8")
 
 
-@then("schema sync output should name cucumber-messages 28.0.0 and upstream tag v28.0.0")
+@then("schema sync output should name cucumber-messages 34.2.0 and upstream tag v34.2.1")
 def consumer_schema_sync_output_has_pinned_versions(consumer: ConsumerProject) -> None:
     result = consumer.command_result
     assert result is not None, "a schema sync command has not run"
     output = f"{result.stdout}\n{result.stderr}"
-    assert "cucumber-messages==28.0.0" in output, output
-    assert "v28.0.0" in output, output
+    assert "cucumber-messages==34.2.0" in output, output
+    assert "v34.2.1" in output, output
 
 
 @then(re.compile(r'schema output "(?P<destination>[^\"]+)" should match source tree "(?P<source>[^\"]+)"'))
@@ -17362,7 +17362,7 @@ def consumer_reporting_spine_preserves_teardown_failure(
     step_finishes = [envelope["testStepFinished"] for envelope in envelopes if "testStepFinished" in envelope]
     assert len(meta) == len(run_starts) == len(run_finishes) == len(cases) == len(starts) == 1
     assert len(case_finishes) == len(step_finishes) == 1
-    assert meta[0].get("protocolVersion") == "28.0.0", meta[0]
+    assert meta[0].get("protocolVersion") == "34.2.1", meta[0]
     assert cases[0].get("pickleId") == next(envelope["pickle"]["id"] for envelope in envelopes if "pickle" in envelope)
     assert starts[0].get("testCaseId") == cases[0].get("id")
     assert step_finishes[0].get("testStepResult", {}).get("status") == "PASSED", step_finishes[0]
@@ -17385,7 +17385,7 @@ def consumer_messages_external_session_finish_failure(
     envelopes = _reporting_spine_artifact(messages_path, consumer)
 
     metas = [envelope["meta"] for envelope in envelopes if isinstance(envelope.get("meta"), dict)]
-    assert len(metas) == 1 and metas[0].get("protocolVersion") == "28.0.0", metas
+    assert len(metas) == 1 and metas[0].get("protocolVersion") == "34.2.1", metas
     run_starts = [
         envelope["testRunStarted"]
         for envelope in envelopes
@@ -17509,7 +17509,7 @@ def consumer_reporting_spine_sessions_are_isolated(
             run_starts,
             run_finishes,
         )
-        assert metas[0].get("protocolVersion") == "28.0.0", metas[0]
+        assert metas[0].get("protocolVersion") == "34.2.1", metas[0]
         assert cases[0].get("pickleId") == next(
             envelope["pickle"]["id"] for envelope in envelopes if "pickle" in envelope
         ), (name, cases[0])

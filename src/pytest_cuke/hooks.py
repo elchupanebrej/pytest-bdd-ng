@@ -197,6 +197,8 @@ def pytest_cuke_attach(
     source_uri: str | None,
     url: str | None,
     as_external: bool,
+    test_run_hook_started_id: str | None,
+    test_run_started_id: str | None,
 ) -> None:
     """Observe an attachment and its optional source metadata or URL."""
 

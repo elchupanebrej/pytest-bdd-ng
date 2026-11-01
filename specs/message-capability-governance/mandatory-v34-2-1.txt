@@ -1,4 +1,4 @@
-# Runtime-required fields emitted by the pytest-cuke lifecycle contract for Messages 28.0.0.
+# Runtime-required fields emitted by the pytest-cuke lifecycle contract for Messages 34.2.1.
 test_case_finished.test_case_started_id
 test_case_finished.will_be_retried
 test_case_started.attempt

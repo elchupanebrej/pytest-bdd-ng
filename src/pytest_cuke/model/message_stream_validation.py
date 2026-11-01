@@ -34,6 +34,7 @@ class MessageStreamValidator:
         self._hooks: set[str] = set()
         self._step_definitions: set[str] = set()
         self._pickle_steps: set[str] = set()
+        self._suggestions: set[str] = set()
         self._test_steps: set[str] = set()
         self._test_cases: dict[str, frozenset[str]] = {}
         self._started_cases: dict[str, str] = {}
@@ -587,7 +588,32 @@ class MessageStreamValidator:
                                 ("testSteps", index, "stepDefinitionIds", definition_index),
                             )
                         )
-        elif payload_kind == "attachment":
+        elif payload_kind == "suggestion":
+            suggestion_id = payload["id"]
+            if suggestion_id in self._suggestions:
+                errors.append(
+                    self._make_diagnostic(
+                        "DUPLICATE_LIFECYCLE_ID",
+                        position,
+                        payload_kind,
+                        f"duplicate suggestion id '{suggestion_id}'",
+                        (suggestion_id,),
+                        ("id",),
+                    )
+                )
+            pickle_step_id = payload["pickleStepId"]
+            if pickle_step_id not in self._pickle_steps:
+                errors.append(
+                    self._make_diagnostic(
+                        "ORPHAN_REFERENCE",
+                        position,
+                        payload_kind,
+                        f"suggestion refers to unknown pickle_step '{pickle_step_id}'",
+                        (pickle_step_id,),
+                        ("pickleStepId",),
+                    )
+                )
+        elif payload_kind in {"attachment", "external_attachment"}:
             run_id = payload.get("testRunStartedId")
             if run_id is not None and run_id != self._run_started_id:
                 errors.append(
@@ -664,7 +690,9 @@ class MessageStreamValidator:
         return errors
 
     def _record(self, payload: dict[str, Any], payload_kind: str | None) -> None:
-        if payload_kind == "test_run_started":
+        if payload_kind == "suggestion":
+            self._suggestions.add(payload["id"])
+        elif payload_kind == "test_run_started":
             self._run_started = True
             self._run_started_id = payload.get("id")
         elif payload_kind == "test_run_finished":

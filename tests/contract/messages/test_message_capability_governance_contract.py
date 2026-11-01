@@ -10,10 +10,10 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 POLICY_DIR = PROJECT_ROOT / "specs" / "message-capability-governance"
-BASELINE_RELEASE = "28.0.0"
-BASELINE_FILE = POLICY_DIR / "capabilities-v28-0-0.json"
-DECISIONS_FILE = POLICY_DIR / "decisions-v28-0-0.json"
-MANDATORY_FILE = POLICY_DIR / "mandatory-v28-0-0.txt"
+BASELINE_RELEASE = "34.2.1"
+BASELINE_FILE = POLICY_DIR / "capabilities-v34-2-1.json"
+DECISIONS_FILE = POLICY_DIR / "decisions-v34-2-1.json"
+MANDATORY_FILE = POLICY_DIR / "mandatory-v34-2-1.txt"
 
 
 def _cuke_executable() -> str:
@@ -138,7 +138,7 @@ def test_public_cli_reproduces_committed_messages_capability_policy(tmp_path: Pa
         str(checklist_markdown),
     )
     rendered = checklist_markdown.read_text(encoding="utf-8")
-    assert "Cucumber Messages 28.0.0 governance checklist" in rendered
+    assert "Cucumber Messages 34.2.1 governance checklist" in rendered
     assert all(f"`{capability_id}`" in rendered for capability_id in mandatory_ids)
 
 

@@ -860,11 +860,11 @@ wheels = [
 
 [[package]]
 name = "cucumber-messages"
-version = "28.0.0"
+version = "34.2.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/82/e2/0e1f7ba55cc64af752092e93ee07a18b27edd55fe3a4d7a1e42e919331e1/cucumber_messages-28.0.0.tar.gz", hash = "sha256:4e7030eaef3dcba0a536c695ee3ec40c3c2f595b989d235022b731ba60ea25f4", size = 15531, upload-time = "2025-07-07T11:17:53.572Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7b/b8/16f4f31045776b7b7fc962e72ebc2a8bf4a12df2f18d8c9be4e258cbe3bb/cucumber_messages-34.2.0.tar.gz", hash = "sha256:712102e0a0f7fb7a3d068a2754b31ce9b605fb04ab65f9f37282f9c27f7254d4", size = 11703, upload-time = "2026-07-19T13:07:38.64Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/af/8b86a60bf4c9547c3b4ceb6b22f4adb4a90fdede73dd3b6837a63b572cfd/cucumber_messages-28.0.0-py3-none-any.whl", hash = "sha256:6b029ea3baeb6355feb0f8150cea5147903199e78a3a6c302ee6e9becd49fc7c", size = 12218, upload-time = "2025-07-07T11:17:52.316Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/81/00577acc873ebce750da0429c6726e111c75e62caa71843166e522e19b80/cucumber_messages-34.2.0-py3-none-any.whl", hash = "sha256:2b20b7a7151b2ccc296b8f101b413b2b6b8a2f90c3af748d5a357b59243ee2fc", size = 13006, upload-time = "2026-07-19T13:07:37.692Z" },
 ]
 
 [[package]]
@@ -2818,7 +2818,7 @@ requires-dist = [
     { name = "chevron" },
     { name = "ci-environment" },
     { name = "cucumber-expressions" },
-    { name = "cucumber-messages", specifier = "==28.0.0" },
+    { name = "cucumber-messages", specifier = "==34.2.0" },
     { name = "cucumber-tag-expressions" },
     { name = "decopatch" },
     { name = "deptry", marker = "extra == 'lint'", specifier = ">=0.25.1" },

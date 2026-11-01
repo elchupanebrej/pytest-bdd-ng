@@ -271,7 +271,7 @@ untouched.
    cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas
    cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas --check
    cuke sync messages schemas --schema-path src/pytest_cuke/model/message_schemas \
-     --source-dir tests/fixtures/message-schemas-v28-0-0 --check
+     --source-dir tests/fixtures/message-schemas-v34-2-1 --check
 
 Schema assets are included in the wheel and available to runtime code through
 package resources. Package imports never start synchronization or access the
@@ -286,7 +286,7 @@ release decisions made against it. Capability IDs use the form
 ``payload_kind.field.path`` with snake_case segments, for example
 ``test_run_started.timestamp.seconds``. Inventory snapshots include the
 baseline release, source schema reference, relevance and category for each
-field. The committed policy for the pinned Messages 28.0.0 schema is in
+field. The committed policy for the pinned Messages 34.2.1 schema is in
 ``specs/message-capability-governance/``.
 
 Synchronize an inventory from the installed schema assets, validate a decision
@@ -294,15 +294,15 @@ file, and compare snapshots without changing either input:
 
 .. code-block:: console
 
-   cuke messages capabilities sync --baseline-release 28.0.0 \
-     --output build/capabilities-v28-0-0.json
+   cuke messages capabilities sync --baseline-release 34.2.1 \
+     --output build/capabilities-v34-2-1.json
    cuke messages capabilities validate-decision \
-     --input specs/message-capability-governance/decisions-v28-0-0.json
+     --input specs/message-capability-governance/decisions-v34-2-1.json
    cuke messages capabilities diff \
      --previous-baseline 27.0.0 --previous build/capabilities-v27-0-0.json \
-     --current-baseline 28.0.0 --current build/capabilities-v28-0-0.json \
+     --current-baseline 34.2.1 --current build/capabilities-v34-2-1.json \
      --previous-decisions specs/message-capability-governance/decisions-v27-0-0.json \
-     --current-decisions specs/message-capability-governance/decisions-v28-0-0.json
+     --current-decisions specs/message-capability-governance/decisions-v34-2-1.json
 
 When ``--schema-dir`` is omitted, sync accepts only the exact baseline pinned
 to the installed ``cucumber-messages`` package. Pass an explicit schema
@@ -324,9 +324,9 @@ and decisions:
 .. code-block:: console
 
    cuke messages capabilities checklist \
-     --capabilities specs/message-capability-governance/capabilities-v28-0-0.json \
-     --decisions specs/message-capability-governance/decisions-v28-0-0.json \
-     --mandatory-capabilities-file specs/message-capability-governance/mandatory-v28-0-0.txt \
+     --capabilities specs/message-capability-governance/capabilities-v34-2-1.json \
+     --decisions specs/message-capability-governance/decisions-v34-2-1.json \
+     --mandatory-capabilities-file specs/message-capability-governance/mandatory-v34-2-1.txt \
      --format markdown --output build/messages-checklist.md
 
 Scope files contain one canonical or camelCase capability ID per line; blank
@@ -344,10 +344,10 @@ an explicit implementation decision for mandatory fields.
 
    cuke messages capabilities report \
      --messages-file build/runtime-messages.ndjson --input-kind runtime \
-     --capabilities specs/message-capability-governance/capabilities-v28-0-0.json \
-     --decisions specs/message-capability-governance/decisions-v28-0-0.json \
-     --mandatory-capabilities-file specs/message-capability-governance/mandatory-v28-0-0.txt \
-     --runtime-required-capabilities-file specs/message-capability-governance/runtime-required-v28-0-0.txt \
+     --capabilities specs/message-capability-governance/capabilities-v34-2-1.json \
+     --decisions specs/message-capability-governance/decisions-v34-2-1.json \
+     --mandatory-capabilities-file specs/message-capability-governance/mandatory-v34-2-1.txt \
+     --runtime-required-capabilities-file specs/message-capability-governance/runtime-required-v34-2-1.txt \
      --require-fully-governed --require-runtime-required-covered --format json
 
 ``--require-fully-governed`` fails when mandatory fields lack explicit

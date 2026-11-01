@@ -86,6 +86,8 @@ def _resolve_reference(
     target_file = str(PurePosixPath(target_file))
     while target_file.startswith("./"):
         target_file = target_file[2:]
+    if target_file.endswith(".schema.json"):
+        target_file = target_file.removesuffix(".schema.json") + ".json"
     if target_file not in schemas:
         raise ValueError(f"schema reference {reference!r} from {current_file!r} cannot be resolved")
     value: object = schemas[target_file]

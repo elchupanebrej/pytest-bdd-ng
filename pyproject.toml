@@ -50,7 +50,7 @@ dependencies = [
   "chevron",
   "ci-environment",
   # This upstream binding includes the run-hook payloads used by the reporting lifecycle.
-  "cucumber-messages==28.0.0",
+  "cucumber-messages==34.2.0",
   "cucumber-expressions",
   "decopatch",
   "docopt-ng",

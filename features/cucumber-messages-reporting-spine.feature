@@ -43,7 +43,7 @@ Feature: Cucumber Messages reporting spine
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
-    And consumer reporting-spine artifacts "messages.ndjson" and "messages.validated.ndjson" should preserve outcome terminal events with protocol "28.0.0"
+    And consumer reporting-spine artifacts "messages.ndjson" and "messages.validated.ndjson" should preserve outcome terminal events with protocol "34.2.1"
 
   Scenario: A pytest teardown failure keeps the step passed and the run unsuccessful
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -137,7 +137,7 @@ Feature: Cucumber Messages reporting spine
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-messages-ndjson=messages.ndjson -q"
     Then pytest should exit with code 1
     And pytest output should contain "reporting spine after-session hook sentinel"
-    And consumer reporting-spine artifacts "messages.ndjson" and "messages.validated.ndjson" should preserve the ordered before and failed after run-hook lifecycle for protocol "28.0.0"
+    And consumer reporting-spine artifacts "messages.ndjson" and "messages.validated.ndjson" should preserve the ordered before and failed after run-hook lifecycle for protocol "34.2.1"
 
   Scenario: A trylast session-finish hook stays failed under xdist
     Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
