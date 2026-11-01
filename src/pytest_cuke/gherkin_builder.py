@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from attrs import evolve
+
 from pytest_cuke.model import (
     Background,
     DataTable,
@@ -16,6 +18,7 @@ from pytest_cuke.model import (
     TableRow,
     Tag,
 )
+from pytest_cuke.model.source_projection import capture_source_projection
 
 _KEYWORD_TYPE_TO_STEP_TYPE = {
     "Context": StepType.context,
@@ -225,7 +228,7 @@ def build_feature_from_dict(raw_dict: dict[str, Any], uri: str = "", filename: s
         elif "rule" in child:
             rules.append(_build_rule(child["rule"], parent_background=background))
 
-    return Feature(
+    feature = Feature(
         name=feature_dict.get("name", ""),
         line=feature_dict.get("location", {}).get("line", 0),
         tags=_build_tags(feature_dict.get("tags")),
@@ -239,6 +242,7 @@ def build_feature_from_dict(raw_dict: dict[str, Any], uri: str = "", filename: s
         keyword=feature_dict.get("keyword", "Feature"),
         language=feature_dict.get("language", "en"),
     )
+    return evolve(feature, source_projection=capture_source_projection(raw_dict, feature))
 
 
 __all__ = ["build_feature_from_dict"]

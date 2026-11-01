@@ -3,12 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from attrs import frozen
+from attrs import field, frozen
 
 if TYPE_CHECKING:
     from pytest_cuke.model.background import Background
     from pytest_cuke.model.rule import Rule
     from pytest_cuke.model.scenario import Scenario
+    from pytest_cuke.model.source_projection import SourceProjection
     from pytest_cuke.model.tag import Tag
 
 
@@ -28,6 +29,7 @@ class Feature:
     filename: str | None = None
     source_content: str | None = None
     source_media_type: str | None = None
+    source_projection: SourceProjection | None = field(default=None, eq=False, repr=False)
 
     @property
     def tag_names(self) -> tuple[str, ...]:

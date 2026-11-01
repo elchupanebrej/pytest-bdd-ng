@@ -181,6 +181,9 @@ def rule_to_message(rule: Rule, default_id: str = "", uri: str = "") -> messages
 
 
 def feature_to_gherkin_document(feature: Feature, uri: str = "") -> messages.GherkinDocument:
+    projection = feature.source_projection
+    if projection is not None and projection.matches(feature):
+        return projection.document(uri or feature.uri or "")
     f_id = feature.id or "feature-1"
     feature_uri = uri or feature.uri or ""
     tags = [tag_to_message(t, f"{f_id}-tag-{i}") for i, t in enumerate(feature.tags)]
@@ -342,19 +345,35 @@ def scenario_to_pickle(
         )
         for index, step in enumerate(execution)
     ]
-    tags = [messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in scenario.tags]
+    inherited_tags = (*feature.tags, *scenario.tags) if feature is not None else scenario.tags
+    tags = [messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in inherited_tags]
     scenario_ast_node_ids = list(scenario.source_ast_node_ids) or [scenario_message_id(scenario, uri=uri)]
     external_row_id = scenario.external_example_source.row_id if scenario.external_example_source else None
     if external_row_id and external_row_id not in scenario_ast_node_ids:
         scenario_ast_node_ids.append(external_row_id)
+    location = None
+    if feature is not None and feature.source_projection is not None and feature.source_projection.matches(feature):
+        location_ids = scenario.source_ast_node_ids[-1:] or tuple(scenario_ast_node_ids)
+        for node_id in location_ids:
+            location = feature.source_projection.location(node_id)
+            if location is not None:
+                break
+    if (
+        location is None
+        and not scenario.source_ast_node_ids
+        and scenario.external_example_source is None
+        and scenario.line > 0
+    ):
+        location = make_location(scenario.line)
     return messages.Pickle(
         id=sc_id,
         uri=uri,
         name=scenario.name,
-        language="en",
+        language=feature.language if feature is not None else "en",
         steps=steps,
         tags=tags,
         ast_node_ids=scenario_ast_node_ids,
+        location=location,
     )
 
 

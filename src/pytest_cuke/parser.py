@@ -173,6 +173,7 @@ class BaseParser:
                 filename=str(p.as_posix()),
                 source_content=feature.source_content,
                 source_media_type=feature.source_media_type,
+                source_projection=feature.source_projection,
             )
         return feature
 

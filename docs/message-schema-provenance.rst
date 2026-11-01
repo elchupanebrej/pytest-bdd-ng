@@ -34,6 +34,17 @@ pickle step. Its Python snippet uses the public ``pytest_cuke`` decorators.
 Unknown parameter types also retain their separate
 ``undefinedParameterType`` diagnostic. Successful lookups emit neither message.
 
+Source navigation
+-----------------
+
+For an unchanged parsed feature, ``gherkinDocument`` retains the parser's
+original source metadata, including columns, keyword types, comments and
+DocString delimiters. Reading or mutating an observation document does not
+modify the feature model. Programmatic features and structurally edited models
+use the model projection; unavailable source positions are not invented.
+Outline pickle locations point to the originating Examples row when that
+position is available. Pickles retain the feature language and inherited tags.
+
 Run summary diagnostics
 -----------------------
 

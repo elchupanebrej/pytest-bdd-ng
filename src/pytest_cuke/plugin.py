@@ -18,7 +18,6 @@ from unittest.mock import patch
 from warnings import catch_warnings, simplefilter
 
 import pytest
-from cucumber_messages import PickleTag
 from ordered_set import OrderedSet
 from pathvalidate import is_valid_filepath
 
@@ -1099,9 +1098,6 @@ def _build_scenario_param(
                 if documents is not None:
                     documents[id(feature)] = document
             compiled_pickle = scenario_to_pickle(scenario, uri=uri, feature=feature)
-            compiled_pickle.tags = [
-                PickleTag(name=tag.name, ast_node_id=tag.id or "") for tag in (*feature.tags, *scenario.tags)
-            ]
             protocol_arguments = {"gherkin_document": document, "pickle": compiled_pickle}
         for tag in all_tags:
             tag_marks = hook(feature=feature, scenario=scenario, tag=tag, **protocol_arguments)
