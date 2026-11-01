@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Final, Literal
 
 from pytest_cuke.model.message_capability_inventory import normalize_capability_id
@@ -40,6 +41,38 @@ class CapabilityDecision:
     status: CapabilityStatus
     release_target: str
     comment: str | None = None
+    decision_owner: str | None = None
+    evidence_refs: tuple[str, ...] = ()
+    reviewed_at: datetime | None = None
+    hard_limitation: str | None = None
+    recheck_trigger: str | None = None
+
+
+def _text(value: object, field: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    return value.strip() or None
+
+
+def _review_date(value: object) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError as error:
+            raise ValueError("reviewed_at must be an ISO8601 timestamp") from error
+    if not isinstance(value, datetime):
+        raise ValueError("reviewed_at must be an ISO8601 timestamp")
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+def _references(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list | tuple) or any(not isinstance(ref, str) or not ref.strip() for ref in value):
+        raise ValueError("evidence_refs must be an array of non-empty strings")
+    return tuple(ref.strip() for ref in value)
 
 
 def normalize_capability_status(value: object) -> CapabilityStatus | None:
@@ -77,14 +110,44 @@ def validate_decisions(decisions: Iterable[CapabilityDecision]) -> tuple[Capabil
         comment = decision.comment.strip() if isinstance(decision.comment, str) else None
         if status != "Implemented" and not comment:
             raise ValueError(f"{capability_id}: status {status} requires a non-empty comment")
-
         key = (capability_id, release_target)
         previous = seen.get(key)
         if previous is not None:
             detail = "conflicting terminal statuses" if previous != status else "duplicate decision"
             raise ValueError(f"{detail} for {capability_id}@{release_target}: {previous} and {status}")
         seen[key] = status
-        normalized.append(CapabilityDecision(capability_id, status, release_target, comment))
+        owner = _text(decision.decision_owner, "decision_owner")
+        references = _references(decision.evidence_refs)
+        reviewed_at = _review_date(decision.reviewed_at)
+        limitation = _text(decision.hard_limitation, "hard_limitation")
+        trigger = _text(decision.recheck_trigger, "recheck_trigger")
+        required: dict[str, object] = {}
+        if status != "Implemented":
+            required.update(decision_owner=owner, evidence_refs=references, reviewed_at=reviewed_at)
+        if status == "Non-Implementable":
+            required.update(hard_limitation=limitation, recheck_trigger=trigger)
+        missing = [field for field, value in required.items() if not value]
+        if missing:
+            raise ValueError(f"{capability_id}: status {status} requires " + ", ".join(missing))
+        rationale = (comment or "").lower()
+        if status == "Partly-Applicable" and not (
+            "language" in rationale and ("model" in rationale or "runtime" in rationale)
+        ):
+            raise ValueError(f"{capability_id}: Partly-Applicable requires a language/runtime model mismatch comment")
+
+        normalized.append(
+            CapabilityDecision(
+                capability_id,
+                status,
+                release_target,
+                comment,
+                decision_owner=owner,
+                evidence_refs=references,
+                reviewed_at=reviewed_at,
+                hard_limitation=limitation,
+                recheck_trigger=trigger,
+            )
+        )
 
     return tuple(sorted(normalized, key=lambda item: (item.capability_id, item.release_target)))
 
@@ -136,7 +199,19 @@ def decisions_from_json(payload: object) -> tuple[CapabilityDecision, ...]:
             raise ValueError(f"decision {index + 1} has non-string release_target")
         if comment is not None and not isinstance(comment, str):
             raise ValueError(f"decision {index + 1} has non-string comment")
-        decisions.append(CapabilityDecision(capability_id, status, release_target, comment))
+        decisions.append(
+            CapabilityDecision(
+                capability_id,
+                status,
+                release_target,
+                comment,
+                decision_owner=_text(item.get("decision_owner"), "decision_owner"),
+                evidence_refs=_references(item.get("evidence_refs", [])),
+                reviewed_at=_review_date(item.get("reviewed_at")),
+                hard_limitation=_text(item.get("hard_limitation"), "hard_limitation"),
+                recheck_trigger=_text(item.get("recheck_trigger"), "recheck_trigger"),
+            )
+        )
     return validate_decisions(decisions)
 
 
@@ -149,6 +224,17 @@ def decision_to_dict(decision: CapabilityDecision) -> dict[str, object]:
     }
     if decision.comment is not None:
         result["comment"] = decision.comment
+    for field, value in (
+        ("decision_owner", decision.decision_owner),
+        ("hard_limitation", decision.hard_limitation),
+        ("recheck_trigger", decision.recheck_trigger),
+    ):
+        if value is not None:
+            result[field] = value
+    if decision.evidence_refs:
+        result["evidence_refs"] = list(decision.evidence_refs)
+    if decision.reviewed_at is not None:
+        result["reviewed_at"] = decision.reviewed_at.isoformat()
     return result
 
 

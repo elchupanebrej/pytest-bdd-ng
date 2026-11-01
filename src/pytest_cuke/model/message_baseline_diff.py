@@ -35,10 +35,6 @@ def _capability_signature(capability: MessageCapability) -> tuple[object, ...]:
     )
 
 
-def _decision_signature(decision: CapabilityDecision) -> tuple[object, ...]:
-    return (decision.status, decision.comment)
-
-
 def build_baseline_diff(
     *,
     previous_baseline: str,
@@ -64,7 +60,7 @@ def build_baseline_diff(
     changed_decisions = {
         key
         for key in previous_governance_ids & current_governance_ids
-        if _decision_signature(previous_governance[key]) != _decision_signature(current_governance[key])
+        if previous_governance[key] != current_governance[key]
     }
 
     return BaselineDiffRecord(

@@ -279,6 +279,19 @@ def _format_report(report: dict[str, object], output_format: str) -> str:
         )
     if not decisions:
         rows.append("| — | — | — | — |")
+    for decision in decisions:
+        proof_fields = [
+            field
+            for field in ("decision_owner", "reviewed_at", "evidence_refs", "hard_limitation", "recheck_trigger")
+            if field in decision
+        ]
+        if proof_fields:
+            rows.extend(["", f"### Proof for `{decision['capability_id']}`", ""])
+            for field in proof_fields:
+                value = decision[field]
+                text = ", ".join(str(item) for item in value) if isinstance(value, list) else str(value)
+                text = text.replace("|", "\\|").replace("\n", " ")
+                rows.append(f"- `{field}`: {text}")
     failures = cast("list[str]", gates["failures"])
     rows.extend(["", "## Gate result", "", "Passed" if gates["passed"] else "Failed", ""])
     rows.extend(f"- {failure}" for failure in failures)

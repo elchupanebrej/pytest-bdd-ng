@@ -362,6 +362,28 @@ JSON and Markdown reports include the baseline, scope, observed fields and
 selected explicit decisions in stable order. Reports against supplied files
 use local schema and policy artifacts and do not access the network.
 
+Decision proof metadata
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Every non-``Implemented`` capability decision requires a non-empty ``comment``
+(or the input alias ``rationale``), ``decision_owner``, ``evidence_refs`` and an
+ISO8601 ``reviewed_at`` date. ``Non-Implementable`` also requires a concrete
+``hard_limitation`` and ``recheck_trigger``. ``Partly-Applicable`` explains the
+language/runtime model mismatch rather than treating missing coverage as a
+partial implementation.
+
+``cuke messages capabilities validate-decision --input decisions.json`` rejects
+incomplete proof records. Normalization retains the metadata, and JSON and
+Markdown reports expose it alongside the decision. Baseline diffs include proof
+changes. Dates without a timezone are interpreted as UTC. ``Implemented``
+decisions retain their existing minimal shape; proof fields remain optional
+for them.
+
+The named owner must review classifications. Proof metadata never replaces
+required runtime observations, and synthetic input remains labeled synthetic.
+``Pending`` and ``Not-Acceptable`` remain release blockers.
+
+
 Native Allure reporting during pytest runs
 ------------------------------------------
 

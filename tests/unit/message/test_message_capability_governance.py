@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import json
 from pathlib import Path
 
@@ -119,6 +121,9 @@ def test_decision_validation_rejects_conflicting_terminal_statuses() -> None:
             status="Not-Applicable",
             release_target="28.0.0",
             comment="This field is not used by this release.",
+            decision_owner="unit-test owner",
+            evidence_refs=("test://governance-fixture",),
+            reviewed_at=datetime(2026, 11, 1, tzinfo=UTC),
         ),
     ]
 
@@ -141,7 +146,10 @@ def test_checklist_prefers_exact_release_decision_to_next_release_default() -> N
             capability.capability_id,
             "Partly-Applicable",
             "28.0.0",
-            "This release only guarantees second precision.",
+            "This fixture language model only guarantees second precision.",
+            decision_owner="unit-test owner",
+            evidence_refs=("test://governance-fixture",),
+            reviewed_at=datetime(2026, 11, 1, tzinfo=UTC),
         ),
         CapabilityDecision(capability.capability_id, "Implemented", "29.0.0"),
     )
@@ -154,7 +162,7 @@ def test_checklist_prefers_exact_release_decision_to_next_release_default() -> N
     )
 
     assert checklist.entries[0].status == "Partly-Applicable"
-    assert checklist.entries[0].comment == "This release only guarantees second precision."
+    assert checklist.entries[0].comment == "This fixture language model only guarantees second precision."
     assert checklist.entries[0].release_blocker is True
 
 
@@ -282,11 +290,21 @@ def test_report_separates_runtime_observations_from_synthetic_samples() -> None:
 
 def test_markdown_report_lists_scope_observed_fields_and_explicit_decisions() -> None:
     capability_id = "test_run_started.timestamp.seconds"
-    comment = "Second precision is the implemented runtime contract."
+    comment = "Second precision is the implemented language/runtime model contract."
     report = build_capability_report(
         [make_test_run_started(1), make_test_run_finished(2)],
         capabilities=build_capability_inventory(SCHEMA_DIR, baseline_release="28.0.0"),
-        decisions=(CapabilityDecision(capability_id, "Partly-Applicable", "28.0.0", comment),),
+        decisions=(
+            CapabilityDecision(
+                capability_id,
+                "Partly-Applicable",
+                "28.0.0",
+                comment,
+                decision_owner="unit-test owner",
+                evidence_refs=("test://governance-fixture",),
+                reviewed_at=datetime(2026, 11, 1, tzinfo=UTC),
+            ),
+        ),
         baseline_release="28.0.0",
         input_kind="runtime",
         mandatory_capability_ids=(capability_id,),
@@ -306,6 +324,9 @@ def test_markdown_report_lists_scope_observed_fields_and_explicit_decisions() ->
             "status": "Partly-Applicable",
             "release_target": "28.0.0",
             "comment": comment,
+            "decision_owner": "unit-test owner",
+            "evidence_refs": ["test://governance-fixture"],
+            "reviewed_at": "2026-11-01T00:00:00+00:00",
         }
     ]
 

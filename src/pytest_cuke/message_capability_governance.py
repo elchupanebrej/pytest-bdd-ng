@@ -24,6 +24,7 @@ from pytest_cuke.model.message_status_governance import (
     active_decisions_for_release,
     decision_to_dict,
     decisions_from_json,
+    validate_decisions,
 )
 from pytest_cuke.model.message_stream_validation import MessageStreamValidator
 from pytest_cuke.model.message_types import Envelope, message_to_dict
@@ -85,7 +86,7 @@ def build_capability_report(
     if input_kind not in {"runtime", "synthetic"}:
         raise ValueError(f"input kind must be 'runtime' or 'synthetic', got {input_kind!r}")
     capability_records = tuple(capabilities)
-    decision_records = decisions_from_json([_decision_to_raw(item) for item in decisions])
+    decision_records = validate_decisions(decisions)
     inventory = {item.capability_id: item for item in capability_records}
     if len(inventory) != len(capability_records):
         raise ValueError("capability inventory contains duplicate normalized IDs")
@@ -221,15 +222,6 @@ def build_capability_report(
         },
         "summary": summary,
         "unmapped_observed_capability_ids": sorted(observed_set - set(inventory)),
-    }
-
-
-def _decision_to_raw(decision: CapabilityDecision) -> dict[str, object]:
-    return {
-        "capability_id": decision.capability_id,
-        "status": decision.status,
-        "release_target": decision.release_target,
-        "comment": decision.comment,
     }
 
 
