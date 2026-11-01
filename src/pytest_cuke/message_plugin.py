@@ -2406,7 +2406,7 @@ class MessagePlugin:
         if source_data is not None and source_media_type is not None and source_uri is not None:
             source = Source(
                 data=source_data,
-                media_type=cast("SourceMediaType", source_media_type),
+                media_type=SourceMediaType(source_media_type),
                 uri=source_uri,
             )
 

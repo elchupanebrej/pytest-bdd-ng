@@ -119,3 +119,13 @@ lifecycle scope: attaching to an already completed hook fails validation and
 marks the run unsuccessful. External attachments obey the same correlation
 checks as inline attachments. Suggestion IDs must be unique and reference a
 declared pickle step.
+
+Invalid attachment source types
+-------------------------------
+
+An attachment source must declare a supported Gherkin media type. The
+attachment API validates that type before publishing the message; an invalid
+type raises ``ValueError`` in its calling step. The step is reported as
+``FAILED``, no invalid attachment is published, and the run finishes
+unsuccessfully. Transport and formatter failures retain their separate
+run-level reporting diagnostics.
