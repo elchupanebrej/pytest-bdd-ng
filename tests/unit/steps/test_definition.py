@@ -67,4 +67,5 @@ def test_definition_as_message() -> None:
     config.stash = {IdGenerator.pytest_cuke_id_generator: IdGenerator()}
     msg = defn.as_message(config)
     assert msg.id == "0"
-    assert msg.pattern.source == "I have apples"
+    assert msg.pattern.source == r"\AI\ have\ apples\Z"
+    assert msg.pattern.type.value == "REGULAR_EXPRESSION"

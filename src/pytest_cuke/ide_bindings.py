@@ -181,7 +181,7 @@ def definition_reference(definition: Definition, config: Config) -> dict[str, An
     location = source_reference.location
     return {
         "stepDefinitionId": message.id,
-        "pattern": message.pattern.source,
+        "pattern": str(definition.parser),
         "sourceReference": {
             "uri": source_reference.uri,
             "line": _positive_line(location.line if location is not None else None),

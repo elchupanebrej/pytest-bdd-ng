@@ -51,6 +51,7 @@ def done():
         "features/definitions.feature", "--cuke-messages-ndjson=messages.ndjson", "-q"
     )
     result.assert_outcomes(passed=4)
+    assert result.ret == 0
     assert json.loads((pytester.path / "conversions.json").read_text()) == [2, 2, 2, 2]
     events = [json.loads(line) for line in (pytester.path / "messages.ndjson").read_text().splitlines()]
     pickles = [event["pickle"] for event in events if "pickle" in event]
@@ -67,8 +68,8 @@ def done():
     custom_definitions = [
         definition for definition in definitions if definition["sourceReference"]["uri"].endswith("conftest.py")
     ]
-    assert {definition["pattern"]["source"] for definition in custom_definitions} == {
-        "stock {amount:d}",
+    assert {definition["sourceReference"]["javaMethod"]["methodName"] for definition in custom_definitions} == {
+        "stock",
         "sell",
         "done",
     }
@@ -122,6 +123,7 @@ def second(value):
     )
     result = pytester.runpytest_subprocess("features/captures.feature", "--cuke-messages-ndjson=messages.ndjson", "-q")
     result.assert_outcomes(passed=1)
+    assert result.ret == 0
     events = [json.loads(line) for line in (pytester.path / "messages.ndjson").read_text().splitlines()]
     case = next(event["testCase"] for event in events if "testCase" in event)
     arguments = case["testSteps"][0]["stepMatchArgumentsLists"][0]["stepMatchArguments"]

@@ -45,6 +45,19 @@ use the model projection; unavailable source positions are not invented.
 Outline pickle locations point to the originating Examples row when that
 position is available. Pickles retain the feature language and inherited tags.
 
+Parser pattern families
+-----------------------
+
+Explicit literal, ``parse``, ``cfparse`` and Python regex parsers publish
+``REGULAR_EXPRESSION`` patterns using Python regex syntax. Literal patterns
+are escaped, compiled parser patterns retain their capture structure, and
+matching flags are encoded in the expression. Actual Cucumber Expressions
+retain ``CUCUMBER_EXPRESSION``. IDE step-binding attachments keep the original
+parser pattern for display independently of this standard wire projection.
+Custom parsers remain responsible for their declared expression family.
+The hybrid heuristic parser's multiple fallback languages require a separate
+representation decision; this projection does not narrow its runtime matching.
+
 Run summary diagnostics
 -----------------------
 

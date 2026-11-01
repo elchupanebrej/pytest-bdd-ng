@@ -8,8 +8,7 @@ from attrs import define, field
 
 from pytest_cuke.compatibility.path import resolvepath
 from pytest_cuke.model import message_types as messages
-from pytest_cuke.model.message_extension import StepDefinitionPatternType
-from pytest_cuke.model.message_types import to_wire_step_definition_pattern_type
+from pytest_cuke.steps.pattern import definition_pattern
 from pytest_cuke.steps.types import (
     ConverterT,
     ParamsFixturesMapping,
@@ -67,15 +66,11 @@ class Definition:
         if id(id_gen) in self.__cache:
             return self.__cache[id(id_gen)]
         self.id = id_gen.get_next_id()
-        pet = self.parser.type
-        expr_type = pet if isinstance(pet, StepDefinitionPatternType) else StepDefinitionPatternType(str(pet))
         src_file, src_line = _resolve_callable_source_location(self.func)
         fn = str(self.func.__name__)
         msg = self.__cache[id(id_gen)] = messages.StepDefinition(
             id=self.id,
-            pattern=messages.StepDefinitionPattern(
-                source=str(self.parser), type=to_wire_step_definition_pattern_type(expr_type)
-            ),
+            pattern=definition_pattern(self.parser),
             source_reference=messages.SourceReference(
                 uri=Path(resolvepath(src_file, getattr(config, "rootpath", Path.cwd()))).as_uri(),
                 location=messages.Location(line=src_line, column=1),
