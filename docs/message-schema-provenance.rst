@@ -26,6 +26,14 @@ to the pinned commit; a missing or moved tag fails the check.
    https://github.com/cucumber/messages/tree/e5769e89dd8dd7aa7e8c8163023f38bad539e3aa/jsonschema/src
    https://codeload.github.com/cucumber/messages/tar.gz/e5769e89dd8dd7aa7e8c8163023f38bad539e3aa
 
+Undefined-step suggestions
+--------------------------
+
+A failed step lookup emits an official ``suggestion`` envelope linked to the
+pickle step. Its Python snippet uses the public ``pytest_cuke`` decorators.
+Unknown parameter types also retain their separate
+``undefinedParameterType`` diagnostic. Successful lookups emit neither message.
+
 Run summary diagnostics
 -----------------------
 

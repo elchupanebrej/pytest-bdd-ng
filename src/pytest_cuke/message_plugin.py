@@ -38,6 +38,7 @@ from pytest_cuke.compatibility.pytest import (
 )
 from pytest_cuke.formatter_catalog import resolve_formatter_requests
 from pytest_cuke.formatter_runtime import FormatterSession
+from pytest_cuke.generation import make_step_method_name
 from pytest_cuke.ide_bindings import (
     IDE_BINDING_WORKER_OUTPUT_KEY,
     IDE_DIAGNOSTIC_MEDIA_TYPE,
@@ -72,12 +73,14 @@ from pytest_cuke.model.message_types import (
     Meta,
     ParameterType,
     Product,
+    Snippet,
     Source,
     SourceMediaType,
     SourceReference,
     Status,
     StepMatchArgument,
     StepMatchArgumentsList,
+    Suggestion,
     TestCase,
     TestCaseFinished,
     TestCaseStarted,
@@ -2158,6 +2161,22 @@ class MessagePlugin:
         current_test_case_start = self._get_current_test_case_start()
         step = run.require_step("pytest_cuke_step_func_lookup_error")
         test_step = self.current_test_case_step_id_to_step_mapping[id(step)]
+        pickle_step_id = test_step.pickle_step_id
+        if pickle_step_id is not None:
+            method = make_step_method_name(step.type, step.keyword)
+            code = f"@{method}({step.name!r})\ndef step_impl():\n    raise NotImplementedError\n"
+            suggestion_id = cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id()
+            config.hook.pytest_cuke_message(
+                config=config,
+                message=Message(
+                    suggestion=Suggestion(
+                        id=suggestion_id,
+                        pickle_step_id=pickle_step_id,
+                        snippets=[Snippet(code=code, language="python")],
+                    )
+                ),
+            )
+
         for expression, name in self._undefined_parameter_types_from(exception, fallback_expression=step.name):
             config.hook.pytest_cuke_message(
                 config=config,
