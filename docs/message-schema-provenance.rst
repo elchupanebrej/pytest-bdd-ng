@@ -55,8 +55,10 @@ matching flags are encoded in the expression. Actual Cucumber Expressions
 retain ``CUCUMBER_EXPRESSION``. IDE step-binding attachments keep the original
 parser pattern for display independently of this standard wire projection.
 Custom parsers remain responsible for their declared expression family.
-The hybrid heuristic parser's multiple fallback languages require a separate
-representation decision; this projection does not narrow its runtime matching.
+For the hybrid heuristic parser, the standard pattern is descriptive metadata
+and does not promise equivalent recognition of every runtime fallback language.
+Its matching priority and fixture-based parameter registries are preserved.
+Use an explicit parser when an exact standard pattern is required.
 
 Run summary diagnostics
 -----------------------
