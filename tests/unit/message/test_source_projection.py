@@ -4,6 +4,8 @@ from attrs import evolve
 from gherkin.parser import Parser
 
 from pytest_cuke.gherkin_builder import build_feature_from_dict
+from pytest_cuke.model.feature import Feature
+from pytest_cuke.model.serialization import as_dict, from_dict, from_json, to_json
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
 from pytest_cuke.model.message_types import GherkinDocument, message_from_dict
 
@@ -54,3 +56,23 @@ def test_unknown_outline_row_location_is_not_replaced_by_the_heading_location():
     scenario = feature.rules[0].scenarios[0]
     expanded = evolve(scenario, examples=(), source_ast_node_ids=(scenario.id, "unknown-row"))
     assert scenario_to_pickle(expanded, uri=feature.uri, feature=feature).location is None
+
+
+def test_parser_projection_stays_out_of_public_model_serialization():
+    feature = build_feature_from_dict(Parser().parse(SOURCE), uri="features/navigation.feature")
+    assert feature.source_projection is not None
+    payload = as_dict(feature)
+    assert "source_projection" not in payload
+    restored = from_json(Feature, to_json(feature))
+    assert restored == feature
+    assert restored.source_projection is None
+    assert feature_to_gherkin_document(restored, uri=feature.uri).feature.name == feature.name
+
+
+def test_model_deserialization_does_not_accept_internal_projection_data():
+    feature = build_feature_from_dict(Parser().parse(SOURCE), uri="features/navigation.feature")
+    payload = as_dict(feature)
+    payload["source_projection"] = {"document_json": "{}", "structure": [], "positions": []}
+    restored = from_dict(Feature, payload)
+    assert restored.source_projection is None
+    assert restored == feature

@@ -29,7 +29,9 @@ class Feature:
     filename: str | None = None
     source_content: str | None = None
     source_media_type: str | None = None
-    source_projection: SourceProjection | None = field(default=None, eq=False, repr=False)
+    source_projection: SourceProjection | None = field(
+        default=None, eq=False, repr=False, metadata={"serialize": False}
+    )
 
     @property
     def tag_names(self) -> tuple[str, ...]:

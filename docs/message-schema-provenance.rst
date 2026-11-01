@@ -129,3 +129,11 @@ type raises ``ValueError`` in its calling step. The step is reported as
 ``FAILED``, no invalid attachment is published, and the run finishes
 unsuccessfully. Transport and formatter failures retain their separate
 run-level reporting diagnostics.
+
+Feature model serialization
+---------------------------
+
+Parser source projections are internal observations. They are excluded from
+``as_dict`` and JSON model serialization, and input dictionaries cannot replace
+them. Serialized Feature models retain the existing public shape and rebuild
+Messages documents from the model when original parser metadata is unavailable.

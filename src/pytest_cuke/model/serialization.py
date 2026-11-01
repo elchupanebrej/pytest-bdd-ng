@@ -61,6 +61,7 @@ def as_dict(inst: Any) -> Any:
     return attrs.asdict(
         inst,
         recurse=True,
+        filter=lambda field, _value: field.metadata.get("serialize") is not False,
         value_serializer=lambda _inst, _field, value: value.value if isinstance(value, Enum) else value,
     )
 
@@ -74,7 +75,7 @@ def from_dict(cls: type[T], data: dict[str, Any]) -> T:
         return cast("T", data)
     schema = _SCHEMA_MAPPING.get(cls, {})
     kwargs: dict[str, Any] = {}
-    field_names = {f.name for f in attrs.fields(cls)}
+    field_names = {f.name for f in attrs.fields(cls) if f.metadata.get("serialize") is not False}
     for key, val in data.items():
         if key not in field_names:
             continue
