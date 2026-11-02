@@ -350,8 +350,10 @@ an explicit implementation decision for mandatory fields.
      --runtime-required-capabilities-file specs/message-capability-governance/runtime-required-v34-2-1.txt \
      --require-fully-governed --require-runtime-required-covered --format json
 
-``--require-fully-governed`` fails when mandatory fields lack explicit
-``Implemented`` decisions. ``--require-runtime-required-covered`` fails when
+``--require-fully-governed`` checks pending and blocked capabilities across the
+whole report, including fields outside the mandatory scope. An ``Implemented``
+decision without runtime evidence remains blocked. Mandatory fields also need
+explicit ``Implemented`` decisions. ``--require-runtime-required-covered`` fails when
 the runtime stream omits a runtime-required field.
 ``--require-non-runtime-classified`` fails when an uncovered relevant field
 outside the runtime-required scope lacks
@@ -371,6 +373,10 @@ ISO8601 ``reviewed_at`` date. ``Non-Implementable`` also requires a concrete
 ``hard_limitation`` and ``recheck_trigger``. ``Partly-Applicable`` explains the
 language/runtime model mismatch rather than treating missing coverage as a
 partial implementation.
+
+Deferred statuses cannot be assigned to the mandatory scope. Runtime evidence
+that contradicts a ``Non-Implementable`` decision is a validation error, and
+the command preserves any existing output file.
 
 ``cuke messages capabilities validate-decision --input decisions.json`` rejects
 incomplete proof records. Normalization retains the metadata, and JSON and

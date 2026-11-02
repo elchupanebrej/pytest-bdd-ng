@@ -36,6 +36,16 @@ if TYPE_CHECKING:
 InputKind = Literal["runtime", "synthetic"]
 
 
+def _release_blocked(row: dict[str, object]) -> bool:
+    status = row["status"]
+    return (
+        status in GOVERNANCE_BLOCKING_STATUSES
+        or bool(row["mandatory"] and status != "Implemented")
+        or bool(row["runtime_required"] and not row["observed_runtime"])
+        or bool(status == "Implemented" and not row["observed_runtime"])
+    )
+
+
 def _snake_to_camel(value: str) -> str:
     head, *tail = value.split("_")
     return head + "".join(part[:1].upper() + part[1:] for part in tail)
@@ -95,6 +105,13 @@ def build_capability_report(
     if not set(runtime_ids).issubset(mandatory_ids):
         outside = sorted(set(runtime_ids) - set(mandatory_ids))
         raise ValueError("runtime-required scope must be a subset of mandatory scope: " + ", ".join(outside))
+    deferred_mandatory = sorted(
+        f"{decision.capability_id} -> {decision.status}"
+        for decision in decision_records
+        if decision.capability_id in mandatory_ids and decision.status not in {"Implemented", "Pending"}
+    )
+    if deferred_mandatory:
+        raise ValueError("mandatory scope capabilities cannot use deferred statuses: " + ", ".join(deferred_mandatory))
 
     validator = MessageStreamValidator()
     accepted: list[Envelope] = []
@@ -117,6 +134,12 @@ def build_capability_report(
     for capability_id in sorted(inventory):
         capability = inventory[capability_id]
         decision = active_decisions.get(capability_id)
+        if decision is not None and decision.status == "Non-Implementable" and capability_id in runtime_observed:
+            raise ValueError(
+                "Capability has runtime evidence but is marked Non-Implementable: "
+                + capability_id
+                + ". This is a governance validation error."
+            )
         if decision is not None:
             status = decision.status
             comment = decision.comment
@@ -174,6 +197,9 @@ def build_capability_report(
             failures.append(
                 "require-fully-governed: missing Implemented decisions for: " + ", ".join(mandatory_violations)
             )
+        unresolved = [str(row["capability_id"]) for row in capability_rows if _release_blocked(row)]
+        if unresolved:
+            failures.append("require-fully-governed: unresolved capabilities: " + ", ".join(unresolved))
     if require_runtime_required_covered:
         if not runtime_ids:
             failures.append("require-runtime-required-covered: runtime-required capability scope is empty")
@@ -188,11 +214,7 @@ def build_capability_report(
         )
 
     summary = {
-        "blocked_capabilities": sum(
-            item["status"] in GOVERNANCE_BLOCKING_STATUSES
-            or bool(item["mandatory"] and item["status"] != "Implemented")
-            for item in capability_rows
-        ),
+        "blocked_capabilities": sum(_release_blocked(item) for item in capability_rows),
         "implemented_capabilities": sum(item["status"] == "Implemented" for item in capability_rows),
         "mandatory_scope_violations": len(mandatory_violations),
         "non_runtime_classified": len(non_runtime_relevant & classified_ids),

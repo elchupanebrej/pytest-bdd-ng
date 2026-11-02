@@ -307,8 +307,8 @@ def test_markdown_report_lists_scope_observed_fields_and_explicit_decisions() ->
         ),
         baseline_release="28.0.0",
         input_kind="runtime",
-        mandatory_capability_ids=(capability_id,),
-        runtime_required_capability_ids=(capability_id,),
+        mandatory_capability_ids=("test_run_finished.success",),
+        runtime_required_capability_ids=("test_run_finished.success",),
     )
 
     markdown = _format_report(report, "markdown")
