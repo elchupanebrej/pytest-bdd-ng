@@ -1230,7 +1230,9 @@ class MessagePlugin:
             failure_exception = ExceptionMessage(type="MessageReportingError", message="Messages reporting failed")
         elif not is_testrun_success:
             failure_message = f"pytest session exit status: {int(exitstatus)}"
-            failure_exception = ExceptionMessage(type="PytestExitCode", message=str(int(exitstatus)))
+            failure_exception = ExceptionMessage(
+                type="PytestExitCode", message=str(int(exitstatus)), stack_trace=str(int(exitstatus))
+            )
         terminal_timestamp = self.get_timestamp()
         terminal_message = Message(
             test_run_finished=TestRunFinished(

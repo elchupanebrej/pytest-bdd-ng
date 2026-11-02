@@ -186,3 +186,7 @@ is omitted when the callable cannot be inspected.
 For parse errors, the source URI and position continue to identify the invalid
 feature text; the callable metadata identifies the reporting function. Hook
 source URIs retain their existing representation.
+
+For a failed run, the historical ``PytestExitCode`` exception stores the numeric
+exit status as text in both ``message`` and ``stackTrace``. Execution exceptions
+on steps and run hooks carry their Python traceback separately.
