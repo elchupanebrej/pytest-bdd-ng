@@ -190,3 +190,10 @@ source URIs retain their existing representation.
 For a failed run, the historical ``PytestExitCode`` exception stores the numeric
 exit status as text in both ``message`` and ``stackTrace``. Execution exceptions
 on steps and run hooks carry their Python traceback separately.
+
+CI metadata
+-----------
+
+When a supported CI environment is detected, ``Meta.ci`` includes its name,
+build URL and build number, together with Git branch, remote, revision and tag
+coordinates supplied by that environment.
