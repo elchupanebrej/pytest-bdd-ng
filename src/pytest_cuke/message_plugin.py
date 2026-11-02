@@ -1638,6 +1638,7 @@ class MessagePlugin:
             id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
             pickle_id=scenario_id,
             test_steps=case_test_steps,
+            test_run_started_id=self.test_run_started_id,
         )
         self.current_test_case = current_test_case
         self.test_cases_by_nodeid[item.nodeid] = current_test_case

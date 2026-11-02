@@ -165,3 +165,11 @@ step and tag references use the same scope, so separate files cannot collide
 when their parsers reuse local numeric identifiers. Internal Feature model
 identifiers and runtime scenario identities are unchanged. Consumers should
 correlate message sources using the identifiers in the protocol objects.
+
+Test case run references
+------------------------
+
+Each emitted ``TestCase.testRunStartedId`` references its ``TestRunStarted``
+envelope. The reference is retained when worker streams are consolidated, so
+consumers can associate a test case with its run in both ordinary and xdist
+execution.
