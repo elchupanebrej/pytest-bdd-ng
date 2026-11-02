@@ -1014,9 +1014,9 @@ def test_consolidation_preserves_identical_outline_rows_with_distinct_ast_ids() 
     assert len(pickle_payloads) == 2
     assert [pickle["name"] for pickle in pickle_payloads] == ["Repeated row", "Repeated row"]
     assert [pickle["astNodeIds"] for pickle in pickle_payloads] == [
-        ["gw0:scenario-row-a"],
-        ["gw0:scenario-row-b"],
+        ["gw0:" + row["pickle"]["astNodeIds"][0]] for row in pickles
     ]
+    assert pickle_payloads[0]["astNodeIds"] != pickle_payloads[1]["astNodeIds"]
 
 
 def test_consolidation_rewrites_references_inside_json_attachments_after_structural_deduplication() -> None:

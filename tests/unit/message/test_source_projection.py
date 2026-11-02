@@ -11,9 +11,17 @@ from pytest_cuke.gherkin_builder import build_feature_from_dict
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.serialization import as_dict, from_dict, from_json, to_json
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
-from pytest_cuke.model.message_types import Envelope, GherkinDocument, message_from_dict
+from pytest_cuke.model.message_types import Envelope, GherkinDocument, message_from_dict, message_to_dict
 
 SOURCE = Path(__file__).parents[2].joinpath("data", "source-navigation.feature").read_text()
+
+
+def _without_ids(value):
+    if isinstance(value, dict):
+        return {key: _without_ids(item) for key, item in value.items() if key != "id"}
+    if isinstance(value, list):
+        return [_without_ids(item) for item in value]
+    return value
 
 
 def test_projection_preserves_the_official_source_ast_without_reparsing(monkeypatch):
@@ -27,10 +35,11 @@ def test_projection_preserves_the_official_source_ast_without_reparsing(monkeypa
 
     monkeypatch.setattr(Parser, "parse", no_reparse)
     document = feature_to_gherkin_document(feature)
-    assert document == expected
+    snapshot = message_to_dict(document)
+    assert _without_ids(snapshot) == _without_ids(message_to_dict(expected))
     assert document.feature is not None
     document.feature.name = "observer mutation"
-    assert feature_to_gherkin_document(feature) == expected
+    assert message_to_dict(feature_to_gherkin_document(feature)) == snapshot
 
 
 def test_structural_model_edits_use_the_model_projection():
@@ -102,11 +111,13 @@ def test_external_rows_keep_runtime_data_without_inventing_source_positions(tmp_
     (tmp_path / "users.csv").write_text("value\nfirst\nsecond\n")
     feature = GherkinParser().parse(path)
     scenario = feature.scenarios[0]
+    original_scenario_id = scenario.id
     rows = scenario.examples[0].rows
     assert [row.values for row in rows] == [("first",), ("second",)]
     document = feature_to_gherkin_document(feature, uri=feature.uri)
     assert not validate_envelope(Envelope(gherkin_document=document))
     assert document.feature is not None
+    assert scenario.id == original_scenario_id
     assert len(document.comments) == 1
     assert f"External Examples source: {tmp_path / 'users.csv'}" in document.comments[0].text
     assert 1 <= document.comments[0].location.line <= len(source.splitlines())
@@ -118,4 +129,4 @@ def test_external_rows_keep_runtime_data_without_inventing_source_positions(tmp_
     expanded = evolve(scenario, examples=(), source_ast_node_ids=(scenario.id, rows[0].id))
     pickle = scenario_to_pickle(expanded, uri=feature.uri, feature=feature)
     assert pickle.location is None
-    assert pickle.ast_node_ids == [scenario.id]
+    assert pickle.ast_node_ids == [external.id]

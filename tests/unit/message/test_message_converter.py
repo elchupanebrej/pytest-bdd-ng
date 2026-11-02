@@ -88,18 +88,20 @@ def test_scenario_to_pickle_and_test_case() -> None:
     assert pickle.steps[0].text == "user logs in"
     assert len(pickle.tags) == 1
     assert pickle.tags[0].name == "@auth"
-    assert pickle.ast_node_ids == ["sc-1"]
+    assert pickle.ast_node_ids == ["auth.feature#ast:sc-1"]
+    assert pickle.steps[0].ast_node_ids == ["auth.feature#ast:step-1"]
+    assert sc.id == "sc-1" and step.id == "step-1"
     assert pickle.steps[0].id == "auth.feature#sc-1-step-0"
     assert pickle.id == "auth.feature#sc-1"
 
     same_ast_id_other_source = mc.scenario_to_pickle(sc, uri="other-auth.feature")
     assert same_ast_id_other_source.id == "other-auth.feature#sc-1"
     assert same_ast_id_other_source.id != pickle.id
-    assert same_ast_id_other_source.ast_node_ids == pickle.ast_node_ids
+    assert same_ast_id_other_source.ast_node_ids != pickle.ast_node_ids
 
     row_pickle = mc.scenario_to_pickle(sc, uri="auth.feature", default_id="auth.feature#Login")
     assert row_pickle.id == "auth.feature#Login"
-    assert row_pickle.ast_node_ids == ["sc-1"]
+    assert row_pickle.ast_node_ids == pickle.ast_node_ids
     assert row_pickle.steps[0].id == "auth.feature#Login-step-0"
     assert mc.scenario_to_test_case(sc, pickle_id=row_pickle.id).test_steps[0].pickle_step_id == row_pickle.steps[0].id
 

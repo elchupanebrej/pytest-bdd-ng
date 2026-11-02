@@ -52,7 +52,8 @@ def test_seam3_execution_event_protocol_contract() -> None:
     for env in envelopes:
         registry.add_envelope(env)
     assert registry.resolve("sc-1") is not None
-    assert registry.resolve("st-1") is not None
+    assert registry.resolve(pickle.ast_node_ids[0]) is not None
+    assert registry.resolve(pickle.steps[0].ast_node_ids[0]) is not None
     assert registry.resolve("sc-1-step-0") is not None
     assert registry.resolve("tcs-1") is not None
 

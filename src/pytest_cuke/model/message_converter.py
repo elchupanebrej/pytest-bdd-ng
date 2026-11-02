@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import time
+from dataclasses import fields, is_dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote
 
 from pytest_cuke.model import message_types as messages
 from pytest_cuke.model.execution_steps import execution_steps
@@ -24,6 +26,31 @@ if TYPE_CHECKING:
 
 def make_location(line: int = 0, column: int | None = None) -> messages.Location:
     return messages.Location(line=line, column=column)
+
+
+def _wire_ast_id(uri: str, node_id: str) -> str:
+    if not uri or not node_id or node_id.startswith(f"{uri}#ast:"):
+        return node_id
+    return f"{uri}#ast:{quote(node_id, safe='')}"
+
+
+def _qualify_document_ids(document: messages.GherkinDocument) -> messages.GherkinDocument:
+    uri = document.uri or ""
+
+    def visit(value: Any) -> None:
+        if is_dataclass(value):
+            for field in fields(value):
+                child = getattr(value, field.name)
+                if field.name == "id" and isinstance(child, str):
+                    setattr(value, field.name, _wire_ast_id(uri, child))
+                else:
+                    visit(child)
+        elif isinstance(value, list | tuple):
+            for child in value:
+                visit(child)
+
+    visit(document)
+    return document
 
 
 def make_timestamp(dt_or_seconds: float | int | datetime | None = None) -> messages.Timestamp:
@@ -208,7 +235,7 @@ def feature_to_gherkin_document(feature: Feature, uri: str = "") -> messages.Ghe
     if projection is not None and projection.matches(feature):
         document = projection.document(uri or feature.uri or "")
         document.comments.extend(comments)
-        return document
+        return _qualify_document_ids(document)
     f_id = feature.id or "feature-1"
     feature_uri = uri or feature.uri or ""
     tags = [tag_to_message(t, f"{f_id}-tag-{i}") for i, t in enumerate(feature.tags)]
@@ -230,7 +257,7 @@ def feature_to_gherkin_document(feature: Feature, uri: str = "") -> messages.Ghe
         tags=tags,
         children=children,
     )
-    return messages.GherkinDocument(uri=feature_uri, feature=msg_feat, comments=comments)
+    return _qualify_document_ids(messages.GherkinDocument(uri=feature_uri, feature=msg_feat, comments=comments))
 
 
 def feature_to_envelope(feature: Feature, uri: str = "") -> messages.Envelope:
@@ -375,6 +402,11 @@ def scenario_to_pickle(
         and scenario.line > 0
     ):
         location = make_location(scenario.line)
+    for step in steps:
+        step.ast_node_ids = [_wire_ast_id(uri, node_id) for node_id in step.ast_node_ids]
+    for tag in tags:
+        tag.ast_node_id = _wire_ast_id(uri, tag.ast_node_id)
+    scenario_ast_node_ids = [_wire_ast_id(uri, node_id) for node_id in scenario_ast_node_ids]
     return messages.Pickle(
         id=sc_id,
         uri=uri,

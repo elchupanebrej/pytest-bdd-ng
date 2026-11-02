@@ -156,3 +156,12 @@ invalid in the current protocol. External-outline Pickles can therefore have
 only their Scenario AST ID, while inline outlines retain their source row ID.
 Consumers should use Pickle identity and the external-source provenance when
 identifying external rows, rather than requiring a second source AST node.
+
+Source AST identifier scope
+---------------------------
+
+Wire AST identifiers are scoped by the Gherkin document URI. Pickle scenario,
+step and tag references use the same scope, so separate files cannot collide
+when their parsers reuse local numeric identifiers. Internal Feature model
+identifiers and runtime scenario identities are unchanged. Consumers should
+correlate message sources using the identifiers in the protocol objects.
