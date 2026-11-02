@@ -48,14 +48,28 @@ class Step:
         """Return the legacy Cucumber argument view without exposing mutable model state."""
         if self.doc_string is None and self.data_table is None:
             return None
+        doc_index: int | None = None
+        table_index: int | None = None
+        if (
+            self.doc_string is not None
+            and self.data_table is not None
+            and self.doc_string.line > 0
+            and self.data_table.line > 0
+            and self.doc_string.line != self.data_table.line
+        ):
+            doc_index = 1 if self.doc_string.line < self.data_table.line else 2
+            table_index = 3 - doc_index
         return PickleStepArgument(
             doc_string=(
-                PickleDocString(content=self.doc_string.content, media_type=self.doc_string.media_type)
+                PickleDocString(
+                    content=self.doc_string.content, media_type=self.doc_string.media_type, argument_index=doc_index
+                )
                 if self.doc_string is not None
                 else None
             ),
             data_table=(
                 PickleTable(
+                    argument_index=table_index,
                     rows=[
                         PickleTableRow(cells=[PickleTableCell(value=cell.value) for cell in row.cells])
                         for row in self.data_table.rows

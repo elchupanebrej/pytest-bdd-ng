@@ -197,3 +197,17 @@ CI metadata
 When a supported CI environment is detected, ``Meta.ci`` includes its name,
 build URL and build number, together with Git branch, remote, revision and tag
 coordinates supplied by that environment.
+
+Combined step arguments
+------------------------
+
+A step can carry both a DocString and a DataTable. The runtime ``step.argument``
+view and its Pickle message retain both bodies. When both source positions are
+known, their ``argumentIndex`` values preserve the declared order. Unknown
+positions leave the order unspecified; single arguments retain their existing
+unindexed representation.
+
+Combined Gherkin syntax requires Gherkin 42. Default installations select the
+modern Python parser dependency, while explicitly pinned older Python Gherkin
+profiles retain the common grammar. The bundled Go parser uses Gherkin 42 and
+keeps the supported Go 1.21 build floor and the existing native bridge ABI.

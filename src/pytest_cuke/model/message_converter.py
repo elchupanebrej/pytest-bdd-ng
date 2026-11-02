@@ -294,23 +294,7 @@ def step_to_pickle_step(
     ast_node_id: str | None = None,
 ) -> messages.PickleStep:
     st_id = default_id if force_generated_id else (step.id or default_id)
-    arg: messages.PickleStepArgument | None = None
-    if step.doc_string:
-        arg = messages.PickleStepArgument(
-            doc_string=messages.PickleDocString(
-                content=step.doc_string.content,
-                media_type=step.doc_string.media_type,
-            )
-        )
-    elif step.data_table:
-        arg = messages.PickleStepArgument(
-            data_table=messages.PickleTable(
-                rows=[
-                    messages.PickleTableRow(cells=[messages.PickleTableCell(value=c.value) for c in r.cells])
-                    for r in step.data_table.rows
-                ]
-            )
-        )
+    arg = step.argument
     resolved_ast_node_id = step.id or ast_node_id
     try:
         step_type = messages.PickleStepType(step.type)

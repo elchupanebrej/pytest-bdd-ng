@@ -150,3 +150,39 @@ Feature: Optional native Go parser and Python fallback
     When I run installed pytest with arguments "--rootdir=. --cuke-parser=go"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
+
+  Scenario: Native Go preserves both step arguments and their declared order
+    Given a host-built native pytest-cuke wheel is installed when supplied
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+      @given("combined")
+      def combined(step, request):
+          argument = step.argument
+          assert argument.doc_string.content == "body"
+          assert [[cell.value for cell in row.cells] for row in argument.data_table.rows] == [["key"], ["row"]]
+          expected = (1, 2) if "Doc first" in request.node.name else (2, 1)
+          assert (argument.doc_string.argument_index, argument.data_table.argument_index) == expected
+      """
+    And consumer file "features/combined.feature" contains:
+      ```gherkin
+      Feature: Combined arguments
+        Scenario: Doc first
+          Given combined
+            """text/plain
+            body
+            """
+            | key |
+            | row |
+        Scenario: Table first
+          Given combined
+            | key |
+            | row |
+            """text/plain
+            body
+            """
+      ```
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=go --cuke-messages-ndjson=messages.ndjson -q"
+    Then pytest should exit with code 0
+    And consumer artifact "messages.ndjson" should be a valid Cucumber Messages stream for 2 passed scenario and 2 passed steps

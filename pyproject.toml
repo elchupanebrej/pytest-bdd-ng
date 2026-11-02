@@ -55,7 +55,7 @@ dependencies = [
   "decopatch",
   "docopt-ng",
   "filelock",
-  "gherkin-official>=25,<34",
+  "gherkin-official>=25,<43",
   "importlib-resources",
   "jsonschema>=4.18",
   "makefun",

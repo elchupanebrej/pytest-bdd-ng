@@ -2,9 +2,8 @@ module github.com/elchupanebrej/pytest-cuke-gherkin-go-bridge
 
 go 1.21
 
-require github.com/cucumber/gherkin/go/v28 v28.0.0
+require github.com/cucumber/gherkin/go/v42 v42.0.1
 
-require (
-	github.com/cucumber/messages/go/v24 v24.0.1 // indirect
-	github.com/gofrs/uuid v4.4.0+incompatible // indirect
-)
+require github.com/google/uuid v1.6.0 // indirect
+
+require github.com/cucumber/messages/go/v34 v34.2.1

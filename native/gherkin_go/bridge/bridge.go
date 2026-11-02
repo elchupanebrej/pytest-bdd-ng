@@ -11,8 +11,8 @@ import (
 	"strings"
 	"unsafe"
 
-	gherkin "github.com/cucumber/gherkin/go/v28"
-	messages "github.com/cucumber/messages/go/v24"
+	gherkin "github.com/cucumber/gherkin/go/v42"
+	messages "github.com/cucumber/messages/go/v34"
 )
 
 type parserError struct {
@@ -45,7 +45,7 @@ func FreeCString(source *C.char) {
 
 //export Version
 func Version() *C.char {
-	return C.CString("v28.0.0")
+	return C.CString("v42.0.1")
 }
 
 func extractGherkinFromMarkdown(markdown string) string {
