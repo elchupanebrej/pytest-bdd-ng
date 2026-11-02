@@ -814,9 +814,20 @@ def _convert_attempt(
                 "start": _timestamp_millis(started.timestamp),
                 "stop": _timestamp_millis(finished.timestamp),
             }
+            step_parameters: list[dict[str, str]] = []
             argument_presentation = _pickle_step_argument_presentation(pickle_step)
             if argument_presentation is not None:
                 step_result.update(argument_presentation)
+                step_parameters.extend(argument_presentation.get("parameters", []))
+            for match_list in test_step.step_match_arguments_lists or []:
+                for index, argument in enumerate(match_list.step_match_arguments):
+                    group = argument.group
+                    if group.value is None:
+                        continue
+                    name = argument.parameter_type_name or f"argument{index + 1}"
+                    step_parameters.append({"name": name, "value": group.value})
+            if step_parameters:
+                step_result["parameters"] = step_parameters
             if details:
                 step_result["statusDetails"] = details
                 if status != "passed":
@@ -1393,10 +1404,11 @@ def _scenario_metadata(
         history_id = _history_id(test_case_id, [])
         return title, labels, [], None, full_name, test_case_id, history_id
 
+    feature = scenario_document.feature if scenario_document is not None else None
     labels = _scenario_tag_labels(
         pickle,
         scenario,
-        feature=scenario_document.feature if scenario_document is not None else None,
+        feature=feature,
         rule=scenario_rule,
     )
 
@@ -1426,7 +1438,17 @@ def _scenario_metadata(
     source_position = f"{location.line}:{location.column}" if location is not None else scenario.name
     test_case_id = _qualify_identity(source_uri, f"{source_position}:{scenario.name}")
     history_id = _history_id(test_case_id, parameters)
-    return name, labels, parameters, scenario.description or None, full_name, test_case_id, history_id
+    description_parts = [
+        str(value).strip()
+        for value in (
+            getattr(feature, "description", None),
+            getattr(scenario_rule, "description", None),
+            getattr(scenario, "description", None),
+        )
+        if isinstance(value, str) and value.strip()
+    ]
+    description = "\n\n".join(description_parts) or None
+    return name, labels, parameters, description, full_name, test_case_id, history_id
 
 
 def _normalize_source_uri(uri: str) -> str:

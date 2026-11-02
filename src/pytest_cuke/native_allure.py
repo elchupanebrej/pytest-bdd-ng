@@ -223,22 +223,13 @@ class NativeAllureReporter:
         if started.id in self._active_cases:
             raise AllureConversionError(f"duplicate active test case attempt {started.id!r}")
 
-        name, tags, parameters, _description, full_name, test_case_id, history_id = _scenario_metadata(
+        name, tags, parameters, description, full_name, test_case_id, history_id = _scenario_metadata(
             self._registry.envelopes, pickle
         )
         feature, rule, scenario = self._gherkin_identity(pickle)
         feature_name = getattr(feature, "name", None)
         rule_name = getattr(rule, "name", None)
         scenario_name = getattr(scenario, "name", None)
-        description_parts = [
-            str(value).strip()
-            for value in (
-                getattr(feature, "description", None),
-                getattr(rule, "description", None),
-                getattr(scenario, "description", None),
-            )
-            if isinstance(value, str) and value.strip()
-        ]
         result_uuid = str(uuid4())
         container_uuid = str(uuid4())
         start = _timestamp_millis(started.timestamp)
@@ -255,7 +246,7 @@ class NativeAllureReporter:
             result.historyId = history_id
             result.start = start
             result.stage = "running"
-            result.description = "\n\n".join(description_parts) or None
+            result.description = description
             result.titlePath = [value for value in (feature_name, rule_name, name) if isinstance(value, str) and value]
             result.labels.extend(self._model["Label"](name=label["name"], value=label["value"]) for label in tags)
             if isinstance(feature_name, str) and feature_name:
