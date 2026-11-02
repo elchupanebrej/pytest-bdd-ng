@@ -26,7 +26,7 @@ Feature: Govern Cucumber Messages runtime capabilities
     Then pytest should exit with code 0
     And consumer artifact "runtime-messages.ndjson" should be a valid Cucumber Messages stream for 1 passed scenario and 1 passed steps
     When I run command "cuke" with arguments "messages capabilities report --messages-file runtime-messages.ndjson --input-kind runtime --decisions decisions-v34-2-1.json --mandatory-capabilities-file mandatory-v34-2-1.txt --runtime-required-capabilities-file runtime-required-v34-2-1.txt --require-fully-governed --require-runtime-required-covered --format json"
-    Then the command should exit with code 0
+    Then the command should exit with code 1
     And the command JSON should include:
       """json
       {
@@ -35,7 +35,7 @@ Feature: Govern Cucumber Messages runtime capabilities
         }
       }
       """
-    And the capability report should cover IDs from consumer files "mandatory-v34-2-1.txt" and "runtime-required-v34-2-1.txt"
+    And the capability report should retain the full policy and block incomplete observations
     When I run command "cuke" with arguments "messages capabilities report --messages-file runtime-messages.ndjson --input-kind runtime --decisions decisions-v34-2-1.json --mandatory-capabilities-file mandatory-v34-2-1.txt --runtime-required-capabilities-file runtime-required-v34-2-1.txt --format markdown"
     Then the command should exit with code 0
     And the command output should contain "# Cucumber Messages capability report (34.2.1)"
@@ -44,7 +44,7 @@ Feature: Govern Cucumber Messages runtime capabilities
     And the Markdown capability report should list observations and decisions in stable order
     When I run command "cuke" with arguments "messages capabilities report --messages-file runtime-messages.ndjson --input-kind runtime --decisions decisions-v34-2-1.json --mandatory-capabilities-file mandatory-v34-2-1.txt --runtime-required-capabilities-file runtime-required-v34-2-1.txt --require-non-runtime-classified --format json"
     Then the command should exit with code 1
-    And the report should show the unobserved implemented capability "attachment.test_run_started_id" and actionable unresolved IDs
+    And the report should show the unobserved implemented capability "gherkin_document.feature.children.background.description" and actionable unresolved IDs
 
   Scenario: A synthetic Messages fixture remains labeled as synthetic
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

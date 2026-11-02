@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -119,7 +120,12 @@ def test_public_cli_reproduces_committed_messages_capability_policy(tmp_path: Pa
         if line.strip() and not line.lstrip().startswith("#")
     }
     assert mandatory_ids
-    assert all(entry_statuses[capability_id] == "Implemented" for capability_id in mandatory_ids)
+    decisions = _read_json(DECISIONS_FILE)["decisions"]
+    committed_statuses = {row["capability_id"]: row["status"] for row in decisions}
+    assert {key: entry_statuses[key] for key in mandatory_ids} == committed_statuses
+    pending = {key for key in mandatory_ids if entry_statuses[key] == "Pending"}
+    assert len(pending) == 40
+    assert all(entry["release_blocker"] for entry in entries if entry["capability_id"] in pending)
 
     checklist_markdown = tmp_path / "checklist.md"
     _run_cuke(
@@ -212,3 +218,23 @@ def test_public_sync_refuses_to_replace_schema_input(tmp_path: Path) -> None:
     assert result.returncode == 2, f"sync unexpectedly succeeded:\n{result.stdout}\n{result.stderr}"
     assert "cannot replace it" in result.stderr
     assert envelope_schema.read_bytes() == original_schema
+
+
+def test_committed_scope_preserves_all_original_r_fields():
+    scope = {}
+    expected = {
+        "mandatory": (323, "50b4f740e981fb8df3dbf49607e72f638589fe81cc2977c8063cd2ad682ef386"),
+        "runtime-required": (183, "b90db917a5e5d1b2723c3edd8c5dfb99433f331c93f42aa4170c531579dd60dc"),
+    }
+    for name, (count, digest) in expected.items():
+        path = POLICY_DIR / f"{name}-v34-2-1.txt"
+        ids = [line.strip() for line in path.read_text().splitlines() if line.strip() and not line.startswith("#")]
+        assert len(ids) == len(set(ids)) == count
+        canonical = "\n".join(sorted(ids)) + "\n"
+        assert hashlib.sha256(canonical.encode()).hexdigest() == digest
+        scope[name] = set(ids)
+    assert scope["runtime-required"] <= scope["mandatory"]
+    decisions = _read_json(DECISIONS_FILE)["decisions"]
+    by_id = {row["capability_id"]: row for row in decisions}
+    assert scope["mandatory"] <= by_id.keys()
+    assert all(by_id[capability]["status"] == "Implemented" for capability in scope["runtime-required"])

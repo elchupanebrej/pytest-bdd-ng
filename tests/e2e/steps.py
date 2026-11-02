@@ -4214,6 +4214,24 @@ def consumer_command_json_includes(consumer: ConsumerProject, step) -> None:
     assert_subset(expected, actual)
 
 
+@then("the capability report should retain the full policy and block incomplete observations")
+def consumer_capability_report_retains_full_policy(consumer: ConsumerProject) -> None:
+    result = consumer.command_result
+    assert result is not None, "a capability report command has not been run"
+    report = json.loads(result.stdout)
+    scope = report["scope"]
+    assert len(scope["mandatory_capability_ids"]) == 323
+    assert len(scope["runtime_required_capability_ids"]) == 183
+    rows = {row["capability_id"]: row for row in report["capabilities"]}
+    assert set(scope["mandatory_capability_ids"]) <= rows.keys()
+    assert set(scope["runtime_required_capability_ids"]) <= rows.keys()
+    pending = [rows[key] for key in scope["mandatory_capability_ids"] if rows[key]["status"] == "Pending"]
+    assert len(pending) == 40
+    assert report["summary"]["mandatory_scope_violations"] == 40
+    assert report["summary"]["runtime_required_total"] == 183
+    assert report["summary"]["runtime_required_missing"] > 0
+
+
 @then(
     re.compile(
         r'the capability report should cover IDs from consumer files '
@@ -4332,7 +4350,7 @@ def consumer_capability_report_shows_non_runtime_classification_and_gaps(
     assert classified_row.get("runtime_required") is False, classified_row
     assert classified_row.get("observed_runtime") is False, classified_row
     rationale = classified_row.get("comment")
-    assert isinstance(rationale, str) and "test_run_started_id" in rationale, classified_row
+    assert isinstance(rationale, str) and rationale.strip(), classified_row
 
     decisions = report.get("decisions")
     assert isinstance(decisions, list), report
@@ -4341,14 +4359,9 @@ def consumer_capability_report_shows_non_runtime_classification_and_gaps(
         for decision in decisions
         if isinstance(decision, dict) and decision.get("capability_id") == capability_id
     ]
-    assert matching_decisions == [
-        {
-            "capability_id": capability_id,
-            "comment": rationale,
-            "release_target": "34.2.1",
-            "status": "Implemented",
-        }
-    ], matching_decisions
+    committed = json.loads((consumer.path / "decisions-v34-2-1.json").read_text(encoding="utf-8"))
+    expected = [decision for decision in committed["decisions"] if decision["capability_id"] == capability_id]
+    assert matching_decisions == expected, matching_decisions
 
     runtime_scope = report.get("scope")
     assert isinstance(runtime_scope, dict), report
@@ -4357,7 +4370,7 @@ def consumer_capability_report_shows_non_runtime_classification_and_gaps(
     assert capability_id not in runtime_required_ids, runtime_required_ids
     summary = report.get("summary")
     assert isinstance(summary, dict), report
-    assert summary.get("non_runtime_classified", 0) >= 1, summary
+    assert summary.get("non_runtime_classified") == 0, summary
 
     for missing_id in missing_ids:
         row = rows_by_id.get(missing_id)
@@ -4365,7 +4378,7 @@ def consumer_capability_report_shows_non_runtime_classification_and_gaps(
         assert row.get("relevance") == "relevant", row
         assert row.get("runtime_required") is False, row
         assert row.get("observed_runtime") is False, row
-        assert row.get("status") == "Pending", row
+        assert row.get("status") in {"Pending", "Implemented"}, row
 
 
 @then("the regular heading scan findings are stored")

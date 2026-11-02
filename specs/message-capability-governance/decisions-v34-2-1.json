@@ -2,94 +2,2991 @@
   "baseline_release": "34.2.1",
   "decisions": [
     {
-      "capability_id": "attachment.test_run_started_id",
-      "comment": "The attachment API forwards explicit test_run_started_id to the validated Messages stream; completed hook correlations remain lifecycle errors.",
+      "capability_id": "attachment.body",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.body"
+      ]
+    },
+    {
+      "capability_id": "attachment.content_encoding",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.contentEncoding"
+      ]
+    },
+    {
+      "capability_id": "attachment.file_name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.fileName"
+      ]
+    },
+    {
+      "capability_id": "attachment.media_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.mediaType"
+      ]
+    },
+    {
+      "capability_id": "attachment.source.data",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.source.data"
+      ]
+    },
+    {
+      "capability_id": "attachment.source.media_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.source.mediaType"
+      ]
+    },
+    {
+      "capability_id": "attachment.source.uri",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.source.uri"
+      ]
+    },
+    {
+      "capability_id": "attachment.test_case_started_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.testCaseStartedId"
+      ]
+    },
+    {
+      "capability_id": "attachment.test_run_hook_started_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.testRunHookStartedId"
+      ]
+    },
+    {
+      "capability_id": "attachment.test_run_started_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.testRunStartedId"
+      ]
+    },
+    {
+      "capability_id": "attachment.test_step_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.testStepId"
+      ]
+    },
+    {
+      "capability_id": "attachment.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.timestamp.nanos"
+      ]
+    },
+    {
+      "capability_id": "attachment.timestamp.seconds",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.timestamp.seconds"
+      ]
+    },
+    {
+      "capability_id": "attachment.url",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#attachment.url"
+      ]
+    },
+    {
+      "capability_id": "external_attachment.media_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#externalAttachment.mediaType"
+      ]
+    },
+    {
+      "capability_id": "external_attachment.test_case_started_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#externalAttachment.testCaseStartedId"
+      ]
+    },
+    {
+      "capability_id": "external_attachment.test_run_hook_started_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#externalAttachment.testRunHookStartedId"
+      ]
+    },
+    {
+      "capability_id": "external_attachment.test_step_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#externalAttachment.testStepId"
+      ]
+    },
+    {
+      "capability_id": "external_attachment.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#externalAttachment.timestamp.nanos"
+      ]
+    },
+    {
+      "capability_id": "external_attachment.timestamp.seconds",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#externalAttachment.timestamp.seconds"
+      ]
+    },
+    {
+      "capability_id": "external_attachment.url",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#externalAttachment.url"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.comments.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.comments.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.comments.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.comments.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.comments.text",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.comments.text"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.description",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.description"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.data_table.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.dataTable.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.data_table.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.dataTable.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.data_table.rows.cells.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.dataTable.rows.cells.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.data_table.rows.cells.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.dataTable.rows.cells.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.data_table.rows.cells.value",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.dataTable.rows.cells.value"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.data_table.rows.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.dataTable.rows.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.data_table.rows.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.dataTable.rows.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.data_table.rows.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.dataTable.rows.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.doc_string.content",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.docString.content"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.doc_string.delimiter",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.docString.delimiter"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.doc_string.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.docString.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.doc_string.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.docString.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.doc_string.media_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.docString.mediaType"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.keyword_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.keywordType"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.background.steps.text",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.background.steps.text"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.description",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.description"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.data_table.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.dataTable.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.data_table.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.dataTable.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.data_table.rows.cells.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.cells.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.data_table.rows.cells.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.cells.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.data_table.rows.cells.value",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.cells.value"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.data_table.rows.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.data_table.rows.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.data_table.rows.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.dataTable.rows.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.doc_string.content",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.docString.content"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.doc_string.delimiter",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.docString.delimiter"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.doc_string.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.docString.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.doc_string.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.docString.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.doc_string.media_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.docString.mediaType"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.keyword_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.keywordType"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.background.steps.text",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.background.steps.text"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.description",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.description"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.description",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.description"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_body.cells.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.cells.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_body.cells.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.cells.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_body.cells.value",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.cells.value"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_body.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_body.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_body.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableBody.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_header.cells.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.cells.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_header.cells.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.cells.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_header.cells.value",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.cells.value"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_header.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_header.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.table_header.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tableHeader.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.tags.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tags.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.tags.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tags.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.tags.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tags.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.examples.tags.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.examples.tags.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.data_table.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.data_table.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.data_table.rows.cells.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.cells.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.data_table.rows.cells.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.cells.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.data_table.rows.cells.value",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.cells.value"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.data_table.rows.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.data_table.rows.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.data_table.rows.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.dataTable.rows.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.doc_string.content",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.docString.content"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.doc_string.delimiter",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.docString.delimiter"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.doc_string.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.docString.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.doc_string.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.docString.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.doc_string.media_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.docString.mediaType"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.keyword_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.keywordType"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.steps.text",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.steps.text"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.tags.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.tags.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.tags.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.tags.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.tags.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.tags.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.children.scenario.tags.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.children.scenario.tags.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.description",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.description"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.tags.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.tags.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.tags.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.tags.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.tags.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.tags.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.rule.tags.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.rule.tags.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.description",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.description"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.description",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.description"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_body.cells.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableBody.cells.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_body.cells.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableBody.cells.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_body.cells.value",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableBody.cells.value"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_body.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableBody.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_body.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableBody.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_body.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableBody.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_header.cells.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableHeader.cells.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_header.cells.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableHeader.cells.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_header.cells.value",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableHeader.cells.value"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_header.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableHeader.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_header.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableHeader.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.table_header.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tableHeader.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.tags.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tags.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.tags.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tags.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.tags.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tags.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.examples.tags.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.examples.tags.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.data_table.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.dataTable.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.data_table.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.dataTable.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.data_table.rows.cells.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.dataTable.rows.cells.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.data_table.rows.cells.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.dataTable.rows.cells.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.data_table.rows.cells.value",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.dataTable.rows.cells.value"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.data_table.rows.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.dataTable.rows.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.data_table.rows.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.dataTable.rows.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.data_table.rows.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.dataTable.rows.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.doc_string.content",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.docString.content"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.doc_string.delimiter",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.docString.delimiter"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.doc_string.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.docString.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.doc_string.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.docString.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.doc_string.media_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.docString.mediaType"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.keyword_type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.keywordType"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.steps.text",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.steps.text"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.tags.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.tags.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.tags.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.tags.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.tags.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.tags.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.children.scenario.tags.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.children.scenario.tags.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.description",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.description"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.keyword",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.keyword"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.language",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.language"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.tags.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.tags.id"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.tags.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.tags.location.column"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.tags.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.tags.location.line"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.feature.tags.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.feature.tags.name"
+      ]
+    },
+    {
+      "capability_id": "gherkin_document.uri",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#gherkinDocument.uri"
+      ]
+    },
+    {
+      "capability_id": "hook.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.id"
+      ]
+    },
+    {
+      "capability_id": "hook.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.name"
+      ]
+    },
+    {
+      "capability_id": "hook.source_reference.java_method.class_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered actual before/after/tag/mark hooks with stable IDs, names, expressions and source reference.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.sourceReference.javaMethod.className"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.840374+00:00"
+    },
+    {
+      "capability_id": "hook.source_reference.java_method.method_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered actual before/after/tag/mark hooks with stable IDs, names, expressions and source reference.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.sourceReference.javaMethod.methodName"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.840454+00:00"
+    },
+    {
+      "capability_id": "hook.source_reference.java_method.method_parameter_types",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered actual before/after/tag/mark hooks with stable IDs, names, expressions and source reference.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.sourceReference.javaMethod.methodParameterTypes"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.840480+00:00"
+    },
+    {
+      "capability_id": "hook.source_reference.java_stack_trace_element.class_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered actual before/after/tag/mark hooks with stable IDs, names, expressions and source reference.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.sourceReference.javaStackTraceElement.className"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.840496+00:00"
+    },
+    {
+      "capability_id": "hook.source_reference.java_stack_trace_element.file_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered actual before/after/tag/mark hooks with stable IDs, names, expressions and source reference.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.sourceReference.javaStackTraceElement.fileName"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.840578+00:00"
+    },
+    {
+      "capability_id": "hook.source_reference.java_stack_trace_element.method_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered actual before/after/tag/mark hooks with stable IDs, names, expressions and source reference.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.sourceReference.javaStackTraceElement.methodName"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.840781+00:00"
+    },
+    {
+      "capability_id": "hook.source_reference.location.column",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered actual before/after/tag/mark hooks with stable IDs, names, expressions and source reference.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.sourceReference.location.column"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.840800+00:00"
+    },
+    {
+      "capability_id": "hook.source_reference.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.sourceReference.location.line"
+      ]
+    },
+    {
+      "capability_id": "hook.source_reference.uri",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.sourceReference.uri"
+      ]
+    },
+    {
+      "capability_id": "hook.tag_expression",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered actual before/after/tag/mark hooks with stable IDs, names, expressions and source reference.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.tagExpression"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.840825+00:00"
+    },
+    {
+      "capability_id": "hook.type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#hook.type"
+      ]
+    },
+    {
+      "capability_id": "meta.ci.build_number",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual producer/runtime/OS/CPU/CI metadata from supported environments.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#meta.ci.buildNumber"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.840845+00:00"
+    },
+    {
+      "capability_id": "meta.ci.git.branch",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual producer/runtime/OS/CPU/CI metadata from supported environments.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#meta.ci.git.branch"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.841091+00:00"
+    },
+    {
+      "capability_id": "meta.ci.git.remote",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual producer/runtime/OS/CPU/CI metadata from supported environments.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#meta.ci.git.remote"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.841116+00:00"
+    },
+    {
+      "capability_id": "meta.ci.git.revision",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual producer/runtime/OS/CPU/CI metadata from supported environments.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#meta.ci.git.revision"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.841134+00:00"
+    },
+    {
+      "capability_id": "meta.ci.git.tag",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual producer/runtime/OS/CPU/CI metadata from supported environments.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#meta.ci.git.tag"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.841159+00:00"
+    },
+    {
+      "capability_id": "meta.ci.name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual producer/runtime/OS/CPU/CI metadata from supported environments.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#meta.ci.name"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.841207+00:00"
+    },
+    {
+      "capability_id": "meta.ci.url",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual producer/runtime/OS/CPU/CI metadata from supported environments.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#meta.ci.url"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.841371+00:00"
+    },
+    {
+      "capability_id": "parameter_type.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.id"
+      ]
+    },
+    {
+      "capability_id": "parameter_type.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.name"
+      ]
+    },
+    {
+      "capability_id": "parameter_type.prefer_for_regular_expression_match",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.preferForRegularExpressionMatch"
+      ]
+    },
+    {
+      "capability_id": "parameter_type.regular_expressions",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.regularExpressions"
+      ]
+    },
+    {
+      "capability_id": "parameter_type.source_reference.java_method.class_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered named parameter type used by a real step; regexp/useForSnippets/preferForRegexpMatch and ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.sourceReference.javaMethod.className"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.841439+00:00"
+    },
+    {
+      "capability_id": "parameter_type.source_reference.java_method.method_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered named parameter type used by a real step; regexp/useForSnippets/preferForRegexpMatch and ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.sourceReference.javaMethod.methodName"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842106+00:00"
+    },
+    {
+      "capability_id": "parameter_type.source_reference.java_method.method_parameter_types",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered named parameter type used by a real step; regexp/useForSnippets/preferForRegexpMatch and ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.sourceReference.javaMethod.methodParameterTypes"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842166+00:00"
+    },
+    {
+      "capability_id": "parameter_type.source_reference.java_stack_trace_element.class_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered named parameter type used by a real step; regexp/useForSnippets/preferForRegexpMatch and ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.sourceReference.javaStackTraceElement.className"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842384+00:00"
+    },
+    {
+      "capability_id": "parameter_type.source_reference.java_stack_trace_element.file_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered named parameter type used by a real step; regexp/useForSnippets/preferForRegexpMatch and ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.sourceReference.javaStackTraceElement.fileName"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842428+00:00"
+    },
+    {
+      "capability_id": "parameter_type.source_reference.java_stack_trace_element.method_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered named parameter type used by a real step; regexp/useForSnippets/preferForRegexpMatch and ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.sourceReference.javaStackTraceElement.methodName"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842473+00:00"
+    },
+    {
+      "capability_id": "parameter_type.source_reference.location.column",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered named parameter type used by a real step; regexp/useForSnippets/preferForRegexpMatch and ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.sourceReference.location.column"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842498+00:00"
+    },
+    {
+      "capability_id": "parameter_type.source_reference.location.line",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered named parameter type used by a real step; regexp/useForSnippets/preferForRegexpMatch and ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.sourceReference.location.line"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842574+00:00"
+    },
+    {
+      "capability_id": "parameter_type.source_reference.uri",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Registered named parameter type used by a real step; regexp/useForSnippets/preferForRegexpMatch and ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.sourceReference.uri"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842603+00:00"
+    },
+    {
+      "capability_id": "parameter_type.use_for_snippets",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parameterType.useForSnippets"
+      ]
+    },
+    {
+      "capability_id": "parse_error.message",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.message"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842633+00:00"
+    },
+    {
+      "capability_id": "parse_error.source.java_method.class_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.source.javaMethod.className"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842667+00:00"
+    },
+    {
+      "capability_id": "parse_error.source.java_method.method_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.source.javaMethod.methodName"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842707+00:00"
+    },
+    {
+      "capability_id": "parse_error.source.java_method.method_parameter_types",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.source.javaMethod.methodParameterTypes"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842743+00:00"
+    },
+    {
+      "capability_id": "parse_error.source.java_stack_trace_element.class_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.source.javaStackTraceElement.className"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842768+00:00"
+    },
+    {
+      "capability_id": "parse_error.source.java_stack_trace_element.file_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.source.javaStackTraceElement.fileName"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842789+00:00"
+    },
+    {
+      "capability_id": "parse_error.source.java_stack_trace_element.method_name",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.source.javaStackTraceElement.methodName"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842821+00:00"
+    },
+    {
+      "capability_id": "parse_error.source.location.column",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.source.location.column"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842845+00:00"
+    },
+    {
+      "capability_id": "parse_error.source.location.line",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.source.location.line"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842859+00:00"
+    },
+    {
+      "capability_id": "parse_error.source.uri",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real invalid source/URI and precise parser diagnostic, source location and message.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#parseError.source.uri"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.842874+00:00"
+    },
+    {
+      "capability_id": "pickle.tags.ast_node_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#pickle.tags.astNodeId"
+      ]
+    },
+    {
+      "capability_id": "pickle.tags.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#pickle.tags.name"
+      ]
+    },
+    {
+      "capability_id": "step_definition.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.id"
+      ]
+    },
+    {
+      "capability_id": "step_definition.pattern.source",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.pattern.source"
+      ]
+    },
+    {
+      "capability_id": "step_definition.pattern.type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.pattern.type"
+      ]
+    },
+    {
+      "capability_id": "step_definition.source_reference.java_method.class_name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.sourceReference.javaMethod.className"
+      ]
+    },
+    {
+      "capability_id": "step_definition.source_reference.java_method.method_name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.sourceReference.javaMethod.methodName"
+      ]
+    },
+    {
+      "capability_id": "step_definition.source_reference.java_method.method_parameter_types",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.sourceReference.javaMethod.methodParameterTypes"
+      ]
+    },
+    {
+      "capability_id": "step_definition.source_reference.java_stack_trace_element.class_name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.sourceReference.javaStackTraceElement.className"
+      ]
+    },
+    {
+      "capability_id": "step_definition.source_reference.java_stack_trace_element.file_name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.sourceReference.javaStackTraceElement.fileName"
+      ]
+    },
+    {
+      "capability_id": "step_definition.source_reference.java_stack_trace_element.method_name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.sourceReference.javaStackTraceElement.methodName"
+      ]
+    },
+    {
+      "capability_id": "step_definition.source_reference.location.column",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.sourceReference.location.column"
+      ]
+    },
+    {
+      "capability_id": "step_definition.source_reference.location.line",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.sourceReference.location.line"
+      ]
+    },
+    {
+      "capability_id": "step_definition.source_reference.uri",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#stepDefinition.sourceReference.uri"
+      ]
+    },
+    {
+      "capability_id": "suggestion.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#suggestion.id"
+      ]
+    },
+    {
+      "capability_id": "suggestion.pickle_step_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#suggestion.pickleStepId"
+      ]
+    },
+    {
+      "capability_id": "suggestion.snippets.code",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#suggestion.snippets.code"
+      ]
+    },
+    {
+      "capability_id": "suggestion.snippets.language",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#suggestion.snippets.language"
+      ]
+    },
+    {
+      "capability_id": "test_case.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.id"
+      ]
+    },
+    {
+      "capability_id": "test_case.pickle_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.pickleId"
+      ]
+    },
+    {
+      "capability_id": "test_case.test_run_started_id",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real multi-scenario/Outline run with definitions, hooks and nested capture groups; validate IDs and parser-derived values.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.testRunStartedId"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.843019+00:00"
+    },
+    {
+      "capability_id": "test_case.test_steps.hook_id",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Real multi-scenario/Outline run with definitions, hooks and nested capture groups; validate IDs and parser-derived values.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.testSteps.hookId"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.843047+00:00"
+    },
+    {
+      "capability_id": "test_case.test_steps.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.testSteps.id"
+      ]
+    },
+    {
+      "capability_id": "test_case.test_steps.pickle_step_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.testSteps.pickleStepId"
+      ]
+    },
+    {
+      "capability_id": "test_case.test_steps.step_definition_ids",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.testSteps.stepDefinitionIds"
+      ]
+    },
+    {
+      "capability_id": "test_case.test_steps.step_match_arguments_lists.step_match_arguments.group.start",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.testSteps.stepMatchArgumentsLists.stepMatchArguments.group.start"
+      ]
+    },
+    {
+      "capability_id": "test_case.test_steps.step_match_arguments_lists.step_match_arguments.group.value",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.testSteps.stepMatchArgumentsLists.stepMatchArguments.group.value"
+      ]
+    },
+    {
+      "capability_id": "test_case.test_steps.step_match_arguments_lists.step_match_arguments.parameter_type_name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCase.testSteps.stepMatchArgumentsLists.stepMatchArguments.parameterTypeName"
+      ]
     },
     {
       "capability_id": "test_case_finished.test_case_started_id",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseFinished.testCaseStartedId"
+      ]
+    },
+    {
+      "capability_id": "test_case_finished.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseFinished.timestamp.nanos"
+      ]
+    },
+    {
+      "capability_id": "test_case_finished.timestamp.seconds",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseFinished.timestamp.seconds"
+      ]
     },
     {
       "capability_id": "test_case_finished.will_be_retried",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseFinished.willBeRetried"
+      ]
     },
     {
       "capability_id": "test_case_started.attempt",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseStarted.attempt"
+      ]
     },
     {
       "capability_id": "test_case_started.id",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseStarted.id"
+      ]
     },
     {
       "capability_id": "test_case_started.test_case_id",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseStarted.testCaseId"
+      ]
+    },
+    {
+      "capability_id": "test_case_started.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseStarted.timestamp.nanos"
+      ]
     },
     {
       "capability_id": "test_case_started.timestamp.seconds",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseStarted.timestamp.seconds"
+      ]
+    },
+    {
+      "capability_id": "test_case_started.worker_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testCaseStarted.workerId"
+      ]
+    },
+    {
+      "capability_id": "test_run_finished.exception.message",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunFinished.exception.message"
+      ]
+    },
+    {
+      "capability_id": "test_run_finished.exception.stack_trace",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Passing/failing/reporting-error session summaries, exception stack/details, timestamp and run ID.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunFinished.exception.stackTrace"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.843156+00:00"
+    },
+    {
+      "capability_id": "test_run_finished.exception.type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunFinished.exception.type"
+      ]
+    },
+    {
+      "capability_id": "test_run_finished.message",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunFinished.message"
+      ]
+    },
+    {
+      "capability_id": "test_run_finished.success",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunFinished.success"
+      ]
+    },
+    {
+      "capability_id": "test_run_finished.test_run_started_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunFinished.testRunStartedId"
+      ]
+    },
+    {
+      "capability_id": "test_run_finished.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunFinished.timestamp.nanos"
+      ]
     },
     {
       "capability_id": "test_run_finished.timestamp.seconds",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunFinished.timestamp.seconds"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.result.duration.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.result.duration.nanos"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.result.duration.seconds",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.result.duration.seconds"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.result.exception.message",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.result.exception.message"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.result.exception.stack_trace",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.result.exception.stackTrace"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.result.exception.type",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.result.exception.type"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.result.message",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.result.message"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.result.status",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.result.status"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.test_run_hook_started_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.testRunHookStartedId"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.timestamp.nanos"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_finished.timestamp.seconds",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookFinished.timestamp.seconds"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_started.hook_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookStarted.hookId"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_started.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookStarted.id"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_started.test_run_started_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookStarted.testRunStartedId"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_started.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookStarted.timestamp.nanos"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_started.timestamp.seconds",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookStarted.timestamp.seconds"
+      ]
+    },
+    {
+      "capability_id": "test_run_hook_started.worker_id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunHookStarted.workerId"
+      ]
+    },
+    {
+      "capability_id": "test_run_started.id",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunStarted.id"
+      ]
+    },
+    {
+      "capability_id": "test_run_started.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunStarted.timestamp.nanos"
+      ]
     },
     {
       "capability_id": "test_run_started.timestamp.seconds",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testRunStarted.timestamp.seconds"
+      ]
     },
     {
       "capability_id": "test_step_finished.test_case_started_id",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.testCaseStartedId"
+      ]
     },
     {
       "capability_id": "test_step_finished.test_step_id",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.testStepId"
+      ]
+    },
+    {
+      "capability_id": "test_step_finished.test_step_result.duration.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.testStepResult.duration.nanos"
+      ]
+    },
+    {
+      "capability_id": "test_step_finished.test_step_result.duration.seconds",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.testStepResult.duration.seconds"
+      ]
+    },
+    {
+      "capability_id": "test_step_finished.test_step_result.exception.message",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual passed/failed/undefined/skipped/pending/ambiguous steps; duration, exception, message and correlation.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.testStepResult.exception.message"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.843366+00:00"
+    },
+    {
+      "capability_id": "test_step_finished.test_step_result.exception.stack_trace",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual passed/failed/undefined/skipped/pending/ambiguous steps; duration, exception, message and correlation.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.testStepResult.exception.stackTrace"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.843391+00:00"
+    },
+    {
+      "capability_id": "test_step_finished.test_step_result.exception.type",
+      "release_target": "34.2.1",
+      "status": "Pending",
+      "comment": "No observation or approved exception yet. Actual passed/failed/undefined/skipped/pending/ambiguous steps; duration, exception, message and correlation.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.testStepResult.exception.type"
+      ],
+      "decision_owner": "integration audit; owner disposition pending",
+      "reviewed_at": "2026-11-02T05:15:32.843405+00:00"
+    },
+    {
+      "capability_id": "test_step_finished.test_step_result.message",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.testStepResult.message"
+      ]
     },
     {
       "capability_id": "test_step_finished.test_step_result.status",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.testStepResult.status"
+      ]
+    },
+    {
+      "capability_id": "test_step_finished.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.timestamp.nanos"
+      ]
+    },
+    {
+      "capability_id": "test_step_finished.timestamp.seconds",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepFinished.timestamp.seconds"
+      ]
     },
     {
       "capability_id": "test_step_started.test_case_started_id",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepStarted.testCaseStartedId"
+      ]
     },
     {
       "capability_id": "test_step_started.test_step_id",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepStarted.testStepId"
+      ]
+    },
+    {
+      "capability_id": "test_step_started.timestamp.nanos",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepStarted.timestamp.nanos"
+      ]
     },
     {
       "capability_id": "test_step_started.timestamp.seconds",
-      "comment": "Emitted by pytest-cuke's validated Messages lifecycle for collected scenarios.",
       "release_target": "34.2.1",
-      "status": "Implemented"
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#testStepStarted.timestamp.seconds"
+      ]
+    },
+    {
+      "capability_id": "undefined_parameter_type.expression",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#undefinedParameterType.expression"
+      ]
+    },
+    {
+      "capability_id": "undefined_parameter_type.name",
+      "release_target": "34.2.1",
+      "status": "Implemented",
+      "comment": "Observed in real validated producer streams.",
+      "evidence_refs": [
+        "integration-audit:56913071684b0e8ec73fb85fff4f78fba9b45596/field-corpus/aggregate-observations.json#undefinedParameterType.name"
+      ]
     }
   ]
 }
