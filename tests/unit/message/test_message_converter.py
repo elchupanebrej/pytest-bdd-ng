@@ -271,3 +271,18 @@ def test_step_definition_pattern_extensions_map_to_official_wire_values(
     payload = messages.message_to_dict(envelope)
 
     assert payload["stepDefinition"]["pattern"]["type"] == wire_type
+
+
+def test_make_location_enforces_minimum_schema_line_and_column() -> None:
+    loc0 = mc.make_location(0)
+    assert loc0.line == 1
+    assert loc0.column is None
+
+    loc_negative = mc.make_location(-5, column=0)
+    assert loc_negative.line == 1
+    assert loc_negative.column == 1
+
+    loc_valid = mc.make_location(42, column=10)
+    assert loc_valid.line == 42
+    assert loc_valid.column == 10
+

@@ -25,8 +25,10 @@ if TYPE_CHECKING:
     from pytest_cuke.model.tag import Tag
 
 
-def make_location(line: int = 0, column: int | None = None) -> messages.Location:
-    return messages.Location(line=line, column=column)
+def make_location(line: int = 1, column: int | None = None) -> messages.Location:
+    effective_line = max(1, line)
+    effective_column = None if column is None else max(1, column)
+    return messages.Location(line=effective_line, column=effective_column)
 
 
 def _wire_ast_id(uri: str, node_id: str) -> str:
