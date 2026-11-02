@@ -77,3 +77,10 @@ stream errors identify the input and line or end-of-file location. A failed
 input or formatter does not publish staged reports, and the source file is
 never modified. The replay command does not collect tests, execute fixtures,
 or import ``conftest.py``.
+
+Scenario hooks in saved streams
+------------------------------
+
+The summary and snippets adapters preserve before/after scenario hook definitions
+when replaying native pytest hook events. Hook locations and names come from the
+saved Messages stream, so these reports also accept cases containing hook steps.

@@ -26,6 +26,7 @@ const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
 const envelopes = [];
 const parameterTypesByName = new Map();
 const stepDefinitionsById = new Map();
+const hooksById = new Map();
 const formatterEnvelopeNames = [
   "attachment",
   "gherkinDocument",
@@ -41,6 +42,7 @@ const formatterEnvelopeNames = [
 for await (const line of input) {
   if (!line.trim()) continue;
   const envelope = JSON.parse(line);
+  if (typeof envelope.hook?.id === "string") hooksById.set(envelope.hook.id, envelope.hook);
   const parameterType = envelope.parameterType;
   if (parameterType && typeof parameterType.name === "string") {
     parameterTypesByName.set(parameterType.name, parameterType);
@@ -104,6 +106,26 @@ for (const stepDefinition of supportCodeLibrary.stepDefinitions) {
     stepDefinition.line = message.sourceReference.location.line;
   }
 }
+for (const envelope of envelopes) {
+  let isBeforeHook = true;
+  for (const testStep of envelope.testCase?.testSteps ?? []) {
+    if (testStep.pickleStepId) isBeforeHook = false;
+    if (!testStep.hookId) continue;
+    const message = hooksById.get(testStep.hookId);
+    const definitions = isBeforeHook
+      ? supportCodeLibrary.beforeTestCaseHookDefinitions
+      : supportCodeLibrary.afterTestCaseHookDefinitions;
+    if (!definitions.some((item) => item.id === testStep.hookId)) {
+      definitions.push({
+        id: testStep.hookId,
+        uri: message?.sourceReference?.uri ?? process.cwd(),
+        line: message?.sourceReference?.location?.line ?? 1,
+        name: message?.name,
+      });
+    }
+  }
+}
+
 const eventBroadcaster = new EventEmitter();
 const eventDataCollector = new formatterHelpers.EventDataCollector(eventBroadcaster);
 await FormatterBuilder.build(SnippetsFormatter, {

@@ -55,6 +55,8 @@ def test_builtin_replay_reads_real_saved_stream(tmp_path, node_root, outcome):
     )
     (tmp_path / "conftest.py").write_text(
         "from pytest_cuke import given, when\n"
+        "def pytest_cuke_before_scenario(request, run): pass\n"
+        "def pytest_cuke_after_scenario(request, run): pass\n"
         "@given('the replay step passes')\n"
         "def passing(): pass\n"
         "@when('the replay failure occurs')\n"
@@ -83,6 +85,19 @@ def test_builtin_replay_reads_real_saved_stream(tmp_path, node_root, outcome):
     )
     assert recorded.returncode == (0 if outcome == "passed" else 1), recorded.stdout + recorded.stderr
     original = source.read_bytes()
+    envelopes = [json.loads(line) for line in original.splitlines()]
+    hook_ids = {
+        envelope["hook"]["id"]
+        for envelope in envelopes
+        if envelope.get("hook", {}).get("type") in {"BEFORE_TEST_CASE", "AFTER_TEST_CASE"}
+    }
+    assert len(hook_ids) == 2
+    assert {
+        step["hookId"]
+        for envelope in envelopes
+        for step in envelope.get("testCase", {}).get("testSteps", [])
+        if "hookId" in step
+    } == hook_ids
     outputs = {name: tmp_path / (name + ".txt") for name in _SELECTORS}
     command = [sys.executable, "-m", "pytest_cuke.cli", "replay", str(source)]
     for name, output in outputs.items():

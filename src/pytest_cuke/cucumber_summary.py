@@ -26,9 +26,11 @@ const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
 const bufferedEnvelopes = [];
 const parameterTypesByName = new Map();
 const stepDefinitionsById = new Map();
+const hooksById = new Map();
 const formatterEnvelopeNames = [
   "attachment",
   "gherkinDocument",
+  "hook",
   "parameterType",
   "pickle",
   "stepDefinition",
@@ -60,7 +62,23 @@ const updateSupportCodeLibrary = (envelope) => {
   if (stepDefinition && typeof stepDefinition.id === "string") {
     addStepDefinitionToLibrary(stepDefinition.id, stepDefinition);
   }
+  let isBeforeHook = true;
   for (const testStep of envelope.testCase?.testSteps ?? []) {
+    if (testStep.pickleStepId) isBeforeHook = false;
+    if (testStep.hookId && supportCodeLibrary) {
+      const message = hooksById.get(testStep.hookId);
+      const definitions = isBeforeHook
+        ? supportCodeLibrary.beforeTestCaseHookDefinitions
+        : supportCodeLibrary.afterTestCaseHookDefinitions;
+      if (!definitions.some((item) => item.id === testStep.hookId)) {
+        definitions.push({
+          id: testStep.hookId,
+          uri: message?.sourceReference?.uri ?? process.cwd(),
+          line: message?.sourceReference?.location?.line ?? 1,
+          name: message?.name,
+        });
+      }
+    }
     for (const stepDefinitionId of testStep.stepDefinitionIds ?? []) {
       addStepDefinitionToLibrary(stepDefinitionId, stepDefinitionsById.get(stepDefinitionId));
     }
@@ -114,6 +132,7 @@ const createSupportCodeLibrary = () => {
     const message = stepDefinitionsById.get(stepDefinition.id);
     addStepDefinitionToLibrary(stepDefinition.id, message);
   }
+  for (const envelope of bufferedEnvelopes) updateSupportCodeLibrary(envelope);
   return supportCodeLibrary;
 };
 
@@ -141,6 +160,7 @@ const startFormatter = async () => {
 for await (const line of input) {
   if (!line.trim()) continue;
   const envelope = JSON.parse(line);
+  if (typeof envelope.hook?.id === "string") hooksById.set(envelope.hook.id, envelope.hook);
   const parameterType = envelope.parameterType;
   if (parameterType && typeof parameterType.name === "string") {
     parameterTypesByName.set(parameterType.name, parameterType);
