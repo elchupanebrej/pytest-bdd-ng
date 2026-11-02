@@ -24,6 +24,17 @@ def _without_ids(value):
     return value
 
 
+def test_legacy_parser_document_can_omit_empty_comments():
+    raw = Parser().parse("Feature: Legacy\n  Scenario: Works\n    Given text\n")
+    raw.pop("comments")
+    feature = build_feature_from_dict(raw, uri="legacy.feature")
+    document = feature_to_gherkin_document(feature)
+    assert document.comments == []
+    assert document.feature.name == "Legacy"
+    assert not validate_envelope(Envelope(gherkin_document=document))
+    assert "comments" not in raw
+
+
 def test_projection_preserves_the_official_source_ast_without_reparsing(monkeypatch):
     raw = Parser().parse(SOURCE)
     feature = build_feature_from_dict(raw, uri="features/navigation.feature")

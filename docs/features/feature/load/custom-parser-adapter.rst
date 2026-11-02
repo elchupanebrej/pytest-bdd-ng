@@ -36,6 +36,10 @@ remains the source URI used by collection and reports. Invalid documents include
 the parser identity and source path in a collection diagnostic, with guidance to
 register through ``ParserRegistration.legacy``.
 
+Legacy documents may omit an empty top-level ``comments`` array. Reporting
+normalizes that omission to the standard empty array while retaining the
+parser-provided source metadata.
+
 The legacy call receives ``config``, the feature path, URI, positional values
 from ``parse_args.args``, and keyword values from ``parse_args.kwargs``. The
 locator's encoding is the default ``encoding`` keyword; an explicit

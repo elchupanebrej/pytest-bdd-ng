@@ -59,7 +59,9 @@ class SourceProjection:
         return capture_source_projection(restore(json.loads(self.document_json)), feature)
 
     def document(self, uri: str) -> messages.GherkinDocument:
-        document = messages.message_from_dict(json.loads(self.document_json), messages.GherkinDocument)
+        payload = json.loads(self.document_json)
+        payload.setdefault("comments", [])
+        document = messages.message_from_dict(payload, messages.GherkinDocument)
         document.uri = uri
         return document
 
