@@ -173,3 +173,16 @@ Each emitted ``TestCase.testRunStartedId`` references its ``TestRunStarted``
 envelope. The reference is retained when worker streams are consolidated, so
 consumers can associate a test case with its run in both ordinary and xdist
 execution.
+
+Callable source provenance
+--------------------------
+
+Custom parameter transformers, tag/mark hooks and parse-error reports retain
+the historical Java-named source-reference fields for Python callable metadata:
+module, function name, parameter names and code filename. Generated hook wrappers
+can identify virtual Python files such as ``<makefun-gen-0>``. Callable metadata
+is omitted when the callable cannot be inspected.
+
+For parse errors, the source URI and position continue to identify the invalid
+feature text; the callable metadata identifies the reporting function. Hook
+source URIs retain their existing representation.

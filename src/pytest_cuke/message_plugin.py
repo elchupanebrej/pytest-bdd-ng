@@ -58,6 +58,7 @@ from pytest_cuke.model.message_consolidation import (
     namespace_envelope_ids,
 )
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_pickle_id, scenario_to_pickle
+from pytest_cuke.model.message_source import callable_source_reference
 from pytest_cuke.model.message_stream_validation import MessageStreamValidator
 from pytest_cuke.model.message_transport import MessageEnvelopeView, ValidatedMessageTransport
 from pytest_cuke.model.message_types import (
@@ -1442,14 +1443,17 @@ class MessagePlugin:
                     hook=Hook(
                         id=cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator.get_next_id(),
                         **({"name": hook_name} if hook_name is not None else {}),
-                        source_reference=SourceReference(
+                        source_reference=callable_source_reference(
+                            func, uri=str(relpath(getfile(func), str(get_config_root_path(config))))
+                        )
+                        or SourceReference(
                             uri=str(
                                 relpath(
                                     getfile(func),
                                     str(get_config_root_path(config)),
                                 )
                             ),
-                            location=Location(line=getsourcelines(func)[1]),
+                            location=Location(line=getsourcelines(func)[1], column=1),
                         ),
                         **({"tag_expression": hook_expression} if hook_expression is not None else {}),
                     )
@@ -1524,6 +1528,7 @@ class MessagePlugin:
                                     regular_expressions=parameter_type.regexps,
                                     prefer_for_regular_expression_match=parameter_type._prefer_for_regexp_match,
                                     use_for_snippets=parameter_type._use_for_snippets,
+                                    source_reference=callable_source_reference(parameter_type.transformer),
                                     id=cast(
                                         "PytestBDDIdGeneratorHandler", config
                                     ).pytest_cuke_id_generator.get_next_id(),

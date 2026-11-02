@@ -9,6 +9,7 @@ from urllib.parse import quote
 from pytest_cuke.model import message_types as messages
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_extension import has_single_payload
+from pytest_cuke.model.message_source import callable_source_reference
 from pytest_cuke.model.message_types import message_from_dict, message_to_dict
 
 if TYPE_CHECKING:
@@ -271,7 +272,12 @@ def parse_error_to_envelope(error: FeatureConcreteParseError) -> messages.Envelo
     column = error.column if error.column > 0 else 1
     return messages.Envelope(
         parse_error=messages.ParseError(
-            source=messages.SourceReference(
+            source=callable_source_reference(
+                parse_error_to_envelope,
+                uri=error.source_uri,
+                location=make_location(error.line, column),
+            )
+            or messages.SourceReference(
                 uri=error.source_uri,
                 location=make_location(error.line, column),
             ),
