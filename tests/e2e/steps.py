@@ -4226,8 +4226,8 @@ def consumer_capability_report_retains_full_policy(consumer: ConsumerProject) ->
     assert set(scope["mandatory_capability_ids"]) <= rows.keys()
     assert set(scope["runtime_required_capability_ids"]) <= rows.keys()
     pending = [rows[key] for key in scope["mandatory_capability_ids"] if rows[key]["status"] == "Pending"]
-    assert len(pending) == 40
-    assert report["summary"]["mandatory_scope_violations"] == 40
+    assert not pending
+    assert report["summary"]["mandatory_scope_violations"] == 0
     assert report["summary"]["runtime_required_total"] == 183
     assert report["summary"]["runtime_required_missing"] > 0
 

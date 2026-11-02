@@ -122,9 +122,11 @@ def test_public_cli_reproduces_committed_messages_capability_policy(tmp_path: Pa
     assert mandatory_ids
     decisions = _read_json(DECISIONS_FILE)["decisions"]
     committed_statuses = {row["capability_id"]: row["status"] for row in decisions}
-    assert {key: entry_statuses[key] for key in mandatory_ids} == committed_statuses
+    assert entry_statuses == committed_statuses
+    assert len(committed_statuses) == 494
+    assert set(committed_statuses.values()) == {"Implemented"}
     pending = {key for key in mandatory_ids if entry_statuses[key] == "Pending"}
-    assert len(pending) == 40
+    assert not pending
     assert all(entry["release_blocker"] for entry in entries if entry["capability_id"] in pending)
 
     checklist_markdown = tmp_path / "checklist.md"

@@ -91,7 +91,7 @@ def configure_capability_governance_parser(parser: argparse.ArgumentParser) -> N
     report_parser.add_argument(
         "--require-fully-governed",
         action="store_true",
-        help="fail if any mandatory capability lacks an Implemented decision",
+        help="fail if any capability has an unresolved governance decision",
     )
     report_parser.add_argument(
         "--require-runtime-required-covered",
