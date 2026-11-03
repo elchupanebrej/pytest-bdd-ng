@@ -187,6 +187,7 @@ class StepRunner:
                 pytest.skip(message)
 
         step_error_hook_called = False
+        step_function_kwargs: dict[str, Any] = {}
         try:
             run.transition(
                 stage="step-running",
@@ -284,8 +285,10 @@ class StepRunner:
             pytest.fail.Exception,
             pytest.xfail.Exception,
             KeyboardInterrupt,
+            BaseException,
         ) as exception:
             if not step_error_hook_called:
+                step_error_hook_called = True
                 status = self._status_for_exception(exception)
                 run.transition(
                     stage="step-running",

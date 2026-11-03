@@ -1399,7 +1399,7 @@ def test_steps_parameters_injected_as_fixtures_are_not_shared_between_scenarios(
                 Scenario: Steps parameters injected as fixture
                     Given I have a "foo" parameter which is injected as fixture
 
-                Scenario:
+                Scenario: Fixture foo value is unavailable from another case
                     Then Fixture "foo" value is unavailable from another case
             """,
     )

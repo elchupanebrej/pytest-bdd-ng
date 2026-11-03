@@ -160,9 +160,11 @@ def _load_features(feature_arguments: Sequence[str]) -> list[Feature]:
 def _load_target_module(target: Path) -> tuple[ModuleType, ast.Module]:
     source = target.read_bytes()
     try:
-        compile(source, str(target), "exec")
         syntax_tree = ast.parse(source, filename=str(target))
-    except (SyntaxError, ValueError, UnicodeError) as error:
+        compile(source, str(target), "exec")
+    except SyntaxError as error:
+        raise GenerationCommandError(f"target file contains syntax errors: {error}") from error
+    except (ValueError, UnicodeError) as error:
         raise GenerationCommandError(f"existing target is not valid Python: {error}") from error
 
     package_name, import_root = _package_context(target)

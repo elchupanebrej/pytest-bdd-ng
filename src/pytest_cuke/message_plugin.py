@@ -2027,6 +2027,7 @@ class MessagePlugin:
         message_state.pending_test_step_finish = None
         message_state.defer_test_case_finish = False
 
+    @hookimpl(tryfirst=True)
     def pytest_cuke_before_step(self, request: FixtureRequest, run: RunContext, step_func: Any) -> None:
         if self.is_disabled:
             return
@@ -2132,6 +2133,7 @@ class MessagePlugin:
             exception_stack_trace="".join(
                 traceback.format_exception(type(exception), exception, exception.__traceback__)
             ),
+            defer_final_step=False,
         )
         if tolerated:
             return
@@ -2155,6 +2157,7 @@ class MessagePlugin:
                 test_step=skipped_step,
                 start_timestamp=skipped_start,
                 status=Status.skipped,
+                defer_final_step=False,
             )
 
     def pytest_cuke_step_func_lookup_error(
