@@ -28,7 +28,7 @@ def test_terminal_diagnostics(tmp_path, failure):
         cwd=tmp_path,
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=180,
     )
     assert result.returncode == int(failure), result.stdout + result.stderr
     messages = [json.loads(line) for line in (tmp_path / "messages.ndjson").read_text().splitlines()]

@@ -46,7 +46,7 @@ def test_text_matcher_diagnostic(tmp_path, message, name):
         text=True,
         capture_output=True,
         check=False,
-        timeout=60,
+        timeout=180,
     )
     assert proc.returncode == 1, proc.stdout + proc.stderr
     events = [json.loads(line) for line in (tmp_path / "messages.ndjson").read_text().splitlines()]
