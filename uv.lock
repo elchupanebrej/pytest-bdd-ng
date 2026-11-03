@@ -14,6 +14,15 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "aiofiles"
+version = "25.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/41/c3/534eac40372d8ee36ef40df62ec129bee4fdb5ad9706e58a29be53b2c970/aiofiles-25.1.0.tar.gz", hash = "sha256:a8d728f0a29de45dc521f18f07297428d56992a742f0cd2701ba86e44d23d5b2", size = 46354, upload-time = "2025-10-09T20:51:04.358Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bc/8a/340a1555ae33d7354dbca4faa54948d76d89a27ceef032c8c3bc661d003e/aiofiles-25.1.0-py3-none-any.whl", hash = "sha256:abe311e527c862958650f9438e859c1fa7568a141b22abcd015e120e86a85695", size = 14668, upload-time = "2025-10-09T20:51:03.174Z" },
+]
+
+[[package]]
 name = "aiohappyeyeballs"
 version = "2.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2737,6 +2746,9 @@ allure = [
     { name = "allure-python-commons" },
     { name = "pydantic" },
 ]
+async = [
+    { name = "aiofiles" },
+]
 cucumber-json = [
     { name = "pydantic" },
 ]
@@ -2756,6 +2768,20 @@ doc-gen = [
 env-matrix = [
     { name = "pyyaml" },
     { name = "tox" },
+]
+full = [
+    { name = "aiofiles" },
+    { name = "allure-pytest" },
+    { name = "allure-python-commons" },
+    { name = "hjson" },
+    { name = "json5" },
+    { name = "mcp" },
+    { name = "mcp-pdb" },
+    { name = "pydantic" },
+    { name = "pyhocon" },
+    { name = "pyyaml" },
+    { name = "types-pyyaml" },
+    { name = "uvicorn" },
 ]
 lint = [
     { name = "bandit" },
@@ -2805,6 +2831,7 @@ testtypes = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiofiles", marker = "extra == 'async'", specifier = ">=23.0.0" },
     { name = "aiohttp" },
     { name = "allure-pytest", marker = "extra == 'allure'" },
     { name = "allure-pytest", marker = "extra == 'testtypes'", specifier = "==2.16.2" },
@@ -2861,6 +2888,7 @@ requires-dist = [
     { name = "pyright", marker = "extra == 'pyright'", specifier = "==1.1.414" },
     { name = "pytest", specifier = ">=7.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
+    { name = "pytest-cuke", extras = ["allure", "debug-mcp", "struct-bdd", "cucumber-json", "async"], marker = "extra == 'full'" },
     { name = "pytest-httpserver", marker = "extra == 'test'", specifier = ">=1.1.5" },
     { name = "pyyaml", marker = "extra == 'env-matrix'", specifier = "==6.0.3" },
     { name = "pyyaml", marker = "extra == 'struct-bdd'" },
@@ -2875,7 +2903,7 @@ requires-dist = [
     { name = "uvicorn", marker = "extra == 'debug-mcp'", specifier = ">=0.34" },
     { name = "vulture", marker = "extra == 'lint'", specifier = ">=2.16" },
 ]
-provides-extras = ["lint", "pyright", "testtypes", "test", "test-pydantic", "env-matrix", "test-playwright", "mutation", "allure", "debug-mcp", "doc-gen", "struct-bdd", "cucumber-json"]
+provides-extras = ["lint", "pyright", "testtypes", "test", "test-pydantic", "env-matrix", "test-playwright", "mutation", "allure", "debug-mcp", "doc-gen", "struct-bdd", "cucumber-json", "async", "full"]
 
 [[package]]
 name = "pytest-httpserver"

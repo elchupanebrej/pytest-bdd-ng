@@ -102,3 +102,26 @@ def setup_smoke_test(request):
 - **Cucumber JSON**: Pass `--cuke-json[=<path>]` for the official message-driven JSON execution report (`cucumber.json` by default). Use `--cuke-json-backend=native` to retain the earlier pytest-cuke JSON writer; `cuke_json_backend = "native"` provides the same routing in configuration.
 - **Cucumber JUnit XML**: Pass `--cuke-junit[=<path>]` for the official message-driven JUnit XML report (`cucumber.xml` by default), or set `cuke_junit = "path"` in pytest configuration. It can coexist with pytest's native `--junitxml` when each report has a distinct path.
 - **Allure**: Native live reporting uses `--cuke-allure[=DIR]` (default `allure-results`) or the `cuke_allure` pytest setting. Install its runtime support with `pytest-cuke[allure]`; a Messages NDJSON file is not required. If you also enable `allure-pytest` with `--alluredir`, use a separate output directory.
+
+### Installation Extras & Packaging Recipes
+
+When upgrading from legacy `pytest-bdd` / `pytest-bdd-ng` 2.x packaging recipes to 3.0 (`pytest-cuke`), optional dependency extras are mapped as follows:
+
+| 2.x Extra / Feature | 3.0 Extra | Purpose & Compatibility Notes |
+|:---|:---|:---|
+| `async` | `[async]` | Installs `aiofiles>=23.0.0` for accelerated batch feature collection. |
+| `full` | `[full]` | Aggregate bundle including all runtime features: `allure`, `debug-mcp`, `struct-bdd`, `cucumber-json`, and `async`. |
+| `code-gen`, `formatters`, `go-parser` | Built into core or dedicated extras | Built into core (`gherkin-official`) or dedicated optional dependencies (e.g. `doc-gen` for docs, formatters in core). |
+| `tox` | `[env-matrix]` | Environment-matrix tox runners (`tox>=4.2`, `PyYAML==6.0.3`) for multi-version verification. |
+
+To install all features including async feature collection and live formatters:
+
+```sh
+python -m pip install "pytest-cuke[full]"
+```
+
+For async collection only:
+
+```sh
+python -m pip install "pytest-cuke[async]"
+```

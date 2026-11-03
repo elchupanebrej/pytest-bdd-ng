@@ -171,6 +171,12 @@ struct-bdd = [
 cucumber-json = [
   "pydantic>=2.0.3"
 ]
+async = [
+  "aiofiles>=23.0.0"
+]
+full = [
+  "pytest-cuke[allure,debug-mcp,struct-bdd,cucumber-json,async]"
+]
 
 [tool.ruff]
 target-version = "py311"
