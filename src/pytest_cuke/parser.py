@@ -240,44 +240,6 @@ class ParserRegistry:
 default_parser_registry = ParserRegistry()
 
 
-def _validate_headings(feature: Feature, content: str | None = None, uri: str | None = None) -> None:
-    lines = content.splitlines() if content is not None else []
-    resolved_uri = uri or feature.uri or feature.filename or ""
-
-    def _line_text(line_number: int) -> str:
-        if 1 <= line_number <= len(lines):
-            return lines[line_number - 1]
-        return ""
-
-    if not (feature.name or "").strip():
-        line = getattr(feature, "line", 1) or 1
-        raise FeatureConcreteParseError(
-            f"EMPTY_HEADING_TITLE: {feature.keyword} heading title is empty",
-            line,
-            _line_text(line),
-            resolved_uri,
-        )
-
-    for scenario in feature.scenarios:
-        if not (scenario.name or "").strip():
-            line = getattr(scenario, "line", 1) or 1
-            raise FeatureConcreteParseError(
-                f"EMPTY_HEADING_TITLE: {scenario.keyword} heading title is empty",
-                line,
-                _line_text(line),
-                resolved_uri,
-            )
-
-    for rule in feature.rules:
-        for scenario in rule.scenarios:
-            if not (scenario.name or "").strip():
-                line = getattr(scenario, "line", 1) or 1
-                raise FeatureConcreteParseError(
-                    f"EMPTY_HEADING_TITLE: {scenario.keyword} heading title is empty",
-                    line,
-                    _line_text(line),
-                    resolved_uri,
-                )
 
 
 @define
@@ -296,9 +258,7 @@ class GherkinParser(BaseParser):
             markdown=False,
             python_parser=lambda: _parse_python_document(content, uri, self.id_generator, markdown=False),
         )
-        feature = build_feature_from_dict(raw_dict, uri=uri or "")
-        _validate_headings(feature, content=content, uri=uri or "")
-        return feature
+        return build_feature_from_dict(raw_dict, uri=uri or "")
 
 
 @attrs
