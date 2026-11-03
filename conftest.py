@@ -27,4 +27,5 @@ pytest_plugins = [
     "tests.e2e.struct_bdd_joined_examples_steps",
     "tests.e2e.browser_report_steps",
     "tests.e2e.native_allure_reporting_steps",
+    "tests.e2e.development_steps",
 ]

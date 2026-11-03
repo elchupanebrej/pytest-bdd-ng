@@ -4616,7 +4616,7 @@ def copy_file(testdir, request, initial_path: Path, final_path: Path):
 
 
 @then(
-    re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" has \"(?P<line_count>(\w|\\|.)+)\" lines"),
+    re.compile(r'File "(?P<file_path>[^"]+)" has "(?P<line_count>\d+)" lines'),
     converters={"line_count": int, "file_path": Path},
 )
 def _(file_path: Path, line_count: int):
@@ -4626,14 +4626,14 @@ def _(file_path: Path, line_count: int):
 
 
 @then(
-    re.compile(r"File \"(?P<file_path>(\w|\\|.)+)\" is not empty"),
+    re.compile(r'File "(?P<file_path>[^"]+)" is not empty'),
     converters={"file_path": Path},
 )
 def _(file_path: Path, testdir):
     assert (Path(str(testdir.tmpdir)) / file_path).stat().st_size != 0
 
 
-@then(re.compile(r"Report \"(?P<file_path>(\w|\\|.)+)\" parsable into messages"), converters={"file_path": Path})
+@then(re.compile(r'Report "(?P<file_path>[^"]+)" parsable into messages'), converters={"file_path": Path})
 def _(file_path: Path):
     with file_path.open(mode="r") as ast_file:
         try:
