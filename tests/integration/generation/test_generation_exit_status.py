@@ -1,4 +1,4 @@
-"""Installed CLI consumers for opt-in historical generation exit codes."""
+"""POSIX generation exit status assertions for cuke generate steps."""
 
 import ast
 import os
@@ -45,13 +45,12 @@ def generate(project, *arguments):
     )
 
 
-@pytest.mark.parametrize(("policy", "changed_status"), [("current", 0), ("legacy100", 100)])
-def test_generation_changed_and_unchanged_status(project, policy, changed_status):
+def test_generation_changed_and_unchanged_status(project):
     _, target = project
     original = target.read_bytes()
-    arguments = ["--target", str(target), "--exit-status", policy]
+    arguments = ["--target", str(target)]
     result = generate(project, *arguments)
-    assert result.returncode == changed_status, result.stdout + result.stderr
+    assert result.returncode == 0, result.stdout + result.stderr
     generated = target.read_bytes()
     assert generated.startswith(original)
     assert b"a missing definition" in generated
@@ -61,24 +60,24 @@ def test_generation_changed_and_unchanged_status(project, policy, changed_status
     assert target.read_bytes() == generated
 
 
-def test_legacy_stdout_generation_returns_100(project):
-    result = generate(project, "--exit-status=legacy100")
-    assert result.returncode == 100, result.stdout + result.stderr
+def test_stdout_generation_with_additions_returns_0(project):
+    result = generate(project)
+    assert result.returncode == 0, result.stdout + result.stderr
     assert "a missing definition" in result.stdout
     compile(ast.parse(result.stdout), "stdout-generation.py", "exec")
 
 
-def test_legacy_preview_reports_changes_without_writing(project):
+def test_preview_mode_returns_0_without_modifying_target(project):
     _, target = project
     original = target.read_bytes()
-    result = generate(project, "--target", str(target), "--preview", "--exit-status=legacy100")
-    assert result.returncode == 100, result.stdout + result.stderr
+    result = generate(project, "--target", str(target), "--preview")
+    assert result.returncode == 0, result.stdout + result.stderr
     assert "a missing definition" in result.stdout
     assert target.read_bytes() == original
 
 
 @pytest.mark.parametrize("invalid_source", [False, True])
-def test_legacy_handled_errors_return_100_without_writes(project, invalid_source):
+def test_handled_errors_return_2_without_writes(project, invalid_source):
     root, target = project
     if invalid_source:
         target.write_text("def invalid(:\n")
@@ -86,8 +85,8 @@ def test_legacy_handled_errors_return_100_without_writes(project, invalid_source
     else:
         target = root / "missing.py"
         original = None
-    result = generate(project, "--target", str(target), "--exit-status=legacy100")
-    assert result.returncode == 100
+    result = generate(project, "--target", str(target))
+    assert result.returncode == 2
     assert "cuke generate steps:" in result.stderr
     if original is None:
         assert not target.exists()
@@ -95,13 +94,14 @@ def test_legacy_handled_errors_return_100_without_writes(project, invalid_source
         assert target.read_bytes() == original
 
 
-def test_legacy_missing_required_target_is_handled_error(project):
-    result = generate(project, "--bind-only", "--exit-status=legacy100")
-    assert result.returncode == 100
+def test_missing_required_target_with_bind_only_returns_2(project):
+    result = generate(project, "--bind-only")
+    assert result.returncode == 2
     assert "--bind-only requires --target" in result.stderr
 
 
-def test_argument_parser_errors_keep_usage_status_2(project):
-    result = generate(project, "--exit-status=unsupported")
+@pytest.mark.parametrize("invalid_arg", ["--unrecognized-option", "--exit-status=legacy100"])
+def test_argument_parser_errors_return_2(project, invalid_arg):
+    result = generate(project, invalid_arg)
     assert result.returncode == 2
-    assert "invalid choice" in result.stderr
+    assert "unrecognized arguments" in result.stderr

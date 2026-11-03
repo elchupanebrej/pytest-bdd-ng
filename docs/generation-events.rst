@@ -44,6 +44,6 @@ obtain the real step registry. Fixture teardown runs after each inspected
 item. Fixture code and matcher hooks can therefore have their normal side
 effects, although test bodies and feature steps are not executed.
 
-Existing Cucumber Messages reporting and the default generator exit policy
+Existing Cucumber Messages reporting and the generator POSIX exit policy
 remain available independently. See :doc:`generation-exit-status` for the
-standalone generator's opt-in automation status mapping.
+standalone generator's exit status conventions.

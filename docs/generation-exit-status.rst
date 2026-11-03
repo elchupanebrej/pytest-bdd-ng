@@ -1,27 +1,19 @@
 Generation exit status
 ======================
 
-The standalone ``cuke generate steps`` command defaults to ``--exit-status=current``:
-success returns 0 whether the target changes or not, and handled generation errors
-return 2.
+The standalone ``cuke generate steps`` command strictly adheres to standard
+POSIX conventions for process exit status:
 
-Automation that needs the historical change signal can opt into
-``--exit-status=legacy100``. This mode returns:
+* **0** on success: returned when generation completes successfully, whether
+  generating step definitions to standard output, writing updates to a target
+  file, displaying preview differences (``--preview``), or finding that all
+  step definitions are already present (unchanged).
+* **2** on handled errors: returned when a generation request cannot be completed
+  safely (e.g. invalid target Python syntax, missing target file, missing
+  required ``--target`` when using ``--preview`` or ``--bind-only``), as well as
+  on command-line argument parser errors (unknown flags, missing required
+  ``--feature``).
 
-* 100 when Python additions are printed, a target changes, or preview finds changes;
-* 0 when no additions are needed;
-* 100 for handled generation errors, including an invalid or missing target.
-
-For example::
-
-    cuke generate steps --feature features/example.feature --target test_example.py --exit-status=legacy100
-
-The option changes only the exit code. Transactional validation, preview, error
-messages, and target protection are preserved. Argument-parser errors, such as
-an unknown option, invalid choice, or omitted required ``--feature``, still return
-usage status 2 before generation begins. Interrupted processes and unexpected
-internal exceptions are outside this exit-policy contract.
-
-This option restores a historical automation capability in the current CLI
-namespace. It does not change the default policy or introduce exit code 100 into
-ordinary pytest test execution.
+Historical exit code 100 and the ``--exit-status`` option have been completely
+retired in 3.0. Generation commands behave consistently with POSIX tools and
+standard CLI expectations across all workflows.
