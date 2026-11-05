@@ -1,0 +1,118 @@
+WORK=/tmp/opencode/coverage-child-consumer-lyf7jx91
+BRANCH=proof/coverage-child-consumer-340
+REVISION=dee40c1a898b960587128b476617c8d7a59c5617
+TOKEN=dee40c1a898b-installed-child-dd462947e066
+$ /home/elchupanebrej/.local/bin/uv build --wheel --out-dir /tmp/opencode/coverage-child-consumer-lyf7jx91/dist /mnt/c/Users/bulky/Projects/pytest-bdd-ng-integration-2026-10-29
+WHEEL=/tmp/opencode/coverage-child-consumer-lyf7jx91/dist/pytest_cuke-2.3.1-py3-none-any.whl
+$ /home/elchupanebrej/.local/bin/uv venv --python /home/linuxbrew/.linuxbrew/opt/python@3.15/bin/python3.15 /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented
+Using CPython 3.15.2 interpreter at: /home/linuxbrew/.linuxbrew/opt/python@3.15/bin/python3.15
+Creating virtual environment at: /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented
+Activate with: source /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/activate
+$ /home/elchupanebrej/.local/bin/uv venv --python /home/linuxbrew/.linuxbrew/opt/python@3.15/bin/python3.15 /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-uninstrumented
+Using CPython 3.15.2 interpreter at: /home/linuxbrew/.linuxbrew/opt/python@3.15/bin/python3.15
+Creating virtual environment at: /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-uninstrumented
+Activate with: source /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-uninstrumented/bin/activate
+$ /home/elchupanebrej/.local/bin/uv pip install --python /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python /tmp/opencode/coverage-child-consumer-lyf7jx91/dist/pytest_cuke-2.3.1-py3-none-any.whl coverage==7.17.1 pytest
+$ /home/elchupanebrej/.local/bin/uv pip install --python /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-uninstrumented/bin/python /tmp/opencode/coverage-child-consumer-lyf7jx91/dist/pytest_cuke-2.3.1-py3-none-any.whl pytest
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -c import pathlib, pytest_cuke; print(pathlib.Path(pytest_cuke.__file__).resolve())
+/tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/lib/python3.15/site-packages/pytest_cuke/__init__.py
+INSTALLED_PRODUCT=/tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/lib/python3.15/site-packages/pytest_cuke/__init__.py
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-uninstrumented/bin/python -c import importlib.util; print(importlib.util.find_spec('coverage'))
+None
+UNINSTRUMENTED_COVERAGE_SPEC=None
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage run --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini -m pytest -q -s /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/parent
+OUTER_PID=106967
+CHILD_PID=106968
+.
+=============================== warnings summary ===============================
+../../venv-instrumented/lib/python3.15/site-packages/pytest_cuke/plugin.py:883
+  /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/lib/python3.15/site-packages/pytest_cuke/plugin.py:883: PytestRemovedIn10Warning: config.inicfg is deprecated, use config.getini() to access configuration values instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#config-inicfg
+    ini_values = getattr(config, "inicfg", {})
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 1 warning in 0.09s
+.CHILD_PID=106981
+F
+=================================== FAILURES ===================================
+________________________ test_intentional_child_failure ________________________
+
+    def test_intentional_child_failure() -> None:
+        print(f'CHILD_PID={os.getpid()}')
+>       assert False, 'intentional child failure'
+E       AssertionError: intentional child failure
+E       assert False
+
+test_fail.py:8: AssertionError
+=============================== warnings summary ===============================
+../../venv-instrumented/lib/python3.15/site-packages/pytest_cuke/plugin.py:883
+  /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/lib/python3.15/site-packages/pytest_cuke/plugin.py:883: PytestRemovedIn10Warning: config.inicfg is deprecated, use config.getini() to access configuration values instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#config-inicfg
+    ini_values = getattr(config, "inicfg", {})
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED test_fail.py::test_intentional_child_failure - AssertionError: intenti...
+1 failed, 1 warning in 0.19s
+.
+=============================== warnings summary ===============================
+../venv-instrumented/lib/python3.15/site-packages/pytest_cuke/plugin.py:883
+  /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/lib/python3.15/site-packages/pytest_cuke/plugin.py:883: PytestRemovedIn10Warning: config.inicfg is deprecated, use config.getini() to access configuration values instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#config-inicfg
+    ini_values = getattr(config, "inicfg", {})
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2 passed, 1 warning in 11.92s
+FRAGMENT=.coverage.dee40c1a898b-installed-child-dd462947e066.elchupanebrejs.pid106967.XF0Et4px.HwonbSnY7qph pid=106967
+FRAGMENT=.coverage.dee40c1a898b-installed-child-dd462947e066.elchupanebrejs.pid106968.XpHzAV4x.HO1RVALKm4sh pid=106968
+FRAGMENT=.coverage.dee40c1a898b-installed-child-dd462947e066.elchupanebrejs.pid106981.XKFjgnrx.HK09VW9xB0Sh pid=106981
+CHILD_PASS_PID=106968
+CHILD_FAIL_PID=106981
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage combine --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini --keep
+Combined 3 files
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage json --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini -o /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/combined.json
+Combined 3 files
+Wrote JSON report to /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/combined.json
+PRODUCT_FILE=/tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/lib/python3.15/site-packages/pytest_cuke/parsers/parse_parser.py
+CHILD_EXCLUSIVE_LINE=61
+COMBINED_HAS_LINE=True
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage combine --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini /tmp/opencode/coverage-child-consumer-lyf7jx91/probes/parent/.coverage.dee40c1a898b-installed-child-dd462947e066.elchupanebrejs.pid106967.XF0Et4px.HwonbSnY7qph
+Combined 1 file
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage json --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini -o /tmp/opencode/coverage-child-consumer-lyf7jx91/probes/parent/data.json
+Wrote JSON report to /tmp/opencode/coverage-child-consumer-lyf7jx91/probes/parent/data.json
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage combine --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini /tmp/opencode/coverage-child-consumer-lyf7jx91/probes/child-pass/.coverage.dee40c1a898b-installed-child-dd462947e066.elchupanebrejs.pid106968.XpHzAV4x.HO1RVALKm4sh
+Combined 1 file
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage json --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini -o /tmp/opencode/coverage-child-consumer-lyf7jx91/probes/child-pass/data.json
+Wrote JSON report to /tmp/opencode/coverage-child-consumer-lyf7jx91/probes/child-pass/data.json
+PARENT_HAS_LINE=False
+CHILD_HAS_LINE=True
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage run --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini /tmp/opencode/coverage-child-consumer-lyf7jx91/driver/driver.py
+CHILD_PID=107076
+.
+=============================== warnings summary ===============================
+../../venv-uninstrumented/lib/python3.15/site-packages/pytest_cuke/plugin.py:883
+  /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-uninstrumented/lib/python3.15/site-packages/pytest_cuke/plugin.py:883: PytestRemovedIn10Warning: config.inicfg is deprecated, use config.getini() to access configuration values instead.
+  See https://docs.pytest.org/en/stable/deprecations.html#config-inicfg
+    ini_values = getattr(config, "inicfg", {})
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 passed, 1 warning in 0.03s
+UNINSTRUMENTED_CHILD_PID=107076
+/tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/lib/python3.15/site-packages/coverage/inorout.py:560: CoverageWarning: Module pytest_cuke was never imported. (module-not-imported); see https://coverage.readthedocs.io/en/7.17.1/messages.html#warning-module-not-imported
+  self.warn(f"Module {pkg} was never imported.", slug="module-not-imported")
+/tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/lib/python3.15/site-packages/coverage/control.py:967: CoverageWarning: No data was collected. (no-data-collected); see https://coverage.readthedocs.io/en/7.17.1/messages.html#warning-no-data-collected
+  self._warn("No data was collected.", slug="no-data-collected")
+UNINSTRUMENTED_FRAGMENT=.coverage.dee40c1a898b-installed-child-dd462947e066-uninstrumented.elchupanebrejs.pid107075.XtskwYTx.HNQIp837rWOh pid=107075
+UNINSTRUMENTED_CHILD_PID=107076
+UNINSTRUMENTED_CHILD_FRAGMENT=None
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage combine --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini --keep
+Combined 1 file
+$ /tmp/opencode/coverage-child-consumer-lyf7jx91/venv-instrumented/bin/python -m coverage json --rcfile /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/cov.ini -o /tmp/opencode/coverage-child-consumer-lyf7jx91/consumer/uninstrumented.json
+No data to report.
+Combined 1 file
+UNINSTRUMENTED_JSON_EXIT=1
+UNINSTRUMENTED_PRODUCT_EVIDENCE=False
+DIAGNOSIS=measurement_gap
+GATE_EXIT_IF_ENFORCED=2
+RESULT=proof_observed
+WORK=/tmp/opencode/coverage-child-consumer-lyf7jx91
