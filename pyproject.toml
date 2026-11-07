@@ -56,7 +56,6 @@ dependencies = [
   "docopt-ng",
   "filelock",
   "gherkin-official>=25,<43",
-  "importlib-resources",
   "jsonschema>=4.18",
   "makefun",
   "Mako",
@@ -68,8 +67,7 @@ dependencies = [
   "py",
   "referencing>=0.30",
   "pytest>=7.0",
-  "cucumber-tag-expressions",
-  "typing-extensions;python_version<'3.12.0'"
+  "cucumber-tag-expressions"
 ]
 description = "BDD for pytest"
 license = {file = "LICENSE.rst"}
@@ -256,7 +254,7 @@ PyYAML = "yaml"
 types-PyYAML = "types_pyyaml"
 
 [tool.deptry.per_rule_ignores]
-DEP001 = ["allure_commons", "strenum", "tomllib"]
+DEP001 = ["allure_commons"]
 DEP002 = [
   "aiohttp",
   "certifi",
@@ -264,8 +262,6 @@ DEP002 = [
   "ci-environment",
   "decopatch",
   "filelock",
-  "importlib-metadata",
-  "importlib-resources",
   "makefun",
   "Mako",
   "ordered_set",
@@ -282,6 +278,14 @@ DEP002 = [
   "mutmut",
   "pandoc",
   "types-PyYAML",
+  "hjson",
+  "json5",
+  "pyhocon",
+  "PyYAML",
+  "pytest-httpserver",
+  "tox",
+  "playwright",
+  "mcp-pdb",
 ]
 DEP003 = ["pluggy"]
 
