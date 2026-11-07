@@ -32,16 +32,10 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 def _load_arch_config() -> dict[str, Any]:
     """Read [tool.architecture] from pyproject.toml, returning defaults if absent."""
-    try:
-        pyproject = Path("pyproject.toml")
-        if not pyproject.exists():
-            return {}
-        import tomllib
-    except ImportError:
-        try:
-            import tomli as tomllib  # type: ignore[import-not-found, no-redef]
-        except ImportError:
-            return {}
+    pyproject = Path("pyproject.toml")
+    if not pyproject.exists():
+        return {}
+    import tomllib
 
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))

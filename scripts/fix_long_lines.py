@@ -5,12 +5,8 @@ from __future__ import annotations
 import re
 import sys
 import textwrap
+import tomllib
 from pathlib import Path
-
-try:
-    import tomllib
-except ImportError:
-    import tomli as tomllib  # type: ignore[no-redef]
 
 
 def _line_length_from_ruff_config() -> int:
