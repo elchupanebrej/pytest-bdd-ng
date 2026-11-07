@@ -7,6 +7,7 @@ import itertools
 import re
 from collections.abc import Callable
 from pathlib import Path
+from tomllib import TOMLDecodeError, loads
 from typing import Any
 
 from attrs import frozen
@@ -27,7 +28,6 @@ from pytest_cuke.compatibility.runtime_compat import (
     _parse_pytest_factor,
     _parse_python_factor,
 )
-from pytest_cuke.compatibility.tomllib import TOMLDecodeError, loads
 
 DEFAULT_FEATURE_PATTERNS = ("**/*.feature", "**/*.gherkin", "**/*.feature.md", "**/*.gherkin.md")
 DEFAULT_TEST_PATTERNS = ("**/*.py",)

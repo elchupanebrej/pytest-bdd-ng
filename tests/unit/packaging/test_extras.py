@@ -4,7 +4,7 @@ import importlib.metadata
 from pathlib import Path
 
 from packaging.requirements import Requirement
-from pytest_cuke.compatibility.tomllib import loads
+from tomllib import loads
 
 from pytest import mark
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from enum import Enum
+from enum import StrEnum
 from functools import partial
 from importlib import import_module
 from pathlib import Path
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from pytest_cuke.model import Feature
 
 
-class StructBDDKind(str, Enum):
+class StructBDDKind(StrEnum):
     YAML = "yaml"
     TOML = "toml"
     JSON = "json"
@@ -83,7 +83,7 @@ class StructBDDParser(BaseParser):
 
             return partial(yaml.load, Loader=yaml.FullLoader)
         if self.kind == StructBDDKind.TOML.value:
-            from pytest_cuke.compatibility.tomllib import loads as load_toml
+            from tomllib import loads as load_toml
 
             return load_toml
         if self.kind == StructBDDKind.JSON.value:

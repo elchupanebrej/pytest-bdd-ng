@@ -4,7 +4,7 @@ import importlib
 from pathlib import Path
 
 import pytest_cuke
-from pytest_cuke.compatibility.tomllib import load
+from tomllib import load
 
 PUBLIC_NAMES = {"given", "when", "then", "step", "parsers", "scenario", "scenarios"}
 
