@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from operator import ge
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, NoReturn, Protocol, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, NoReturn, Protocol, Sequence, TypeAlias, cast
 
 import pytest
 from _pytest.config import Config, PytestPluginManager
@@ -23,7 +23,6 @@ from pytest import Module as PytestModule
 from pytest import Package
 from pytest import fail as _pytest_fail
 
-from pytest_cuke.compatibility.typing import TypeAlias
 from pytest_cuke.packaging import compare_distribution_version
 
 __all__ = [

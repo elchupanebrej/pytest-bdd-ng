@@ -8,7 +8,7 @@ from inspect import getfile
 from itertools import chain, product, starmap
 from operator import attrgetter, eq, is_not
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal, NamedTuple, TypeGuard, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, NamedTuple, Self, TypeGuard, cast
 
 from attr import attrib, attrs
 from pydantic import (
@@ -20,7 +20,6 @@ from pydantic import (
     model_validator,
 )
 
-from pytest_cuke.compatibility.typing import Self
 from pytest_cuke.mimetypes import Mimetype
 from pytest_cuke.scenario_locator import ScenarioLocatorFilterMixin
 from pytest_cuke.utils import deepattrgetter
