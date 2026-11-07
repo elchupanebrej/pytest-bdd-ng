@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
-from enum import Enum
+from enum import Enum, StrEnum
 from functools import partial
 from inspect import getfile
 from itertools import chain, product, starmap
@@ -42,7 +42,7 @@ class SubKeyword(Enum):
     Alternative = "Alternative"
 
 
-class KeywordType(str, Enum):
+class KeywordType(StrEnum):
     context = "Context"
     action = "Action"
     outcome = "Outcome"

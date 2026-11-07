@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tomllib
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
@@ -35,7 +36,6 @@ def _load_arch_config() -> dict[str, Any]:
     pyproject = Path("pyproject.toml")
     if not pyproject.exists():
         return {}
-    import tomllib
 
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
