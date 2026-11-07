@@ -6,6 +6,7 @@ import argparse
 import os.path
 import warnings
 from dataclasses import dataclass
+from importlib.resources import as_file, files
 from itertools import chain, filterfalse, zip_longest
 from operator import lt, methodcaller
 from pathlib import Path
@@ -14,7 +15,6 @@ from typing import TYPE_CHECKING, Any, Protocol, cast
 import py
 from mako.template import Template
 
-from pytest_cuke.compatibility.importlib.resources import as_file, files
 from pytest_cuke.compatibility.pytest import wrap_session
 from pytest_cuke.model import StepType
 from pytest_cuke.model.session_run import RunContext
@@ -182,7 +182,7 @@ def add_options(parser: Parser) -> None:
 def cmdline_main(config: Config) -> int | ExitCode | None:
     """Check config option to show missing code."""
     if getattr(config.option, "cuke_gather_missing_steps", False):
-        from pytest_cuke.generation_events import gather_and_print_missing_events
+        from pytest_cuke.generation_events import gather_and_print_missing_events  # noqa: PLC0415
 
         return gather_and_print_missing_events(config, _feature_paths(config))
 
