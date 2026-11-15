@@ -10,6 +10,7 @@ from pytest_cuke.model.message_consolidation import (
     LiveMessageAdapter,
     MessageFragment,
     consolidate_message_fragments,
+    drop_unstarted_run_hooks,
     namespace_envelope_ids,
 )
 from pytest_cuke.model.message_converter import feature_to_envelope, pickle_to_envelope, scenario_to_pickle
@@ -17,6 +18,8 @@ from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.message_types import (
     Duration,
     Envelope,
+    Hook,
+    HookType,
     Pickle,
     PickleStep,
     Source,
@@ -24,6 +27,7 @@ from pytest_cuke.model.message_types import (
     TestCaseFinished as CucumberTestCaseFinished,
     TestCaseStarted,
     TestRunFinished,
+    TestRunHookStarted,
     TestRunStarted,
     TestStep as CucumberTestStep,
     TestStepFinished as CucumberTestStepFinished,
@@ -508,6 +512,28 @@ def test_consolidation_deduplicates_a_source_from_its_execnet_rsync_staged_path(
     sources = [envelope["source"] for envelope in consolidated.envelope_dicts if "source" in envelope]
 
     assert sources == [{"uri": controller_uri, "data": source_data, "mediaType": media_type}]
+
+
+def test_drop_unstarted_run_hooks_removes_a_crashed_workers_after_hook() -> None:
+    def hook(hook_id: str, hook_type: HookType) -> dict[str, Any]:
+        return message_to_dict(Envelope(hook=Hook(id=hook_id, name=hook_type.value, type=hook_type, source_reference=None)))
+
+    started = message_to_dict(
+        Envelope(
+            test_run_hook_started=TestRunHookStarted(
+                id="started-1",
+                test_run_started_id="run-1",
+                worker_id="gw1",
+                hook_id="before-run",
+                timestamp=Timestamp(seconds=0, nanos=0),
+            )
+        )
+    )
+    envelopes = (hook("before-run", HookType.before_test_run), started, hook("after-run", HookType.after_test_run))
+
+    kept = drop_unstarted_run_hooks(envelopes)
+
+    assert [envelope["hook"]["id"] for envelope in kept if "hook" in envelope] == ["before-run"]
 
 
 def test_consolidation_deduplicates_same_source_from_execnet_staging_roots_without_controller_source() -> None:

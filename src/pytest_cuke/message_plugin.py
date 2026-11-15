@@ -60,6 +60,7 @@ from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_consolidation import (
     MessageFragment,
     consolidate_message_fragments,
+    drop_unstarted_run_hooks,
     namespace_envelope_ids,
 )
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_pickle_id, scenario_to_pickle
@@ -1378,8 +1379,19 @@ class MessagePlugin:
             fragments = [
                 MessageFragment(worker_id="master", role="controller", envelopes=tuple(self.accepted_message_payloads))
             ]
+        interrupted_workers = {
+            diagnostic.worker_id for diagnostic in received.diagnostics if diagnostic.worker_id is not None
+        }
         fragments.extend(
-            MessageFragment(worker_id=fragment.worker_id, role="worker", envelopes=fragment.envelopes)
+            MessageFragment(
+                worker_id=fragment.worker_id,
+                role="worker",
+                envelopes=(
+                    drop_unstarted_run_hooks(fragment.envelopes)
+                    if fragment.worker_id in interrupted_workers
+                    else fragment.envelopes
+                ),
+            )
             for fragment in received.fragments
         )
         consolidated = consolidate_message_fragments(fragments)

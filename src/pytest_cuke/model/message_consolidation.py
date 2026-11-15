@@ -19,7 +19,13 @@ from pytest_cuke.model.message_extension import (
 from pytest_cuke.model.message_types import Envelope, message_from_dict
 
 _IDE_JSON_ATTACHMENT_MEDIA_TYPES = frozenset(
-    {IDE_DIAGNOSTIC_MEDIA_TYPE, IDE_LAUNCH_MEDIA_TYPE, IDE_STEP_BINDING_MEDIA_TYPE, PYTEST_OUTCOME_MEDIA_TYPE, PYTEST_STEP_OUTCOME_MEDIA_TYPE}
+    {
+        IDE_DIAGNOSTIC_MEDIA_TYPE,
+        IDE_LAUNCH_MEDIA_TYPE,
+        IDE_STEP_BINDING_MEDIA_TYPE,
+        PYTEST_OUTCOME_MEDIA_TYPE,
+        PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+    }
 )
 _XDIST_EXECNET_STAGING_PATH = re.compile(
     r"(?:pytest-cuke-execnet-remote-\d+-[^/\\]+|_remote-\d+-[^/\\]+)/pyexecnetcache/",
@@ -74,6 +80,27 @@ def _namespace_nested(value: Any, worker_id: str, *, use_payload_worker_ids: boo
             for item in value
         ]
     return value
+
+
+def drop_unstarted_run_hooks(envelopes: Sequence[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
+    """Drop run hook definitions whose lifecycle never started, as after a worker crash."""
+    try:
+        started = {
+            str(_payload(envelope, "test_run_hook_started").get("hookId"))
+            for envelope in envelopes
+            if _payload_kind(envelope) == "test_run_hook_started"
+        }
+        return tuple(
+            envelope
+            for envelope in envelopes
+            if not (
+                _payload_kind(envelope) == "hook"
+                and str(_payload(envelope, "hook").get("type", "")) in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}
+                and str(_payload(envelope, "hook").get("id")) not in started
+            )
+        )
+    except ValueError:
+        return tuple(envelopes)
 
 
 def namespace_envelope_ids(envelope: Mapping[str, Any], *, worker_id: str) -> dict[str, Any]:
