@@ -438,5 +438,5 @@ Feature: Aggregate the full supported environment proof
         Scenario: The worker reports its duplicate step warning
           Given the duplicate xdist warning step
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -n2 --dist=load --max-worker-restart=0 --color=no -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-ambiguous-steps=first -n2 --dist=load --max-worker-restart=0 --color=no -q"
     Then pytest output should show the duplicate step warning without an xdist internal error

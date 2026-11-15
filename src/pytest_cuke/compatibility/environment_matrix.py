@@ -449,18 +449,18 @@ def _validate_runtime_policy(
                 "runtime-policy",
                 "runtime-policy-pytest-missing",
                 "runtime_policy must declare its pytest minimum and latest required line",
-                "Declare pytest minimum >=7.0 and the current latest pytest 9.x line.",
+                "Declare pytest minimum >=8.0 and the current latest pytest 9.x line.",
             )
         )
     pytest_minimum = pytest_policy.get("minimum")
     latest_pytest = pytest_policy.get("latest")
-    if pytest_minimum != ">=7.0" or latest_pytest != "9.x":
+    if pytest_minimum != ">=8.0" or latest_pytest != "9.x":
         diagnostics.append(
             _diagnostic(
                 "runtime-policy",
                 "runtime-policy-pytest-range-invalid",
-                f"runtime_policy pytest range is {pytest_minimum!r} through {latest_pytest!r}; expected >=7.0 and 9.x",
-                "Keep pytest >=7 support and require the latest pytest 9.x line on each CPython runtime cell.",
+                f"runtime_policy pytest range is {pytest_minimum!r} through {latest_pytest!r}; expected >=8.0 and 9.x",
+                "Keep pytest >=8 support and require the latest pytest 9.x line on each CPython runtime cell.",
             )
         )
     project = document.get("project")
@@ -763,7 +763,7 @@ def _validate_runtime_policy(
         )
 
     expected_floor_lines = {
-        ("cpython", "3.11", "linux", "x86_64"): "7.4.x",
+        ("cpython", "3.11", "linux", "x86_64"): "8.0.x",
         ("cpython", "3.12", "linux", "runner-native"): "8.4.x",
     }
     for key, floor_line in expected_floor_lines.items():
@@ -774,7 +774,7 @@ def _validate_runtime_policy(
                     str(floor_cell.get("id") or "runtime-policy"),
                     "runtime-policy-pytest-floor-missing",
                     f"required CPython {key[1]} Linux pytest floor {floor_line} is missing",
-                    "Include pytest 7.4.x on CPython 3.11 Linux and pytest 8.4.x on CPython 3.12 Linux.",
+                    "Include pytest 8.0.x on CPython 3.11 Linux and pytest 8.4.x on CPython 3.12 Linux.",
                 )
             )
 

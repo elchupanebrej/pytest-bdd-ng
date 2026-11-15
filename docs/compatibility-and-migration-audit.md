@@ -11,7 +11,7 @@ The project matrix is configured in `pyproject.toml`:
 
     [tool.pytest-cuke.compatibility]
     python-factors = ["3.11", "3.12", "3.13", "3.14", "3.15"]
-    pytest-factors = ["7.0", "7.4", "8.0", "8.4", "9.0", "latest"]
+    pytest-factors = ["8.0", "8.1", "8.2", "8.3", "8.4", "9", "9.1", "latest"]
     execution-targets = ["lin", "mac", "win"]
     tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
     compatibility-source = "pytest-official-policy-and-release-notes"
@@ -20,7 +20,7 @@ The project matrix is configured in `pyproject.toml`:
 factors. `latest` is an explicit policy entry resolved through the minimum
 supported Python floor in `pytest_cuke.compatibility.runtime_compat`; the
 command does not query an installed pytest or infer runtime support from an
-environment name. The current product floors are CPython 3.11 and pytest 7.0.
+environment name. The current product floors are CPython 3.11 and pytest 8.0; CPython 3.14 requires pytest 8.4.2 and CPython 3.15 requires pytest 9.1.1.
 The configured release bounds reflect pytest's [Python
 support policy](https://docs.pytest.org/en/stable/backwards-compatibility.html)
 and release notes for when new Python versions gained support, including
@@ -123,7 +123,7 @@ diagnostic text.
 optional-capability and CI-cell inventory. Required runtime cells are CPython
 3.11–3.15 on Linux, macOS and Windows, plus PyPy 3.12 and GraalPy 25.3 on Linux
 x86_64. The required CPython 3.11/Linux cell is constrained to x86_64. CPython
-3.11/Linux also runs latest pytest 7.4.x; CPython 3.12/Linux also runs latest
+3.11/Linux also runs latest pytest 8.0.x; CPython 3.12/Linux also runs latest
 pytest 8.4.x. Every required tox environment installs the
 package, runs the core suite and executes the standalone `examples/tutorial`
 project. The inventory records upstream availability, installability, product
@@ -154,11 +154,11 @@ testing on macOS and additional Windows limitations; packages using its native
 API need GraalPy-compatible wheels or source builds. Those platforms remain
 excluded from product support until their acceptance paths are verified.
 
-Project metadata's `pytest>=7.0` is the broad support floor for Python/pytest
+Project metadata's `pytest>=8.0` is the broad support floor for Python/pytest
 pairs that pytest upstream considers compatible. This compatibility promise
 does not mean every pytest patch is measured in CI. Measured CI coverage for
 CPython 3.11–3.15 runs the latest pytest 9.x line on Linux, macOS and Windows,
-plus the latest pytest 7.4.x on CPython 3.11/Linux and the latest pytest 8.4.x
+plus the latest pytest 8.0.x on CPython 3.11/Linux and the latest pytest 8.4.x
 on CPython 3.12/Linux.
 
 Core runtime environments use tox's package installer directly. The GraalPy
@@ -208,7 +208,7 @@ For local exact-version reruns, CPython 3.15 uses the pinned interpreter on all
 platforms, and the older pytest lines have dedicated Linux lanes:
 
     tox run -e py315-pytestlatest-coverage-lin,py315-pytestlatest-coverage-mac,py315-pytestlatest-coverage-win
-    tox run -e py311-pytest74-coverage-lin,py312-pytest84-coverage-lin
+    tox run -e py311-pytest80-coverage-lin,py312-pytest84-coverage-lin
 
 For a full acceptance run, execute the inventory-selected jobs on a push or
 workflow dispatch. The `full-supported-proof-<sha>` artifact contains the

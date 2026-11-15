@@ -54,7 +54,7 @@ Feature: Supported environment inventory and acceptance proof
     Then active runtime policy should require CPython 3.11 through 3.15 on Linux macOS and Windows
     And active runtime policy should require PyPy 3.12 and GraalPy 25.3 on Linux x86_64
     And GraalPy and CPython 3.15 cells should pin their setup-python inputs and expected interpreters
-    And required CPython cells should use latest pytest 9 with the specified pytest 7 and 8 floor cells
+    And required CPython cells should use latest pytest 9 with the specified pytest 8 floor cells
     And every required runtime cell should include core install and example acceptance
     And optional extras should remain separate from required runtime acceptance
     And every required runtime cell should declare upstream availability installability product support required CI and measured evidence separately
@@ -92,14 +92,14 @@ Feature: Supported environment inventory and acceptance proof
     And every runtime exclusion should record upstream availability installability product support required CI measured evidence and a named reason
     And PyPy 3.10 and 3.11 exclusions should remain source-backed historical runtime records
     Then required lanes should include CPython 3.11 and 3.14
-    And required lanes should exercise compatible pytest 7 8 and 9 versions
+    And required lanes should exercise compatible pytest 8 and 9 versions
     And the older viable pytest minors should use compatible Python lanes
-    And Python 3.9 and pytest versions below 7 should be explicitly unsupported and unselected
+    And Python 3.9 and pytest versions below 8 should be explicitly unsupported and unselected
 
   Scenario: Runtime floors and canonical inventory keep core support evidence distinct
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
     And the repository environment inventory is loaded
-    Then the project should require CPython 3.11 and pytest 7 or newer
+    Then the project should require CPython 3.11 and pytest 8 or newer
     And CPython 3.10 and PyPy 3.11 should be explicit source-backed runtime exclusions
     And canonical runtime records should keep availability installability core support required CI result evidence and exclusion reason distinct
     And the first required runtime row should be Linux x86_64 CPython 3.11 with pytest 9 and complete evidence
@@ -210,7 +210,7 @@ Feature: Supported environment inventory and acceptance proof
     And optional integration evidence should include the Debug MCP environment
   Scenario: Installed metadata enforces the Python and pytest floors without PyPy-specific markers
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project
-    Then installed package metadata should require Python 3.11 and pytest 7 without implementation-specific dependency markers
+    Then installed package metadata should require Python 3.11 and pytest 8 without implementation-specific dependency markers
 
   Scenario: Live formatter acceptance uses inventory selected lanes on every platform
     Given the pytest-cuke wheel built from this checkout is installed in a fresh step generation consumer project

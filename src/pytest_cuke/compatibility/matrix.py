@@ -14,6 +14,7 @@ from attrs import frozen
 
 from pytest_cuke.compatibility.runtime_compat import (
     MIN_SUPPORTED_PYTEST,
+    MIN_SUPPORTED_PYTEST_BY_PYTHON,
     MIN_SUPPORTED_PYTHON,
     REASON_COMPATIBLE,
     REASON_EOL_PYTEST,
@@ -27,6 +28,7 @@ from pytest_cuke.compatibility.runtime_compat import (
     _is_python_version_supported_by_pytest,
     _parse_pytest_factor,
     _parse_python_factor,
+    _pytest_below_python_floor,
 )
 
 DEFAULT_FEATURE_PATTERNS = ("**/*.feature", "**/*.gherkin", "**/*.feature.md", "**/*.gherkin.md")
@@ -422,7 +424,7 @@ def normalize_pytest_factor(value: str) -> str:
     normalized = value.strip().casefold()
     if normalized == "latest":
         return normalized
-    match = re.fullmatch(r"(?:pytest)?(\d{2,3})", normalized)
+    match = re.fullmatch(r"(?:pytest)?(\d{1,3})", normalized)
     if match:
         factor = match.group(1)
         if _parse_pytest_factor(factor) is not None:
@@ -457,6 +459,9 @@ def classify_pair(python_factor: str, pytest_factor: str) -> tuple[bool, bool, s
 
     project_supported = python_version >= MIN_SUPPORTED_PYTHON and pytest_version >= MIN_SUPPORTED_PYTEST
     if pytest_version < MIN_SUPPORTED_PYTEST:
+        return False, False, REASON_EOL_PYTEST
+    python_floor = MIN_SUPPORTED_PYTEST_BY_PYTHON.get(python_version)
+    if python_floor is not None and _pytest_below_python_floor(pytest_version, python_floor, normalized_pytest):
         return False, False, REASON_EOL_PYTEST
 
     policy_key = "latest" if normalized_pytest == "latest" else f"{pytest_version[0]}{pytest_version[1]}"

@@ -22,7 +22,11 @@ PYTEST_COMPATIBILITY_BOUNDS: dict[str, tuple[tuple[int, int], tuple[int, int] | 
 }
 
 MIN_SUPPORTED_PYTHON: tuple[int, int] = (3, 11)
-MIN_SUPPORTED_PYTEST: tuple[int, int, int] = (7, 0, 0)
+MIN_SUPPORTED_PYTEST: tuple[int, int, int] = (8, 0, 0)
+MIN_SUPPORTED_PYTEST_BY_PYTHON: dict[tuple[int, int], tuple[int, int, int]] = {
+    (3, 14): (8, 4, 2),
+    (3, 15): (9, 1, 1),
+}
 
 REASON_COMPATIBLE = "compatible"
 REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST = "python_not_supported_by_pytest"
@@ -93,12 +97,32 @@ def _parse_pytest_factor(pytest_factor: str) -> tuple[int, int, int] | None:
     return None
 
 
+def _pytest_below_python_floor(
+    pytest_version: tuple[int, int, int],
+    floor: tuple[int, int, int],
+    pytest_factor: str,
+) -> bool:
+    """Treat a bare minor factor as the whole line and patch factors exactly."""
+    if pytest_version >= floor:
+        return False
+    if pytest_version[2] == 0 and len(pytest_factor) <= 2 and pytest_version[:2] == floor[:2]:
+        return False
+    return True
+
+
 def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, str]:
     py = _parse_python_factor(python_factor)
     if py is None:
         return False, REASON_PYTHON_UNAVAILABLE
     pytest_version = _parse_pytest_factor(pytest_factor)
     if pytest_version is not None and pytest_version < MIN_SUPPORTED_PYTEST:
+        return False, REASON_EOL_PYTEST
+    python_floor = MIN_SUPPORTED_PYTEST_BY_PYTHON.get(py)
+    if (
+        pytest_version is not None
+        and python_floor is not None
+        and _pytest_below_python_floor(pytest_version, python_floor, pytest_factor)
+    ):
         return False, REASON_EOL_PYTEST
 
     compatible = _is_python_version_supported_by_pytest(py, pytest_factor)
@@ -114,6 +138,11 @@ def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, st
 def _is_python_version_supported_by_pytest(python_version: tuple[int, int], pytest_factor: str) -> bool | None:
     """Return upstream Python support for a known pytest factor, or None if unknown."""
     bounds = PYTEST_COMPATIBILITY_BOUNDS.get(pytest_factor)
+    if bounds is None and pytest_factor and pytest_factor != "latest":
+        for length in (2, 1):
+            bounds = PYTEST_COMPATIBILITY_BOUNDS.get(pytest_factor[:length])
+            if bounds is not None:
+                break
     if bounds is None:
         return None
     minimum_python, maximum_python = bounds
@@ -122,6 +151,7 @@ def _is_python_version_supported_by_pytest(python_version: tuple[int, int], pyte
 
 __all__ = [
     "MIN_SUPPORTED_PYTEST",
+    "MIN_SUPPORTED_PYTEST_BY_PYTHON",
     "MIN_SUPPORTED_PYTHON",
     "PYTEST_COMPATIBILITY_BOUNDS",
     "REASON_COMPATIBLE",

@@ -2811,7 +2811,7 @@ def run_cpython_311_linux_lane_with_skipped_core_and_passing_tutorial(
         "architecture": "x86_64",
         "expected_interpreter": "3.11.*",
         "runner": "ubuntu-latest",
-        "tox_envs": ["py311-pytestlatest-coverage-lin", "py311-pytest74-coverage-lin"],
+        "tox_envs": ["py311-pytestlatest-coverage-lin", "py311-pytest80-coverage-lin"],
     }
     capture = _run_selected_matrix_environment(
         request,

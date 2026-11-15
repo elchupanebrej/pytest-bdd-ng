@@ -413,7 +413,7 @@ def _install_inventory_checker_tools(consumer: Any) -> None:
             str(consumer.python),
             "tox>=4.2",
             "PyYAML",
-            "pytest>=7.0",
+            "pytest>=8.0",
         ],
         cwd=consumer.path,
         check=False,
@@ -1591,11 +1591,11 @@ def required_lanes_include_supported_cpython_targets(consumer: Any) -> None:
         ), python_version
 
 
-@then("required lanes should exercise compatible pytest 7 8 and 9 versions")
+@then("required lanes should exercise compatible pytest 8 and 9 versions")
 def required_lanes_exercise_supported_pytest_majors(consumer: Any) -> None:
     required = [lane for lane in _lanes(_context(consumer)) if _status(lane) == "required"]
     observed_majors = {major for lane in required for major in _majors(lane.get("pytest"))}
-    assert {7, 8, 9} <= observed_majors, observed_majors
+    assert {8, 9} <= observed_majors, observed_majors
 
 
 @then("the older viable pytest minors should use compatible Python lanes")
@@ -1619,7 +1619,7 @@ def older_pytest_minors_use_compatible_python_lanes(consumer: Any) -> None:
             )
 
 
-@then("Python 3.9 and pytest versions below 7 should be explicitly unsupported and unselected")
+@then("Python 3.9 and pytest versions below 8 should be explicitly unsupported and unselected")
 def below_floor_runtime_and_pytest_factors_are_not_selected(consumer: Any) -> None:
     context = _context(consumer)
     project = context.document.get("project")
@@ -1627,14 +1627,14 @@ def below_floor_runtime_and_pytest_factors_are_not_selected(consumer: Any) -> No
     python_floor = SpecifierSet(str(project.get("python_requirement", "")))
     pytest_floor = SpecifierSet(str(project.get("pytest_requirement", "")))
     assert python_floor.contains("3.11.0") and not python_floor.contains("3.9.99"), project
-    assert pytest_floor.contains("7.0") and not pytest_floor.contains("6.99"), project
+    assert pytest_floor.contains("8.0") and not pytest_floor.contains("7.99"), project
 
     for lane in _lanes(context):
         selected = _status(lane) in {"required", "optional"}
         python_version = str(lane.get("python", ""))
         pytest_majors = _majors(lane.get("pytest"))
         selected_tox_environments = str(lane.get("tox_env", "")).split(",") if selected else []
-        below_floor = python_version.startswith("3.9") or any(major < 7 for major in pytest_majors)
+        below_floor = python_version.startswith("3.9") or any(major < 8 for major in pytest_majors)
         if below_floor:
             assert _status(lane) == "unsupported", lane
             assert not lane.get("workflow_selector") and not lane.get("tox_env"), lane
@@ -1643,16 +1643,16 @@ def below_floor_runtime_and_pytest_factors_are_not_selected(consumer: Any) -> No
             if match is not None:
                 pytest_factor = match.group("pytest")
                 pytest_major = int(pytest_factor) if len(pytest_factor) > 1 else int(pytest_factor) * 10
-                assert pytest_major >= 70, lane
+                assert pytest_major >= 80, lane
 
 
-@then("required CPython cells should use latest pytest 9 with the specified pytest 7 and 8 floor cells")
+@then("required CPython cells should use latest pytest 9 with the specified pytest 8 floor cells")
 def required_cpython_cells_use_latest_and_compatible_floor_pytest(consumer: Any) -> None:
     context = _context(consumer)
     policy = _runtime_policy(context)
     pytest_policy = policy.get("pytest")
     assert isinstance(pytest_policy, dict), pytest_policy
-    assert pytest_policy.get("minimum") == ">=7.0", pytest_policy
+    assert pytest_policy.get("minimum") == ">=8.0", pytest_policy
     assert pytest_policy.get("latest") == "9.x", pytest_policy
     cells = _required_runtime_cells(context)
     for cell in cells:
@@ -1662,7 +1662,7 @@ def required_cpython_cells_use_latest_and_compatible_floor_pytest(consumer: Any)
         assert isinstance(required_lines, list) and "9.x" in required_lines, cell
     by_key = {_runtime_cell_key(cell): cell for cell in cells}
     expected_floor_lines = {
-        ("cpython", "3.11", "linux", "x86_64"): "7.4.x",
+        ("cpython", "3.11", "linux", "x86_64"): "8.0.x",
         ("cpython", "3.12", "linux", "runner-native"): "8.4.x",
     }
     for key, floor in expected_floor_lines.items():
@@ -1806,9 +1806,13 @@ def retired_pypy_runtime_and_capability_exclusions_remain_historical(consumer: A
 
 @then("pytest 7 support should cover every Python pairing allowed by upstream constraints")
 def every_upstream_compatible_pairing_retains_pytest_7_support(consumer: Any) -> None:
-    from pytest_cuke.compatibility.runtime_compat import PYTEST_COMPATIBILITY_BOUNDS
+    from pytest_cuke.compatibility.runtime_compat import (
+        REASON_EOL_PYTEST,
+        _is_python_version_supported_by_pytest,
+    )
 
-    pairs: set[tuple[str, str]] = set()
+    historical_pairs: set[tuple[str, str]] = set()
+    compatible_pairs: set[tuple[str, str]] = set()
     python_versions = {
         str(cell["python"])
         for cell in _required_runtime_cells(_context(consumer))
@@ -1817,18 +1821,19 @@ def every_upstream_compatible_pairing_retains_pytest_7_support(consumer: Any) ->
     for python_version in python_versions:
         python_tuple = tuple(int(part) for part in python_version.split("."))
         python_factor = python_version.replace(".", "")
-        for pytest_factor, (minimum_python, maximum_python) in PYTEST_COMPATIBILITY_BOUNDS.items():
-            upstream_allows_pair = python_tuple >= minimum_python and (
-                maximum_python is None or python_tuple <= maximum_python
-            )
-            if not upstream_allows_pair:
-                continue
-            compatible, reason = is_pair_compatible(python_factor, pytest_factor)
-            assert compatible, (
-                f"Python {python_version} and pytest {pytest_factor} are permitted upstream, "
-                f"but product compatibility reports {reason}"
-            )
-            pairs.add((python_factor, pytest_factor))
+        for pytest_factor in ("70", "71", "72", "73", "74"):
+            if _is_python_version_supported_by_pytest(python_tuple, pytest_factor):
+                compatible, reason = is_pair_compatible(python_factor, pytest_factor)
+                assert not compatible and reason == REASON_EOL_PYTEST, (python_factor, pytest_factor, reason)
+                historical_pairs.add((python_factor, pytest_factor))
+        for pytest_factor in ("80", "81", "84"):
+            if _is_python_version_supported_by_pytest(python_tuple, pytest_factor):
+                compatible, reason = is_pair_compatible(python_factor, pytest_factor)
+                assert compatible, (
+                    f"Python {python_version} and pytest {pytest_factor} are permitted upstream, "
+                    f"but product compatibility reports {reason}"
+                )
+                compatible_pairs.add((python_factor, pytest_factor))
 
     expected = {
         ("311", "72"),
@@ -1837,7 +1842,9 @@ def every_upstream_compatible_pairing_retains_pytest_7_support(consumer: Any) ->
         ("312", "80"),
         ("312", "81"),
     }
-    assert expected <= pairs, f"older viable pytest tox pairings are missing: {sorted(expected - pairs)!r}"
+    assert expected <= historical_pairs | compatible_pairs, (
+        f"older viable pytest tox pairings are missing: {sorted(expected - (historical_pairs | compatible_pairs))!r}"
+    )
 
 
 @then("each unsupported runtime or pytest pairing should have upstream evidence and a reason")
@@ -1905,7 +1912,7 @@ def _has_http_sources(value: Any) -> bool:
     )
 
 
-@then("the project should require CPython 3.11 and pytest 7 or newer")
+@then("the project should require CPython 3.11 and pytest 8 or newer")
 def project_runtime_and_pytest_floors_are_current(consumer: Any) -> None:
     project_path = _context(consumer).repository_root / "pyproject.toml"
     project = tomllib.loads(project_path.read_text(encoding="utf-8"))["project"]
@@ -1919,8 +1926,8 @@ def project_runtime_and_pytest_floors_are_current(consumer: Any) -> None:
         for requirement in test_requirements
         if re.sub(r"[-_.]+", "-", requirement.name).casefold() == "pytest"
     )
-    assert pytest_requirement.specifier.contains("7.0"), pytest_requirement
-    assert not pytest_requirement.specifier.contains("6.99"), pytest_requirement
+    assert pytest_requirement.specifier.contains("8.0"), pytest_requirement
+    assert not pytest_requirement.specifier.contains("7.99"), pytest_requirement
 
 
 @then("CPython 3.10 and PyPy 3.11 should be explicit source-backed runtime exclusions")
@@ -3250,7 +3257,7 @@ def messages_schema_inventory_uses_installed_schema_fixture(request: pytest.Fixt
 
 
 @then(
-    "installed package metadata should require Python 3.11 and pytest 7 without implementation-specific dependency "
+    "installed package metadata should require Python 3.11 and pytest 8 without implementation-specific dependency "
     "markers"
 )
 def installed_metadata_declares_runtime_floors_without_implementation_markers(consumer: Any) -> None:
@@ -3282,8 +3289,8 @@ def installed_metadata_declares_runtime_floors_without_implementation_markers(co
         requirement for requirement in requirements if re.sub(r"[-_.]+", "-", requirement.name).casefold() == "pytest"
     ]
     assert pytest_requirements, requirements
-    assert all(requirement.specifier.contains("7.0") for requirement in pytest_requirements), pytest_requirements
-    assert all(not requirement.specifier.contains("6.99") for requirement in pytest_requirements), pytest_requirements
+    assert all(requirement.specifier.contains("8.0") for requirement in pytest_requirements), pytest_requirements
+    assert all(not requirement.specifier.contains("7.99") for requirement in pytest_requirements), pytest_requirements
 
     implementation_markers = [
         str(requirement)
@@ -3347,12 +3354,12 @@ def compatibility_audit_guide_distinguishes_support_from_measured_coverage(
     support_promise = [
         paragraph
         for paragraph in paragraphs
-        if re.search(r"pytest\s*>=\s*7\.0", paragraph)
+        if re.search(r"pytest\s*>=\s*8\.0", paragraph)
         and "floor" in paragraph
         and "upstream" in paragraph
         and "pair" in paragraph
     ]
-    assert support_promise, "the guide should state that pytest >=7.0 is a support floor for upstream-compatible pairs"
+    assert support_promise, "the guide should state that pytest >=8.0 is a support floor for upstream-compatible pairs"
 
     measured_matrix = [
         paragraph
@@ -3368,8 +3375,8 @@ def compatibility_audit_guide_distinguishes_support_from_measured_coverage(
     )
 
     anchor_claims = {
-        "CPython 3.11/Linux pytest 7.4.x": any(
-            "7.4.x" in paragraph and re.search(r"3\.11\s*/\s*linux", paragraph) for paragraph in paragraphs
+        "CPython 3.11/Linux pytest 8.0.x": any(
+            "8.0.x" in paragraph and re.search(r"3\.11\s*/\s*linux", paragraph) for paragraph in paragraphs
         ),
         "CPython 3.12/Linux pytest 8.4.x": any(
             "8.4.x" in paragraph and re.search(r"3\.12\s*/\s*linux", paragraph) for paragraph in paragraphs

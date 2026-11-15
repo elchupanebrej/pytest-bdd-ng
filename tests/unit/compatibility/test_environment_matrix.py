@@ -55,8 +55,8 @@ def _runtime_cell_records() -> tuple[list[dict[str, Any]], list[dict[str, Any]],
             tox_env = f"py{python_version.replace('.', '')}-pytestlatest-coverage-{_tox_platform(platform_name)}"
             pytest_lines = ["9.x"]
             if python_version == "3.11" and platform_name == "linux":
-                tox_env = f"{tox_env},py311-pytest74-coverage-lin"
-                pytest_lines.append("7.4.x")
+                tox_env = f"{tox_env},py311-pytest80-coverage-lin"
+                pytest_lines.append("8.0.x")
             if python_version == "3.12" and platform_name == "linux":
                 tox_env = f"{tox_env},py312-pytest84-coverage-lin"
                 pytest_lines.append("8.4.x")
@@ -191,7 +191,7 @@ def _policy_document() -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[
     document = {
         "runtime_policy": {
             "python_requirement": ">=3.11",
-            "pytest": {"minimum": ">=7.0", "latest": "9.x"},
+            "pytest": {"minimum": ">=8.0", "latest": "9.x"},
             "required_cells": required_cells,
             "exclusions": [
                 _runtime_policy_exclusion(
@@ -333,7 +333,7 @@ def test_runtime_policy_accepts_the_canonical_required_cells() -> None:
     assert diagnostics == []
     assert summary["requiredCellCount"] == 17
     assert summary["exclusionCount"] == 7
-    assert summary["pytestMinimum"] == ">=7.0"
+    assert summary["pytestMinimum"] == ">=8.0"
 
 
 def test_runtime_policy_graalpy_version_check_is_independent_of_inventory_order() -> None:

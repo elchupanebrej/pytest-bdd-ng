@@ -66,7 +66,7 @@ dependencies = [
   "pathvalidate",
   "py",
   "referencing>=0.30",
-  "pytest>=7.0",
+  "pytest>=8.0",
   "cucumber-tag-expressions"
 ]
 description = "BDD for pytest"
@@ -88,6 +88,7 @@ cuke = "pytest_cuke.cli:main"
 
 [project.entry-points."pytest_cuke.formatters"]
 cucumber-json = "pytest_cuke.cucumber_json_formatter:replay_cucumber_json_formatter_request"
+cucumber-html = "pytest_cuke.html_replay:replay_html_formatter_request"
 cucumber-junit = "pytest_cuke.cucumber_junit_formatter:replay_cucumber_junit_formatter_request"
 pretty = "pytest_cuke.formatter_replay_builtin:replay_builtin_formatter_request"
 progress = "pytest_cuke.formatter_replay_builtin:replay_builtin_formatter_request"
@@ -122,7 +123,7 @@ testtypes = [
   "PyYAML==6.0.3"
 ]
 test = [
-  "pytest>=7.0.0",
+  "pytest>=8.0.0",
   "attrs>=22.2.0",
   "pytest-httpserver>=1.1.5",
   "PyYAML==6.0.3"
@@ -173,7 +174,8 @@ async = [
   "aiofiles>=23.0.0"
 ]
 full = [
-  "pytest-cuke[allure,debug-mcp,struct-bdd,cucumber-json,async]"
+  "pytest-cuke[allure,debug-mcp,struct-bdd,cucumber-json,async]",
+  "pytest-xdist>=3"
 ]
 
 [tool.ruff]
@@ -332,7 +334,7 @@ required_distributions = [
 [tool.pytest-cuke.compatibility]
 python-factors = ["3.11", "3.12", "3.13", "3.14", "3.15"]
 pytest-factors = [
-  "7.0", "7.2", "7.3", "7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "9.0", "9", "latest"
+  "8.0", "8.1", "8.2", "8.3", "8.4", "9", "9.1", "latest"
 ]
 execution-targets = ["lin", "mac", "win"]
 tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
