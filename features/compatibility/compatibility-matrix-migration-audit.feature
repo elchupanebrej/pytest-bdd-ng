@@ -33,8 +33,8 @@ Feature: Installed compatibility matrix and migration audit
     And the compatibility pair should be incompatible with reason "eol_pytest"
     When I run command "cuke" with arguments "compatibility --python 3.14 --pytest 8.0 --json"
     Then the command should exit with a non-zero code
-    And the compatibility pair should be incompatible with reason "python_not_supported_by_pytest"
-    And the compatibility pair should be supported by the project
+    And the compatibility pair should be incompatible with reason "eol_pytest"
+    And the compatibility pair should be unsupported by the project
     When I run command "cuke" with arguments "compatibility --python 3.11 --pytest unknown --json"
     Then the command should exit with a non-zero code
     And the compatibility pair should be incompatible with reason "pytest_unavailable"

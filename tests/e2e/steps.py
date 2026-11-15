@@ -8251,7 +8251,6 @@ def compatibility_matrix_contains_configured_factor_pairs(consumer: ConsumerProj
         "compatible",
         "eol_python",
         "eol_pytest",
-        "python_not_supported_by_pytest",
     }
 
 

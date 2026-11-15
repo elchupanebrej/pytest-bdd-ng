@@ -30,6 +30,7 @@ Feature: Cached batch feature collection
       [tool.pytest.ini_options]
       cuke_features_dir = "features"
       cuke_autoload = true
+      cuke_batch_mode = "threshold"
       cuke_batch_threshold = 2
       """
     And the consumer cannot start spawn workers
@@ -44,6 +45,7 @@ Feature: Cached batch feature collection
       [tool.pytest.ini_options]
       cuke_features_dir = "features"
       cuke_autoload = true
+      cuke_batch_mode = "threshold"
       cuke_batch_threshold = 3
       """
     And the consumer cannot start spawn workers
