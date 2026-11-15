@@ -30,7 +30,7 @@ from pytest_cuke.utils import DefaultMapping, get_args
 
 if TYPE_CHECKING:
     from collections import deque
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable, Iterable, Iterator
 
     from pytest_cuke.model.feature import Feature
     from pytest_cuke.model.scenario import Scenario
@@ -60,6 +60,98 @@ def missing_step_hint(step: Any) -> str:
 @dataclass(frozen=True, slots=True)
 class _IgnoredStepFailure:
     exception: Exception
+
+
+class _PreviousStepFixtureUnavailable(LookupError):
+    """A parser needs a target fixture that only an earlier step body can produce."""
+
+    def __init__(self, fixture_name: str) -> None:
+        super().__init__(fixture_name)
+        self.fixture_name = fixture_name
+
+
+class _PreflightRequest:
+    """Delegate to the real request but refuse fixtures an earlier step body must produce."""
+
+    def __init__(self, request: Any, unavailable: frozenset[str]) -> None:
+        self._request = request
+        self._unavailable = unavailable
+        self.requested_unavailable: set[str] = set()
+
+    def getfixturevalue(self, name: str) -> Any:
+        if name in self._unavailable:
+            self.requested_unavailable.add(name)
+            raise _PreviousStepFixtureUnavailable(name)
+        return self._request.getfixturevalue(name)
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            request = object.__getattribute__(self, "_request")
+        except AttributeError:
+            raise AttributeError(name) from None
+        return getattr(request, name)
+
+
+_NOT_IMPLEMENTED_HEADER = "Steps with @not_implemented definitions:"
+_UNVERIFIED_HEADER = "Unverified step bindings (cannot be decided before earlier steps run):"
+
+
+@dataclass(frozen=True, slots=True)
+class _BindingFindings:
+    """Preflight classification split by what can be decided before earlier steps run."""
+
+    missing: tuple[exceptions.StepDefinitionNotFoundError, ...] = ()
+    not_implemented: tuple[tuple[Step, str], ...] = ()
+    unverified: tuple[tuple[Step, str], ...] = ()
+
+    @property
+    def failed(self) -> bool:
+        return bool(self.missing or self.unverified)
+
+    def not_implemented_lines(self) -> list[str]:
+        return [
+            f'- "{step.name}" (selected wip status policy: {policy})'
+            for step, policy in self.not_implemented
+        ]
+
+    def unverified_lines(self) -> list[str]:
+        return [f'- "{step.name}" {reason}' for step, reason in self.unverified]
+
+    def failure_message(self) -> str:
+        sections = [
+            "Scenario has steps without matching step definitions:\n"
+            + "\n".join(f"- {error}" for error in self.missing)
+        ]
+        if self.unverified:
+            sections.append(f"{_UNVERIFIED_HEADER}\n" + "\n".join(self.unverified_lines()))
+        if self.not_implemented:
+            sections.append(f"{_NOT_IMPLEMENTED_HEADER}\n" + "\n".join(self.not_implemented_lines()))
+        return "\n\n".join(sections)
+
+    def incomplete_message(self) -> str:
+        sections = [
+            "Scenario binding preflight is incomplete; these step bindings are unverified:",
+            "\n".join(self.unverified_lines()),
+        ]
+        if self.not_implemented:
+            sections.append(f"{_NOT_IMPLEMENTED_HEADER}\n" + "\n".join(self.not_implemented_lines()))
+        return "\n".join(sections)
+
+
+def _unavailable_reason(fixture_names: Iterable[str]) -> str:
+    listed = ", ".join(f'"{name}"' for name in sorted(fixture_names))
+    return f"depends on fixture {listed} produced by an earlier step"
+
+
+def _write_preflight_lines(request: Any, lines: list[str]) -> None:
+    """Show preflight findings without running any BDD hook."""
+    pluginmanager = getattr(getattr(request, "config", None), "pluginmanager", None)
+    reporter = pluginmanager.get_plugin("terminalreporter") if pluginmanager is not None else None
+    write_line = getattr(reporter, "write_line", None)
+    if write_line is None:
+        return
+    for line in lines:
+        write_line(line)
 
 
 class StepRunner:
@@ -427,6 +519,13 @@ class ScenarioRunner:
 
             self._refresh_test_function_fixtures(item, request)
 
+    @hookimpl(tryfirst=True)
+    def pytest_pyfunc_call(self, pyfuncitem: Item) -> bool | None:
+        """Keep scenario-bound test function bodies out of a mock run."""
+        if self._is_scenario_item(pyfuncitem) and self._mock_run_enabled(pyfuncitem.config):
+            return True
+        return None
+
     @staticmethod
     def _mock_run_enabled(config: Config) -> bool:
         option = getattr(getattr(config, "option", None), "cuke_mock_run", None)
@@ -458,27 +557,16 @@ class ScenarioRunner:
             )
             set_scenario_run(item, scenario_run)
 
-        missing: list[exceptions.StepDefinitionNotFoundError] = []
-        previous_step: Step | None = None
         try:
-            for step in execution_steps(feature, scenario):
-                try:
-                    with context.inspect_step(
-                        feature=feature,
-                        scenario=scenario,
-                        step=step,
-                        previous_step=previous_step,
-                        nodeid=item.nodeid,
-                    ) as run:
-                        self.step_runner.match_to_step(request, run)
-                except exceptions.StepDefinitionNotFoundError as error:
-                    missing.append(error)
-                previous_step = step
-
-            if missing:
-                detail = "\n".join(f"- {error}" for error in missing)
-                raise exceptions.StepDefinitionNotFoundError(
-                    f"Scenario has steps without matching step definitions:\n{detail}"
+            findings = self._preflight_scenario_bindings(item, request, feature, scenario, context)
+            if findings.failed:
+                if findings.missing:
+                    raise exceptions.StepDefinitionNotFoundError(findings.failure_message())
+                pytest.fail(findings.incomplete_message(), pytrace=False)
+            if findings.not_implemented:
+                _write_preflight_lines(
+                    request,
+                    [f"pytest-cuke mock-run preflight: {_NOT_IMPLEMENTED_HEADER}", *findings.not_implemented_lines()],
                 )
 
             self._refresh_test_function_fixtures(item, request)
@@ -490,6 +578,48 @@ class ScenarioRunner:
             )
             raise
         context.finish_active(status="passed", hook_phase="pytest_runtest_call")
+
+    def _preflight_scenario_bindings(
+        self,
+        item: Item,
+        request: FixtureRequest,
+        feature: Feature,
+        scenario: Scenario,
+        context: RunContext,
+    ) -> _BindingFindings:
+        """Classify each step as bound, missing, not implemented, or undecidable."""
+        missing: list[exceptions.StepDefinitionNotFoundError] = []
+        not_implemented: list[tuple[Step, str]] = []
+        unverified: list[tuple[Step, str]] = []
+        unavailable: set[str] = set()
+        previous_step: Step | None = None
+        for step in execution_steps(feature, scenario):
+            preflight_request = _PreflightRequest(request, frozenset(unavailable))
+            try:
+                with context.inspect_step(
+                    feature=feature,
+                    scenario=scenario,
+                    step=step,
+                    previous_step=previous_step,
+                    nodeid=item.nodeid,
+                ) as run:
+                    definition = self.step_runner.match_to_step(cast("FixtureRequest", preflight_request), run)
+            except exceptions.StepDefinitionNotFoundError as error:
+                if preflight_request.requested_unavailable:
+                    unverified.append((step, _unavailable_reason(preflight_request.requested_unavailable)))
+                else:
+                    missing.append(error)
+            except _PreviousStepFixtureUnavailable as error:
+                unverified.append((step, _unavailable_reason({error.fixture_name})))
+            except LookupError as error:
+                unverified.append((step, f"could not be matched because a fixture was unavailable ({error})"))
+            else:
+                unavailable.update(getattr(definition, "target_fixtures", ()) or ())
+                if getattr(definition, "not_implemented", False):
+                    not_implemented.append((step, resolve_wip_status(request.config, item, scenario)))
+            finally:
+                previous_step = step
+        return _BindingFindings(tuple(missing), tuple(not_implemented), tuple(unverified))
 
     @staticmethod
     def _status_for_exception(

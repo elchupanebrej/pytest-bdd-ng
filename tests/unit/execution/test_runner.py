@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -278,3 +279,119 @@ def test_mock_run_aggregates_missing_steps_and_keeps_previous_step_context(
     assert run_context.status == "undefined"
     assert run_context.last_error is error.value
     assert run_context.hook_phase == "pytest_runtest_call"
+
+
+class _FakeDefinition:
+    def __init__(self, *, target_fixtures: tuple[str, ...] = (), not_implemented: bool = False) -> None:
+        self.target_fixtures = target_fixtures
+        self.not_implemented = not_implemented
+
+
+def _mock_run_fixture(*, wip_status: str = "failed") -> tuple[MagicMock, MagicMock]:
+    request = MagicMock()
+    request.config.option.cuke_wip_status = wip_status
+    request.config.getini.return_value = wip_status
+    item = MagicMock()
+    item.nodeid = "test_module.py::test_scenario"
+    item.fixturenames = []
+    item.iter_markers.return_value = iter(())
+    return request, item
+
+
+def test_mock_run_preflight_separates_missing_and_not_implemented(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bound = Step(name="bound step", keyword="Given", line=2)
+    wip = Step(name="not implemented step", keyword="When", line=3)
+    absent = Step(name="definitely absent step", keyword="Then", line=4)
+    feature = Feature(name="Feature", uri="feature.feature")
+    scenario = Scenario(name="Scenario", steps=(bound, wip, absent))
+    run_context = RunContext()
+    monkeypatch.setattr("pytest_cuke.runner.get_run_context", lambda _config: run_context)
+
+    step_runner = MagicMock()
+
+    def match_to_step(_request: object, run: RunContext) -> object:
+        step = run.require_step("pytest_cuke_match_step_definition_to_step")
+        if step is absent:
+            raise exceptions.StepDefinitionNotFoundError(step.name)
+        return _FakeDefinition(not_implemented=step is wip)
+
+    step_runner.match_to_step.side_effect = match_to_step
+    request, item = _mock_run_fixture()
+
+    with pytest.raises(exceptions.StepDefinitionNotFoundError) as error:
+        ScenarioRunner(step_runner=step_runner)._verify_mock_run_bindings(item, request, feature, scenario)
+
+    message = str(error.value)
+    assert "Scenario has steps without matching step definitions:" in message
+    assert "definitely absent step" in message
+    assert "Steps with @not_implemented definitions:" in message
+    assert '"not implemented step" (selected wip status policy: failed)' in message
+
+
+def test_mock_run_preflight_marks_previous_step_fixture_dependency_unverified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    producer = Step(name="names are prepared", keyword="Given", line=2)
+    dependent = Step(name="I select alpha", keyword="When", line=3)
+    feature = Feature(name="Feature", uri="feature.feature")
+    scenario = Scenario(name="Scenario", steps=(producer, dependent))
+    run_context = RunContext()
+    monkeypatch.setattr("pytest_cuke.runner.get_run_context", lambda _config: run_context)
+
+    step_runner = MagicMock()
+
+    def match_to_step(request: object, run: RunContext) -> object:
+        step = run.require_step("pytest_cuke_match_step_definition_to_step")
+        if step is producer:
+            return _FakeDefinition(target_fixtures=("known_names",))
+        request.getfixturevalue("known_names")  # type: ignore[attr-defined]  # Emulates a custom parser fixture dependency.
+        return _FakeDefinition()
+
+    step_runner.match_to_step.side_effect = match_to_step
+    request, item = _mock_run_fixture()
+
+    with pytest.raises(pytest.fail.Exception) as error:
+        ScenarioRunner(step_runner=step_runner)._verify_mock_run_bindings(item, request, feature, scenario)
+
+    message = str(error.value)
+    assert "Scenario binding preflight is incomplete" in message
+    assert "these step bindings are unverified" in message
+    assert 'depends on fixture "known_names" produced by an earlier step' in message
+    assert "without matching step definitions" not in message
+    assert run_context.status == "failed"
+
+
+def test_mock_run_preflight_reports_not_implemented_without_failing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    wip = Step(name="not implemented step", keyword="Given", line=2)
+    feature = Feature(name="Feature", uri="feature.feature")
+    scenario = Scenario(name="Scenario", steps=(wip,))
+    run_context = RunContext()
+    monkeypatch.setattr("pytest_cuke.runner.get_run_context", lambda _config: run_context)
+
+    step_runner = MagicMock()
+    step_runner.match_to_step.return_value = _FakeDefinition(not_implemented=True)
+    request, item = _mock_run_fixture(wip_status="skipped")
+
+    ScenarioRunner(step_runner=step_runner)._verify_mock_run_bindings(item, request, feature, scenario)
+
+    assert run_context.status == "passed"
+    written = "\n".join(call.args[0] for call in request.config.pluginmanager.get_plugin.return_value.write_line.call_args_list)
+    assert "Steps with @not_implemented definitions:" in written
+    assert '"not implemented step" (selected wip status policy: skipped)' in written
+
+
+def test_mock_run_pyfunc_call_skips_scenario_bound_test_function() -> None:
+    runner = ScenarioRunner()
+    item = MagicMock()
+    item.iter_markers.return_value = [SimpleNamespace(name="pytest_cuke_scenario")]
+    item.config.option.cuke_mock_run = True
+
+    assert runner.pytest_pyfunc_call(item) is True
+
+    item.config.option.cuke_mock_run = False
+    item.config.getini.return_value = False
+    assert runner.pytest_pyfunc_call(item) is None

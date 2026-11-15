@@ -22,7 +22,7 @@ def test_add_bdd_ini() -> None:
     parser.addini.assert_any_call("cuke_features_base_url", "Base features URL.", default="", type="string")
     parser.addini.assert_any_call(
         "cuke_mock_run",
-        "Validate scenario step bindings without running BDD hooks or step bodies.",
+        "Validate scenario step bindings without running BDD hooks, step bodies, or bound test functions.",
         default=False,
         type="bool",
     )

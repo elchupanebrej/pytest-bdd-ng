@@ -58,13 +58,21 @@ Feature and Rule backgrounds and expanded Scenario Outline rows, and passes
 each step's predecessor to the same matcher used during normal execution.
 
 Every missing step binding is reported before the scenario fails validation.
-Ambiguous matches retain the normal matcher behavior. Step bodies and the BDD
-scenario/step execution lifecycle hooks do not run. Pytest collection and item
-selection still run, including user collection and plugin hooks. Test modules
-and plugins are imported, the step registry and pytest fixtures are built, and
-fixture setup or test-function fixture refresh may run. After successful
-validation, the ordinary pytest test function also runs. These pytest-side
-effects are not suppressed by binding-only validation.
+Bindings that cannot be decided before earlier steps run are reported
+separately as incomplete verification: a custom parser that reads a
+``target_fixture`` produced by a previous step is never called missing. The
+selected ``@not_implemented`` status policy is shown for found definitions
+without turning mock-run into an error or skip. A mock run that cannot verify a
+binding exits non-zero; a run where every binding is found passes even when it
+also reports not-implemented definitions.
+
+Ambiguous matches retain the normal matcher behavior. Step bodies, the bodies
+of Python test functions bound to the scenarios, and the BDD scenario/step
+execution lifecycle hooks do not run. Pytest collection and item selection
+still run, including user collection and plugin hooks. Test modules and plugins
+are imported, the step registry and pytest fixtures are built, and fixture
+setup or teardown may run for independent fixtures needed by matching. These
+pytest-side effects are not suppressed by binding-only validation.
 
 .. code-block:: console
 

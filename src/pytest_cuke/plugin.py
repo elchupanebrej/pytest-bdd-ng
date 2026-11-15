@@ -267,7 +267,7 @@ def pytest_addoption(parser: Parser) -> None:
         action="store_true",
         dest="cuke_mock_run",
         default=None,
-        help="validate scenario step bindings without running BDD hooks or step bodies",
+        help="validate scenario step bindings without running BDD hooks, step bodies, or bound test functions",
     )
     feature_group.addoption(
         "--cuke-allow-empty-scenarios",
@@ -379,7 +379,7 @@ def add_bdd_ini(parser: Parser) -> None:
     )
     parser.addini(
         "cuke_mock_run",
-        "Validate scenario step bindings without running BDD hooks or step bodies.",
+        "Validate scenario step bindings without running BDD hooks, step bodies, or bound test functions.",
         default=False,
         type="bool",
     )

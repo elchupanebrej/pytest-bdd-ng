@@ -10959,20 +10959,6 @@ def consumer_mock_run_normal_execution_markers(relative_path: str, consumer: Con
 
 @then(
     re.compile(
-        r'consumer marker artifact "(?P<relative_path>[^"]+)" should contain only (?P<count>\d+) '
-        r'instances? of the pytest test-function body marker'
-    )
-)
-def consumer_mock_run_only_test_function_markers(relative_path: str, count: str, consumer: ConsumerProject) -> None:
-    marker_path = _consumer_artifact_path(relative_path, consumer)
-    assert marker_path.is_file(), f"the ordinary pytest function body did not run: {marker_path}"
-    actual = marker_path.read_text(encoding="utf-8").splitlines()
-    expected = ["test-function-body"] * int(count)
-    assert actual == expected, (actual, expected)
-
-
-@then(
-    re.compile(
         r'collection should reject consumer feature "(?P<feature_path>[^"]+)", scenario "(?P<scenario_name>[^"]+)", '
         r'and step "(?P<step_text>[^"]+)" before files "(?P<hook_path>[^"]+)" and "(?P<body_path>[^"]+)" are created'
     )

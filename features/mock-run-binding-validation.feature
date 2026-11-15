@@ -1,10 +1,10 @@
 Feature: Binding-only mock run validation
-  Consumers can validate scenario bindings without running BDD hooks or step bodies.
-  Mock run still imports consumer modules, collects and selects pytest items, runs
-  collection/plugin work, and calls the selected pytest item function. It is not
-  globally side-effect-free; only BDD lifecycle hooks and step bodies are skipped.
+  Consumers can validate scenario bindings without running BDD hooks, step bodies,
+  or the body of a Python test function bound to the scenario. Mock run still
+  imports consumer modules, collects and selects pytest items, and runs
+  collection/plugin work. It is not globally side-effect-free.
 
-  Scenario: Mock run skips BDD execution but retains ordinary pytest function execution
+  Scenario: Mock run skips BDD execution and bound test function bodies
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer has no Allure Python adapters or Node on PATH
     And consumer file "conftest.py" contains:
@@ -85,7 +85,7 @@ Feature: Binding-only mock run validation
     And I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
-    And consumer marker artifact "mock-run-markers.txt" should contain only 1 instance of the pytest test-function body marker
+    And the consumer file "mock-run-markers.txt" should not exist
 
   Scenario: Multiple missing bindings fail validation before BDD execution
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -394,7 +394,7 @@ Feature: Binding-only mock run validation
     And the test outcome should have 2 passed scenarios
     And pytest output should not include "the missing keyword-filtered binding is absent"
     And pytest output should not include "the missing marker-filtered binding is absent"
-    And consumer marker artifact "mock-run-markers.txt" should contain only 2 instances of the pytest test-function body marker
+    And the consumer file "mock-run-markers.txt" should not exist
     And consumer artifact "selected-outline.ndjson" should preserve mock-run background and row binding arguments
 
   Scenario: Mock run Messages retain bound and missing source identities
