@@ -6,7 +6,7 @@ from configparser import Error as ConfigParserError
 from importlib.machinery import ModuleSpec
 from importlib.util import module_from_spec
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 from uuid import uuid4
 
@@ -218,7 +218,7 @@ class FeatureFileModule(Module):
             raise _broken_link(path, f"cannot read property list: {error}") from error
         if not url:
             raise _broken_link(path, "missing URL")
-        raw_path, path_type = cls.detect_uri_pathtype(cast("str", url))
+        raw_path, path_type = cls.detect_uri_pathtype(url)
         return raw_path, path_type, cls._relative_link_base_dir(path, raw_path, path_type)
 
 

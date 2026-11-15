@@ -79,14 +79,14 @@ class ReportPresentation:
 
         if "testRunFinished" in envelope:
             pending = [item for group in self._pending.values() for item in group]
-            metadata = list(self._metadata.values())
+            pending_metadata = list(self._metadata.values())
             self._pending.clear()
             self._outcomes.clear()
             self._metadata.clear()
             self._wip_attempts.clear()
-            return [*pending, *metadata, envelope]
+            return [*pending, *pending_metadata, envelope]
 
-        payload = next(iter(envelope.values()), {})
+        payload: Any = next(iter(envelope.values()), {})
         attempt_id = payload.get("testCaseStartedId") if isinstance(payload, dict) else None
         if not isinstance(attempt_id, str):
             return [envelope]
@@ -188,9 +188,10 @@ class ReportPresentation:
             outcome = json.loads(attachment["body"])
         except (KeyError, TypeError, ValueError):
             return None
-        if isinstance(outcome, dict) and isinstance(outcome.get("testCaseStartedId"), str):
-            self._outcomes[outcome["testCaseStartedId"]] = outcome
-            return outcome["testCaseStartedId"]
+        attempt_id = outcome.get("testCaseStartedId") if isinstance(outcome, dict) else None
+        if isinstance(outcome, dict) and isinstance(attempt_id, str):
+            self._outcomes[attempt_id] = outcome
+            return attempt_id
         return None
 
     @staticmethod

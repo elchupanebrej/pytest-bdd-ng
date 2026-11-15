@@ -265,7 +265,8 @@ class StepRunner:
         if step_definition.not_implemented:
             wip_status = resolve_wip_status(request.config, request.node, scenario)
             if wip_status == "failed":
-                message = "Not-implemented step failed by policy."
+                # The body never runs; report the stub contract that the policy enforces.
+                message = "NotImplementedError: not-implemented step failed by policy."
                 run.transition(
                     stage="step-running",
                     hook_phase="pytest_cuke_step_bypassed",
@@ -296,7 +297,7 @@ class StepRunner:
                 pytest.skip(message)
 
         step_error_hook_called = False
-        step_function_kwargs: dict[str, Any] = {}
+        step_function_kwargs = {}
         try:
             run.transition(
                 stage="step-running",

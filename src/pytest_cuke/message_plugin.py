@@ -35,6 +35,11 @@ from pytest_cuke.compatibility.pytest import (
     get_metafunc_call_arg,
     is_set,
 )
+from pytest_cuke.const import (
+    PYTEST_OUTCOME_MEDIA_TYPE,
+    PYTEST_SOURCE_MEDIA_TYPE,
+    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+)
 from pytest_cuke.formatter_catalog import resolve_formatter_requests
 from pytest_cuke.formatter_runtime import FormatterSession
 from pytest_cuke.generation import make_step_method_name
@@ -58,11 +63,6 @@ from pytest_cuke.model.message_consolidation import (
     namespace_envelope_ids,
 )
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_pickle_id, scenario_to_pickle
-from pytest_cuke.model.message_extension import (
-    PYTEST_OUTCOME_MEDIA_TYPE,
-    PYTEST_SOURCE_MEDIA_TYPE,
-    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
-)
 from pytest_cuke.model.message_source import callable_source_reference
 from pytest_cuke.model.message_stream_validation import MessageStreamValidator
 from pytest_cuke.model.message_transport import MessageEnvelopeView, ValidatedMessageTransport
@@ -1543,7 +1543,7 @@ class MessagePlugin:
         run_context.clear_active()
 
     @hookimpl(hookwrapper=True)
-    def pytest_runtest_setup(self, item: Item) -> Generator[None, None, None]:
+    def pytest_runtest_setup(self, item: Item) -> Generator[None, Any, None]:
         outcome = yield
         if self.is_disabled:
             return

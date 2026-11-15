@@ -56,7 +56,7 @@ def render_cucumber_html(messages: str, package: str = "@cucumber/html-formatter
             template = re.sub(r"\{\{", "{{&", raw)
             break
 
-    return chevron.render(
+    rendered: str = chevron.render(
         template,
         {
             "css": css_content,
@@ -64,6 +64,7 @@ def render_cucumber_html(messages: str, package: str = "@cucumber/html-formatter
             "messages": messages,
         },
     )
+    return rendered
 
 
 __all__ = ["render_cucumber_html"]

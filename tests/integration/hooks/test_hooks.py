@@ -11,6 +11,12 @@ def test_hooks(testdir):
         textwrap.dedent(
             # language=python
             r"""
+            from pytest_cuke import given
+
+            @given("a working step")
+            def working_step():
+                pass
+
             def pytest_pyfunc_call(pyfuncitem):
                 print('\npytest_pyfunc_call hook')
 
@@ -26,6 +32,7 @@ def test_hooks(testdir):
             r"""
             Feature: The feature
                 Scenario: Some scenario
+                    Given a working step
             """
         )
     )

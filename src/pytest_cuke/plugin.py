@@ -537,14 +537,15 @@ def _scenario_has_matching_step(config: Config, item: Any, feature: Feature, sce
             with catch_warnings():
                 simplefilter("ignore", PytestBDDStepDefinitionWarning)
                 matcher(request, feature, scenario, step, previous_step, registry)  # type: ignore[arg-type]  # The collection request deliberately exposes no fixture setup API.
+        except (Matcher.MatchAmbiguousError, LookupError):
+            # Equal-priority candidates still match, and a parser may need a fixture that
+            # collection must not execute; both are left to runtime matching.
+            return True
         except Matcher.MatchNotFoundError:
             if request.custom_parameter_registry and matcher._undefined_parameter_types:
                 # Unknown custom expression types require their fixture value, which collection must not execute.
                 return True
             pass
-        except LookupError:
-            # A parser may need a user fixture. Leave that case to normal runtime matching.
-            return True
         else:
             return True
         finally:

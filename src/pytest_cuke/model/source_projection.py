@@ -73,7 +73,20 @@ class SourceProjection:
         return messages.Location(line=line, column=column)
 
 
+def normalize_source_descriptions(value: Any) -> Any:
+    """Trim node description tokens, as the other Gherkin ASTs do."""
+    if isinstance(value, dict):
+        node = {key: normalize_source_descriptions(item) for key, item in value.items()}
+        if isinstance(node.get("description"), str):
+            node["description"] = node["description"].strip()
+        return node
+    if isinstance(value, list):
+        return [normalize_source_descriptions(item) for item in value]
+    return value
+
+
 def capture_source_projection(raw: dict[str, Any], feature: Feature) -> SourceProjection:
+    raw = normalize_source_descriptions(raw)
     positions: dict[str, tuple[str, int, int | None]] = {}
 
     def visit(value: object) -> None:

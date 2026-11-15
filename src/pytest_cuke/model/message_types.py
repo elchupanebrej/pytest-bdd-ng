@@ -182,6 +182,7 @@ def message_json(message: Any) -> str:
 
 __all__ = [
     "Attachment",
+    "AttachmentContentEncoding",
     "Background",
     "Ci",
     "Comment",

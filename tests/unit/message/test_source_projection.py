@@ -10,6 +10,7 @@ from pytest_cuke.model.message_validation import validate_envelope
 from pytest_cuke.gherkin_builder import build_feature_from_dict
 from pytest_cuke.model.feature import Feature
 from pytest_cuke.model.serialization import as_dict, from_dict, from_json, to_json
+from pytest_cuke.model.source_projection import normalize_source_descriptions
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
 from pytest_cuke.model.message_types import Envelope, GherkinDocument, message_from_dict, message_to_dict
 
@@ -38,7 +39,8 @@ def test_legacy_parser_document_can_omit_empty_comments():
 def test_projection_preserves_the_official_source_ast_without_reparsing(monkeypatch):
     raw = Parser().parse(SOURCE)
     feature = build_feature_from_dict(raw, uri="features/navigation.feature")
-    expected = message_from_dict(raw, GherkinDocument)
+    # gherkin-official keeps description-token indentation; reports use the trimmed form.
+    expected = message_from_dict(normalize_source_descriptions(raw), GherkinDocument)
     expected.uri = feature.uri
 
     def no_reparse(*args, **kwargs):

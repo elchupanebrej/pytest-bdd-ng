@@ -1081,6 +1081,7 @@ def test_found_alternate_step_decorators_produce_warning(testdir, tmp_path):
         f"""\
         [pytest]
         cuke_features_dir={tmp_path}
+        cuke_ambiguous_steps=first
         """
     )
     (tmp_path / "steps.feature").write_text(

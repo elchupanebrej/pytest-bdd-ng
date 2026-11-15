@@ -8,11 +8,6 @@ from urllib.parse import urlsplit
 
 from attrs import frozen
 
-from pytest_cuke.const import (  # noqa: F401 - re-exported for existing imports
-    PYTEST_OUTCOME_MEDIA_TYPE,
-    PYTEST_SOURCE_MEDIA_TYPE,
-    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
-)
 from pytest_cuke.model.message_types import (
     Attachment,
     AttachmentContentEncoding,

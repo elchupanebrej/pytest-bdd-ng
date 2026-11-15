@@ -17021,6 +17021,15 @@ def _reporting_spine_event_ids(envelopes: list[dict[str, Any]]) -> list[tuple[st
     return identities
 
 
+def _without_internal_metadata(envelopes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop pytest-cuke's internal report metadata, which reports filter out."""
+    return [
+        envelope
+        for envelope in envelopes
+        if not str(envelope.get("attachment", {}).get("mediaType", "")).startswith("application/vnd.pytest-cuke.")
+    ]
+
+
 def _assert_reporting_spine_fanout(
     messages_path: str,
     observer_path: str,
@@ -17028,13 +17037,13 @@ def _assert_reporting_spine_fanout(
 ) -> list[dict[str, Any]]:
     messages = _reporting_spine_artifact(messages_path, consumer)
     observed = _reporting_spine_artifact(observer_path, consumer)
-    message_ids = _reporting_spine_event_ids(messages)
+    message_ids = _reporting_spine_event_ids(_without_internal_metadata(messages))
     observed_ids = _reporting_spine_event_ids(observed)
     assert observed_ids == message_ids, (
         "the validated extension sink and configured NDJSON sink must receive the same event IDs in the same order: "
         f"observer={observed_ids!r}, ndjson={message_ids!r}"
     )
-    assert observed == messages, (
+    assert observed == _without_internal_metadata(messages), (
         "the validated extension sink and configured NDJSON sink must receive identical accepted envelopes: "
         f"observer={observed!r}, ndjson={messages!r}"
     )

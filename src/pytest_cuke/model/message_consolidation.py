@@ -8,13 +8,12 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, cast
 
+from pytest_cuke.const import PYTEST_OUTCOME_MEDIA_TYPE, PYTEST_STEP_OUTCOME_MEDIA_TYPE
 from pytest_cuke.model.message_extension import (
     CONTROLLER_SINGULAR_PAYLOAD_KINDS,
     IDE_DIAGNOSTIC_MEDIA_TYPE,
     IDE_LAUNCH_MEDIA_TYPE,
     IDE_STEP_BINDING_MEDIA_TYPE,
-    PYTEST_OUTCOME_MEDIA_TYPE,
-    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
     STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS,
 )
 from pytest_cuke.model.message_types import Envelope, message_from_dict

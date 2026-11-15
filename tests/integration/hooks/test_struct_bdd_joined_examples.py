@@ -3,6 +3,10 @@ from collections import Counter
 
 import pytest
 
+from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
+
+pytestmark = pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed")
+
 
 @pytest.mark.parametrize(
     "suffix", [".bdd.yaml", ".bdd.yml", ".bdd", ".bdd.json", ".bdd.json5", ".bdd.hjson", ".bdd.hocon", ".bdd.toml"]

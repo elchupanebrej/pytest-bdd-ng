@@ -276,15 +276,22 @@ def _completed_partial_envelopes(envelopes: list[messages.Envelope]) -> list[mes
     kept: list[messages.Envelope] = []
     for envelope in envelopes:
         kind = get_payload_kind(envelope)
-        if kind == "test_case" and envelope.test_case.id not in completed_test_cases:
+        test_case = envelope.test_case
+        if kind == "test_case" and (test_case is None or test_case.id not in completed_test_cases):
             continue
-        if kind == "test_case_started" and envelope.test_case_started.id not in completed_attempts:
+        test_case_started = envelope.test_case_started
+        if kind == "test_case_started" and (
+            test_case_started is None or test_case_started.id not in completed_attempts
+        ):
             continue
-        if kind == "test_case_finished" and envelope.test_case_finished.test_case_started_id not in completed_attempts:
+        test_case_finished = envelope.test_case_finished
+        if kind == "test_case_finished" and (
+            test_case_finished is None or test_case_finished.test_case_started_id not in completed_attempts
+        ):
             continue
         if kind in {"test_step_started", "test_step_finished"}:
             payload = envelope.test_step_started or envelope.test_step_finished
-            if payload.test_case_started_id not in completed_attempts:
+            if payload is None or payload.test_case_started_id not in completed_attempts:
                 continue
         if kind == "attachment":
             attachment = envelope.attachment
@@ -294,11 +301,14 @@ def _completed_partial_envelopes(envelopes: list[messages.Envelope]) -> list[mes
                 continue
             if hook_id is not None and hook_id not in paired_hooks:
                 continue
-        if kind == "test_run_hook_started" and envelope.test_run_hook_started.id not in paired_hooks:
+        test_run_hook_started = envelope.test_run_hook_started
+        if kind == "test_run_hook_started" and (
+            test_run_hook_started is None or test_run_hook_started.id not in paired_hooks
+        ):
             continue
-        if (
-            kind == "test_run_hook_finished"
-            and envelope.test_run_hook_finished.test_run_hook_started_id not in paired_hooks
+        test_run_hook_finished = envelope.test_run_hook_finished
+        if kind == "test_run_hook_finished" and (
+            test_run_hook_finished is None or test_run_hook_finished.test_run_hook_started_id not in paired_hooks
         ):
             continue
         kept.append(envelope)
@@ -309,7 +319,11 @@ def _completed_partial_envelopes(envelopes: list[messages.Envelope]) -> list[mes
     return [
         envelope
         for envelope in kept
-        if not (get_payload_kind(envelope) == "pickle" and envelope.pickle.id not in referenced_pickles)
+        if not (
+            get_payload_kind(envelope) == "pickle"
+            and envelope.pickle is not None
+            and envelope.pickle.id not in referenced_pickles
+        )
     ]
 
 

@@ -2,6 +2,7 @@ import json
 import sys
 
 import pytest
+from pytest_cuke.compatibility.struct_bdd import STRUCT_BDD_INSTALLED
 from pytest_cuke.formatter_api import FormatterRequest
 from pytest_cuke.formatter_replay import replay_messages
 
@@ -11,7 +12,12 @@ from pytest_cuke.formatter_replay import replay_messages
     [
         ("custom.story", "Feature: Custom\n  Scenario: Works\n    Given a working step\n", "application/x-custom"),
         ("worker.story", "Feature: Worker\n  Scenario: Works\n    Given a working step\n", "application/x-worker"),
-        ("structured.bdd.yaml", "Name: YAML\nAction: a working step\n", "application/x.struct_bdd+yaml"),
+        pytest.param(
+            "structured.bdd.yaml",
+            "Name: YAML\nAction: a working step\n",
+            "application/x.struct_bdd+yaml",
+            marks=pytest.mark.skipif(not STRUCT_BDD_INSTALLED, reason="StructBDD is not installed"),
+        ),
         (
             "standard.feature",
             "Feature: Standard\n  Scenario: Works\n    Given a working step\n",

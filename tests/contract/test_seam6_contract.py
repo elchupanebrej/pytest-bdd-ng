@@ -70,6 +70,13 @@ def test_seam6_plugin_lifecycle_and_stash_contract() -> None:
     config.option.cuke_mcp_max_holds = None
     config.option.cuke_mcp_expose_env = None
     config.option.cuke_mcp_redact_patterns = None
+    config.getoption.side_effect = lambda name: {
+        "cuke_report_policy": "normal",
+        "cuke_xfail_as_failed": None,
+        "cuke_skip_as_failed": None,
+        "cuke_tolerated_as_failed": None,
+        "cuke_wip_as_failed": None,
+    }.get(name)
     config.getini.side_effect = lambda name: {
         "cuke_tolerant_status": "failed",
         "cuke_wip_status": "failed",

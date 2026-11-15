@@ -35,6 +35,15 @@ Feature: Optional native Go parser and Python fallback
       """gherkin
       Feature: Parser selection
         Scenario: Automatic parser fallback
+          Given the parser selection scenario starts
+      """
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+      @given("the parser selection scenario starts")
+      def parser_selection_starts():
+          pass
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-parser=auto"
     Then pytest should exit with code 0
@@ -67,6 +76,15 @@ Feature: Optional native Go parser and Python fallback
       """gherkin
       Feature: Parser selection
         Scenario: Command-line Python selection
+          Given the parser selection scenario starts
+      """
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+      @given("the parser selection scenario starts")
+      def parser_selection_starts():
+          pass
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-parser=python"
     Then pytest should exit with code 0
@@ -85,6 +103,15 @@ Feature: Optional native Go parser and Python fallback
       """gherkin
       Feature: Parser selection
         Scenario: Configured Python parser
+          Given the parser selection scenario starts
+      """
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+      @given("the parser selection scenario starts")
+      def parser_selection_starts():
+          pass
       """
     When I run installed pytest with arguments "--rootdir=."
     Then pytest should exit with code 0
@@ -96,6 +123,15 @@ Feature: Optional native Go parser and Python fallback
       """gherkin
       Feature: Parser selection
         Scenario: Unknown parser fallback
+          Given the parser selection scenario starts
+      """
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given
+
+      @given("the parser selection scenario starts")
+      def parser_selection_starts():
+          pass
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-parser=not-a-parser"
     Then pytest should exit with code 0

@@ -135,6 +135,7 @@ def _resolve_external_path(feature_path: Path | str, raw_path: str) -> Path | st
 def _read_records(
     source_path: Path | str, open_url: Callable[[str], Any] | None = None
 ) -> tuple[list[list[str]], list[int]]:
+    source_file: io.StringIO | io.TextIOWrapper
     try:
         if isinstance(source_path, str):
             with (open_url or urlopen)(source_path) as response:
