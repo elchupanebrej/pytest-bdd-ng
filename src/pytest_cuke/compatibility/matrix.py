@@ -462,7 +462,8 @@ def classify_pair(python_factor: str, pytest_factor: str) -> tuple[bool, bool, s
         return False, False, REASON_EOL_PYTEST
     python_floor = MIN_SUPPORTED_PYTEST_BY_PYTHON.get(python_version)
     if python_floor is not None and _pytest_below_python_floor(pytest_version, python_floor, normalized_pytest):
-        return False, False, REASON_EOL_PYTEST
+        # The per-Python floor records the first pytest line that supports that interpreter.
+        return False, project_supported, REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST
 
     policy_key = "latest" if normalized_pytest == "latest" else f"{pytest_version[0]}{pytest_version[1]}"
     upstream_compatible = _is_python_version_supported_by_pytest(python_version, policy_key)

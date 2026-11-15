@@ -59,7 +59,7 @@ def test_whitespace_only_scenario_heading_rejected(tmp_path: Path) -> None:
     feature_file.write_text(
         """\
 Feature: Whitespace scenario
-  Scenario:    \t  
+  Scenario:    \t
     Given a step
 """,
         encoding="utf-8",
@@ -76,7 +76,7 @@ def test_empty_feature_heading_rejected(tmp_path: Path) -> None:
     feature_file = tmp_path / "empty_feature.feature"
     feature_file.write_text(
         """\
-Feature:   
+Feature:
   Scenario: Valid scenario
     Given a step
 """,

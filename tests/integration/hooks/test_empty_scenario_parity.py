@@ -3,7 +3,7 @@ import json
 import pytest
 
 
-def test_empty_scenario_without_allure_is_skipped(pytester):
+def test_empty_scenario_without_allure_passes(pytester):
     pytester.makeini("[pytest]\ncuke_parser = python\ncuke_autoload = false\n")
     pytester.makefile(".feature", empty="Feature: Empty\n  Scenario: Empty scenario\n")
     pytester.makepyfile(
@@ -15,7 +15,7 @@ def test_empty():
 """
     )
     result = pytester.runpytest_subprocess("--cuke-messages-ndjson=messages.ndjson", "-q")
-    result.assert_outcomes(skipped=1)
+    result.assert_outcomes(passed=1)
     events = [json.loads(line) for line in (pytester.path / "messages.ndjson").read_text().splitlines()]
     assert any("testCaseFinished" in event for event in events)
     metadata = [
@@ -23,8 +23,7 @@ def test_empty():
         for event in events
         if event.get("attachment", {}).get("mediaType") == "application/vnd.pytest-cuke.pytest-outcome+json"
     ]
-    assert len(metadata) == 1
-    assert metadata[0]["outcome"] == "skip"
+    assert metadata == []
 
 
 def test_empty_scenario_is_skipped_but_background_only_runs(pytester):
@@ -53,17 +52,17 @@ def test_background():
 """
     )
     result = pytester.runpytest_subprocess("--cuke-allure=live", "--cuke-messages-ndjson=messages.ndjson", "-q")
-    result.assert_outcomes(passed=1, skipped=1)
+    result.assert_outcomes(passed=2)
     replay = pytester.runpytest_subprocess("--cuke-allure-messages-in=messages.ndjson", "--cuke-allure=replay", "-q")
     assert replay.ret == 0
     for directory in ("live", "replay"):
         reports = [json.loads(path.read_text()) for path in (pytester.path / directory).glob("*-result.json")]
         assert {report["name"]: report["status"] for report in reports} == {
-            "Empty scenario": "skipped",
+            "Empty scenario": "passed",
             "Background only": "passed",
         }
     diagnostic = pytester.runpytest_subprocess("--cuke-allure=diagnostic", "--cuke-skip-as-failed", "-q")
-    diagnostic.assert_outcomes(passed=1, skipped=1)
+    diagnostic.assert_outcomes(passed=2)
     diagnostic_replay = pytester.runpytest_subprocess(
         "--cuke-allure-messages-in=messages.ndjson", "--cuke-allure=diagnostic-replay", "--cuke-skip-as-failed", "-q"
     )
@@ -71,6 +70,6 @@ def test_background():
     for directory in ("diagnostic", "diagnostic-replay"):
         reports = [json.loads(path.read_text()) for path in (pytester.path / directory).glob("*-result.json")]
         assert {report["name"]: report["status"] for report in reports} == {
-            "Empty scenario": "failed",
+            "Empty scenario": "passed",
             "Background only": "passed",
         }

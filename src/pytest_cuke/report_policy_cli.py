@@ -26,5 +26,3 @@ def configure_report_policy_parser(parser: argparse.ArgumentParser) -> None:
             default=None,
             help=f"show {category} outcomes normally, overriding the report policy",
         )
-
-

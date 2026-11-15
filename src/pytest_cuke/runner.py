@@ -266,7 +266,7 @@ class StepRunner:
             wip_status = resolve_wip_status(request.config, request.node, scenario)
             if wip_status == "failed":
                 # The body never runs; report the stub contract that the policy enforces.
-                message = "NotImplementedError: not-implemented step failed by policy."
+                message = "Not-implemented step failed by policy: NotImplementedError."
                 run.transition(
                     stage="step-running",
                     hook_phase="pytest_cuke_step_bypassed",
@@ -501,8 +501,6 @@ class ScenarioRunner:
                     status="running",
                 )
                 request.config.hook.pytest_cuke_before_scenario(request=request, run=context)
-                if not any(execution_steps(feature, scenario)):
-                    pytest.skip("Scenario has no executable steps")
                 context.transition(stage="running", hook_phase="pytest_cuke_run_scenario", status="running")
                 request.config.hook.pytest_cuke_run_scenario(request=request, run=context)
             except BaseException as exception:

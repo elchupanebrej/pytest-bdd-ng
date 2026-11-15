@@ -285,4 +285,3 @@ def test_make_location_enforces_minimum_schema_line_and_column() -> None:
     loc_valid = mc.make_location(42, column=10)
     assert loc_valid.line == 42
     assert loc_valid.column == 10
-

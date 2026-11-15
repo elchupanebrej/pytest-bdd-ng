@@ -136,7 +136,10 @@ for (const started of testCaseStarted) {
 
 const features = JSON.parse(report);
 for (const feature of features) {
+  // gherkin-official keeps description indentation; Cucumber JSON reports trim it.
+  if (typeof feature.description === "string") feature.description = feature.description.trim();
   for (const element of feature.elements ?? []) {
+    if (typeof element.description === "string") element.description = element.description.trim();
     const key = JSON.stringify([feature.uri, element.name]);
     const source = externalExamplesByFeatureAndName.get(key)?.shift();
     if (source) element.external_examples_source = source;

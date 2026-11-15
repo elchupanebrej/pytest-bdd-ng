@@ -123,7 +123,8 @@ def is_pair_compatible(python_factor: str, pytest_factor: str) -> tuple[bool, st
         and python_floor is not None
         and _pytest_below_python_floor(pytest_version, python_floor, pytest_factor)
     ):
-        return False, REASON_EOL_PYTEST
+        # The per-Python floor records the first pytest line that supports that interpreter.
+        return False, REASON_PYTHON_NOT_SUPPORTED_BY_PYTEST
 
     compatible = _is_python_version_supported_by_pytest(py, pytest_factor)
     if compatible is None:
