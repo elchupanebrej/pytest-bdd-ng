@@ -8,16 +8,25 @@ import json
 import os
 import re
 import tempfile
+import time
 from base64 import b64decode
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib import import_module
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
 from pytest_cuke.model.message_converter import envelope_from_dict
-from pytest_cuke.model.message_extension import PAYLOAD_KINDS, get_payload_kind
+from pytest_cuke.model.message_extension import PAYLOAD_KINDS, external_attachment_reference, get_payload_kind
+from pytest_cuke.model.message_types import (
+    Envelope,
+    TestRunFinished,
+    Timestamp,
+    message_from_dict,
+    message_to_dict,
+)
 from pytest_cuke.model.message_validation import validate_envelope_data
+from pytest_cuke.model.report_presentation import ReportPresentation
 
 if TYPE_CHECKING:
     from pytest_cuke.model import message_types as messages
@@ -34,6 +43,7 @@ class _ParsedMessages:
     run_finished_trace: str | None
     raw_extensions: list[bytes]
     run_hook_traces: dict[str, str]
+    incomplete: str | None = None
 
 
 @dataclass(frozen=True)
@@ -44,10 +54,44 @@ class _NormalizedEnvelope:
     run_hook_trace: tuple[str, str] | None
 
 
-def convert_allure_messages(input_path: Path, output_dir: Path) -> None:
+def convert_allure_messages(input_path: Path, output_dir: Path, *, xfail_as_failed: bool = False, skip_as_failed: bool = False, tolerated_as_failed: bool = False, wip_as_failed: bool = False) -> None:
     """Convert every completed scenario attempt in one Cucumber Messages run."""
-    parsed = _read_envelopes(input_path)
-    converted, attachments, results_by_case_id = _convert_scenarios(parsed.envelopes, parsed.exception_traces)
+    parsed = _read_envelopes(input_path, allow_incomplete=True)
+    incomplete = parsed.incomplete
+    if incomplete is not None:
+        parsed = replace(parsed, envelopes=_completed_partial_envelopes(parsed.envelopes))
+        run_started = next(
+            (envelope.test_run_started for envelope in parsed.envelopes if envelope.test_run_started is not None),
+            None,
+        )
+        if run_started is not None:
+            now = time.time()
+            parsed = replace(
+                parsed,
+                envelopes=[
+                    *parsed.envelopes,
+                    Envelope(
+                        test_run_finished=TestRunFinished(
+                            success=False,
+                            timestamp=Timestamp(seconds=int(now), nanos=int(now % 1 * 1_000_000_000)),
+                            message=f"incomplete Messages stream: {incomplete}",
+                            test_run_started_id=run_started.id,
+                        )
+                    ),
+                ],
+            )
+    presentation = ReportPresentation(xfail_as_failed=xfail_as_failed, skip_as_failed=skip_as_failed, tolerated_as_failed=tolerated_as_failed, wip_as_failed=wip_as_failed)
+    parsed = replace(
+        parsed,
+        envelopes=[
+            message_from_dict(projected, Envelope)
+            for event in parsed.envelopes
+            for projected in presentation.accept(message_to_dict(event))
+        ],
+    )
+    converted, attachments, results_by_case_id = _convert_scenarios(
+        parsed.envelopes, parsed.exception_traces, presentation
+    )
     run_hook_container, run_hook_attachments = _convert_run_hooks(
         parsed.envelopes, converted, parsed.run_hook_traces
     )
@@ -69,9 +113,30 @@ def convert_allure_messages(input_path: Path, output_dir: Path) -> None:
     except OSError as exc:
         raise AllureConversionError(f"cannot write Allure results to {output_dir}: {exc}") from exc
 
+    if incomplete is not None:
+        marker = Path(output_dir) / "allure.incomplete.json"
+        marker.write_text(
+            json.dumps(
+                {
+                    "incomplete": True,
+                    "source": str(input_path),
+                    "reason": incomplete,
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        raise AllureConversionError(
+            f"Messages stream is incomplete: {incomplete}; "
+            "partial Allure results marked with allure.incomplete.json"
+        )
+
 
 def _read_envelopes(
     input_path: Path,
+    *,
+    allow_incomplete: bool = False,
 ) -> _ParsedMessages:
     try:
         raw_content = input_path.read_bytes()
@@ -89,77 +154,163 @@ def _read_envelopes(
     run_hook_traces: dict[str, str] = {}
     known_payload_names = _known_payload_names()
     raw_lines = raw_content.split(b"\n")
-    for line_number, raw_line in enumerate(raw_lines, start=1):
-        line_bytes = raw_line[:-1] if raw_line.endswith(b"\r") and line_number < len(raw_lines) else raw_line
-        line = line_bytes.decode("utf-8")
-        if not line.strip():
-            continue
-        try:
-            payload = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise AllureConversionError(f"invalid JSON in {input_path} at line {line_number}: {exc.msg}") from exc
-        if not isinstance(payload, dict):
-            raise AllureConversionError(f"Cucumber message in {input_path} at line {line_number} must be an object")
-        unknown_fields = set(payload) - known_payload_names
-        if unknown_fields:
-            if len(payload) == 1 and len(unknown_fields) == 1:
-                raw_extensions.append(line_bytes)
+    incomplete: str | None = None
+    try:
+        for line_number, raw_line in enumerate(raw_lines, start=1):
+            line_bytes = raw_line[:-1] if raw_line.endswith(b"\r") and line_number < len(raw_lines) else raw_line
+            line = line_bytes.decode("utf-8")
+            if not line.strip():
                 continue
-            names = ", ".join(sorted(repr(name) for name in unknown_fields))
-            raise AllureConversionError(
-                f"invalid Cucumber message in {input_path} at line {line_number}: "
-                f"unknown top-level payload field(s) {names}"
-            )
-        diagnostics = validate_envelope_data(payload, position=line_number)
-        if diagnostics:
-            details = "; ".join(
-                f"{'.'.join(str(part) for part in diagnostic.instance_path)}: {diagnostic.message}"
-                if diagnostic.instance_path
-                else diagnostic.message
-                for diagnostic in diagnostics
-            )
-            raise AllureConversionError(
-                f"invalid Cucumber message in {input_path} at line {line_number}: {details}"
-            )
-        normalized = _without_exception_stack_trace(payload)
-        try:
-            envelope = envelope_from_dict(normalized.validation_payload)
-        except _message_validation_errors() as exc:
-            detail = _validation_summary(exc)
-            raise AllureConversionError(
-                f"invalid Cucumber message in {input_path} at line {line_number}: {detail}"
-            ) from exc
-        envelopes.append(envelope)
-        if normalized.step_trace is not None:
-            if envelope.test_step_finished is None:
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise AllureConversionError(f"invalid JSON in {input_path} at line {line_number}: {exc.msg}") from exc
+            if not isinstance(payload, dict):
+                raise AllureConversionError(f"Cucumber message in {input_path} at line {line_number} must be an object")
+            unknown_fields = set(payload) - known_payload_names
+            if unknown_fields:
+                if len(payload) == 1 and len(unknown_fields) == 1:
+                    raw_extensions.append(line_bytes)
+                    continue
+                names = ", ".join(sorted(repr(name) for name in unknown_fields))
                 raise AllureConversionError(
-                    f"exception stack trace in {input_path} at line {line_number} has no test step"
+                    f"invalid Cucumber message in {input_path} at line {line_number}: "
+                    f"unknown top-level payload field(s) {names}"
                 )
-            key = (envelope.test_step_finished.test_case_started_id, envelope.test_step_finished.test_step_id)
-            if key in exception_traces:
-                raise AllureConversionError(f"duplicate exception stack trace in {input_path} at line {line_number}")
-            exception_traces[key] = normalized.step_trace
-        if normalized.run_trace is not None:
-            if envelope.test_run_finished is None:
+            diagnostics = validate_envelope_data(payload, position=line_number)
+            if diagnostics:
+                details = "; ".join(
+                    f"{'.'.join(str(part) for part in diagnostic.instance_path)}: {diagnostic.message}"
+                    if diagnostic.instance_path
+                    else diagnostic.message
+                    for diagnostic in diagnostics
+                )
                 raise AllureConversionError(
-                    f"run exception stack trace in {input_path} at line {line_number} has no test run finish"
+                    f"invalid Cucumber message in {input_path} at line {line_number}: {details}"
                 )
-            if run_finished_trace is not None:
+            normalized = _without_exception_stack_trace(payload)
+            try:
+                envelope = envelope_from_dict(normalized.validation_payload)
+            except _message_validation_errors() as exc:
+                detail = _validation_summary(exc)
                 raise AllureConversionError(
-                    f"duplicate run exception stack trace in {input_path} at line {line_number}"
-                )
-            run_finished_trace = normalized.run_trace
-        if normalized.run_hook_trace is not None:
-            started_id, trace = normalized.run_hook_trace
-            if started_id in run_hook_traces:
-                raise AllureConversionError(
-                    f"duplicate run hook exception stack trace in {input_path} at line {line_number}"
-                )
-            run_hook_traces[started_id] = trace
+                    f"invalid Cucumber message in {input_path} at line {line_number}: {detail}"
+                ) from exc
+            envelopes.append(external_attachment_reference(envelope))
+            if normalized.step_trace is not None:
+                if envelope.test_step_finished is None:
+                    raise AllureConversionError(
+                        f"exception stack trace in {input_path} at line {line_number} has no test step"
+                    )
+                key = (envelope.test_step_finished.test_case_started_id, envelope.test_step_finished.test_step_id)
+                if key in exception_traces:
+                    raise AllureConversionError(f"duplicate exception stack trace in {input_path} at line {line_number}")
+                exception_traces[key] = normalized.step_trace
+            if normalized.run_trace is not None:
+                if envelope.test_run_finished is None:
+                    raise AllureConversionError(
+                        f"run exception stack trace in {input_path} at line {line_number} has no test run finish"
+                    )
+                if run_finished_trace is not None:
+                    raise AllureConversionError(
+                        f"duplicate run exception stack trace in {input_path} at line {line_number}"
+                    )
+                run_finished_trace = normalized.run_trace
+            if normalized.run_hook_trace is not None:
+                started_id, trace = normalized.run_hook_trace
+                if started_id in run_hook_traces:
+                    raise AllureConversionError(
+                        f"duplicate run hook exception stack trace in {input_path} at line {line_number}"
+                    )
+                run_hook_traces[started_id] = trace
 
+    except AllureConversionError as error:
+        if not (allow_incomplete and envelopes):
+            raise
+        incomplete = str(error)
     if not envelopes:
         raise AllureConversionError(f"input contains no Cucumber messages: {input_path}")
-    return _ParsedMessages(envelopes, exception_traces, run_finished_trace, raw_extensions, run_hook_traces)
+    if not any(envelope.test_run_finished is not None for envelope in envelopes):
+        if not allow_incomplete:
+            raise AllureConversionError("expected exactly one test run finished message, found 0")
+        incomplete = incomplete or "missing test_run_finished message"
+    return _ParsedMessages(
+        envelopes,
+        exception_traces,
+        run_finished_trace,
+        raw_extensions,
+        run_hook_traces,
+        incomplete,
+    )
+
+
+def _completed_partial_envelopes(envelopes: list[messages.Envelope]) -> list[messages.Envelope]:
+    """Keep completed attempts and paired run hooks from an interrupted stream."""
+    finished_attempts = {
+        envelope.test_case_finished.test_case_started_id
+        for envelope in envelopes
+        if envelope.test_case_finished is not None
+    }
+    completed_attempts = {
+        envelope.test_case_started.id
+        for envelope in envelopes
+        if envelope.test_case_started is not None and envelope.test_case_started.id in finished_attempts
+    }
+    completed_test_cases = {
+        envelope.test_case_started.test_case_id
+        for envelope in envelopes
+        if envelope.test_case_started is not None and envelope.test_case_started.id in completed_attempts
+    }
+    hook_starts = {
+        envelope.test_run_hook_started.id
+        for envelope in envelopes
+        if envelope.test_run_hook_started is not None
+    }
+    hook_finishes = {
+        envelope.test_run_hook_finished.test_run_hook_started_id
+        for envelope in envelopes
+        if envelope.test_run_hook_finished is not None
+    }
+    paired_hooks = hook_starts & hook_finishes
+
+    kept: list[messages.Envelope] = []
+    for envelope in envelopes:
+        kind = get_payload_kind(envelope)
+        if kind == "test_case" and envelope.test_case.id not in completed_test_cases:
+            continue
+        if kind == "test_case_started" and envelope.test_case_started.id not in completed_attempts:
+            continue
+        if kind == "test_case_finished" and envelope.test_case_finished.test_case_started_id not in completed_attempts:
+            continue
+        if kind in {"test_step_started", "test_step_finished"}:
+            payload = envelope.test_step_started or envelope.test_step_finished
+            if payload.test_case_started_id not in completed_attempts:
+                continue
+        if kind == "attachment":
+            attachment = envelope.attachment
+            attempt_id = getattr(attachment, "test_case_started_id", None)
+            hook_id = getattr(attachment, "test_run_hook_started_id", None)
+            if attempt_id is not None and attempt_id not in completed_attempts:
+                continue
+            if hook_id is not None and hook_id not in paired_hooks:
+                continue
+        if kind == "test_run_hook_started" and envelope.test_run_hook_started.id not in paired_hooks:
+            continue
+        if (
+            kind == "test_run_hook_finished"
+            and envelope.test_run_hook_finished.test_run_hook_started_id not in paired_hooks
+        ):
+            continue
+        kept.append(envelope)
+
+    referenced_pickles = {
+        envelope.test_case.pickle_id for envelope in kept if envelope.test_case is not None
+    }
+    return [
+        envelope
+        for envelope in kept
+        if not (get_payload_kind(envelope) == "pickle" and envelope.pickle.id not in referenced_pickles)
+    ]
 
 
 def _message_validation_errors() -> tuple[type[BaseException], ...]:
@@ -291,7 +442,7 @@ def _validation_summary(error: BaseException) -> str:
 
 
 def _convert_scenarios(
-    envelopes: list[messages.Envelope], exception_traces: dict[tuple[str, str], str]
+    envelopes: list[messages.Envelope], exception_traces: dict[tuple[str, str], str], presentation: ReportPresentation
 ) -> tuple[
     list[tuple[dict[str, Any], dict[str, Any]]],
     list[tuple[str, bytes]],
@@ -338,6 +489,9 @@ def _convert_scenarios(
             attempt,
             hooks,
         )
+        if scenario_outcome := presentation.scenario_outcome(attempt["started"].id):
+            result["status"] = scenario_outcome[0]
+            result["statusDetails"] = {"message": scenario_outcome[1]}
         converted.append((result, container))
         results_by_case_id.setdefault(test_case.id, []).append(result)
         attachment_files.extend(files)

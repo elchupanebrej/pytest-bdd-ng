@@ -13,7 +13,7 @@ from pytest_cuke.batch_collection import (
     BatchResultNotReadyError,
     CollectionBatchService,
     platform_default_batch_threshold,
-    resolve_batch_threshold,
+    resolve_batch_settings,
 )
 from pytest_cuke.model import Feature
 from pytest_cuke.parser import BaseParser, GherkinParser
@@ -21,21 +21,26 @@ from pytest_cuke.utils import IdGenerator
 
 
 class _Config:
-    def __init__(self, option: int | None, ini: int | None) -> None:
-        self.option = option
-        self.ini = ini
+    def __init__(
+        self,
+        option: int | None = None,
+        ini: int | None = None,
+        *,
+        mode: str | None = None,
+        ini_mode: str | None = None,
+    ) -> None:
+        self.options = {"cuke_batch_mode": mode, "cuke_batch_threshold": option}
+        self.inis = {
+            "cuke_batch_mode": ini_mode,
+            "cuke_batch_threshold": ini,
+            "cuke_disable_batch_collection": False,
+        }
 
-    def getoption(self, name: str) -> int | None:
-        if name == "cuke_disable_batch_collection":
-            return False
-        assert name == "cuke_batch_threshold"
-        return self.option
+    def getoption(self, name: str) -> Any:
+        return self.options.get(name)
 
-    def getini(self, name: str) -> int | None:
-        if name == "cuke_disable_batch_collection":
-            return False
-        assert name == "cuke_batch_threshold"
-        return self.ini
+    def getini(self, name: str) -> Any:
+        return self.inis.get(name)
 
 
 class _CountingParser(BaseParser):
@@ -62,16 +67,35 @@ def _request(path: Path, *, uri: str | None = None, parser: BaseParser | None = 
     )
 
 
+def test_cli_batch_threshold_implies_threshold_mode() -> None:
+    assert resolve_batch_settings(_Config(option=7)) == (True, 7)
+
+
+def test_batch_mode_threshold_uses_configured_threshold() -> None:
+    assert resolve_batch_settings(_Config(ini=9, ini_mode="threshold")) == (True, 9)
+
+
+def test_batch_mode_defaults_to_auto_with_platform_threshold() -> None:
+    assert resolve_batch_settings(_Config()) == (True, platform_default_batch_threshold())
+
+
+def test_batch_mode_off_disables_collection() -> None:
+    assert resolve_batch_settings(_Config(mode="off")) == (False, platform_default_batch_threshold())
+
+
 @pytest.mark.parametrize(
-    ("option", "ini", "expected"),
-    [(7, 9, 7), (None, 9, 9), (None, None, platform_default_batch_threshold())],
+    "config",
+    [
+        _Config(option=7, mode="auto"),
+        _Config(ini=9),
+        _Config(mode="threshold"),
+        _Config(mode="threshold", ini=9),
+        _Config(ini=-1, ini_mode="threshold"),
+    ],
 )
-def test_batch_threshold_prefers_cli_then_ini_then_platform_default(
-    option: int | None,
-    ini: int | None,
-    expected: int,
-) -> None:
-    assert resolve_batch_threshold(_Config(option, ini)) == expected
+def test_invalid_batch_mode_and_threshold_combinations_are_usage_errors(config: _Config) -> None:
+    with pytest.raises(pytest.UsageError, match="cuke_batch"):
+        resolve_batch_settings(config)
 
 
 @pytest.mark.parametrize(("platform_name", "expected"), [("posix", 50), ("nt", 1000)])
@@ -164,11 +188,13 @@ def test_spawn_batch_parses_feature_models(tmp_path: Path, parser_mode: str) -> 
         uri=request.uri,
         encoding=request.encoding,
         parser_mode=parser_mode,
+        _pytest_cuke_source_media_type=request.mimetype,
     )
 
     assert feature.name == "Spawned"
     assert feature.scenarios[0].name == "Parsed in a worker"
     assert feature.source_content == path.read_text(encoding="utf-8")
+    assert feature.source_media_type == request.mimetype
     assert feature == serial_feature
 
 

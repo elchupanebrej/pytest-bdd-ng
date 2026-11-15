@@ -13,12 +13,14 @@ from pytest_cuke.model.message_extension import (
     IDE_DIAGNOSTIC_MEDIA_TYPE,
     IDE_LAUNCH_MEDIA_TYPE,
     IDE_STEP_BINDING_MEDIA_TYPE,
+    PYTEST_OUTCOME_MEDIA_TYPE,
+    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
     STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS,
 )
 from pytest_cuke.model.message_types import Envelope, message_from_dict
 
 _IDE_JSON_ATTACHMENT_MEDIA_TYPES = frozenset(
-    {IDE_DIAGNOSTIC_MEDIA_TYPE, IDE_LAUNCH_MEDIA_TYPE, IDE_STEP_BINDING_MEDIA_TYPE}
+    {IDE_DIAGNOSTIC_MEDIA_TYPE, IDE_LAUNCH_MEDIA_TYPE, IDE_STEP_BINDING_MEDIA_TYPE, PYTEST_OUTCOME_MEDIA_TYPE, PYTEST_STEP_OUTCOME_MEDIA_TYPE}
 )
 _XDIST_EXECNET_STAGING_PATH = re.compile(
     r"(?:pytest-cuke-execnet-remote-\d+-[^/\\]+|_remote-\d+-[^/\\]+)/pyexecnetcache/",
@@ -509,8 +511,9 @@ class LiveMessageAdapter:
 
     Worker batches already have worker-scoped IDs when they reach the controller.
     This adapter removes worker run-level envelopes, aliases worker run IDs to the
-    controller run, keeps controller run hooks canonical, and deduplicates
-    repeated structural records incrementally.
+    controller run, keeps the controller run hooks canonical, keeps worker run
+    hooks whose names identify the worker, and deduplicates repeated structural
+    records incrementally.
     """
 
     def __init__(self) -> None:
@@ -518,7 +521,6 @@ class LiveMessageAdapter:
         self._id_remap: dict[str, str] = {}
         self._structural_by_identity: dict[tuple[str | None, str], _EnvelopeRecord] = {}
         self._hook_types: dict[str, str] = {}
-        self._run_hook_types: dict[str, str] = {}
 
     def controller_envelope(self, envelope: Mapping[str, Any]) -> dict[str, Any] | None:
         """Accept one controller envelope and return its formatter-facing copy."""
@@ -554,28 +556,11 @@ class LiveMessageAdapter:
             hook_type = hook_payload.get("type")
             if isinstance(hook_id, str) and isinstance(hook_type, str):
                 self._hook_types[hook_id] = hook_type
-            if hook_type in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}:
-                return None
             normalized = _rewrite_references(normalized, self._id_remap)
             result = self._remember_structural(normalized, payload_kind, worker_id=worker_id)
             if isinstance(hook_id, str) and isinstance(hook_type, str):
                 self._hook_types[self._id_remap.get(hook_id, hook_id)] = hook_type
             return result
-
-        if payload_kind == "test_run_hook_started":
-            started_payload = _payload(normalized, payload_kind)
-            hook_id = started_payload.get("hookId")
-            started_id = started_payload.get("id")
-            hook_type = self._hook_types.get(self._id_remap.get(str(hook_id), str(hook_id)))
-            if isinstance(started_id, str) and hook_type is not None:
-                self._run_hook_types[started_id] = hook_type
-            if hook_type in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}:
-                return None
-
-        if payload_kind in {"test_run_hook_finished", "attachment"}:
-            started_id = _payload(normalized, payload_kind).get("testRunHookStartedId")
-            if self._run_hook_types.get(str(started_id)) in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}:
-                return None
 
         normalized = _rewrite_references(normalized, self._id_remap)
         return self._remember_structural(normalized, payload_kind, worker_id=worker_id)

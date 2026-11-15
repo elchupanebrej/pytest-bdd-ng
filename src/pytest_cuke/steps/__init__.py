@@ -42,6 +42,16 @@ def add_options(parser: Parser) -> None:
         type="bool",
         help=help_,
     )
+    ambiguous_help = "Resolve equal-priority step definitions with a stable first choice instead of an error"
+    group.addoption(
+        "--cuke-ambiguous-steps",
+        action="store",
+        choices=("error", "first"),
+        dest="cuke_ambiguous_steps",
+        default=None,
+        help=ambiguous_help,
+    )
+    parser.addini("cuke_ambiguous_steps", default="error", help=ambiguous_help)
 
 
 __all__ = [

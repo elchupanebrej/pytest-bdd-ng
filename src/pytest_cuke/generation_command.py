@@ -8,6 +8,7 @@ import glob
 import hashlib
 import importlib
 import importlib.util
+import json
 import os
 import sys
 import tempfile
@@ -77,6 +78,12 @@ def configure_generate_steps_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="add missing scenario bindings without generating step definitions; requires --target",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="print one machine-readable result object distinguishing changed, unchanged, and error",
+    )
 
 
 def run_generate_steps(namespace: argparse.Namespace) -> int:
@@ -88,6 +95,9 @@ def run_generate_steps(namespace: argparse.Namespace) -> int:
             raise GenerationCommandError("--keep-on-error requires --target")
         if namespace.bind_scenarios and namespace.target is None:
             raise GenerationCommandError("--bind-scenarios requires --target")
+        json_output = getattr(namespace, "json_output", False)
+        if json_output and namespace.target is None:
+            raise GenerationCommandError("--json requires --target")
 
         bind_only = getattr(namespace, "bind_only", False)
         if bind_only and namespace.target is None:
@@ -127,9 +137,22 @@ def run_generate_steps(namespace: argparse.Namespace) -> int:
             preview=namespace.preview,
             keep_on_error=namespace.keep_on_error,
         )
-        _report_result(result, target, len(missing_steps), len(missing_scenarios), namespace.preview)
+        if json_output:
+            payload: dict[str, Any] = {
+                "status": "changed" if result.changed else "unchanged",
+                "target": str(target),
+            }
+            if result.changed:
+                payload["steps_added"] = len(missing_steps)
+                payload["scenarios_added"] = len(missing_scenarios)
+                payload["preview"] = bool(namespace.preview)
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            _report_result(result, target, len(missing_steps), len(missing_scenarios), namespace.preview)
         return 0
     except (GenerationCommandError, SourceEditError, OSError, SyntaxError, ValueError) as error:
+        if getattr(namespace, "json_output", False):
+            print(json.dumps({"status": "error", "error": str(error)}, sort_keys=True))
         print(f"cuke generate steps: {error}", file=sys.stderr)
         return 2
 

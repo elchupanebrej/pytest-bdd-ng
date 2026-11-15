@@ -136,13 +136,22 @@ class BaseParser:
     def parse_text(self, content: str, uri: str | None = None, **kwargs: Any) -> Feature:
         raise NotImplementedError
 
-    def parse(self, path: Path | str, uri: str | None = None, encoding: str = "utf-8", **kwargs: Any) -> Feature:
+    def parse(
+        self,
+        path: Path | str,
+        uri: str | None = None,
+        encoding: str = "utf-8",
+        *,
+        _pytest_cuke_source_media_type: str | None = None,
+        _pytest_cuke_open_url: Any = None,
+        **kwargs: Any,
+    ) -> Feature:
         p = Path(path)
         content = p.read_text(encoding=encoding)
         source_content = content
         external_examples = None
         if self.supports_external_examples:
-            external_examples = expand_external_examples(content, p)
+            external_examples = expand_external_examples(content, p, open_url=_pytest_cuke_open_url)
             content = external_examples.content
         resolved_uri = uri or str(p.as_posix())
         try:
@@ -154,9 +163,15 @@ class BaseParser:
         if external_examples is not None:
             feature = attach_external_examples_sources(feature, external_examples.bindings)
             feature = map_feature_source_lines(feature, external_examples.line_map)
-        if feature.source_content is None:
-            source_media_type = feature.source_media_type or self._source_media_type(p)
-            feature = evolve(feature, source_content=source_content, source_media_type=source_media_type)
+        if feature.source_content is None or feature.source_media_type is None:
+            source_media_type = (
+                feature.source_media_type or _pytest_cuke_source_media_type or self._source_media_type(p)
+            )
+            feature = evolve(
+                feature,
+                source_content=feature.source_content if feature.source_content is not None else source_content,
+                source_media_type=source_media_type,
+            )
         if feature.filename is None:
             return Feature(
                 name=feature.name,
@@ -196,9 +211,7 @@ class BaseParser:
 class ParserRegistry:
     _parsers_by_key: dict[
         str, ParserProtocol | ParserRegistration | type[ParserProtocol] | Callable[[], ParserProtocol]
-    ] = field(
-        factory=dict
-    )
+    ] = field(factory=dict)
 
     def register(
         self,
@@ -238,8 +251,6 @@ class ParserRegistry:
 
 
 default_parser_registry = ParserRegistry()
-
-
 
 
 @define

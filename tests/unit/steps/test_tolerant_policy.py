@@ -57,13 +57,15 @@ def test_marker_precedes_tag_and_global_policy_and_normalizes_value() -> None:
     assert resolve_tolerant_status(_config(ini="failed"), item, scenario) == "ignored"
 
 
-def test_invalid_marker_and_tag_fall_through_to_the_next_policy() -> None:
+def test_invalid_marker_and_tag_are_rejected() -> None:
     tagged = Scenario(name="policy", tags=(Tag("@tolerant-status-ignored"),))
     invalid_marker = MarkerItem(_marker("tolerant_status", "sometimes"))
-    assert resolve_tolerant_status(_config(ini="failed"), invalid_marker, tagged) == "ignored"
+    with pytest.raises(ValueError, match="Invalid tolerant_status"):
+        resolve_tolerant_status(_config(ini="failed"), invalid_marker, tagged)
 
     invalid_tag = Scenario(name="policy", tags=(Tag("@tolerant-status-sometimes"),))
-    assert resolve_tolerant_status(_config(ini="ignored"), MarkerItem(), invalid_tag) == "ignored"
+    with pytest.raises(ValueError, match="Invalid tolerant-status"):
+        resolve_tolerant_status(_config(ini="ignored"), MarkerItem(), invalid_tag)
 
 
 def test_tag_status_normalizes_underscores_and_case() -> None:
@@ -72,7 +74,7 @@ def test_tag_status_normalizes_underscores_and_case() -> None:
 
 
 def test_wip_cli_policy_overrides_ini_and_rejects_invalid_global_values() -> None:
-    assert configured_wip_status(_config(wip_cli="passed", wip_ini="skipped")) == "passed"
+    assert configured_wip_status(_config(wip_cli="failed", wip_ini="skipped")) == "failed"
     assert configured_wip_status(_config(wip_ini="skipped")) == "skipped"
 
     with pytest.raises(ValueError, match="cuke_wip_status"):
@@ -82,20 +84,22 @@ def test_wip_cli_policy_overrides_ini_and_rejects_invalid_global_values() -> Non
 def test_wip_marker_precedes_tag_and_global_policy_and_normalizes_value() -> None:
     item = MarkerItem(
         _marker("wip-status-failed"),
-        _marker("wip_status", " PASSED "),
+        _marker("wip_status", " SKIPPED "),
     )
     scenario = Scenario(name="policy", tags=(Tag("@wip-status-failed"),))
 
-    assert resolve_wip_status(_config(wip_ini="skipped"), item, scenario) == "passed"
+    assert resolve_wip_status(_config(wip_ini="failed"), item, scenario) == "skipped"
 
 
-def test_invalid_wip_marker_and_tag_fall_through_to_next_policy() -> None:
-    tagged = Scenario(name="policy", tags=(Tag("@wip-status-passed"),))
+def test_invalid_wip_marker_and_tag_are_rejected() -> None:
+    tagged = Scenario(name="policy", tags=(Tag("@wip-status-skipped"),))
     invalid_marker = MarkerItem(_marker("wip_status", "later"))
-    assert resolve_wip_status(_config(wip_ini="failed"), invalid_marker, tagged) == "passed"
+    with pytest.raises(ValueError, match="Invalid wip_status"):
+        resolve_wip_status(_config(wip_ini="failed"), invalid_marker, tagged)
 
     invalid_tag = Scenario(name="policy", tags=(Tag("@wip-status-later"),))
-    assert resolve_wip_status(_config(wip_ini="skipped"), MarkerItem(), invalid_tag) == "skipped"
+    with pytest.raises(ValueError, match="Invalid wip-status"):
+        resolve_wip_status(_config(wip_ini="skipped"), MarkerItem(), invalid_tag)
 
 
 def test_wip_tag_status_normalizes_underscores_and_case() -> None:

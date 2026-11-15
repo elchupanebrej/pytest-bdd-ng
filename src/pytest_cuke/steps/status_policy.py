@@ -7,10 +7,10 @@ if TYPE_CHECKING:
     from pytest_cuke.model.scenario import Scenario
 
 TolerantStatus = Literal["failed", "ignored"]
-WipStatus = Literal["failed", "passed", "skipped"]
+WipStatus = Literal["failed", "skipped"]
 
 _TOLERANT_STATUSES = frozenset(("failed", "ignored"))
-_WIP_STATUSES = frozenset(("failed", "passed", "skipped"))
+_WIP_STATUSES = frozenset(("failed", "skipped"))
 
 
 def _normalize_value(value: object) -> str:
@@ -26,7 +26,10 @@ def _tag_status(tag_name: object, tag_prefix: str, valid_statuses: frozenset[str
     normalized = _normalize_value(tag_name).lstrip("@")
     if not normalized.startswith(tag_prefix):
         return None
-    return _local_status(normalized[len(tag_prefix) :], valid_statuses)
+    status = _local_status(normalized[len(tag_prefix) :], valid_statuses)
+    if status is None:
+        raise ValueError(f"Invalid {tag_prefix} policy: {tag_name!r}")
+    return status
 
 
 def configured_status(config: Config, option_name: str, ini_name: str, valid_statuses: frozenset[str]) -> str:
@@ -54,10 +57,12 @@ def resolve_status(
     iter_markers = getattr(item, "iter_markers", None)
     if callable(iter_markers):
         for marker in iter_markers(name=marker_name):
-            if marker.args:
-                status = _local_status(marker.args[0], valid_statuses)
-                if status is not None:
-                    return status
+            if len(marker.args) != 1 or getattr(marker, "kwargs", {}):
+                raise ValueError(f"Invalid {marker_name} policy: expected one value")
+            status = _local_status(marker.args[0], valid_statuses)
+            if status is None:
+                raise ValueError(f"Invalid {marker_name} policy: {marker.args[0]!r}")
+            return status
 
         for marker in iter_markers():
             status = _tag_status(getattr(marker, "name", ""), tag_prefix, valid_statuses)

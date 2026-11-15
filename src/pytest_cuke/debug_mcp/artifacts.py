@@ -6,6 +6,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from pytest_cuke.debug_mcp.redaction import redact_data, redact_text, secret_values
 from pytest_cuke.debug_mcp.schemas import InvestigationArtifact
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ class ArtifactSink:
     """Validate investigation reports and write a paired JSON/Markdown record."""
 
     root: Path
+    redact_patterns: tuple[str, ...] = ()
 
     def write(self, *, sequence: int, nodeid: str, payload: object) -> ArtifactWriteResult:
         artifact = InvestigationArtifact.model_validate(payload)
@@ -46,8 +48,10 @@ class ArtifactSink:
         stem = f"failure-{sequence:04d}-{safe_nodeid(nodeid)}"
         json_path = self.root / f"{stem}.json"
         markdown_path = self.root / f"{stem}.md"
-        json_content = json.dumps(artifact.model_dump(mode="json"), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-        markdown_content = render_markdown(artifact)
+        secrets = secret_values(self.redact_patterns)
+        redacted_payload = redact_data(artifact.model_dump(mode="json"), secrets)
+        json_content = json.dumps(redacted_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+        markdown_content = redact_text(render_markdown(artifact), secrets)
 
         created: list[Path] = []
         try:

@@ -9,7 +9,7 @@ import pytest
 
 from pytest_cuke.debug_mcp.artifacts import ArtifactSink
 from pytest_cuke.debug_mcp.discovery import DiscoveryPublisher
-from pytest_cuke.debug_mcp.redaction import redacted_environment
+from pytest_cuke.debug_mcp.redaction import redact_data, redact_text, redacted_environment, secret_values
 from pytest_cuke.debug_mcp.server import (
     DebuggerMcpProcess,
     DebugMcpDependencyError,
@@ -35,6 +35,29 @@ if TYPE_CHECKING:
 
     from pytest_cuke.debug_mcp.options import DebugMcpOptions
     from pytest_cuke.model.scenario_run import ScenarioRun
+
+
+def _inspect_value(value: Any, *, depth: int = 0) -> Any:
+    """Describe a fixture value without invoking properties or expanding indefinitely."""
+    if value is None or isinstance(value, bool | int | float):
+        return value
+    if isinstance(value, str):
+        return value[:500]
+    if depth >= 2:
+        return f"<{type(value).__name__}>"
+    if isinstance(value, dict):
+        return {str(key): _inspect_value(item, depth=depth + 1) for key, item in list(value.items())[:20]}
+    if isinstance(value, list | tuple | set):
+        return [_inspect_value(item, depth=depth + 1) for item in list(value)[:20]]
+    rendered = repr(value)
+    return f"<{type(value).__name__}: {rendered[:500]}>"
+
+
+def _fixture_snapshot(item: Any) -> dict[str, Any]:
+    funcargs = getattr(item, "funcargs", None)
+    if not isinstance(funcargs, dict):
+        return {}
+    return {name: _inspect_value(funcargs[name]) for name in sorted(funcargs)[:50]}
 
 
 class DebugMcpPlugin:
@@ -86,6 +109,7 @@ class DebugMcpPlugin:
         if self.options.max_holds and self._holds >= self.options.max_holds:
             return
         self._holds += 1
+        secrets = secret_values(self.options.redact_patterns)
         environment = redacted_environment(self.options.redact_patterns) if self.options.expose_env else None
         exc_info = getattr(call, "excinfo", None)
         exception = getattr(exc_info, "value", None)
@@ -95,7 +119,10 @@ class DebugMcpPlugin:
             "longrepr",
             "pytest reported a failure",
         )
-        error_message = str(exception) if exception is not None else str(report_message)
+        error_message = redact_text(
+            str(exception) if exception is not None else str(report_message),
+            secrets,
+        )
         try:
             queue.hold_failure(
                 nodeid=str(item.nodeid),
@@ -104,6 +131,8 @@ class DebugMcpPlugin:
                 error_message=error_message,
                 bdd_context=_bdd_context(item),
                 environment=environment,
+                fixtures=redact_data(_fixture_snapshot(item), secrets),
+                traceback=redact_text(str(report_message), secrets),
             )
         except KeyboardInterrupt:
             self._cleanup(remove_discovery=False)
@@ -247,7 +276,8 @@ class DebugMcpPlugin:
 
         session_id = self._session_id()
         self.artifact_sink = ArtifactSink(
-            _artifact_root(self.config, self.options.artifacts_root, session_id, worker_id=worker_id)
+            _artifact_root(self.config, self.options.artifacts_root, session_id, worker_id=worker_id),
+            redact_patterns=self.options.redact_patterns,
         )
         self.queue = FailureQueue(
             session_id=session_id,

@@ -33,17 +33,30 @@ def _resolve_callable_source_location(func: StepFunc) -> tuple[str, int]:
     return getfile(typed_func), int(source_line)
 
 
-def _parser_specificity(step_definition: Definition) -> int:
-    pt = step_definition.parser.type
-    high = {
-        StepDefinitionPatternType.pytest_cuke_string_expression,
+def _parser_specificity(step_definition: Definition, step_text: str | None = None) -> int:
+    parser = step_definition.parser
+    pt = parser.type
+    templates = {
         StepDefinitionPatternType.pytest_cuke_parse_expression,
         StepDefinitionPatternType.pytest_cuke_cfparse_expression,
         StepDefinitionPatternType.cucumber_expression,
     }
-    if pt in high:
-        return 2
     regexes = {StepDefinitionPatternType.regular_expression, StepDefinitionPatternType.pytest_cuke_regular_expression}
+    if pt is StepDefinitionPatternType.pytest_cuke_heuristic_expression and step_text is not None:
+        for sub_parser in getattr(parser, "parser_by_priorities", ()):
+            if sub_parser is None:
+                continue
+            if sub_parser.type is StepDefinitionPatternType.pytest_cuke_string_expression:
+                if getattr(sub_parser, "name", None) == step_text:
+                    pt = StepDefinitionPatternType.pytest_cuke_string_expression
+                    break
+                continue
+            pt = sub_parser.type
+            break
+    if pt is StepDefinitionPatternType.pytest_cuke_string_expression:
+        return 3
+    if pt in templates:
+        return 2
     return 1 if pt in regexes else 0
 
 

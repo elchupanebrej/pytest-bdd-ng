@@ -19,3 +19,8 @@ class Steps:
 
     class Cli(str, Enum):
         LIBERAL_OPTION = "cuke_liberal_steps"
+
+
+PYTEST_OUTCOME_MEDIA_TYPE = "application/vnd.pytest-cuke.pytest-outcome+json"
+PYTEST_STEP_OUTCOME_MEDIA_TYPE = "application/vnd.pytest-cuke.step-outcome+json"
+PYTEST_SOURCE_MEDIA_TYPE = "application/vnd.pytest-cuke.source+json"

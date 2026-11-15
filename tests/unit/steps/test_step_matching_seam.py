@@ -13,6 +13,7 @@ from pytest_cuke.steps.decorators import given
 from pytest_cuke.steps.decorators import step as generic_step
 from pytest_cuke.steps.matcher import Matcher
 from pytest_cuke.steps.registry import Registry
+from pytest_cuke.warning_types import PytestBDDStepDefinitionWarning
 
 
 def test_matcher_strict_and_unspecified() -> None:
@@ -84,3 +85,64 @@ def test_matcher_not_found_error() -> None:
     step_item = Step(name="unknown step", keyword="Given", type=StepType.context)
     with pytest.raises(Matcher.MatchNotFoundError):
         matcher(None, None, None, step_item, None, reg)
+
+
+def test_exact_string_outranks_parse_template() -> None:
+    @given(parse("I have {count:d} pears"))
+    def template_step(count: int) -> None:
+        pass
+
+    @given(string("I have 5 pears"))
+    def exact_step() -> None:
+        pass
+
+    reg = Registry(
+        definitions=OrderedSet(
+            [
+                next(iter(template_step.__pytest_cuke_step_definitions__)),
+                next(iter(exact_step.__pytest_cuke_step_definitions__)),
+            ]
+        )
+    )
+    matcher = Matcher(MagicMock())
+    step_item = Step(name="I have 5 pears", keyword="Given", type=StepType.context)
+    assert matcher(None, None, None, step_item, None, reg).func is exact_step
+
+
+def _duplicate_registry() -> Registry:
+    @given(parse("ambiguous {value}"))
+    def first(value: str) -> None:
+        pass
+
+    @given(parse("ambiguous {value}"))
+    def second(value: str) -> None:
+        pass
+
+    return Registry(
+        definitions=OrderedSet(
+            [
+                next(iter(first.__pytest_cuke_step_definitions__)),
+                next(iter(second.__pytest_cuke_step_definitions__)),
+            ]
+        )
+    )
+
+
+def test_equal_priority_definitions_fail_by_default() -> None:
+    matcher = Matcher(MagicMock())
+    step_item = Step(name="ambiguous blue", keyword="When", type=StepType.action)
+
+    with pytest.raises(Matcher.MatchAmbiguousError, match="ambiguous blue"):
+        matcher(None, None, None, step_item, None, _duplicate_registry())
+
+
+def test_explicit_first_mode_warns_and_selects_stably() -> None:
+    config = MagicMock()
+    config.option.cuke_ambiguous_steps = "first"
+    matcher = Matcher(config)
+    step_item = Step(name="ambiguous blue", keyword="When", type=StepType.action)
+
+    with pytest.warns(PytestBDDStepDefinitionWarning, match="ambiguous blue"):
+        selected = matcher(None, None, None, step_item, None, _duplicate_registry())
+
+    assert selected.func.__name__ == "first"

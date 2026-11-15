@@ -21,6 +21,7 @@ _PLATFORM_LIB_MAP = {
 _lib: ctypes.CDLL | None = None
 _lib_error: str | None = None
 _load_lock = RLock()
+_version_logged = False
 
 
 def _load_library() -> ctypes.CDLL:
@@ -89,6 +90,7 @@ def _call_and_free(library: ctypes.CDLL, function: Any, *args: Any) -> str:
 
 def _parse(function_name: str, text: str) -> str:
     library = _load_library()
+    _log_version_once()
     encoded = text.encode("utf-8")
     function = getattr(library, function_name)
     return _call_and_free(library, function, encoded, len(encoded))
@@ -123,12 +125,27 @@ def gherkin_go_version() -> str:
         library.FreeCString(pointer_value)
 
 
+def _log_version_once() -> None:
+    global _version_logged  # noqa: PLW0603
+    with _load_lock:
+        if _version_logged or not logger.isEnabledFor(logging.INFO):
+            return
+        try:
+            version = gherkin_go_version()
+        except Exception:
+            logger.debug("Could not read Go parser version", exc_info=True)
+            version = "unknown"
+        logger.info("Go parser version: %s", version)
+        _version_logged = True
+
+
 def _reset() -> None:
     """Clear cached loader state for isolated tests."""
-    global _lib, _lib_error  # noqa: PLW0603
+    global _lib, _lib_error, _version_logged  # noqa: PLW0603
     with _load_lock:
         _lib = None
         _lib_error = None
+        _version_logged = False
 
 
 __all__ = [

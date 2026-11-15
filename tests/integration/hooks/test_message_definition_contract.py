@@ -97,7 +97,7 @@ def done():
 
 
 def test_message_capture_groups_and_ambiguous_match_diagnostics(pytester):
-    pytester.makeini("[pytest]\ncuke_features_dir = features\n")
+    pytester.makeini("[pytest]\ncuke_features_dir = features\ncuke_ambiguous_steps = first\n")
     features = pytester.path / "features"
     features.mkdir()
     (features / "captures.feature").write_text(

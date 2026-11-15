@@ -279,7 +279,7 @@ def test_live_adapter_rewrites_controller_retry_references_after_deduplicating_t
     }
 
 
-def test_live_adapter_keeps_controller_run_hooks_and_suppresses_worker_duplicates() -> None:
+def test_live_adapter_keeps_controller_and_labelled_worker_run_hooks() -> None:
     adapter = LiveMessageAdapter()
     controller_start = adapter.controller_envelope({"testRunStarted": {"id": "controller-run"}})
     controller_hook = {
@@ -300,14 +300,14 @@ def test_live_adapter_keeps_controller_run_hooks_and_suppresses_worker_duplicate
         {
             "hook": {
                 "id": "worker-before-hook",
-                "name": "pytest session start",
+                "name": "pytest session start (gw0)",
                 "type": "BEFORE_TEST_RUN",
                 "sourceReference": {"uri": "pytest-cuke:runtime", "location": {"line": 1}},
             }
         },
         worker_id="gw0",
     )
-    assert adapter.worker_envelope(worker_hook, worker_id="gw0") is None
+    assert adapter.worker_envelope(worker_hook, worker_id="gw0") is not None
 
     worker_hook_started = namespace_envelope_ids(
         {
@@ -319,13 +319,13 @@ def test_live_adapter_keeps_controller_run_hooks_and_suppresses_worker_duplicate
         },
         worker_id="gw0",
     )
-    assert adapter.worker_envelope(worker_hook_started, worker_id="gw0") is None
+    assert adapter.worker_envelope(worker_hook_started, worker_id="gw0") is not None
 
     worker_hook_finished = namespace_envelope_ids(
         {"testRunHookFinished": {"testRunHookStartedId": "worker-hook-started"}},
         worker_id="gw0",
     )
-    assert adapter.worker_envelope(worker_hook_finished, worker_id="gw0") is None
+    assert adapter.worker_envelope(worker_hook_finished, worker_id="gw0") is not None
 
 
 def test_worker_namespaces_nested_ast_ids_lists_and_test_case_references() -> None:

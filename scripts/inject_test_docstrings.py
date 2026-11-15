@@ -46,10 +46,10 @@ Atomicity:
 Autonomy:
     <why this test cannot be merged with another test>
 Test quality score:
-    #test-eval:isolation=5
-    #test-eval:determinism=5
-    #test-eval:setup_complexity=1
-    #test-eval:assertions_clarity=5"""
+    #test-eval:isolation=N/A
+    #test-eval:determinism=N/A
+    #test-eval:setup_complexity=N/A
+    #test-eval:assertions_clarity=N/A"""
 
 
 class TestCollectorPlugin:
@@ -166,7 +166,9 @@ def strip_template_from_function_docstring(path: Path) -> int:
 
     lines = content.splitlines()
     test_funcs = [
-        node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name.startswith("test_")
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test_")
     ]
     test_funcs.sort(key=lambda n: getattr(n, "lineno", 1), reverse=True)
 
@@ -218,7 +220,7 @@ def inject_templates_to_test_functions(path: Path, *, force: bool = False) -> in
     # Collect all test functions
     test_funcs = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test_"):
             test_funcs.append(node)
 
     # Sort in reverse order of line numbers to preserve offsets

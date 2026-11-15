@@ -11,11 +11,12 @@ pytestmark = pytest.mark.integration
 @pytest.mark.parametrize(
     "arguments,spawned",
     [
+        (["--cuke-batch-mode=threshold", "--cuke-batch-threshold=1"], True),
         (["--cuke-batch-threshold=1"], True),
-        (["--cuke-batch-threshold=1", "--cuke-disable-batch-collection"], False),
-        (["--cuke-batch-threshold=1", "-o", "cuke_disable_batch_collection=true"], False),
-        (["-o", "cuke_batch_threshold=0"], False),
-        (["-o", "cuke_batch_threshold=-1"], False),
+        (["--cuke-batch-mode=threshold", "--cuke-batch-threshold=1", "--cuke-disable-batch-collection"], False),
+        (["--cuke-batch-mode=threshold", "--cuke-batch-threshold=1", "-o", "cuke_disable_batch_collection=true"], False),
+        (["--cuke-batch-mode=off"], False),
+        (["--cuke-batch-mode=auto"], False),
     ],
 )
 def test_batch_controls(tmp_path, arguments, spawned):
@@ -65,6 +66,9 @@ def test_batch_controls(tmp_path, arguments, spawned):
         ["--cuke-batch-threshold=0"],
         ["--cuke-batch-threshold=-1"],
         ["-o", "cuke_batch_threshold=invalid"],
+        ["-o", "cuke_batch_mode=auto", "-o", "cuke_batch_threshold=9"],
+        ["-o", "cuke_batch_mode=threshold"],
+        ["--cuke-batch-mode=threshold"],
     ],
 )
 def test_invalid_threshold_is_usage_error(tmp_path, arguments):

@@ -144,6 +144,26 @@ Project configuration can set the same roots:
    cuke_features_dir = specs/features
    cuke_features_base_url = https://example.test/project/features
 
+HTTP source credentials
+-----------------------
+
+Feature files and external CSV/TSV Examples can use HTTP or HTTPS. Configure
+credentials and headers for each exact origin in ``cuke_http_servers``. Each
+line is a JSON object; values can be literal strings or environment references.
+
+.. code-block:: ini
+
+   [pytest]
+   cuke_http_servers =
+       {"origin": "https://features.example.test", "bearer": {"env": "FEATURE_TOKEN"}}
+       {"origin": "https://data.example.test", "basic": {"username": {"env": "DATA_USER"}, "password": {"env": "DATA_PASSWORD"}}, "headers": {"X-Client": "tests"}}
+
+Repeat ``--cuke-http-server JSON`` to provide rules on the command line. When
+present, those rules replace the ini list. An origin includes its scheme, host,
+and port. On redirects, the destination receives only its own configured
+headers and credentials. Missing environment variables and conflicting
+authentication settings are errors.
+
 Batch feature collection
 ------------------------
 
@@ -156,13 +176,18 @@ features that load external Examples tables keep the regular parser path. A
 read, worker or pool failure is reported and falls back to serial processing
 for the affected files.
 
-Set the threshold with ``--cuke-batch-threshold`` or
-``cuke_batch_threshold`` in pytest configuration. The command-line value takes
-precedence. The platform default is 50 files on POSIX and 1000 files elsewhere.
+Set the mode with ``--cuke-batch-mode`` / ``cuke_batch_mode``. ``auto`` uses
+the platform default threshold, ``off`` parses serially, and ``threshold`` uses
+``--cuke-batch-threshold`` / ``cuke_batch_threshold``. The threshold is only
+valid in ``threshold`` mode; a command-line mode or threshold replaces the
+configured pair as one setting. Passing ``--cuke-batch-threshold`` alone implies
+``threshold`` mode. The platform default is 50 files on POSIX and 1000 files
+elsewhere.
 
 .. code-block:: console
 
-   pytest --cuke-batch-threshold=25
+   pytest --cuke-batch-mode=threshold --cuke-batch-threshold=25
+   pytest --cuke-batch-mode=off
 
 The pending requests and parsed Feature cache live for one pytest session and
 are cleared when the session ends. Equivalent paths share a parse result while
@@ -232,6 +257,12 @@ as Python before the file changes. Formatting or validation errors restore the
 original bytes by default. ``--keep-on-error`` retains the attempted update
 while still returning a non-zero status. ``--preview`` prints a unified diff
 without writing. Repeating a successful update makes no further changes.
+
+``--json`` prints one machine-readable object when ``--target`` is selected.
+``status`` is ``changed`` or ``unchanged`` on success, and ``error`` with an
+``error`` message when generation refuses to write; the process still exits with
+2 in that case. A changed result also reports ``steps_added``,
+``scenarios_added``, and ``preview``.
 
 Autoload remains the default collection model and does not create mirror test
 wrappers. Add ``--bind-scenarios`` with an explicit target when you want
@@ -443,6 +474,30 @@ directory:
 This import path uses the same message-to-Allure mapping as the standalone
 command; it does not re-run the scenarios.
 
+For source formats that cannot be represented by the standard Cucumber
+``Source`` event, the saved stream includes an attachment with media type
+``application/vnd.pytest-cuke.source+json``. Its JSON body contains ``uri``,
+``mediaType``, and ``data`` with the original source. Standard Gherkin sources
+continue to use ``Source`` events. Report formatters receive a filtered stream
+so that this metadata does not appear as raw JSON in their output.
+
+Report presentation can be selected independently of execution. For example,
+``--cuke-report-policy=diagnostic`` presents expected failures, skipped tests,
+skipped not-implemented steps, and tolerated step failures as failures in
+supported reports. Use the ``--cuke-no-xfail-as-failed``,
+``--cuke-no-skip-as-failed``, ``--cuke-no-tolerated-as-failed``, or
+``--cuke-no-wip-as-failed`` switches to override a category. The normal policy
+is the default; the corresponding ``--cuke-*-as-failed`` switches
+enable individual diagnostic categories. These options do not change pytest's
+execution result or the saved Messages stream.
+
+The standalone ``cuke replay`` and ``cuke convert allure`` commands accept the
+same policy switches without the ``cuke-`` prefix, for example:
+
+.. code-block:: console
+
+   cuke convert allure messages.ndjson --report-policy=diagnostic --no-tolerated-as-failed
+
 Replaying saved Messages with formatters
 ----------------------------------------
 
@@ -502,15 +557,14 @@ For generator exit status conventions, see :doc:`generation-exit-status`.
 Batch collection controls
 -------------------------
 
-``--cuke-disable-batch-collection`` (or ``cuke_disable_batch_collection = true``)
-keeps feature parsing serial, including when the configured batch threshold is
-reached. The session cache remains active. By default spawn-based parsing stays
-enabled above the platform threshold.
+``--cuke-batch-mode=off`` (or ``cuke_batch_mode = off``) keeps feature
+parsing serial. The session cache remains active. ``--cuke-disable-batch-collection``
+is kept as an equivalent explicit switch.
 
-``--cuke-batch-threshold`` requires a positive integer. For compatibility with
-legacy ini configuration, zero or a negative ``cuke_batch_threshold`` selects
-the platform default (50 on POSIX, 1000 on Windows). Invalid integer settings
-produce a configuration error instead of an internal pytest failure.
+``--cuke-batch-threshold`` requires a positive integer and is only valid in
+``threshold`` mode. Zero, negative values, a threshold with ``auto`` or ``off``,
+and ``threshold`` without a count are configuration errors with exit code 4,
+not an internal pytest failure.
 
 Generated not-implemented marker names
 ---------------------------------------

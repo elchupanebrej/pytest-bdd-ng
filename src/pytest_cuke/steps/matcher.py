@@ -6,7 +6,7 @@ from warnings import warn
 
 from pytest_cuke.const import Steps
 from pytest_cuke.model.step import StepType
-from pytest_cuke.steps.types import _parser_specificity, _step_text
+from pytest_cuke.steps.types import _parser_specificity, _resolve_callable_source_location, _step_text
 from pytest_cuke.warning_types import PytestBDDStepDefinitionWarning
 
 if TYPE_CHECKING:
@@ -20,6 +20,11 @@ if TYPE_CHECKING:
     from pytest_cuke.steps.registry import Registry
 
 
+def _definition_location(definition: Definition) -> tuple[str, int]:
+    file_name, line = _resolve_callable_source_location(definition.func)
+    return file_name, line
+
+
 class Matcher:
     class MatchNotFoundError(RuntimeError):
         def __init__(
@@ -30,6 +35,9 @@ class Matcher:
         ) -> None:
             super().__init__(message)
             self.undefined_parameter_types = tuple((undefined_parameter_types or {}).keys())
+
+    class MatchAmbiguousError(RuntimeError):
+        """Several step definitions share the highest matching priority."""
 
     def __init__(self, config: Config) -> None:
         self.config = config
@@ -91,11 +99,26 @@ class Matcher:
                 prev_type if prev_type in {StepType.context, StepType.action, StepType.outcome} else StepType.context
             )
         matchers = (self.strict_matcher, self.unspecified_matcher, self.liberal_matcher)
-        matches = list(self.find_step_definition_matches(self.step_registry, matchers))
+        step_text = _step_text(self.step)
+        matches = list(self.find_step_definition_matches(self.step_registry, matchers, step_text))
         self.last_matches = tuple(matches)
         if matches:
-            if len(matches) > 1:
-                warn(PytestBDDStepDefinitionWarning(f"Alternative step definitions are found: {matches}"), stacklevel=2)
+            top_priority = _parser_specificity(matches[0], step_text)
+            tied = [match for match in matches if _parser_specificity(match, step_text) == top_priority]
+            if len(tied) > 1:
+                candidates = sorted(tied, key=_definition_location)
+                if self._ambiguous_mode() != "first":
+                    raise self.MatchAmbiguousError(
+                        f'Ambiguous step definition for "{_step_text(self.step)}": '
+                        f"{len(candidates)} candidates share the highest priority: {candidates}"
+                    )
+                warn(
+                    PytestBDDStepDefinitionWarning(
+                        f'Alternative step definitions are found for "{_step_text(self.step)}": {candidates}'
+                    ),
+                    stacklevel=2,
+                )
+                return candidates[0]
             return matches[0]
         not_found = self.MatchNotFoundError(
             _step_text(self.step), undefined_parameter_types=self._undefined_parameter_types
@@ -134,6 +157,16 @@ class Matcher:
                 self._parser_matches(defn.parser),
             )
         )
+
+    def _ambiguous_mode(self) -> str:
+        option = getattr(getattr(self.config, "option", None), "cuke_ambiguous_steps", None)
+        if not isinstance(option, str):
+            try:
+                option = self.config.getini("cuke_ambiguous_steps")
+            except (ValueError, KeyError):
+                option = None
+        mode = option.casefold() if isinstance(option, str) else "error"
+        return mode if mode in {"error", "first"} else "error"
 
     def _parser_matches(self, parser: Any) -> bool:
         matched = bool(parser.is_matching(self.request, _step_text(self.step)))
@@ -181,16 +214,19 @@ class Matcher:
 
     @staticmethod
     def find_step_definition_matches(
-        registry: Registry | None, matchers: Sequence[Callable[[Definition], bool]]
+        registry: Registry | None,
+        matchers: Sequence[Callable[[Definition], bool]],
+        step_text: str | None = None,
     ) -> Iterator[Definition]:
         if registry:
             found = False
             for matcher in matchers:
-                for d in sorted((x for x in registry if matcher(x)), key=_parser_specificity, reverse=True):
+                matches = (x for x in registry if matcher(x))
+                for d in sorted(matches, key=lambda item: _parser_specificity(item, step_text), reverse=True):
                     found = True
                     yield d
                 if found:
                     break
             if not found:
                 with suppress(AttributeError):
-                    yield from Matcher.find_step_definition_matches(registry.parent, matchers)
+                    yield from Matcher.find_step_definition_matches(registry.parent, matchers, step_text)

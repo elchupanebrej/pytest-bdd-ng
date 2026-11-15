@@ -579,9 +579,10 @@ def test_formatter_detects_early_exit_and_removes_staged_output(
             pytest.fail("formatter child did not exit")
         time.sleep(0.01)
 
+    session.pytest_cuke_message_validated(_config(), _started_message())
+    assert session.failed
     with pytest.raises(FormatterRuntimeError, match="exited before the Messages stream finished"):
-        session.pytest_cuke_message_validated(_config(), _started_message())
-    session.abort()
+        session.finish()
 
     captured = capsys.readouterr()
     assert "formatter exited early sentinel" in captured.err

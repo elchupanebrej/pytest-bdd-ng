@@ -61,6 +61,7 @@ from pytest_cuke.mimetypes import Mimetype, struct_bdd_format_for_mimetype, stru
 from pytest_cuke.model import Feature, Scenario
 from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
+from pytest_cuke.model.report_presentation import resolve_report_policy
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.native_allure import NativeAllureDependencyError, NativeAllureReporter
 from pytest_cuke.native_allure_worker import NativeAllureWorkerBridge, NativeAllureWorkerDependencyError
@@ -284,13 +285,30 @@ def pytest_addoption(parser: Parser) -> None:
         help="select the Gherkin parser backend: python, auto, or go",
     )
     feature_group.addoption(
+        "--cuke-http-server",
+        action="append",
+        dest="cuke_http_servers",
+        default=None,
+        metavar="JSON",
+        help="HTTP source credentials and headers scoped to an origin (repeatable JSON object)",
+    )
+    feature_group.addoption(
+        "--cuke-batch-mode",
+        action="store",
+        dest="cuke_batch_mode",
+        metavar="MODE",
+        choices=("auto", "off", "threshold"),
+        default=None,
+        help="batch collection mode: auto, off, or threshold",
+    )
+    feature_group.addoption(
         "--cuke-batch-threshold",
         action="store",
         dest="cuke_batch_threshold",
         metavar="COUNT",
         type=_positive_integer,
         default=None,
-        help="feature count at which collection switches to spawn-based batch parsing",
+        help="positive feature count; implies cuke_batch_mode=threshold",
     )
     feature_group.addoption(
         "--cuke-disable-batch-collection",
@@ -315,7 +333,7 @@ def pytest_addoption(parser: Parser) -> None:
         action="store",
         dest="cuke_wip_status",
         metavar="STATUS",
-        choices=("passed", "skipped", "failed"),
+        choices=("skipped", "failed"),
         default=None,
         help="status of a @not_implemented step; overrides cuke_wip_status",
     )
@@ -337,6 +355,7 @@ def pytest_addoption(parser: Parser) -> None:
 def add_bdd_ini(parser: Parser) -> None:
     parser.addini("cuke_features_dir", "Base features directory.", default="features", type="string")
     parser.addini("cuke_features_base_url", "Base features URL.", default="", type="string")
+    parser.addini("cuke_http_servers", "HTTP source rules as JSON objects, one per line.", default=[], type="linelist")
     parser.addini("cuke_parser", "Gherkin parser backend: python, auto, or go.", default="auto", type="string")
     parser.addini(
         "cuke_disable_batch_collection", "Disable spawn-based batch parsing.", default=False, type="bool"
@@ -344,8 +363,14 @@ def add_bdd_ini(parser: Parser) -> None:
     batch_threshold_ini_type: Literal["int", "string"] = "int" if pytest.version_tuple >= (8, 4) else "string"
     batch_threshold_ini_default = None if batch_threshold_ini_type == "int" else ""
     parser.addini(
+        "cuke_batch_mode",
+        "Batch collection mode: auto, off, or threshold.",
+        default="auto",
+        type="string",
+    )
+    parser.addini(
         "cuke_batch_threshold",
-        "Feature count at which collection switches to spawn-based batch parsing.",
+        "Positive feature count; only valid with cuke_batch_mode=threshold.",
         default=batch_threshold_ini_default,
         type=batch_threshold_ini_type,
     )
@@ -372,7 +397,7 @@ def add_bdd_ini(parser: Parser) -> None:
     )
     parser.addini(
         "cuke_wip_status",
-        "Status policy for @not_implemented steps: passed, skipped, or failed.",
+        "Status policy for @not_implemented steps: skipped or failed.",
         default="failed",
         type="string",
     )
@@ -668,6 +693,16 @@ def pytest_load_initial_conftests(early_config: Config) -> None:
     )
 
 
+def _report_policy(config: Config) -> dict[str, bool]:
+    return resolve_report_policy(
+        config.getoption("cuke_report_policy"),
+        xfail_as_failed=config.getoption("cuke_xfail_as_failed"),
+        skip_as_failed=config.getoption("cuke_skip_as_failed"),
+        tolerated_as_failed=config.getoption("cuke_tolerated_as_failed"),
+        wip_as_failed=config.getoption("cuke_wip_as_failed"),
+    )
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_configure(config: Config) -> None:
     """Configure all subplugins."""
@@ -698,14 +733,14 @@ def pytest_configure(config: Config) -> None:
     config.addinivalue_line("markers", "tolerant-status-ignored: ignore ordinary failures in @tolerant steps")
     config.addinivalue_line("markers", "tolerant-status-failed: report ordinary failures in @tolerant steps")
     config.addinivalue_line("markers", "wip_status(value): override the not-implemented step status for this scenario")
-    config.addinivalue_line("markers", "wip-status-passed: mark not-implemented steps as passed without execution")
     config.addinivalue_line("markers", "wip-status-skipped: skip scenarios at not-implemented steps")
-    config.addinivalue_line("markers", "wip-status-failed: execute not-implemented steps normally")
+    config.addinivalue_line("markers", "wip-status-failed: fail without executing not-implemented steps")
     run_context = RunContext.from_config(config)
     cucumber_json.configure(config)
     config.pluginmanager.register(ScenarioReporterPlugin())
     config.pluginmanager.register(ScenarioRunner(), name="pytest_cuke_scenario_runner")
     message_plugin = MessagePlugin(config=config)
+    message_plugin.report_presentation = type(message_plugin.report_presentation)(**_report_policy(config))
     config.pluginmanager.register(message_plugin, name="pytest_cuke_messages")
     allure_output_path = _allure_output_path(config)
     if allure_output_path is not None:
@@ -718,7 +753,9 @@ def pytest_configure(config: Config) -> None:
             config.pluginmanager.register(native_allure_worker, name="pytest_cuke_native_allure_worker")
         else:
             try:
-                native_allure_reporter = NativeAllureReporter(Path(allure_output_path))
+                native_allure_reporter = NativeAllureReporter(
+                    Path(allure_output_path), report_presentation=message_plugin.report_presentation
+                )
                 native_allure_reporter.start()
             except NativeAllureDependencyError as error:
                 raise pytest.UsageError(str(error)) from error
@@ -1061,7 +1098,7 @@ def _build_scenario_locators_from_mark(mark: Mark, config: Config) -> Iterable[A
 
     url_locator = UrlScenarioLocator(
         url_paths=url_locator_feature_paths,
-        filter_=mark_arguments["filter_"],
+        filter_=filter_,
         encoding=mark_arguments["encoding"],
         features_base_url=features_base_url,
         mimetype=mark_arguments["features_mimetype"],
@@ -1197,7 +1234,7 @@ def pytest_cmdline_main(config: Config) -> int | None:
         if output_path is None:
             raise pytest.UsageError("--cuke-allure-messages-in requires --cuke-allure")
         try:
-            convert_allure_messages(Path(messages_path), Path(output_path))
+            convert_allure_messages(Path(messages_path), Path(output_path), **_report_policy(config))
         except AllureConversionError as error:
             raise pytest.UsageError(f"cannot convert Cucumber Messages input: {error}") from error
         return pytest.ExitCode.OK
@@ -1292,8 +1329,8 @@ def pytest_cuke_is_collectible(config: Config, path: Path) -> bool | None:
         if not STRUCT_BDD_INSTALLED:
             raise _structured_bdd_dependency_error()
         return True
-    suffixes = {".gherkin", ".feature", ".url", ".desktop", ".webloc"}
-    if any(suffix.casefold() in suffixes for suffix in path.suffixes):
+    supported_suffixes = (".gherkin", ".feature", ".gherkin.md", ".feature.md", ".url", ".desktop", ".webloc")
+    if path.name.casefold().endswith(supported_suffixes):
         return True
     return None
 

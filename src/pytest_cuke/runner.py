@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from functools import partial
@@ -37,14 +38,28 @@ if TYPE_CHECKING:
     from pytest_cuke.steps.definition import Definition
 
 
+_DECORATOR_BY_KEYWORD = {"given": "given", "when": "when", "then": "then"}
+
+
+def missing_step_hint(step: Any) -> str:
+    """Render a Python step stub without requiring Node or a snippets formatter."""
+    text = str(getattr(step, "name", getattr(step, "text", str(step))))
+    keyword = (getattr(step, "keyword", "") or "").strip().casefold()
+    decorator = _DECORATOR_BY_KEYWORD.get(keyword, "step")
+    slug = re.sub(r"\W+", "_", text).strip("_").casefold() or "missing_step"
+    quoted = text.replace("\\", "\\\\").replace('"', '\\"')
+    return (
+        "\n\nSuggested step definition:\n\n"
+        f"from pytest_cuke import {decorator}\n\n\n"
+        f'@{decorator}("{quoted}")\n'
+        f"def step_{slug}():\n"
+        f'    raise NotImplementedError("Implement step: {quoted}")\n'
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class _IgnoredStepFailure:
     exception: Exception
-
-
-@dataclass(frozen=True, slots=True)
-class _WipPassed:
-    pass
 
 
 class StepRunner:
@@ -84,6 +99,7 @@ class StepRunner:
                 f"Line {step_line} "
                 f'in scenario "{scen_name}" '
                 f'in the feature "{feat_uri}"'
+                + missing_step_hint(step)
             ) from e
 
     def inject_step_parameters_as_fixtures(
@@ -156,20 +172,21 @@ class StepRunner:
             raise
         if step_definition.not_implemented:
             wip_status = resolve_wip_status(request.config, request.node, scenario)
-            if wip_status == "passed":
+            if wip_status == "failed":
+                message = "Not-implemented step failed by policy."
                 run.transition(
                     stage="step-running",
                     hook_phase="pytest_cuke_step_bypassed",
-                    status="passed",
+                    status="failed",
                 )
                 request.config.hook.pytest_cuke_step_bypassed(
                     request=request,
                     run=run,
                     step_definition=step_definition,
                     status=wip_status,
-                    message=None,
+                    message=message,
                 )
-                return _WipPassed()
+                pytest.fail(message, pytrace=False)
             if wip_status == "skipped":
                 message = "Not-implemented step skipped by policy."
                 run.transition(
@@ -391,6 +408,8 @@ class ScenarioRunner:
                     status="running",
                 )
                 request.config.hook.pytest_cuke_before_scenario(request=request, run=context)
+                if not any(execution_steps(feature, scenario)):
+                    pytest.skip("Scenario has no executable steps")
                 context.transition(stage="running", hook_phase="pytest_cuke_run_scenario", status="running")
                 request.config.hook.pytest_cuke_run_scenario(request=request, run=context)
             except BaseException as exception:
@@ -570,9 +589,6 @@ class ScenarioRunner:
                 exception=result.exception,
                 failure_reason=type(result.exception).__name__,
             )
-            return None
-        if isinstance(result, _WipPassed):
-            run.finish_step(step_run, status="passed")
             return None
         run.finish_step(step_run, result=result)
         return result

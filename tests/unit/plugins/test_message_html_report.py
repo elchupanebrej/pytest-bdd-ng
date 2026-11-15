@@ -1,0 +1,75 @@
+import json
+from pathlib import Path
+
+from pytest_cuke import html_report, message_plugin
+
+
+class _Option:
+    cuke_html = ""
+
+
+class _Config:
+    option = _Option()
+    hook = object()
+    rootpath = Path(".")
+
+    def getini(self, name):
+        return ""
+
+
+def _plugin(messages_path: Path, html_path: Path) -> message_plugin.MessagePlugin:
+    _Option.cuke_html = str(html_path)
+    plugin = message_plugin.MessagePlugin(config=_Config())
+    plugin.is_disabled = False
+    plugin.messages_file_path = messages_path
+    return plugin
+
+
+def _resolver(files: dict[str, Path]):
+    def find_resource(package_name, resource_path):
+        path = files.get(resource_path)
+        return iter([str(path)] if path is not None else [])
+
+    return find_resource
+
+
+def test_html_report_prefers_the_package_mustache_template(tmp_path, monkeypatch):
+    template = tmp_path / "index.mustache"
+    template.write_text('<style>{{css}}</style><div id="content"></div>{{script}}{{messages}}', encoding="utf-8")
+    script = tmp_path / "main.js"
+    script.write_text("FORMATTER_SCRIPT", encoding="utf-8")
+    css = tmp_path / "main.css"
+    css.write_text("FORMATTER_CSS", encoding="utf-8")
+    messages = tmp_path / "messages.ndjson"
+    messages.write_text(json.dumps({"testRunStarted": {"timestamp": "0"}}) + "\n", encoding="utf-8")
+    monkeypatch.setattr(
+        html_report,
+        "find_resource",
+        _resolver({"src/index.mustache": template, "dist/main.js": script, "dist/main.css": css}),
+    )
+
+    output = tmp_path / "report.html"
+    plugin = _plugin(messages, output)
+    plugin.generate_html_report()
+
+    html = output.read_text(encoding="utf-8")
+    assert "FORMATTER_SCRIPT" in html
+    assert "FORMATTER_CSS" in html
+    assert html.index('<div id="content"></div>') < html.index("FORMATTER_SCRIPT")
+    assert "testRunStarted" in html
+
+
+def test_html_report_fallback_mounts_before_starting_the_formatter(tmp_path, monkeypatch):
+    messages = tmp_path / "messages.ndjson"
+    messages.write_text(json.dumps({"testRunStarted": {"timestamp": "0"}}) + "\n", encoding="utf-8")
+    script = tmp_path / "main.js"
+    script.write_text("FORMATTER_SCRIPT", encoding="utf-8")
+    monkeypatch.setattr(html_report, "find_resource", _resolver({"dist/main.js": script}))
+
+    output = tmp_path / "report.html"
+    plugin = _plugin(messages, output)
+    plugin.generate_html_report()
+
+    html = output.read_text(encoding="utf-8")
+    assert html.index('<div id="content"></div>') < html.index("window.CUCUMBER_MESSAGES")
+    assert html.index("window.CUCUMBER_MESSAGES") < html.index("FORMATTER_SCRIPT")

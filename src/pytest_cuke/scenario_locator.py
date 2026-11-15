@@ -13,10 +13,18 @@ from urllib.request import urlopen
 from attrs import define, evolve, field
 from cucumber_messages import Source
 
-from pytest_cuke.batch_collection import BatchFeatureRequest, get_batch_service
+from pytest_cuke.batch_collection import BatchFeatureRequest, get_batch_service, parse_feature_request
 from pytest_cuke.compatibility.parser import LegacyParserAdapter
+from pytest_cuke.exceptions import FeatureConcreteParseError
+from pytest_cuke.external_examples import (
+    attach_external_examples_sources,
+    expand_external_examples,
+    map_feature_source_lines,
+    remap_parse_error,
+)
 from pytest_cuke.feature_sources import FeatureSourceError, resolve_feature_sources, resolve_feature_url
 from pytest_cuke.heading_scanner import enforce_feature_heading_policy
+from pytest_cuke.http_sources import open_http_source
 from pytest_cuke.mimetypes import STRUCT_BDD_FORMATS, Mimetype
 from pytest_cuke.model import DataTable, DocString, Feature, Scenario, Step, TableCell, TableRow
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_to_pickle
@@ -157,17 +165,25 @@ class ScenarioLocatorFilterMixin:
                         identity_digest = (
                             sha256(identity_source.encode("utf-8")).hexdigest()[:12] if identity_source else ""
                         )
-                        expanded_name = (
-                            f"{scenario.name}[external_examples:[section: {identity_section}, row: {row_index + 1}]]"
-                            if external_row_source is not None
-                            else f"{scenario.name}[table_rows:[line: {row.line}]]"
-                        )
-                        expanded_id = (
-                            f"{scenario.id or scenario.name}-external-{identity_digest}"
-                            f"-section-{identity_section}-row-{row_index + 1}"
-                            if external_row_source is not None
-                            else f"{scenario.id or scenario.name}-{row.id or row.line}"
-                        )
+                        if external_row_source is not None:
+                            expanded_name = (
+                                f"{scenario.name}[external_examples:"
+                                f"[section: {identity_section}, row: {row_index + 1}]]"
+                            )
+                            expanded_id = (
+                                f"{scenario.id or scenario.name}-external-{identity_digest}"
+                                f"-section-{identity_section}-row-{row_index + 1}"
+                            )
+                        elif not row.id and not row.line:
+                            expanded_name = (
+                                f"{scenario.name}[table_rows:[section: {section_index}, row: {row_index + 1}]]"
+                            )
+                            expanded_id = (
+                                f"{scenario.id or scenario.name}-synthetic-section-{section_index}-row-{row_index + 1}"
+                            )
+                        else:
+                            expanded_name = f"{scenario.name}[table_rows:[line: {row.line}]]"
+                            expanded_id = f"{scenario.id or scenario.name}-{row.id or row.line}"
                         expanded_scenario = Scenario(
                             name=expanded_name,
                             keyword=scenario.keyword,
@@ -252,9 +268,15 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
 
         for url in urls:
             try:
-                with urlopen(url) as resp:  # noqa: S310
+                with open_http_source(config, url, plain_open=urlopen) as resp:
                     content_type = resp.headers.get_content_type()
                     content = resp.read().decode(self.encoding)
+                    response_url = resp.geturl() if callable(getattr(resp, "geturl", None)) else url
+                    source_base_url = (
+                        response_url
+                        if isinstance(response_url, str) and urlparse(response_url).scheme in {"http", "https"}
+                        else url
+                    )
             except Exception as error:
                 raise FeatureSourceError(f"Could not load feature source {url!r}: {error}") from error
 
@@ -300,7 +322,23 @@ class UrlScenarioLocator(ScenarioLocatorFilterMixin):
                             feature = evolve(feature, filename=None)
                 else:
                     parser_options = _parser_backend_options(p, config)
-                    feature = p.parse_text(content, uri=url, **parser_options)
+                    external_examples = (
+                        expand_external_examples(
+                            content, source_base_url, open_url=lambda source: open_http_source(config, source)
+                        )
+                        if getattr(p, "supports_external_examples", False)
+                        else None
+                    )
+                    parsed_content = external_examples.content if external_examples is not None else content
+                    try:
+                        feature = p.parse_text(parsed_content, uri=url, **parser_options)
+                    except FeatureConcreteParseError as error:
+                        if external_examples is not None:
+                            remap_parse_error(error, external_examples, content, url)
+                        raise
+                    if external_examples is not None:
+                        feature = attach_external_examples_sources(feature, external_examples.bindings)
+                        feature = map_feature_source_lines(feature, external_examples.line_map)
                 if feature.source_content is None:
                     feature = evolve(
                         feature,
@@ -324,13 +362,18 @@ DEFAULT_FEATURE_SUFFIXES = (
 DEFAULT_FEATURE_PATTERNS = tuple(f"**/*{suffix}" for suffix in DEFAULT_FEATURE_SUFFIXES)
 
 
-def _iter_default_feature_paths(root: Path) -> Iterable[Path]:
+def _iter_default_feature_paths(root: Path, config: Any = None) -> Iterable[Path]:
     """Yield supported feature files recursively with platform-stable suffix matching."""
     for candidate in root.rglob("*"):
         matches_supported_suffix = any(
             candidate.name.casefold().endswith(suffix) for suffix in DEFAULT_FEATURE_SUFFIXES
         )
-        if candidate.is_file() and matches_supported_suffix:
+        if not candidate.is_file():
+            continue
+        hook = getattr(config, "hook", None)
+        if matches_supported_suffix or (
+            hook is not None and hook.pytest_cuke_get_mimetype(config=config, path=candidate) is not None
+        ):
             yield candidate
 
 
@@ -347,14 +390,14 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
     def _resolve_features_base_dir(self, config: Any = None) -> Path:
         return resolve_feature_sources(config, features_base_dir=self.features_base_dir).features_base_dir
 
-    def _gen_feature_paths(self, features_base_dir: Path) -> Iterable[Path]:
+    def _gen_feature_paths(self, features_base_dir: Path, config: Any = None) -> Iterable[Path]:
         for feature_pathlike in self.feature_paths:
             if isinstance(feature_pathlike, Path):
                 feature_path = (
                     feature_pathlike if feature_pathlike.is_absolute() else features_base_dir / feature_pathlike
                 )
                 if feature_path.is_dir():
-                    yield from _iter_default_feature_paths(feature_path)
+                    yield from _iter_default_feature_paths(feature_path, config)
                 elif feature_path.is_file():
                     yield feature_path
             else:
@@ -362,7 +405,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                 path_obj = Path(raw_str)
                 if path_obj.is_absolute():
                     if path_obj.is_dir():
-                        yield from _iter_default_feature_paths(path_obj)
+                        yield from _iter_default_feature_paths(path_obj, config)
                     elif path_obj.is_file():
                         yield path_obj
                     else:
@@ -371,13 +414,13 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                             path_obj.parent.glob(path_obj.name),
                         )
                 elif raw_str in (".", ""):
-                    yield from _iter_default_feature_paths(features_base_dir)
+                    yield from _iter_default_feature_paths(features_base_dir, config)
                 elif any(c in raw_str for c in ("*", "?", "[")):
                     yield from filter(methodcaller("is_file"), features_base_dir.glob(raw_str))
                 else:
                     target = features_base_dir / path_obj
                     if target.is_dir():
-                        yield from _iter_default_feature_paths(target)
+                        yield from _iter_default_feature_paths(target, config)
                     elif target.is_file():
                         yield target
                     else:
@@ -409,7 +452,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         seen: set[str] = set()
         requests: list[BatchFeatureRequest] = []
 
-        paths = feature_paths if feature_paths is not None else self._gen_feature_paths(base_dir)
+        paths = feature_paths if feature_paths is not None else self._gen_feature_paths(base_dir, config)
         if feature_paths is None and self.feature_paths and not base_dir.is_dir():
             has_relative_source = any(not Path(str(path)).is_absolute() for path in self.feature_paths)
             if has_relative_source:
@@ -452,8 +495,14 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
                         uri=uri,
                         encoding=self.encoding,
                         parser=p,
-                        mimetype=self.mimetype,
+                        mimetype=self.mimetype
+                        or (
+                            config.hook.pytest_cuke_get_mimetype(config=config, path=feature_path)
+                            if getattr(config, "hook", None) is not None
+                            else None
+                        ),
                         parser_options=tuple(parser_options.items()),
+                        open_url=lambda source: open_http_source(config, source),
                     )
                 )
         return requests
@@ -464,15 +513,7 @@ class FileScenarioLocator(ScenarioLocatorFilterMixin):
         if service is not None:
             features = service.resolve_many(requests)
         else:
-            features = [
-                request.parser.parse(
-                    request.path,
-                    uri=request.uri,
-                    encoding=request.encoding,
-                    **dict(request.parser_options),
-                )
-                for request in requests
-            ]
+            features = [parse_feature_request(request) for request in requests]
 
         for feature, request in zip(features, requests, strict=True):
             if _strict_heading_policy_enabled(config):

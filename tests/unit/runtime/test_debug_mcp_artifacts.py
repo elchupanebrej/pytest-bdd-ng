@@ -130,3 +130,23 @@ def test_artifact_sink_removes_json_when_markdown_pair_cannot_be_created(tmp_pat
 
     assert not markdown_path.with_suffix(".json").exists()
     assert markdown_path.read_text(encoding="utf-8") == "owned by an earlier artifact"
+
+
+def test_artifact_sink_redacts_recognized_secret_values(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("TEST_TOKEN", "top-secret-123")
+    payload = _valid_artifact()
+    payload["summary"] = "received top-secret-123"
+    payload["evidence"] = ["top-secret-123 in evidence"]
+
+    result = ArtifactSink(tmp_path, redact_patterns=("token",)).write(
+        sequence=1,
+        nodeid=str(payload["nodeid"]),
+        payload=payload,
+    )
+
+    stored = json.loads(Path(result.json_path).read_text(encoding="utf-8"))
+    markdown = Path(result.markdown_path).read_text(encoding="utf-8")
+    assert "top-secret-123" not in json.dumps(stored)
+    assert "top-secret-123" not in markdown
+    assert "<redacted>" in stored["summary"]
+    assert "<redacted>" in markdown

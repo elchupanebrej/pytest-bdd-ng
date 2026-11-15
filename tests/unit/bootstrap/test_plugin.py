@@ -57,6 +57,11 @@ def test_pytest_configure_lifecycle() -> None:
     config.pluginmanager.get_plugin.return_value = session_finish_hook
     config.option = MagicMock()
     config.option.cuke_json = None
+    config.option.cuke_report_policy = "normal"
+    config.option.cuke_xfail_as_failed = None
+    config.option.cuke_skip_as_failed = None
+    config.option.cuke_tolerated_as_failed = None
+    config.option.cuke_wip_as_failed = None
     config.option.cuke_progress = False
     config.option.cuke_summary = False
     config.option.cuke_tolerant_status = None
@@ -69,6 +74,7 @@ def test_pytest_configure_lifecycle() -> None:
     config.option.cuke_mcp_max_holds = None
     config.option.cuke_mcp_expose_env = None
     config.option.cuke_mcp_redact_patterns = None
+    config.getoption.side_effect = lambda name: getattr(config.option, name, None)
     config.getini.side_effect = lambda name: {
         "cuke_tolerant_status": "failed",
         "cuke_wip_status": "failed",
@@ -169,3 +175,12 @@ def test_builtin_fixtures() -> None:
 
     assert pytest_cuke_is_collectible(config, Path("test.feature")) is True
     assert pytest_cuke_is_collectible(config, Path("test.py")) is None
+
+
+def test_backup_feature_files_are_not_collectible() -> None:
+    config = MagicMock()
+
+    assert pytest_cuke_is_collectible(config, Path("ignored.feature.bak")) is None
+    assert pytest_cuke_is_collectible(config, Path("ignored.gherkin.bak")) is None
+    assert pytest_cuke_is_collectible(config, Path("GOOD.FEATURE")) is True
+    assert pytest_cuke_is_collectible(config, Path("good.feature.md")) is True

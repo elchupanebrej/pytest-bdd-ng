@@ -57,7 +57,7 @@ def pytest_cuke_step_bypassed(
     request: FixtureRequest,
     run: RunContext,
     step_definition: Any,
-    status: Literal["passed", "skipped"],
+    status: Literal["failed", "skipped"],
     message: str | None = None,
 ) -> None:
     """Called when a not-implemented step is reported without executing its body."""

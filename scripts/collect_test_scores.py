@@ -27,6 +27,20 @@ TEST_SCORE_CRITERIA = [
 SCORE_TAG_RE = re.compile(r"#test-eval:(\w+)=(N/A|[1-5])")
 TEST_REPORT_JSON = Path(".planning/tmp/test-quality-report.json")
 
+TEMPLATE_FIELDS = (
+    "Test target",
+    "Test type",
+    "Test scenario",
+    "BDD reference",
+    "Fixtures",
+    "Mocks",
+    "Side effects",
+    "Reduction",
+    "Escalation",
+    "Atomicity",
+    "Autonomy",
+)
+
 
 @dataclass(frozen=True)
 class TestQualityEntry:
@@ -36,10 +50,10 @@ class TestQualityEntry:
     scores: dict[str, int]
 
     @property
-    def average(self) -> float:
+    def average(self) -> float | None:
         values = [v for v in self.scores.values() if v > 0]
         if not values:
-            return 0.0
+            return None
         return len(values) / sum(1.0 / v for v in values)
 
 
@@ -79,11 +93,11 @@ def collect_entries(roots: list[Path], exclude_names: set[str] | None = None) ->
             continue
 
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test_"):
                 func_doc = ast.get_docstring(node, clean=False)
                 if func_doc:
                     scores = parse_test_eval_tags(func_doc)
-                    if scores:
+                    if scores or "#test-eval:" in func_doc:
                         target = ""
                         test_type = ""
                         for line in func_doc.splitlines():
@@ -103,17 +117,97 @@ def collect_entries(roots: list[Path], exclude_names: set[str] | None = None) ->
     return entries
 
 
+@dataclass(frozen=True)
+class TestStub:
+    """A test function whose responsibility template still needs agent analysis."""
+
+    file: str
+    line: int
+    function: str
+    kind: str
+    missing_template: bool
+    unfilled_text: tuple[str, ...]
+    unassessed_criteria: tuple[str, ...]
+
+    @property
+    def is_stub(self) -> bool:
+        return self.missing_template or bool(self.unfilled_text) or bool(self.unassessed_criteria)
+
+
+def _unfilled_template_fields(docstring: str) -> tuple[str, ...]:
+    """Return template sections whose value is still a placeholder."""
+    values: dict[str, str] = {}
+    current: str | None = None
+    for raw_line in docstring.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        field = next((item for item in TEMPLATE_FIELDS if line.startswith(f"{item}:")), None)
+        if field is not None:
+            current = field
+            values.setdefault(field, "")
+            continue
+        if current is not None:
+            values[current] = line
+            current = None
+    return tuple(field for field in TEMPLATE_FIELDS if values.get(field, "").startswith("<"))
+
+
+def find_test_stubs(roots: list[Path], exclude_names: set[str] | None = None) -> list[TestStub]:
+    """Find collected test functions whose template or scores still need analysis."""
+    if exclude_names is None:
+        exclude_names = {"__init__.py", "conftest.py"}
+
+    paths: list[Path] = []
+    for root in roots:
+        if root.is_dir():
+            paths.extend(root.rglob("*.py"))
+        elif root.suffix == ".py":
+            paths.append(root)
+
+    stubs: list[TestStub] = []
+    for path in sorted(set(paths)):
+        if path.name in exclude_names or "__pycache__" in path.parts:
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (OSError, SyntaxError, UnicodeDecodeError):
+            continue
+
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if not node.name.startswith("test_"):
+                continue
+            doc = ast.get_docstring(node, clean=False)
+            missing_template = doc is None or "Test target:" not in doc
+            scores = parse_test_eval_tags(doc)
+            stub = TestStub(
+                file=path.as_posix(),
+                line=node.lineno,
+                function=node.name,
+                kind="async function" if isinstance(node, ast.AsyncFunctionDef) else "function",
+                missing_template=missing_template,
+                unfilled_text=() if missing_template else _unfilled_template_fields(doc or ""),
+                unassessed_criteria=tuple(c for c in TEST_SCORE_CRITERIA if c not in scores),
+            )
+            if stub.is_stub:
+                stubs.append(stub)
+    return stubs
+
+
 def write_report(entries: list[TestQualityEntry]) -> None:
     """Write test quality report JSON."""
     TEST_REPORT_JSON.parent.mkdir(parents=True, exist_ok=True)
+    values = {crit: [entry.scores[crit] for entry in entries if crit in entry.scores] for crit in TEST_SCORE_CRITERIA}
     report_data = {
         "files": [asdict(e) for e in entries],
         "stats": {
             "total_entities": len(entries),
             "averages": {
-                crit: sum(e.scores.get(crit, 0) for e in entries) / len(entries) if entries else 0.0
-                for crit in TEST_SCORE_CRITERIA
+                crit: sum(scores) / len(scores) if scores else None for crit, scores in values.items()
             },
+            "scored_by_criterion": {crit: len(scores) for crit, scores in values.items()},
         },
     }
     TEST_REPORT_JSON.write_text(json.dumps(report_data, indent=2), encoding="utf-8")
@@ -130,8 +224,9 @@ def main() -> int:
     print(f"Total documented test entities (modules/functions): {len(entries)}")
     if entries:
         for crit in TEST_SCORE_CRITERIA:
-            avg = sum(e.scores.get(crit, 0) for e in entries) / len(entries)
-            print(f"Average {crit.replace('_', ' '):<20}: {avg:.2f}/5.0")
+            values = [e.scores[crit] for e in entries if crit in e.scores]
+            average_text = f"{sum(values) / len(values):.2f}/5.0" if values else "N/A"
+            print(f"Average {crit.replace('_', ' '):<20}: {average_text} ({len(values)}/{len(entries)} scored)")
     print("--------------------------------------------------")
 
     return 0

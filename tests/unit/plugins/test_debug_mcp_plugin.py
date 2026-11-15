@@ -145,6 +145,8 @@ def test_failed_pytest_reports_hold_with_their_phase(phase: str) -> None:
             "error_message": "failure sentinel",
             "bdd_context": None,
             "environment": None,
+            "fixtures": {},
+            "traceback": "failure sentinel",
         }
     ]
 
@@ -229,3 +231,34 @@ def test_active_failure_is_written_to_discovery_and_terminal() -> None:
         "Debug MCP holding failure #2 (call) at tests/test_example.py::test_failure: "
         "RuntimeError: failure sentinel"
     ]
+
+
+def test_failure_hold_includes_redacted_fixtures_and_traceback(monkeypatch) -> None:
+    monkeypatch.setenv("TEST_TOKEN", "top-secret-123")
+
+    class Widget:
+        pass
+
+    plugin = DebugMcpPlugin(config=SimpleNamespace(), options=DebugMcpOptions(enabled=True))
+    queue = _FailureQueue()
+    plugin.queue = queue  # type: ignore[assignment]
+    item = SimpleNamespace(
+        nodeid="tests/test_example.py::test_failure",
+        callspec=None,
+        config=SimpleNamespace(),
+        funcargs={"token_value": "top-secret-123", "count": 3, "widget": Widget()},
+    )
+    call = SimpleNamespace(excinfo=SimpleNamespace(value=RuntimeError("failed with top-secret-123")))
+    report = SimpleNamespace(failed=True, when="call", longreprtext="trace contains top-secret-123")
+    hook = plugin.pytest_runtest_makereport(item, call)
+
+    next(hook)
+    with pytest.raises(StopIteration):
+        hook.send(SimpleNamespace(get_result=lambda: report))
+
+    failure = queue.failures[0]
+    assert failure["error_message"] == "failed with <redacted>"
+    assert failure["traceback"] == "trace contains <redacted>"
+    assert failure["fixtures"]["token_value"] == "<redacted>"
+    assert failure["fixtures"]["count"] == 3
+    assert failure["fixtures"]["widget"].startswith("<Widget:")

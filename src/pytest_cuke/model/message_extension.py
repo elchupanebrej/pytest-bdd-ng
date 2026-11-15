@@ -1,11 +1,26 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from enum import Enum
+from pathlib import PurePosixPath
 from typing import Final, TypeAlias
+from urllib.parse import urlsplit
 
 from attrs import frozen
 
-from pytest_cuke.model.message_types import Envelope, message_field_names
+from pytest_cuke.const import (  # noqa: F401 - re-exported for existing imports
+    PYTEST_OUTCOME_MEDIA_TYPE,
+    PYTEST_SOURCE_MEDIA_TYPE,
+    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+)
+from pytest_cuke.model.message_types import (
+    Attachment,
+    AttachmentContentEncoding,
+    Envelope,
+    message_field_names,
+)
+
+REFERENCE_MEDIA_TYPE: Final[str] = "text/uri-list"
 
 
 class StepDefinitionPatternType(Enum):
@@ -68,6 +83,30 @@ def has_single_payload(message: EventEnvelope) -> bool:
     return get_payload_kind(message) is not None
 
 
+def external_attachment_reference(envelope: Envelope) -> Envelope:
+    """Replace an external attachment with a link-only regular attachment."""
+    external = envelope.external_attachment
+    if external is None:
+        return envelope
+    name = PurePosixPath(urlsplit(external.url).path).name
+    if not name or name in {".", ".."}:
+        name = "external-attachment.txt"
+    return replace(
+        envelope,
+        external_attachment=None,
+        attachment=Attachment(
+            body=external.url,
+            content_encoding=AttachmentContentEncoding.identity,
+            media_type=REFERENCE_MEDIA_TYPE,
+            file_name=name,
+            test_case_started_id=external.test_case_started_id,
+            test_run_hook_started_id=external.test_run_hook_started_id,
+            test_step_id=external.test_step_id,
+            timestamp=external.timestamp,
+        ),
+    )
+
+
 def get_payload_merge_class(payload_kind: PayloadKind | None) -> str | None:
     if payload_kind is None:
         return None
@@ -87,6 +126,7 @@ __all__ = [
     "IDE_LAUNCH_MEDIA_TYPE",
     "IDE_STEP_BINDING_MEDIA_TYPE",
     "PAYLOAD_KINDS",
+    "REFERENCE_MEDIA_TYPE",
     "STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS",
     "EnvelopeStatus",
     "EventEnvelope",
@@ -94,6 +134,7 @@ __all__ = [
     "LifecycleCorrelation",
     "PayloadKind",
     "StepDefinitionPatternType",
+    "external_attachment_reference",
     "get_payload_kind",
     "get_payload_merge_class",
     "has_single_payload",

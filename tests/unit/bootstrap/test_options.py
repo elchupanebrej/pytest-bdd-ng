@@ -40,7 +40,7 @@ def test_add_bdd_ini() -> None:
     )
     parser.addini.assert_any_call(
         "cuke_wip_status",
-        "Status policy for @not_implemented steps: passed, skipped, or failed.",
+        "Status policy for @not_implemented steps: skipped or failed.",
         default="failed",
         type="string",
     )
@@ -53,12 +53,19 @@ def test_steps_add_options() -> None:
 
     steps_add_options(parser)
     parser.getgroup.assert_called_once_with("cuke", "Steps")
-    group.addoption.assert_called_once()
-    args, kwargs = group.addoption.call_args
-    assert "--cuke-liberal-steps" in args
-    assert kwargs["dest"] == "cuke_liberal_steps"
+    assert group.addoption.call_count == 2
+    liberal_call = next(call for call in group.addoption.call_args_list if "--cuke-liberal-steps" in call.args)
+    assert liberal_call.kwargs["dest"] == "cuke_liberal_steps"
+    ambiguous_call = next(call for call in group.addoption.call_args_list if "--cuke-ambiguous-steps" in call.args)
+    assert ambiguous_call.kwargs["dest"] == "cuke_ambiguous_steps"
+    assert ambiguous_call.kwargs["choices"] == ("error", "first")
     parser.addini.assert_any_call(
         "cuke_liberal_steps", default=False, type="bool", help="Allow use different keywords with same step definition"
+    )
+    parser.addini.assert_any_call(
+        "cuke_ambiguous_steps",
+        default="error",
+        help="Resolve equal-priority step definitions with a stable first choice instead of an error",
     )
 
 
@@ -87,7 +94,7 @@ def test_pytest_addoption_calls_all_submodules() -> None:
     assert "cuke_features_base_url" in option_kwargs["--cuke-features-base-url"]["help"]
     assert "binding, CLI, then ini" in option_kwargs["--cuke-features-base-url"]["help"]
     assert option_kwargs["--cuke-tolerant-status"]["choices"] == ("failed", "ignored")
-    assert option_kwargs["--cuke-wip-status"]["choices"] == ("passed", "skipped", "failed")
+    assert option_kwargs["--cuke-wip-status"]["choices"] == ("skipped", "failed")
     assert option_kwargs["--cuke-mock-run"]["dest"] == "cuke_mock_run"
     assert option_kwargs["--cuke-mock-run"]["action"] == "store_true"
     assert option_kwargs["--cuke-mock-run"]["default"] is None

@@ -34,7 +34,7 @@ from pytest_cuke.allure_conversion import (
 )
 from pytest_cuke.allure_status import _allure_api_step_status
 from pytest_cuke.model.message_consolidation import LiveMessageAdapter
-from pytest_cuke.model.message_extension import get_payload_kind
+from pytest_cuke.model.message_extension import external_attachment_reference, get_payload_kind
 from pytest_cuke.model.message_registry import EnvelopeRegistry
 from pytest_cuke.model.message_types import Envelope, message_from_dict, message_to_dict
 
@@ -79,7 +79,7 @@ class _ActiveRunHook:
 class NativeAllureReporter:
     """Map the live Messages stream to allure-python-commons lifecycle objects."""
 
-    def __init__(self, output_dir: Path) -> None:
+    def __init__(self, output_dir: Path, *, report_presentation: Any = None) -> None:
         try:
             allure_commons = import_module("allure_commons")
             lifecycle_module = import_module("allure_commons.lifecycle")
@@ -91,6 +91,7 @@ class NativeAllureReporter:
             ) from error
 
         self.output_dir = Path(os.path.expandvars(os.path.expanduser(str(output_dir)))).resolve()
+        self._report_presentation = report_presentation
         self._allure_commons = allure_commons
         self._lifecycle = lifecycle_module.AllureLifecycle()
         self._file_logger = logger_module.AllureFileLogger(str(self.output_dir))
@@ -172,6 +173,7 @@ class NativeAllureReporter:
             self._consume(message_from_dict(normalized, Envelope), normalized)
 
     def _consume(self, envelope: Envelope, wire: dict[str, Any]) -> None:
+        envelope = external_attachment_reference(envelope)
         kind = get_payload_kind(envelope)
         if kind is None:
             return
@@ -355,6 +357,13 @@ class NativeAllureReporter:
                 f"test case finish refers to unknown test case attempt {finished.test_case_started_id!r}"
             )
         status = _scenario_status(tuple(case.statuses))
+        scenario_outcome = (
+            self._report_presentation.scenario_outcome(finished.test_case_started_id)
+            if self._report_presentation is not None
+            else None
+        )
+        if scenario_outcome is not None:
+            status = scenario_outcome[0]
         with self._lifecycle.update_test_case(case.result_uuid) as result:
             result.status = self._allure_status_value(status)
             result.stage = "finished"
@@ -362,6 +371,8 @@ class NativeAllureReporter:
             if case.failures:
                 _failure_status, details = max(case.failures, key=lambda item: _status_priority(item[0]))
                 result.statusDetails = self._model["StatusDetails"](**details)
+            if scenario_outcome is not None:
+                result.statusDetails = self._model["StatusDetails"](message=scenario_outcome[1])
         result = self._lifecycle._get_item(uuid=case.result_uuid)
         if result is not None:
             self._write_result(result)
@@ -642,15 +653,20 @@ class NativeAllureReporter:
             container.stop = _timestamp_millis(finished.timestamp)
             if finished.message or finished.exception is not None:
                 detail = finished.message or getattr(finished.exception, "message", None) or "Test run failed"
+                failed_tests_only = _only_test_failures(finished)
                 fixture = self._model["TestAfterResult"](
                     name="pytest test run",
-                    status=self._allure_status_value("broken"),
+                    status=self._allure_status_value("passed" if failed_tests_only else "broken"),
                     stage="finished",
                     start=container.stop,
                     stop=container.stop,
-                    statusDetails=self._model["StatusDetails"](
-                        message=str(detail),
-                        trace=trace or getattr(finished.exception, "stack_trace", None),
+                    statusDetails=(
+                        None
+                        if failed_tests_only
+                        else self._model["StatusDetails"](
+                            message=str(detail),
+                            trace=trace or getattr(finished.exception, "stack_trace", None),
+                        )
                     ),
                 )
                 container.afters.append(fixture)
@@ -950,6 +966,16 @@ class NativeAllureReporter:
         if case is None:
             return None
         return case.step_uuids[case.active_step_ids[-1]].uuid if case.active_step_ids else case.result_uuid
+
+
+def _only_test_failures(finished: messages.TestRunFinished) -> bool:
+    """Return whether pytest exited solely because individual tests failed."""
+    exception = finished.exception
+    return (
+        finished.message == "pytest session exit status: 1"
+        and getattr(exception, "type", None) == "PytestExitCode"
+        and str(getattr(exception, "message", "")) == "1"
+    )
 
 
 def _enum_value(value: Any) -> str:

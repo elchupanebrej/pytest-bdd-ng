@@ -6,7 +6,8 @@ Provides a single entry point for all architecture-related operations:
   collect-scores      Collect architecture scores from source docstrings.
   collect-test-scores Collect test quality scores from test docstrings.
   analyze-gaps        Analyze weak responsibility-contract zones.
-  list-stubs          List all stub templates pending agent fill.
+  list-stubs          List all architecture stub templates pending agent fill.
+  list-test-stubs     List test templates and scores pending agent analysis.
   fix-long-lines      Fix E501 line-too-long in docstrings.
   fix-incomplete-scores Fix incomplete architecture score blocks.
 
@@ -181,6 +182,8 @@ def _cmd_collect_test_scores(args: argparse.Namespace) -> int:
     exclude_names = set(cfg.get("exclude", []))
     entries = collect_test_scores.collect_entries([Path(r) for r in roots], exclude_names)
     collect_test_scores.write_report(entries)
+    assessed_averages = [average for entry in entries if (average := entry.average) is not None]
+    average_text = f"{sum(assessed_averages) / len(assessed_averages):.2f}" if assessed_averages else "N/A"
 
     if getattr(args, "json", False):
         if collect_test_scores.TEST_REPORT_JSON.exists():
@@ -188,28 +191,27 @@ def _cmd_collect_test_scores(args: argparse.Namespace) -> int:
         else:
             print(json.dumps([asdict(e) for e in entries], indent=2))
     elif getattr(args, "markdown", False):
-        avg = (sum(e.average for e in entries) / len(entries)) if entries else 0.0
         lines = [
             "# Test Quality Scores",
             "",
             f"- Total test entities: {len(entries)}",
-            f"- Average score: {avg:.2f}",
+            f"- Average score: {average_text}",
             "",
             "| Entity | Target | Type | Isolation | Determinism | Setup | Assertions | Average |",
             "|---|---|---|---:|---:|---:|---:|---:|",
         ]
         for e in entries:
+            entity_average = f"{e.average:.2f}" if e.average is not None else "N/A"
             lines.append(
                 f"| `{e.file}` | {e.target} | {e.test_type} | "
                 f"{e.scores.get('isolation', 'N/A')} | {e.scores.get('determinism', 'N/A')} | "
                 f"{e.scores.get('setup_complexity', 'N/A')} | {e.scores.get('assertions_clarity', 'N/A')} | "
-                f"{e.average:.2f} |"
+                f"{entity_average} |"
             )
         print("\n".join(lines))
     else:
         if entries:
-            avg = sum(e.average for e in entries) / len(entries)
-            print(f"Scanned {len(entries)} test entities; average score: {avg:.2f}")
+            print(f"Scanned {len(entries)} test entities; average score: {average_text}")
         else:
             print("No test entities found.")
     return 0
@@ -318,6 +320,56 @@ def _cmd_list_stubs(args: argparse.Namespace) -> int:
         print("\n".join(lines))
     else:
         print(json.dumps({"stubs": results, "total": len(results)}, indent=2))
+    return 0
+
+
+# ── subcommand: list-test-stubs ────────────────────────────────────────
+
+
+def _cmd_list_test_stubs(args: argparse.Namespace) -> int:
+    """List test functions whose responsibility template or scores need analysis."""
+    import collect_test_scores
+
+    cfg = _merge_config(
+        {"root": args.root, "exclude": args.exclude},
+        "inject_tests",
+    )
+    roots = cfg.get("root", [])
+    if isinstance(roots, str):
+        roots = [roots]
+    if not roots:
+        roots = ["tests"]
+    exclude_names = set(cfg.get("exclude", [])) or None
+
+    stubs = collect_test_scores.find_test_stubs([Path(r) for r in roots], exclude_names)
+
+    if getattr(args, "markdown", False):
+        lines = [
+            f"# Test Stubs ({len(stubs)} total)",
+            "",
+            "| File | Line | Function | Missing template | Unfilled text | Unassessed criteria |",
+            "|---|---:|---|---|---|---|",
+        ]
+        for stub in stubs:
+            lines.append(
+                f"| `{stub.file}` | {stub.line} | `{stub.function}` | "
+                f"{stub.missing_template} | {', '.join(stub.unfilled_text) or '-'} | "
+                f"{', '.join(stub.unassessed_criteria) or '-'} |"
+            )
+        print("\n".join(lines))
+    elif getattr(args, "json", False):
+        print(json.dumps({"stubs": [asdict(stub) for stub in stubs], "total": len(stubs)}, indent=2))
+    else:
+        print(f"Found {len(stubs)} test stubs pending analysis.")
+        for stub in stubs:
+            reasons = []
+            if stub.missing_template:
+                reasons.append("missing template")
+            if stub.unfilled_text:
+                reasons.append(f"unfilled text: {', '.join(stub.unfilled_text)}")
+            if stub.unassessed_criteria:
+                reasons.append(f"unassessed: {', '.join(stub.unassessed_criteria)}")
+            print(f"  {stub.file}:{stub.line} {stub.function} ({'; '.join(reasons)})")
     return 0
 
 
@@ -458,7 +510,8 @@ def main() -> int:
   collect-scores        Collect architecture scores from docstrings
   collect-test-scores   Collect test quality scores from docstrings
   analyze-gaps          Analyze weak responsibility-contract zones
-  list-stubs            List all stub templates pending agent fill
+  list-stubs            List all architecture stub templates pending agent fill
+  list-test-stubs       List test templates and scores pending agent analysis
   fix-long-lines        Fix line-too-long in docstrings
   fix-incomplete-scores Fix incomplete architecture score blocks
 
@@ -501,8 +554,12 @@ Configuration: [tool.architecture] in pyproject.toml
     _add_common_args(p_ag)
 
     # list-stubs
-    p_ls = sub.add_parser("list-stubs", help="List all stub templates pending agent fill")
+    p_ls = sub.add_parser("list-stubs", help="List all architecture stub templates pending agent fill")
     _add_common_args(p_ls)
+
+    # list-test-stubs
+    p_lts = sub.add_parser("list-test-stubs", help="List test templates and scores pending agent analysis")
+    _add_common_args(p_lts)
 
     # fix-long-lines
     p_fll = sub.add_parser("fix-long-lines", help="Fix line-too-long in docstrings")
@@ -534,6 +591,7 @@ Configuration: [tool.architecture] in pyproject.toml
         "collect-test-scores": _cmd_collect_test_scores,
         "analyze-gaps": _cmd_analyze_gaps,
         "list-stubs": _cmd_list_stubs,
+        "list-test-stubs": _cmd_list_test_stubs,
         "fix-long-lines": _cmd_fix_long_lines,
         "fix-incomplete-scores": _cmd_fix_incomplete_scores,
     }

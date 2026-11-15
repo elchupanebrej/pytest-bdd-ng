@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import plistlib
 from configparser import ConfigParser
+from configparser import Error as ConfigParserError
 from importlib.machinery import ModuleSpec
 from importlib.util import module_from_spec
 from pathlib import Path
@@ -12,7 +14,7 @@ from pytest_cuke.batch_collection import get_batch_service
 from pytest_cuke.compatibility.pytest import Item as PytestItem
 from pytest_cuke.compatibility.pytest import Module as PytestModule
 from pytest_cuke.compatibility.pytest import Package as PytestPackage
-from pytest_cuke.feature_sources import resolve_feature_sources
+from pytest_cuke.feature_sources import FeatureSourceError, resolve_feature_sources
 from pytest_cuke.scenario import FeaturePathType as PathType
 from pytest_cuke.scenario import scenarios
 from pytest_cuke.scenario_locator import FileScenarioLocator
@@ -45,6 +47,22 @@ class PackageCollector(PytestPackage):
         return super().collect()
 
 
+_LINK_SUFFIXES = frozenset({".url", ".desktop", ".webloc"})
+
+
+def link_suffix(path: Path) -> str | None:
+    """Return the normalized link-file suffix, if the path names one."""
+    suffixes = path.suffixes
+    if not suffixes:
+        return None
+    suffix = suffixes[-1].casefold()
+    return suffix if suffix in _LINK_SUFFIXES else None
+
+
+def _broken_link(path: Path, detail: str) -> FeatureSourceError:
+    return FeatureSourceError(f"Broken feature link '{path}': {detail}.")
+
+
 class FeatureFileModule(Module):
     def _getobj(self) -> ModuleType:
         self._prime_autoload_batch()
@@ -52,11 +70,12 @@ class FeatureFileModule(Module):
         feature_pathlike: str | Path | None
         features_path_type: PathType
         base_dir: str | Path | None
-        if path.suffixes and path.suffixes[-1] == ".url":
+        suffix = link_suffix(path)
+        if suffix == ".url":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_url_file(path)
-        elif path.suffixes and path.suffixes[-1] == ".desktop":
+        elif suffix == ".desktop":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_desktop_file(path)
-        elif path.suffixes and path.suffixes[-1] == ".webloc":
+        elif suffix == ".webloc":
             feature_pathlike, features_path_type, base_dir = self.get_feature_pathlike_from_weblock_file(path)
         else:
             feature_pathlike, features_path_type, base_dir = path, PathType.PATH, None
@@ -149,47 +168,58 @@ class FeatureFileModule(Module):
                 features_path_type = PathType.UNDEFINED
         return path, features_path_type
 
+    @staticmethod
+    def _read_link_section(path: Path, section: str) -> Any:
+        config_parser = ConfigParser()
+        try:
+            config_parser.read(path)
+        except (ConfigParserError, OSError) as error:
+            raise _broken_link(path, f"cannot read link file: {error}") from error
+        if not config_parser.has_section(section):
+            raise _broken_link(path, f"missing [{section}] section")
+        return config_parser[section]
+
+    @staticmethod
+    def _relative_link_base_dir(path: Path, raw_path: str | None, path_type: PathType) -> Path | None:
+        if raw_path is None or path_type is PathType.URL:
+            return None
+        candidate = Path(raw_path)
+        if candidate.is_absolute():
+            return None
+        for parent in path.parents:
+            if (parent / candidate).exists():
+                return parent
+        return None
+
     @classmethod
     def get_feature_pathlike_from_url_file(cls, path: Path) -> tuple[str | None, PathType, str | None]:
-        config_parser = ConfigParser()
-        config_parser.read(path)
-
-        config_data = config_parser["InternetShortcut"]
+        config_data = cls._read_link_section(path, "InternetShortcut")
         working_dir = config_data.get("WorkingDirectory", None)
         url = config_data.get("URL", None)
+        if not url:
+            raise _broken_link(path, "missing URL in [InternetShortcut]")
         raw_path, path_type = cls.detect_uri_pathtype(url)
         return raw_path, path_type, working_dir
 
     @classmethod
     def get_feature_pathlike_from_desktop_file(cls, path: Path) -> tuple[str | None, PathType, Path | str | None]:
-        config_parser = ConfigParser()
-        config_parser.read(path)
-
-        config_data = config_parser["Desktop Entry"]
-        url = config_data["URL"] if config_data.get("Type") == "Link" else None
+        config_data = cls._read_link_section(path, "Desktop Entry")
+        url = config_data.get("URL") if config_data.get("Type") == "Link" else None
+        if not url:
+            raise _broken_link(path, "missing URL for a [Desktop Entry] Type=Link")
         raw_path, path_type = cls.detect_uri_pathtype(url)
-        base_dir = None
-        if raw_path is not None and path_type is not PathType.URL:
-            p = Path(raw_path)
-            if not p.is_absolute():
-                for parent in path.parents:
-                    if (parent / p).exists():
-                        base_dir = parent
-                        break
-        return raw_path, path_type, base_dir
+        return raw_path, path_type, cls._relative_link_base_dir(path, raw_path, path_type)
 
     @classmethod
     def get_feature_pathlike_from_weblock_file(cls, path: Path) -> tuple[str | None, PathType, Path | str | None]:
-        raw_path, path_type = cls.detect_uri_pathtype(cast("str", webloc_read(str(path))))
-        base_dir = None
-        if raw_path is not None and path_type is not PathType.URL:
-            p = Path(raw_path)
-            if not p.is_absolute():
-                for parent in path.parents:
-                    if (parent / p).exists():
-                        base_dir = parent
-                        break
-        return raw_path, path_type, base_dir
+        try:
+            url = webloc_read(str(path))
+        except (OSError, ValueError, plistlib.InvalidFileException) as error:
+            raise _broken_link(path, f"cannot read property list: {error}") from error
+        if not url:
+            raise _broken_link(path, "missing URL")
+        raw_path, path_type = cls.detect_uri_pathtype(cast("str", url))
+        return raw_path, path_type, cls._relative_link_base_dir(path, raw_path, path_type)
 
 
 FeatureFileCollector = FeatureFileModule

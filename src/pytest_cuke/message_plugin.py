@@ -19,7 +19,6 @@ from threading import Event, Lock, RLock, Thread
 from time import monotonic, sleep, time_ns
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, cast
 
-import chevron
 import pytest
 from attr import attrib, attrs
 from ci_environment import detect_ci_environment
@@ -39,6 +38,7 @@ from pytest_cuke.compatibility.pytest import (
 from pytest_cuke.formatter_catalog import resolve_formatter_requests
 from pytest_cuke.formatter_runtime import FormatterSession
 from pytest_cuke.generation import make_step_method_name
+from pytest_cuke.html_report import render_cucumber_html
 from pytest_cuke.ide_bindings import (
     IDE_BINDING_WORKER_OUTPUT_KEY,
     IDE_DIAGNOSTIC_MEDIA_TYPE,
@@ -58,6 +58,11 @@ from pytest_cuke.model.message_consolidation import (
     namespace_envelope_ids,
 )
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_pickle_id, scenario_to_pickle
+from pytest_cuke.model.message_extension import (
+    PYTEST_OUTCOME_MEDIA_TYPE,
+    PYTEST_SOURCE_MEDIA_TYPE,
+    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+)
 from pytest_cuke.model.message_source import callable_source_reference
 from pytest_cuke.model.message_stream_validation import MessageStreamValidator
 from pytest_cuke.model.message_transport import MessageEnvelopeView, ValidatedMessageTransport
@@ -110,9 +115,10 @@ from pytest_cuke.model.message_worker_transport import (
     MessageBatcher,
     WorkerMessageReceiver,
 )
+from pytest_cuke.model.report_presentation import ReportPresentation
 from pytest_cuke.model.run_access import get_run_context
 from pytest_cuke.model.session_run import RunContext
-from pytest_cuke.npm_resource import check_npm, check_npm_package, find_resource
+from pytest_cuke.npm_resource import check_npm, check_npm_package
 from pytest_cuke.packaging import get_distribution_version
 from pytest_cuke.parsers.cucumber_expression import _CucumberExpression
 from pytest_cuke.scenario_locator import ScenarioLocatorFilterMixin
@@ -241,9 +247,17 @@ class PendingTestStepFinish:
     exception_stack_trace: str | None = attrib(default=None)
 
 
+def session_hook_name(phase: Literal["before", "after"], worker_id: str | None) -> str:
+    """Name a session hook so parallel worker stages stay distinguishable."""
+    base = "pytest session start" if phase == "before" else "pytest session finish"
+    return f"{base} ({worker_id})" if worker_id else base
+
+
 @attrs(eq=False)
 class MessagePlugin:
     config: Config = attrib()
+    report_presentation: ReportPresentation = attrib(factory=ReportPresentation)
+    canonical_presentation: ReportPresentation = attrib(factory=lambda: ReportPresentation(retain_metadata=True))
     formatter_requests: tuple[FormatterRequest, ...] = attrib(factory=tuple)
     formatter_session: FormatterSession | None = attrib(default=None)
     message_transport: ValidatedMessageTransport | None = attrib(default=None)
@@ -409,8 +423,7 @@ class MessagePlugin:
         self.message_transport = ValidatedMessageTransport()
         if not self.is_xdist_worker:
             self.message_transport.add_sink(self._deliver_validated_message, name="pytest_cuke_message_validated")
-        self.message_transport.add_sink(self._capture_accepted_message, name="Cucumber Messages memory fragment")
-        self.message_transport.add_sink(self._queue_validated_message, name="Cucumber Messages NDJSON writer")
+        self.message_transport.add_sink(self._publish_canonical_message, name="Cucumber Messages NDJSON writer")
 
         if self.formatter_requests and not self.is_xdist_worker:
             self.formatter_session = FormatterSession(self.config, self.formatter_requests)
@@ -533,6 +546,44 @@ class MessagePlugin:
         """Add canonical Cucumber report options."""
         group = parser.getgroup("cuke", "Cucumber NDJSON")
         group.addoption(
+            "--cuke-report-policy",
+            choices=("normal", "diagnostic"),
+            default="normal",
+            help="choose the default report presentation policy",
+        )
+        group.addoption(
+            "--cuke-tolerated-as-failed",
+            action="store_true",
+            default=None,
+            help="show tolerated step failures as failures in reports without changing pytest results",
+        )
+        group.addoption(
+            "--cuke-skip-as-failed",
+            action="store_true",
+            default=None,
+            help="show setup skips as failures in reports without changing pytest results",
+        )
+        group.addoption(
+            "--cuke-xfail-as-failed",
+            action="store_true",
+            default=None,
+            help="show expected failures as failures in reports without changing pytest results",
+        )
+        group.addoption(
+            "--cuke-wip-as-failed",
+            action="store_true",
+            default=None,
+            help="show skipped not-implemented steps as failures in reports without changing pytest results",
+        )
+        for category in ("tolerated", "skip", "xfail", "wip"):
+            group.addoption(
+                f"--cuke-no-{category}-as-failed",
+                action="store_false",
+                dest=f"cuke_{category}_as_failed",
+                default=None,
+                help=f"show {category} outcomes normally, overriding the report policy",
+            )
+        group.addoption(
             "--cuke-messages-ndjson",
             action="store",
             dest="cuke_messages_ndjson",
@@ -600,48 +651,6 @@ class MessagePlugin:
         if html_path is None:
             return
 
-        script_content = ""
-        for candidate in (Path("dist") / "main.js", Path("main.js"), Path("dist") / "cucumber-html.js"):
-            found = list(find_resource(self.npm_formatter_package, str(candidate)))
-            if found:
-                script_content = Path(found[0]).read_text(encoding="utf-8")
-                break
-
-        css_content = ""
-        for candidate in (Path("dist") / "main.css", Path("main.css"), Path("dist") / "cucumber-html.css"):
-            found = list(find_resource(self.npm_formatter_package, str(candidate)))
-            if found:
-                css_content = Path(found[0]).read_text(encoding="utf-8")
-                break
-
-        template = (
-            "<!DOCTYPE html>\n"
-            "<html>\n"
-            "<head>\n"
-            '    <meta charset="UTF-8">\n'
-            "    <style>{{&css}}</style>\n"
-            "</head>\n"
-            "<body>\n"
-            "    <script>{{&script}}</script>\n"
-            '    <div id="content"></div>\n'
-            "    <script>\n"
-            "        window.CUCUMBER_MESSAGES = [{{&messages}}];\n"
-            "    </script>\n"
-            "</body>\n"
-            "</html>\n"
-        )
-        for candidate in (
-            Path("src") / "index.mustache.html",
-            Path("index.mustache.html"),
-            Path("dist") / "index.mustache.html",
-            Path("templates") / "index.mustache.html",
-        ):
-            found = list(find_resource(self.npm_formatter_package, str(candidate)))
-            if found:
-                raw = Path(found[0]).read_text(encoding="utf-8")
-                template = re.sub(r"\{\{", "{{&", raw)
-                break
-
         messages = ""
         if self.messages_file_path and self.messages_file_path.exists():
             with self.messages_file_path.open(mode="r", encoding="utf-8") as f:
@@ -650,14 +659,7 @@ class MessagePlugin:
         html_out_path = Path(html_path)
         html_out_path.parent.mkdir(parents=True, exist_ok=True)
         html_out_path.write_text(
-            chevron.render(
-                template,
-                {
-                    "css": css_content,
-                    "script": script_content,
-                    "messages": messages,
-                },
-            ),
+            render_cucumber_html(messages, self.npm_formatter_package),
             encoding="utf-8",
         )
 
@@ -702,6 +704,25 @@ class MessagePlugin:
                                     )
                                 ),
                             )
+                        else:
+                            config.hook.pytest_cuke_message(
+                                config=config,
+                                message=Message(
+                                    attachment=Attachment(
+                                        body=json.dumps(
+                                            {
+                                                "uri": feature.uri or feature.filename or "",
+                                                "mediaType": source_media_type,
+                                                "data": feature.source_content,
+                                            },
+                                            ensure_ascii=False,
+                                        ),
+                                        media_type=PYTEST_SOURCE_MEDIA_TYPE,
+                                        content_encoding=ContentEncoding.identity,
+                                        test_run_started_id=self.test_run_started_id,
+                                    )
+                                ),
+                            )
                     config.hook.pytest_cuke_message(
                         config=config,
                         message=Message(
@@ -741,11 +762,16 @@ class MessagePlugin:
 
             self._report_message_diagnostics(sink_diagnostics)
 
-    def _capture_accepted_message(self, message: Message) -> None:
-        self.accepted_message_payloads.append(message_to_dict(message))
+    def _publish_canonical_message(self, message: Message) -> None:
+        for payload in self.canonical_presentation.accept(message_to_dict(message)):
+            self.accepted_message_payloads.append(payload)
+            self._queue_validated_payload(payload)
 
     def _deliver_validated_message(self, message: Message) -> None:
-        self.config.hook.pytest_cuke_message_validated(config=self.config, message=message)
+        for envelope in self.report_presentation.accept(message_to_dict(message)):
+            self.config.hook.pytest_cuke_message_validated(
+                config=self.config, message=message_from_dict(envelope, Message)
+            )
 
     @staticmethod
     def _worker_id_for_node(node: Any) -> str | None:
@@ -795,7 +821,13 @@ class MessagePlugin:
         live_batch = {
             "worker_id": batch.worker_id,
             "sequence": batch.sequence,
-            "envelopes": [namespace_envelope_ids(envelope, worker_id=batch.worker_id) for envelope in batch.envelopes],
+            "envelopes": [
+                presented
+                for envelope in batch.envelopes
+                for presented in self.report_presentation.accept(
+                    namespace_envelope_ids(envelope, worker_id=batch.worker_id)
+                )
+            ],
             "complete": False,
         }
         try:
@@ -859,9 +891,8 @@ class MessagePlugin:
             MessageEnvelopeView(message, exception_stack_trace=stack_trace),
         )
 
-    def _queue_validated_message(self, message: Message) -> None:
-        message_data = message_to_dict(message)
-        message_json = json.dumps(message_data, ensure_ascii=False)
+    def _queue_validated_payload(self, payload: dict[str, Any]) -> None:
+        message_json = json.dumps(payload, ensure_ascii=False)
         with self.process_messages_lock:
             if self.process_messages_closed:
                 raise RuntimeError("Cucumber Messages writer has already stopped")
@@ -906,7 +937,7 @@ class MessagePlugin:
         generator = cast("PytestBDDIdGeneratorHandler", config).pytest_cuke_id_generator
         is_before = phase == "before"
         hook_id = generator.get_next_id()
-        hook_name = "pytest session start" if is_before else "pytest session finish"
+        hook_name = session_hook_name(phase, self.xdist_worker_id)
         hook_type = HookType.before_test_run if is_before else HookType.after_test_run
         hook_handler = config.hook
         hook_handler.pytest_cuke_message(
@@ -979,7 +1010,9 @@ class MessagePlugin:
         if error is not None:
             self.test_run_hook_failed = True
 
-    def _emit_ide_attachment(self, config: Config, media_type: str, payload: dict[str, Any]) -> None:
+    def _emit_ide_attachment(
+        self, config: Config, media_type: str, payload: dict[str, Any], *, test_case_started_id: str | None = None
+    ) -> None:
         config.hook.pytest_cuke_message(
             config=config,
             message=Message(
@@ -987,6 +1020,7 @@ class MessagePlugin:
                     body=json.dumps(payload, ensure_ascii=False),
                     content_encoding=ContentEncoding.identity,
                     media_type=media_type,
+                    test_case_started_id=test_case_started_id,
                     timestamp=self.get_timestamp(),
                 )
             ),
@@ -1464,13 +1498,62 @@ class MessagePlugin:
 
         yield
 
+    def _prepare_setup_skipped_test_case(self, item: Item) -> None:
+        source = self._item_source(item)
+        run_context = get_run_context(self.config)
+        if source is None or run_context is None:
+            return
+
+        feature, scenario = source
+        scenario_run = run_context.get_scenario_run(item.nodeid)
+        if scenario_run is not None and scenario_run.message_state.test_case is not None:
+            return
+
+        attempt = self._cucumber_attempt(item)
+        scenario_run = run_context.start_scenario(
+            nodeid=item.nodeid, feature=feature, scenario=scenario, attempt=attempt
+        )
+        feature_uri = feature.uri or feature.filename or feature.name
+        callspec_id = getattr(getattr(item, "callspec", None), "id", "")
+        fallback_id = f"{feature_uri}#{callspec_id}" if callspec_id else ""
+        scenario_id = scenario_pickle_id(scenario, uri=feature_uri, default_id=fallback_id)
+        generator = cast("PytestBDDIdGeneratorHandler", self.config).pytest_cuke_id_generator
+        test_case = self.test_cases_by_nodeid.get(item.nodeid)
+        if test_case is None:
+            test_case = TestCase(
+                id=generator.get_next_id(),
+                pickle_id=scenario_id,
+                test_steps=[
+                    TestStep(id=generator.get_next_id(), pickle_step_id=f"{scenario_id}-step-{index}")
+                    for index, _ in enumerate(execution_steps(feature, scenario))
+                ],
+                test_run_started_id=self.test_run_started_id,
+            )
+            self.test_cases_by_nodeid[item.nodeid] = test_case
+            self.config.hook.pytest_cuke_message(config=self.config, message=Message(test_case=test_case))
+
+        scenario_run.message_state.test_case = test_case
+        scenario_run.message_state.attempt = attempt
+        run_context.set_test_case(
+            test_case_id=test_case.id,
+            test_step_ids=[step.id for step in test_case.test_steps],
+            test_steps=test_case.test_steps,
+        )
+        run_context.finish_active(status="skipped")
+        run_context.clear_active()
+
     @hookimpl(hookwrapper=True)
     def pytest_runtest_setup(self, item: Item) -> Generator[None, None, None]:
-        yield
+        outcome = yield
         if self.is_disabled:
             return
 
         if not {"feature", "scenario"}.issubset(getattr(item, "fixturenames", ())):
+            return
+
+        if outcome.excinfo is not None:
+            if isinstance(outcome.excinfo[1], (pytest.skip.Exception, pytest.xfail.Exception)):
+                self._prepare_setup_skipped_test_case(item)
             return
 
         session = item.session
@@ -1758,6 +1841,43 @@ class MessagePlugin:
             self._finish_setup_skipped_test_case(scenario_run, report)
             return
 
+        xfail_reason = getattr(report, "wasxfail", None)
+        strict_xpass_prefix = "[XPASS(strict)] "
+        strict_xpass = (
+            report.when == "call"
+            and report.failed
+            and isinstance(report.longrepr, str)
+            and report.longrepr.startswith(strict_xpass_prefix)
+        )
+        if strict_xpass:
+            xfail_reason = cast("str", report.longrepr)[len(strict_xpass_prefix) :]
+
+        if report.when == "call" and xfail_reason is not None:
+            test_case_started = scenario_run.message_state.test_case_started
+            if test_case_started is not None:
+                self._emit_ide_attachment(
+                    self.config,
+                    PYTEST_OUTCOME_MEDIA_TYPE,
+                    {
+                        "testCaseStartedId": test_case_started.id,
+                        "outcome": "xpass-strict" if strict_xpass else "xfail" if report.skipped else "xpass",
+                        "reason": str(xfail_reason),
+                        "executed": True,
+                    },
+                    test_case_started_id=test_case_started.id,
+                )
+        elif report.when == "call" and report.skipped:
+            test_case_started = scenario_run.message_state.test_case_started
+            if test_case_started is not None:
+                longrepr = getattr(report, "longrepr", None)
+                reason = str(longrepr[-1] if isinstance(longrepr, tuple) and longrepr else longrepr or "")
+                self._emit_ide_attachment(
+                    self.config,
+                    PYTEST_OUTCOME_MEDIA_TYPE,
+                    {"testCaseStartedId": test_case_started.id, "outcome": "skip", "reason": reason, "executed": True},
+                    test_case_started_id=test_case_started.id,
+                )
+
         if report.when == "teardown":
             self._finish_scenario_test_case(scenario_run)
 
@@ -1792,6 +1912,31 @@ class MessagePlugin:
 
         longrepr = getattr(report, "longrepr", None)
         skip_reason = str(longrepr[-1] if isinstance(longrepr, tuple) and longrepr else longrepr or "")
+        xfail_reason = getattr(report, "wasxfail", None)
+        if xfail_reason is not None:
+            self._emit_ide_attachment(
+                self.config,
+                PYTEST_OUTCOME_MEDIA_TYPE,
+                {
+                    "testCaseStartedId": test_case_started.id,
+                    "outcome": "xfail",
+                    "reason": str(xfail_reason),
+                    "executed": False,
+                },
+                test_case_started_id=test_case_started.id,
+            )
+        else:
+            self._emit_ide_attachment(
+                self.config,
+                PYTEST_OUTCOME_MEDIA_TYPE,
+                {
+                    "testCaseStartedId": test_case_started.id,
+                    "outcome": "skip",
+                    "reason": skip_reason,
+                    "executed": False,
+                },
+                test_case_started_id=test_case_started.id,
+            )
         for test_step in message_state.test_steps:
             start_timestamp = self._start_test_step(
                 config=self.config,
@@ -2048,7 +2193,7 @@ class MessagePlugin:
         request: FixtureRequest,
         run: RunContext,
         step_definition: Any,
-        status: Literal["passed", "skipped"],
+        status: Literal["failed", "skipped"],
         message: str | None = None,
     ) -> None:
         if self.is_disabled:
@@ -2062,12 +2207,24 @@ class MessagePlugin:
             test_case_started=current_test_case_start,
             test_step=test_step,
         )
+        if status == "skipped":
+            self._emit_ide_attachment(
+                config,
+                PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+                {
+                    "testCaseStartedId": current_test_case_start.id,
+                    "testStepId": test_step.id,
+                    "outcome": "wip-skipped",
+                    "diagnosticResult": {"status": "FAILED", "message": message or "Not-implemented step"},
+                },
+                test_case_started_id=current_test_case_start.id,
+            )
         self._finish_test_step(
             config=config,
             test_case_started=current_test_case_start,
             test_step=test_step,
             start_timestamp=start_timestamp,
-            status=Status.passed if status == "passed" else Status.skipped,
+            status=Status.failed if status == "failed" else Status.skipped,
             message=message,
         )
 
@@ -2119,6 +2276,28 @@ class MessagePlugin:
                 test_case_started=current_test_case_start,
                 test_step=step_definition,
             )
+        exception_trace = "".join(traceback.format_exception(type(exception), exception, exception.__traceback__))
+        if tolerated:
+            self._emit_ide_attachment(
+                config,
+                PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+                {
+                    "testCaseStartedId": current_test_case_start.id,
+                    "testStepId": step_definition.id,
+                    "outcome": "tolerated-failure",
+                    "actualResult": {
+                        "status": "FAILED",
+                        "message": str(exception),
+                        "exception": {
+                            "type": type(exception).__name__,
+                            "message": str(exception),
+                            "stackTrace": exception_trace,
+                        },
+                    },
+                },
+                test_case_started_id=current_test_case_start.id,
+            )
+            status = Status.passed
         self._finish_test_step(
             config=config,
             test_case_started=current_test_case_start,
@@ -2130,9 +2309,7 @@ class MessagePlugin:
                 type=type(exception).__name__,
                 message=str(exception),
             ),
-            exception_stack_trace="".join(
-                traceback.format_exception(type(exception), exception, exception.__traceback__)
-            ),
+            exception_stack_trace=exception_trace,
             defer_final_step=False,
         )
         if tolerated:

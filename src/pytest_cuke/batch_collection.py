@@ -47,6 +47,7 @@ class BatchFeatureRequest:
     parser: ParserProtocol
     mimetype: str | None
     parser_options: tuple[tuple[str, Any], ...]
+    open_url: Any = None
 
     @property
     def key(self) -> tuple[str, str, str, str, str, tuple[tuple[str, str], ...]]:
@@ -68,6 +69,15 @@ class BatchFeatureRequest:
             str(getattr(self.parser, "kind", "")),
             options,
         )
+
+
+def parse_feature_request(request: BatchFeatureRequest) -> Feature:
+    """Parse a local request while retaining its selected source MIME."""
+    options = dict(request.parser_options)
+    if isinstance(request.parser, BaseParser) and type(request.parser).parse is BaseParser.parse:
+        options["_pytest_cuke_source_media_type"] = request.mimetype
+        options["_pytest_cuke_open_url"] = request.open_url
+    return request.parser.parse(request.path, uri=request.uri, encoding=request.encoding, **options)
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,13 +155,14 @@ def _parse_worker(job: _WorkerJob, content: str) -> _WorkerOutcome:
 
 async def _read_feature_text(path: Path, encoding: str) -> str:
     import aiofiles  # type: ignore[import-untyped]  # Optional dependency checked before the async path.
+
     async with aiofiles.open(path, mode="r", encoding=encoding) as source:
         return cast("str", await source.read())
 
 
-async def _read_many_async(requests: Iterable[BatchFeatureRequest]) -> dict[
-    tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], str | Exception
-]:
+async def _read_many_async(
+    requests: Iterable[BatchFeatureRequest],
+) -> dict[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], str | Exception]:
     jobs = list(requests)
     outcomes = await asyncio.gather(
         *(_read_feature_text(request.path, request.encoding) for request in jobs),
@@ -163,9 +174,9 @@ async def _read_many_async(requests: Iterable[BatchFeatureRequest]) -> dict[
     }
 
 
-def _read_many_sync(requests: Iterable[BatchFeatureRequest]) -> dict[
-    tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], str | Exception
-]:
+def _read_many_sync(
+    requests: Iterable[BatchFeatureRequest],
+) -> dict[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], str | Exception]:
     outcomes: dict[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], str | Exception] = {}
     for request in requests:
         try:
@@ -188,24 +199,60 @@ def platform_default_batch_threshold(*, platform_name: str | None = None) -> int
     return 50 if current_platform == "posix" else 1000
 
 
-def resolve_batch_threshold(config: Any) -> int:
-    """Resolve CLI over ini over the platform default."""
+VALID_BATCH_MODES = ("auto", "off", "threshold")
+
+
+def _cli_value(config: Any, name: str) -> Any:
     try:
-        command_line = config.getoption("cuke_batch_threshold")
+        return config.getoption(name)
     except (AttributeError, ValueError):
-        command_line = None
-    if command_line is not None:
-        return int(command_line)
+        return None
+
+
+def _ini_value(config: Any, name: str) -> Any:
     try:
-        configured = config.getini("cuke_batch_threshold")
-        threshold = int(configured) if configured not in (None, "") else 0
-    except ValueError as error:
-        raise pytest.UsageError("cuke_batch_threshold must be an integer") from error
+        return config.getini(name)
     except (AttributeError, KeyError):
-        threshold = 0
-    if threshold > 0:
-        return threshold
-    return platform_default_batch_threshold()
+        return None
+    except ValueError as error:
+        raise pytest.UsageError(f"{name} is invalid: {error}") from error
+
+
+def _positive_threshold(value: Any, source: str) -> int:
+    if isinstance(value, bool):
+        raise pytest.UsageError(f"{source} must be a positive integer")
+    try:
+        threshold = int(value)
+    except (TypeError, ValueError) as error:
+        raise pytest.UsageError(f"{source} must be a positive integer") from error
+    if threshold < 1:
+        raise pytest.UsageError(f"{source} must be a positive integer")
+    return threshold
+
+
+def resolve_batch_settings(config: Any) -> tuple[bool, int]:
+    """Resolve one auto/off/threshold pair, with a complete CLI override."""
+    cli_mode = _cli_value(config, "cuke_batch_mode")
+    cli_threshold = _cli_value(config, "cuke_batch_threshold")
+    if cli_mode is None and cli_threshold is None:
+        mode = _ini_value(config, "cuke_batch_mode") or "auto"
+        threshold_value = _ini_value(config, "cuke_batch_threshold")
+    else:
+        mode = cli_mode or "threshold"
+        threshold_value = cli_threshold
+    if not isinstance(mode, str) or mode not in VALID_BATCH_MODES:
+        raise pytest.UsageError(f"cuke_batch_mode must be one of {', '.join(VALID_BATCH_MODES)}")
+    if mode == "off":
+        if threshold_value not in (None, ""):
+            raise pytest.UsageError("cuke_batch_threshold is only valid with cuke_batch_mode=threshold")
+        return False, platform_default_batch_threshold()
+    if mode == "auto":
+        if threshold_value not in (None, ""):
+            raise pytest.UsageError("cuke_batch_threshold is only valid with cuke_batch_mode=threshold")
+        return True, platform_default_batch_threshold()
+    if threshold_value in (None, ""):
+        raise pytest.UsageError("cuke_batch_mode=threshold requires cuke_batch_threshold")
+    return True, _positive_threshold(threshold_value, "cuke_batch_threshold")
 
 
 class CollectionBatchService:
@@ -223,9 +270,7 @@ class CollectionBatchService:
         self.batch_enabled = batch_enabled
         self.config = config
         self.pending: dict[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], BatchFeatureRequest] = {}
-        self.results: dict[
-            tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], Feature | Exception
-        ] = {}
+        self.results: dict[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]], Feature | Exception] = {}
         self._registered: set[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]]] = set()
         self._stateful_id_generators: dict[int, object] = {}
         self._closed = False
@@ -240,13 +285,11 @@ class CollectionBatchService:
         stash = SessionStash.from_session(session)
         service = stash.get(cls.STASH_KEY)
         if not isinstance(service, cls):
-            service = cls(
-                resolve_batch_threshold(config), config=config,
-                batch_enabled=not (
-                    config.getoption("cuke_disable_batch_collection")
-                    or config.getini("cuke_disable_batch_collection")
-                ),
+            enabled, threshold = resolve_batch_settings(config)
+            disabled = config.getoption("cuke_disable_batch_collection") or config.getini(
+                "cuke_disable_batch_collection"
             )
+            service = cls(threshold, config=config, batch_enabled=enabled and not disabled)
             stash[cls.STASH_KEY] = service
         else:
             service.config = config
@@ -267,7 +310,9 @@ class CollectionBatchService:
         if len(self._registered) >= self.threshold:
             self.flush()
 
-    def register_many(self, requests: Iterable[BatchFeatureRequest]) -> list[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]]]:
+    def register_many(
+        self, requests: Iterable[BatchFeatureRequest]
+    ) -> list[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]]]:
         if self._closed:
             raise RuntimeError("feature collection batch service is closed")
         keys: list[tuple[str, str, str, str, str, tuple[tuple[str, str], ...]]] = []
@@ -377,7 +422,7 @@ class CollectionBatchService:
                 key=key,
                 path=str(request.path),
                 uri=request.uri,
-                source_media_type=cast("BaseParser", parser)._source_media_type(request.path),
+                source_media_type=request.mimetype or cast("BaseParser", parser)._source_media_type(request.path),
                 parser_kind=parser_kind,
                 parser_options=parser_options,
             )
@@ -400,12 +445,7 @@ class CollectionBatchService:
         if request is None:
             return
         try:
-            feature = request.parser.parse(
-                request.path,
-                uri=request.uri,
-                encoding=request.encoding,
-                **dict(request.parser_options),
-            )
+            feature = parse_feature_request(request)
         except Exception as error:
             if isinstance(request.parser, LegacyParserAdapter):
                 # Preserve extension exceptions as-is; adapting a parser must not
@@ -517,5 +557,5 @@ __all__ = [
     "CollectionBatchService",
     "get_batch_service",
     "platform_default_batch_threshold",
-    "resolve_batch_threshold",
+    "resolve_batch_settings",
 ]

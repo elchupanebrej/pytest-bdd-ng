@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import csv
+import io
 import os
 import re
 from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from urllib.parse import urljoin, urlsplit
+from urllib.request import urlopen
 
 from attrs import evolve
 
@@ -23,7 +26,7 @@ from pytest_cuke.model import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
 
 _EXAMPLES_HEADING = re.compile(
@@ -111,8 +114,13 @@ def _resolve_windows_drive_path(raw_path: str, windows_path: PureWindowsPath) ->
     return drive_root / Path(*windows_path.parts[1:])
 
 
-def _resolve_external_path(feature_path: Path, raw_path: str) -> Path:
+def _resolve_external_path(feature_path: Path | str, raw_path: str) -> Path | str:
     """Resolve POSIX and Windows-style paths from the feature folder."""
+    if urlsplit(raw_path).scheme in {"http", "https"}:
+        return raw_path
+    if isinstance(feature_path, str) and urlsplit(feature_path).scheme in {"http", "https"}:
+        return urljoin(feature_path, raw_path)
+    feature_path = Path(feature_path)
     windows_path = PureWindowsPath(raw_path)
     if windows_path.drive:
         return _resolve_windows_drive_path(raw_path, windows_path)
@@ -124,10 +132,19 @@ def _resolve_external_path(feature_path: Path, raw_path: str) -> Path:
     return candidate if candidate.is_absolute() else feature_path.resolve().parent / candidate
 
 
-def _read_records(source_path: Path) -> tuple[list[list[str]], list[int]]:
+def _read_records(
+    source_path: Path | str, open_url: Callable[[str], Any] | None = None
+) -> tuple[list[list[str]], list[int]]:
     try:
-        with source_path.open("r", encoding="utf-8-sig", newline="") as source_file:
-            reader = csv.reader(source_file, delimiter="\t" if source_path.suffix.lower() in {".tsv", ".tab"} else ",")
+        if isinstance(source_path, str):
+            with (open_url or urlopen)(source_path) as response:
+                source_file = io.StringIO(response.read().decode("utf-8-sig"), newline="")
+            suffix = Path(urlsplit(source_path).path).suffix.lower()
+        else:
+            source_file = source_path.open("r", encoding="utf-8-sig", newline="")
+            suffix = source_path.suffix.lower()
+        with source_file:
+            reader = csv.reader(source_file, delimiter="\t" if suffix in {".tsv", ".tab"} else ",")
             records: list[list[str]] = []
             physical_lines: list[int] = []
             previous_line = 0
@@ -174,18 +191,19 @@ def _render_records(records: Sequence[Sequence[str]], indent: str, newline: str)
 def _format_source_error(
     error: Exception,
     source_path: Path | str,
-    feature_path: Path,
+    feature_path: Path | str,
     line_number: int,
     marker_line: str,
 ) -> FeatureConcreteParseError:
     source_label = source_path.resolve() if isinstance(source_path, Path) else source_path
-    message = (
-        f"External Examples source error: {error}. Referenced source: {source_label}; feature: {feature_path.resolve()}"
-    )
-    return FeatureConcreteParseError(message, line_number, marker_line.strip(), str(feature_path.resolve()))
+    feature_label = str(feature_path.resolve()) if isinstance(feature_path, Path) else feature_path
+    message = f"External Examples source error: {error}. Referenced source: {source_label}; feature: {feature_label}"
+    return FeatureConcreteParseError(message, line_number, marker_line.strip(), feature_label)
 
 
-def expand_external_examples(content: str, feature_path: Path) -> ExpandedFeatureText:
+def expand_external_examples(
+    content: str, feature_path: Path | str, *, open_url: Callable[[str], Any] | None = None
+) -> ExpandedFeatureText:
     """Replace supported external table markers with escaped Gherkin rows.
 
     The transformation is read-only and deliberately uncached. The same
@@ -199,7 +217,8 @@ def expand_external_examples(content: str, feature_path: Path) -> ExpandedFeatur
     output: list[str] = []
     line_map: list[SourceLine] = []
     bindings: list[ExternalExamplesBinding] = []
-    is_markdown = feature_path.name.lower().endswith((".md", ".markdown"))
+    source_name = feature_path.name if isinstance(feature_path, Path) else urlsplit(feature_path).path
+    is_markdown = source_name.lower().endswith((".md", ".markdown"))
     docstring_delimiter: str | None = None
     markdown_fence: tuple[str, int] | None = None
 
@@ -295,7 +314,7 @@ def expand_external_examples(content: str, feature_path: Path) -> ExpandedFeatur
         except (OSError, ValueError) as error:
             raise _format_source_error(error, marker, feature_path, marker_index + 1, marker_line) from error
         try:
-            records, source_lines = _read_records(source_path)
+            records, source_lines = _read_records(source_path, open_url)
         except _SourceFailure as error:
             raise _format_source_error(error, source_path, feature_path, marker_index + 1, marker_line) from error
 
@@ -304,7 +323,7 @@ def expand_external_examples(content: str, feature_path: Path) -> ExpandedFeatur
             ExternalExamplesBinding(
                 generated_examples_line=generated_examples_line,
                 source=ExternalExamplesSource(
-                    path=str(source_path.resolve()),
+                    path=str(source_path.resolve()) if isinstance(source_path, Path) else source_path,
                     marker_line=marker_index + 1,
                     section_index=len(bindings) + 1,
                     header_line=source_lines[0],

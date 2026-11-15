@@ -91,9 +91,9 @@ class TestGroupPlugin:
 
         yield
 
-    @pytest.hookimpl(trylast=True)
+    @pytest.hookimpl(tryfirst=True)
     def pytest_collection_finish(self, session: Any) -> None:
-        """Order selected groups after collection hooks, then publish xdist assignments."""
+        """Order selected groups before xdist publishes its collection order, then publish assignments."""
         if not self.group_configuration.enabled:
             return
 

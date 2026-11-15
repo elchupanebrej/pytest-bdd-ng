@@ -11,7 +11,7 @@ from pytest_cuke.model.scenario import Scenario
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.model.step import Step
 from pytest_cuke.parsers.string_parser import string
-from pytest_cuke.runner import ScenarioRunner, StepRunner, _IgnoredStepFailure, _WipPassed
+from pytest_cuke.runner import ScenarioRunner, StepRunner, _IgnoredStepFailure
 from pytest_cuke.steps.decorators import not_implemented, tolerant, when
 
 pytestmark = pytest.mark.unit
@@ -28,6 +28,7 @@ def active_run(feature: Feature, scenario: Scenario, step: Step, previous_step: 
         run.finish_step(previous_run)
     run.start_step(step)
     return run
+
 
 pytestmark = pytest.mark.unit
 
@@ -57,7 +58,7 @@ def test_step_runner_missing_step_definition_raises_not_found() -> None:
         runner.run_step(mock_request, active_run(feat, scen, step))
 
 
-def test_passed_wip_policy_bypasses_body_hooks_and_target_fixtures(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_failed_wip_policy_bypasses_body_hooks_and_target_fixtures(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
 
     @when(string("the pending operation runs"), target_fixture="pending_result")
@@ -69,7 +70,7 @@ def test_passed_wip_policy_bypasses_body_hooks_and_target_fixtures(monkeypatch: 
     definition = next(iter(pending_operation.__pytest_cuke_step_definitions__))
     request = MagicMock()
     request.node.iter_markers.return_value = iter(())
-    request.config.option.cuke_wip_status = "passed"
+    request.config.option.cuke_wip_status = "failed"
     request.config.getini.return_value = "failed"
     request.config.hook.pytest_cuke_match_step_definition_to_step.return_value = definition
     injected_fixtures: list[str] = []
@@ -80,14 +81,13 @@ def test_passed_wip_policy_bypasses_body_hooks_and_target_fixtures(monkeypatch: 
     feature = Feature(name="Feature")
     scenario = Scenario(name="Scenario")
     step = Step(name="the pending operation runs", keyword="When ")
-    result = StepRunner().run_step(request, active_run(feature, scenario, step))
-
-    assert isinstance(result, _WipPassed)
+    with pytest.raises(pytest.fail.Exception, match="Not-implemented step"):
+        StepRunner().run_step(request, active_run(feature, scenario, step))
     assert calls == []
     assert injected_fixtures == []
     request.getfixturevalue.assert_not_called()
     request.config.hook.pytest_cuke_step_bypassed.assert_called_once()
-    assert request.config.hook.pytest_cuke_step_bypassed.call_args.kwargs["status"] == "passed"
+    assert request.config.hook.pytest_cuke_step_bypassed.call_args.kwargs["status"] == "failed"
     request.config.hook.pytest_cuke_before_step.assert_not_called()
     request.config.hook.pytest_cuke_before_step_call.assert_not_called()
     request.config.hook.pytest_cuke_after_step.assert_not_called()

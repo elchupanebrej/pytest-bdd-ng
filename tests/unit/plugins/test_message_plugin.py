@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 from pytest_cuke.model.message_validation import MessageValidationDiagnostic
 from pytest_cuke.formatter_api import FormatterRequest
 from pytest_cuke.model.message_types import (
+    TestCaseFinished as CaseFinished,
     Attachment,
     ContentEncoding,
     Duration,
@@ -72,8 +73,12 @@ def test_message_plugin_add_options() -> None:
 
     MessagePlugin.add_options(parser)
     assert parser.getgroup.call_count == 4
-    assert group.addoption.call_count == 5
-    assert any(call.args[0] == "--cuke-pretty" for call in group.addoption.call_args_list)
+    option_names = {call.args[0] for call in group.addoption.call_args_list}
+    assert "--cuke-pretty" in option_names
+    assert "--cuke-messages-ndjson" in option_names
+    assert "--cuke-html" in option_names
+    assert "--cuke-allure" in option_names
+    assert len(option_names) >= 14
     assert any(call.args[0] == "cuke_pretty" for call in parser.addini.call_args_list)
 
 
@@ -243,6 +248,13 @@ def test_validated_hook_and_ndjson_receive_the_same_exception_stack_trace() -> N
                 ),
             )
         ),
+        Message(
+            test_case_finished=CaseFinished(
+                test_case_started_id="tcs-1",
+                timestamp=Timestamp(seconds=5, nanos=0),
+                will_be_retried=False,
+            )
+        ),
     ]
 
     for event in events:
@@ -251,9 +263,8 @@ def test_validated_hook_and_ndjson_receive_the_same_exception_stack_trace() -> N
     observed_payloads = [message_to_dict(event) for event in observed]
     queued_payloads = [json.loads(plugin.process_messages_io_queue.get_nowait()) for _ in events]
     assert observed_payloads == queued_payloads
-    assert queued_payloads[-1]["testStepFinished"]["testStepResult"]["exception"]["stackTrace"] == (
-        "failure stack trace"
-    )
+    finished = next(payload for payload in queued_payloads if "testStepFinished" in payload)
+    assert finished["testStepFinished"]["testStepResult"]["exception"]["stackTrace"] == "failure stack trace"
 
 
 def test_message_plugin_rejects_invalid_envelope_before_both_sinks() -> None:
@@ -490,7 +501,10 @@ def test_tolerated_step_error_keeps_later_message_steps_executable() -> None:
     )
 
     assert scenario_run.message_state.finished_test_step_ids == {"ts-failed"}
-    assert len(config.hook.pytest_cuke_message.call_args_list) == 2
+    sent = [call.kwargs["message"] for call in config.hook.pytest_cuke_message.call_args_list]
+    finished = [message.test_step_finished for message in sent if message.test_step_finished]
+    assert len(finished) == 1
+    assert finished[0].test_step_result.status == Status.passed
 
 
 def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None:
@@ -523,7 +537,7 @@ def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None
         request=SimpleNamespace(config=config),
         run=context,
         step_definition=object(),
-        status="passed",
+        status="skipped",
     )
 
     messages = [call.kwargs["message"] for call in config.hook.pytest_cuke_message.call_args_list]
@@ -533,7 +547,7 @@ def test_bypassed_steps_emit_finished_messages_without_user_step_hooks() -> None
     finished = [message.test_step_finished for message in messages if message.test_step_finished]
     assert len(finished) == 1
     assert finished[0].test_case_started_id == "attempt-pending"
-    assert finished[0].test_step_result.status == Status.passed
+    assert finished[0].test_step_result.status == Status.skipped
     assert scenario_run.message_state.finished_test_step_ids == {"ts-pending"}
     assert scenario_run.message_state.active_test_step_id is None
 

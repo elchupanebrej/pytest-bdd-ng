@@ -16,10 +16,13 @@ from threading import Lock, Thread
 from typing import TYPE_CHECKING, Any
 
 from pytest_cuke.model.message_consolidation import LiveMessageAdapter
+from pytest_cuke.model.message_extension import external_attachment_reference
 from pytest_cuke.model.message_stream_validation import MessageStreamValidator, MessageValidationError
-from pytest_cuke.model.message_types import message_from_dict, message_to_dict
+from pytest_cuke.model.message_types import Envelope, message_from_dict, message_to_dict
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from pytest_cuke.compatibility.pytest import Config
     from pytest_cuke.formatter_api import FormatterRequest
     from pytest_cuke.model.message_types import Envelope as Message
@@ -504,7 +507,9 @@ class FormatterSession:
         self._started = False
         self._finished = False
         self._failure: Exception | None = None
+        self._stream_failure: Exception | None = None
         self._failure_reported = False
+        self._published_outputs: list[Path] = []
         self._message_adapter = LiveMessageAdapter()
         self._stream_validator = MessageStreamValidator()
         self._next_worker_sequence: dict[str, int] = {}
@@ -513,6 +518,10 @@ class FormatterSession:
     @property
     def failed(self) -> bool:
         return self._failure is not None or any(process.failure is not None for process in self._processes)
+
+    @property
+    def published_outputs(self) -> tuple[Path, ...]:
+        return tuple(self._published_outputs)
 
     def start(self) -> None:
         if self._started:
@@ -590,11 +599,11 @@ class FormatterSession:
                 self._failure_reported = True
                 self._raise_failure()
 
-    def finish(self) -> None:
+    def finish(self, *, publish_incomplete: bool = False) -> None:
         with self._delivery_lock:
-            self._finish()
+            self._finish(publish_incomplete=publish_incomplete)
 
-    def _finish(self) -> None:
+    def _finish(self, *, publish_incomplete: bool) -> None:
         if self._finished:
             self._raise_failure()
             return
@@ -603,29 +612,36 @@ class FormatterSession:
             diagnostics = self._stream_validator.finish()
             if diagnostics:
                 first = diagnostics[0]
-                self._record_failure(
-                    FormatterRuntimeError(
-                        f"{self._label.capitalize()} received an incomplete Cucumber Messages stream: "
-                        f"{first.code}: {first.message}"
-                    )
+                failure = FormatterRuntimeError(
+                    f"{self._label.capitalize()} received an incomplete Cucumber Messages stream: "
+                    f"{first.code}: {first.message}"
                 )
+                self._record_failure(failure)
+                if not publish_incomplete:
+                    self._stream_failure = failure
         errors: list[Exception] = []
         for process in reversed(self._processes):
             try:
-                process.close(abort=self._failure is not None or process.failure is not None)
+                process.close(abort=self._stream_failure is not None or process.failure is not None)
             except Exception as error:
                 errors.append(error)
                 self._record_failure(error)
-        publish_outputs = not self.failed and not errors
-        if publish_outputs:
+        publishable = (
+            []
+            if self._stream_failure is not None
+            else [process for process in self._processes if process.failure is None]
+        )
+        if publishable:
             try:
-                self._publish_staged_outputs()
+                self._publish_staged_outputs(publishable)
             except Exception as error:
                 errors.append(error)
                 self._record_failure(error)
-                publish_outputs = False
-        if not publish_outputs:
-            for process in self._processes:
+                for process in self._processes:
+                    with suppress(Exception):
+                        process.discard_output()
+        for process in self._processes:
+            if process not in publishable:
                 with suppress(Exception):
                     process.discard_output()
         if errors and not self._failure_reported:
@@ -652,7 +668,10 @@ class FormatterSession:
     def _write_envelope(self, envelope: dict[str, Any]) -> None:
         if not self.requests:
             return
-        self._raise_failure()
+        if "externalAttachment" in envelope:
+            envelope = message_to_dict(external_attachment_reference(message_from_dict(envelope, Envelope)))
+        if self._stream_failure is not None:
+            raise self._stream_failure
         if not self._started or self._finished:
             error = FormatterRuntimeError(f"A {self._label} received a Messages event outside its active session.")
             self._record_failure(error)
@@ -663,30 +682,31 @@ class FormatterSession:
             failure = FormatterRuntimeError(
                 f"{self._label.capitalize()} received an invalid Cucumber Messages stream: {error}"
             )
+            self._stream_failure = failure
             self._record_failure(failure)
             self._failure_reported = True
             self._raise_failure()
         errors: list[Exception] = []
         for process in self._processes:
+            if process.failure is not None:
+                continue
             try:
                 process.write_envelope(envelope)
             except Exception as error:
                 errors.append(error)
         if errors:
             self._record_failure(errors[0])
-            self._failure_reported = True
-            self._raise_failure()
 
     def _record_failure(self, error: Exception) -> None:
         if self._failure is None:
             self._failure = error if isinstance(error, FormatterRuntimeError) else FormatterRuntimeError(str(error))
 
-    def _publish_staged_outputs(self) -> None:
+    def _publish_staged_outputs(self, processes: Sequence[_FormatterProcess]) -> None:
         backups: list[tuple[Path, Path | None]] = []
         backup_paths: list[Path] = []
         published_paths: list[Path] = []
         try:
-            for process in self._processes:
+            for process in processes:
                 staged_path = process._temporary_output_path
                 output_path = process.request.output_path
                 if staged_path is None or output_path is None:
@@ -708,7 +728,9 @@ class FormatterSession:
                 os.replace(staged_path, output_path)
                 process._temporary_output_path = None
                 published_paths.append(output_path)
+                self._published_outputs.append(output_path)
         except OSError as error:
+            self._published_outputs = [path for path in self._published_outputs if path not in published_paths]
             rollback_errors: list[OSError] = []
             preserved_backup_paths: list[Path] = []
             backup_cleanup_errors: list[tuple[Path, OSError]] = []
