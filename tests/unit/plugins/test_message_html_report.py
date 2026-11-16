@@ -34,6 +34,8 @@ def _resolver(files: dict[str, Path]):
 
 
 def test_html_report_prefers_the_package_mustache_template(tmp_path, monkeypatch):
+    # The report path is process-local; keep it independent of xdist worker state.
+    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
     template = tmp_path / "index.mustache"
     template.write_text('<style>{{css}}</style><div id="content"></div>{{script}}{{messages}}', encoding="utf-8")
     script = tmp_path / "main.js"

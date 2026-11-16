@@ -33,6 +33,7 @@ from pytest_cuke.allure_conversion import (
     _timestamp_millis,
 )
 from pytest_cuke.allure_status import _allure_api_step_status
+from pytest_cuke.const import PYTEST_STEP_OUTCOME_MEDIA_TYPE
 from pytest_cuke.model.message_consolidation import LiveMessageAdapter
 from pytest_cuke.model.message_extension import external_attachment_reference, get_payload_kind
 from pytest_cuke.model.message_registry import EnvelopeRegistry
@@ -426,6 +427,9 @@ class NativeAllureReporter:
             self._lifecycle.stop_after_fixture(active.fixture_uuid)
 
     def _attach(self, attachment: messages.Attachment) -> None:
+        if attachment.media_type == PYTEST_STEP_OUTCOME_MEDIA_TYPE:
+            self._record_step_outcome_metadata(attachment)
+            return
         if attachment.media_type == _NATIVE_API_STEP_MEDIA_TYPE:
             self._attach_native_api_step(attachment)
             return
@@ -466,6 +470,37 @@ class NativeAllureReporter:
             return
 
         self._attach_to_result(attachment, parent_uuid)
+
+    def _record_step_outcome_metadata(self, attachment: messages.Attachment) -> None:
+        """Keep an allowed step failure diagnosable without changing its reported status."""
+        try:
+            payload = json.loads(_attachment_bytes(attachment))
+        except (AllureConversionError, UnicodeDecodeError, ValueError, TypeError) as error:
+            raise AllureConversionError("step outcome metadata contains invalid JSON") from error
+        if not isinstance(payload, dict):
+            return
+        case_id = attachment.test_case_started_id or payload.get("testCaseStartedId")
+        step_id = attachment.test_step_id or payload.get("testStepId")
+        case = self._active_cases.get(case_id) if isinstance(case_id, str) else None
+        step = case.step_uuids.get(step_id) if case is not None and isinstance(step_id, str) else None
+        if step is None:
+            return
+        actual = payload.get("actualResult") or payload.get("diagnosticResult")
+        if not isinstance(actual, dict):
+            return
+        exception = actual.get("exception")
+        exception = exception if isinstance(exception, dict) else {}
+        message = actual.get("message") or exception.get("message")
+        trace = exception.get("stackTrace")
+        if not isinstance(message, str) and not isinstance(trace, str):
+            return
+        details = {}
+        if isinstance(message, str):
+            details["message"] = message
+        if isinstance(trace, str):
+            details["trace"] = trace
+        with self._lifecycle.update_step(step.uuid) as allure_step:
+            allure_step.statusDetails = self._model["StatusDetails"](**details)
 
     def _attach_native_api_step(self, attachment: messages.Attachment) -> None:
         case = self._case_for_api_attachment(attachment)

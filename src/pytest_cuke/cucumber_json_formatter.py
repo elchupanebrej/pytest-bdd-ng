@@ -138,8 +138,13 @@ const features = JSON.parse(report);
 for (const feature of features) {
   // gherkin-official keeps description indentation; Cucumber JSON reports trim it.
   if (typeof feature.description === "string") feature.description = feature.description.trim();
+  // Feature tags stay on the feature; the reference reports do not repeat them per element.
+  const featureTagNames = new Set((feature.tags ?? []).map((tag) => tag.name));
   for (const element of feature.elements ?? []) {
     if (typeof element.description === "string") element.description = element.description.trim();
+    if (Array.isArray(element.tags)) {
+      element.tags = element.tags.filter((tag) => !featureTagNames.has(tag.name));
+    }
     const key = JSON.stringify([feature.uri, element.name]);
     const source = externalExamplesByFeatureAndName.get(key)?.shift();
     if (source) element.external_examples_source = source;

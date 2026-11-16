@@ -82,9 +82,29 @@ def _namespace_nested(value: Any, worker_id: str, *, use_payload_worker_ids: boo
     return value
 
 
-def drop_worker_run_hooks(envelopes: Sequence[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
+def worker_run_hook_ids(envelopes: Sequence[dict[str, Any]]) -> frozenset[str]:
+    """Return BEFORE/AFTER_TEST_RUN hook definition ids in a worker batch."""
+    ids: set[str] = set()
+    for envelope in envelopes:
+        try:
+            kind = _payload_kind(envelope)
+        except ValueError:
+            continue
+        if kind != "hook":
+            continue
+        payload = _payload(envelope, "hook")
+        if str(payload.get("type", "")) in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}:
+            hook_id = payload.get("id")
+            if isinstance(hook_id, str):
+                ids.add(hook_id)
+    return frozenset(ids)
+
+
+def drop_worker_run_hooks(
+    envelopes: Sequence[dict[str, Any]], known_hook_ids: frozenset[str] = frozenset()
+) -> tuple[dict[str, Any], ...]:
     """Drop a worker's session run hooks: the consolidated stream keeps the controller's run."""
-    hook_ids: set[str] = set()
+    hook_ids: set[str] = set(known_hook_ids)
     for envelope in envelopes:
         try:
             kind = _payload_kind(envelope)

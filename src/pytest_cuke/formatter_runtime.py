@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 from threading import Lock, Thread
 from typing import TYPE_CHECKING, Any
 
+from pytest_cuke.const import PYTEST_STEP_OUTCOME_MEDIA_TYPE
 from pytest_cuke.model.message_consolidation import LiveMessageAdapter
 from pytest_cuke.model.message_extension import external_attachment_reference
 from pytest_cuke.model.message_stream_validation import MessageStreamValidator, MessageValidationError
@@ -547,6 +548,10 @@ class FormatterSession:
 
     def write_message(self, message: Message) -> None:
         """Send one controller message through the live/replay normalization path."""
+        attachment = message.attachment
+        if attachment is not None and attachment.media_type == PYTEST_STEP_OUTCOME_MEDIA_TYPE:
+            # Internal step outcome metadata is consumed by report converters only.
+            return
         with self._delivery_lock:
             try:
                 envelope = self._message_adapter.controller_envelope(message_to_dict(message))

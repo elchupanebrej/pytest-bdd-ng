@@ -5,6 +5,8 @@ import pytest
 
 @pytest.mark.parametrize("workers", [None, 2])
 def test_test_cases_reference_the_emitted_run(pytester, workers):
+    if workers is not None:
+        pytest.importorskip("xdist", reason="the xdist variant needs the parallel runtime extra")
     pytester.makeini("[pytest]\ncuke_features_dir = .\ncuke_autoload = true\ncuke_parser = python\n")
     pytester.makefile(
         ".feature",

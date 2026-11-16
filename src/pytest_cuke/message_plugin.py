@@ -63,6 +63,7 @@ from pytest_cuke.model.message_consolidation import (
     drop_unstarted_run_hooks,
     drop_worker_run_hooks,
     namespace_envelope_ids,
+    worker_run_hook_ids,
 )
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_pickle_id, scenario_to_pickle
 from pytest_cuke.model.message_source import callable_source_reference
@@ -271,6 +272,7 @@ class MessagePlugin:
     test_cases_by_nodeid: dict[str, TestCase] = attrib(factory=dict)
     test_case_hook_steps_by_nodeid: dict[str, dict[str, TestStep]] = attrib(factory=dict)
     scenario_hook_step_ids: set[str] = attrib(factory=set)
+    worker_session_hook_ids: set[str] = attrib(factory=set)
     parameter_type_registry: set[int] = attrib(factory=set)
     published_step_definition_ids: set[str] = attrib(factory=set)
     hook_registry: set[int] = attrib(factory=set)
@@ -771,10 +773,20 @@ class MessagePlugin:
             self._queue_validated_payload(payload)
 
     def _deliver_validated_message(self, message: Message) -> None:
-        for envelope in self.report_presentation.accept(message_to_dict(message)):
+        wire = message_to_dict(message)
+        for envelope in self.report_presentation.accept(wire):
             self.config.hook.pytest_cuke_message_validated(
                 config=self.config, message=message_from_dict(envelope, Message)
             )
+        attachment = wire.get("attachment")
+        if (
+            isinstance(attachment, dict)
+            and attachment.get("mediaType") == PYTEST_STEP_OUTCOME_MEDIA_TYPE
+            and self._configured_output("cuke_allure") is not None
+        ):
+            # Native Allure keeps an allowed step failure diagnosable while the
+            # canonical success stays untouched for every other sink.
+            self.config.hook.pytest_cuke_message_validated(config=self.config, message=message)
 
     @staticmethod
     def _worker_id_for_node(node: Any) -> str | None:
@@ -787,7 +799,10 @@ class MessagePlugin:
         return worker_id if isinstance(worker_id, str) and worker_id else None
 
     def _take_worker_message_batch(self) -> dict[str, Any] | None:
-        return self._take_worker_message_batch_locked()
+        with self.process_messages_lock:
+            if self.process_messages_closed:
+                return None
+            return self._take_worker_message_batch_locked()
 
     def _take_worker_message_batch_locked(self) -> dict[str, Any] | None:
         if self.worker_message_batcher is None or not hasattr(self, "process_messages_io_queue"):
@@ -824,12 +839,15 @@ class MessagePlugin:
                     self._publish_worker_message_batch(ready_batch)
 
     def _publish_worker_message_batch(self, batch: MessageBatch) -> None:
+        batch_envelopes = [dict(envelope) for envelope in batch.envelopes]
+        self.worker_session_hook_ids.update(worker_run_hook_ids(batch_envelopes))
+        canonical_envelopes = drop_worker_run_hooks(batch_envelopes, frozenset(self.worker_session_hook_ids))
         live_batch = {
             "worker_id": batch.worker_id,
             "sequence": batch.sequence,
             "envelopes": [
                 presented
-                for envelope in batch.envelopes
+                for envelope in canonical_envelopes
                 for presented in self.report_presentation.accept(
                     namespace_envelope_ids(envelope, worker_id=batch.worker_id)
                 )
@@ -1356,14 +1374,16 @@ class MessagePlugin:
                 RuntimeError("pytest-xdist did not provide workeroutput for the Messages completion manifest"),
             )
             return
-        tail_batch = self._take_worker_message_batch_locked()
-        complete = self.message_transport is not None and not self.message_transport.has_errors
-        manifest = batcher.make_manifest(
-            complete=complete,
-            interruption_reason=None if complete else "worker message validation or a transport sink failed",
-        )
         with self.process_messages_lock:
+            # Close the stream first: a report serialized after the manifest must not
+            # add a batch that the completion manifest does not describe.
             self.process_messages_closed = True
+            tail_batch = self._take_worker_message_batch_locked()
+            complete = self.message_transport is not None and not self.message_transport.has_errors
+            manifest = batcher.make_manifest(
+                complete=complete,
+                interruption_reason=None if complete else "worker message validation or a transport sink failed",
+            )
         worker_output[_WORKER_MESSAGE_OUTPUT_KEY] = {
             "manifest": manifest.to_payload(),
             "tail_batch": tail_batch,

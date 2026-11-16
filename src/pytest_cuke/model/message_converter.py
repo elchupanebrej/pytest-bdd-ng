@@ -371,9 +371,7 @@ def scenario_to_pickle(
         )
         for index, step in enumerate(execution)
     ]
-    # Cucumber JSON reports keep feature tags at the feature level; pickles carry
-    # the scenario's own tags plus the rule tags the model already merged in.
-    inherited_tags = scenario.tags
+    inherited_tags = (*feature.tags, *scenario.tags) if feature is not None else scenario.tags
     tags = [messages.PickleTag(name=t.name, ast_node_id=t.id or "") for t in inherited_tags]
     scenario_ast_node_ids = list(scenario.source_ast_node_ids) or [scenario_message_id(scenario, uri=uri)]
     external_row_id = scenario.external_example_source.row_id if scenario.external_example_source else None
