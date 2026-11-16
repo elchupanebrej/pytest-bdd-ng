@@ -62,6 +62,7 @@ def test_html_report_prefers_the_package_mustache_template(tmp_path, monkeypatch
 
 
 def test_html_report_fallback_mounts_before_starting_the_formatter(tmp_path, monkeypatch):
+    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
     messages = tmp_path / "messages.ndjson"
     messages.write_text(json.dumps({"testRunStarted": {"timestamp": "0"}}) + "\n", encoding="utf-8")
     script = tmp_path / "main.js"
