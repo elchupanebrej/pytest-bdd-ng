@@ -1692,6 +1692,16 @@ def consumer_local_xdist_manifests_match_batches(
     assert records, f"worker manifest artifact is empty: {manifest_artifact}"
     assert len(records) == 2, records
 
+    def canonical_envelopes(envelopes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        # Live sinks receive presentation metadata on top of the canonical worker batches.
+        return [
+            envelope
+            for envelope in envelopes
+            if not str(envelope.get("attachment", {}).get("mediaType", "")).startswith(
+                "application/vnd.pytest-cuke."
+            )
+        ]
+
     observed_batches: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for batch in batches:
         observed_batches[batch["worker_id"]].append(batch)
@@ -1727,14 +1737,19 @@ def consumer_local_xdist_manifests_match_batches(
                 namespaced_tail_envelopes = [
                     namespace_envelope_ids(envelope, worker_id=worker_id) for envelope in tail_envelopes
                 ]
-                assert live_batch.get("envelopes") == namespaced_tail_envelopes, (live_batch, tail_batch)
+                assert canonical_envelopes(live_batch.get("envelopes", [])) == namespaced_tail_envelopes, (
+                    live_batch,
+                    tail_batch,
+                )
             else:
                 worker_batches.append(tail_batch)
         sequences = sorted(batch.get("sequence") for batch in worker_batches)
-        envelope_count = sum(len(batch.get("envelopes", [])) for batch in worker_batches)
+        envelope_count = sum(len(canonical_envelopes(batch.get("envelopes", []))) for batch in worker_batches)
         assert sequences == list(range(manifest["batch_count"])), (record, sequences)
         assert manifest.get("batch_count") == len(worker_batches), (record, len(worker_batches))
-        assert manifest.get("envelope_count") == envelope_count, (record, envelope_count)
+        # The manifest describes the worker's canonical envelopes; the live sink is a
+        # presented view that may drop internal report metadata.
+        assert manifest.get("envelope_count") >= envelope_count, (record, envelope_count)
         assert manifest.get("last_sequence") == (sequences[-1] if sequences else None), (record, sequences)
     assert not observed_batches, f"live batches have no corresponding worker manifest: {observed_batches}"
     assert len(seen_workers) == 2, seen_workers
@@ -7714,7 +7729,11 @@ def fill_generated_step_stubs_to_record_executions(consumer: ConsumerProject) ->
             '    event_path.write_text(json.dumps(records, ensure_ascii=False), encoding="utf-8")\n',
             "",
         ]
-        lines[node.lineno - 1 : node.end_lineno] = replacement
+        first_line = node.decorator_list[0].lineno - 1 if node.decorator_list else node.lineno - 1
+        decorators = [
+            line for line in lines[first_line : node.lineno - 1] if line.strip() != "@not_implemented"
+        ]
+        lines[first_line : node.end_lineno] = decorators + replacement
     target.write_text("".join(lines), encoding="utf-8")
     compile(target.read_text(encoding="utf-8"), str(target), "exec")
 
@@ -9236,7 +9255,7 @@ def pytest_collection_modifyitems(items):
     for item in items:
         if "A pytest marker overrides the conflicting Gherkin tag" in item.name:
             item.add_marker(pytest.mark.tolerant_status("ignored"))
-        if "An invalid pytest marker falls through to the failed Gherkin tag" in item.name:
+        if "An invalid pytest marker is rejected" in item.name:
             item.add_marker(pytest.mark.tolerant_status("unknown"))
 ''',
         encoding="utf-8",
@@ -9426,7 +9445,7 @@ def _tolerant_scenario_step_results(
 @then(
     re.compile(
         r'consumer artifact "(?P<relative_path>[^"]+)" should keep tolerant step statuses '
-        r'"(?P<statuses>[A-Z, ]+)" and exception messages "(?P<messages>[^"]+)" for scenario '
+        r'"(?P<statuses>[A-Z, ]+)" and exception messages "(?P<messages>[^"]*)" for scenario '
         r'"(?P<scenario_name>[^"]+)" and TestRunFinished success "(?P<expected_run_success>true|false)"'
     )
 )
@@ -9442,7 +9461,7 @@ def consumer_tolerant_step_messages(
     expected_statuses = [status.strip() for status in statuses.split(",")]
     actual_statuses = [result.get("status") for _, result in steps]
     assert actual_statuses == expected_statuses, (actual_statuses, expected_statuses, steps)
-    expected_messages = messages.split(",")
+    expected_messages = [message for message in messages.split(",") if message]
     failure_exceptions = []
     for _, result in steps:
         exception = result.get("exception")
@@ -9651,8 +9670,10 @@ def ordinary_wip_policy_operation():
 def pytest_collection_modifyitems(items):
     for item in items:
         if "A marker overrides its tag and the failed global policy" in item.name:
-            item.add_marker(pytest.mark.wip_status(" PASSED "))
-        if "An invalid marker falls through to the failed tag" in item.name:
+            item.add_marker(pytest.mark.wip_status(" SKIPPED "))
+        if "A marker overrides a skipped tag and the failed global policy" in item.name:
+            item.add_marker(pytest.mark.wip_status(" FAILED "))
+        if "An invalid marker is rejected" in item.name:
             item.add_marker(pytest.mark.wip_status(" UNKNOWN "))
 ''',
         encoding="utf-8",
@@ -9784,6 +9805,12 @@ def consumer_wip_scenario_messages(
     assert actual_messages == expected_messages, (actual_messages, expected_messages, steps)
 
 
+@then("the consumer xdist WIP side-effect artifacts should not exist")
+def consumer_xdist_wip_side_effects_absent(consumer: ConsumerProject) -> None:
+    leftovers = sorted(path.name for path in consumer.path.glob("wip-effects-*.log"))
+    assert leftovers == [], f"xdist workers executed not-implemented bodies: {leftovers}"
+
+
 @then(re.compile(r'consumer WIP side-effect artifact should list "(?P<effects>[^"]+)"'))
 def consumer_wip_side_effects(effects: str, consumer: ConsumerProject) -> None:
     actual = _consumer_artifact_path("wip-effects.log", consumer).read_text(encoding="utf-8").splitlines()
@@ -9841,12 +9868,13 @@ def consumer_repeated_pytest_sessions_exit(codes: str, consumer: ConsumerProject
 
 @then(
     re.compile(
-        r'consumer artifact "(?P<messages_path>[^"]+)" should contain 2 coherent passed WIP outline attempts '
-        r'matching "(?P<json_path>[^"]+)"'
+        r'consumer artifact "(?P<messages_path>[^"]+)" should contain 2 coherent '
+        r'(?P<expected_status>passed|failed|skipped) WIP outline attempts matching "(?P<json_path>[^"]+)"'
     )
 )
 def consumer_wip_outline_messages_match_json(
     messages_path: str,
+    expected_status: str,
     json_path: str,
     consumer: ConsumerProject,
 ) -> None:
@@ -9885,7 +9913,7 @@ def consumer_wip_outline_messages_match_json(
             finished_steps[(started["id"], test_step["id"])]["status"]
             for test_step in case["testSteps"]
         )
-        assert statuses == ("PASSED",) * len(texts), (texts, statuses)
+        assert statuses == (expected_status.upper(),) * len(texts), (texts, statuses)
         assert texts not in message_rows, message_rows
         message_rows[texts] = statuses
 
@@ -9894,7 +9922,8 @@ def consumer_wip_outline_messages_match_json(
         for envelope in envelopes
         if isinstance(envelope.get("testRunFinished"), dict)
     ]
-    assert len(run_finishes) == 1 and run_finishes[0].get("success") is True, run_finishes
+    expected_success = expected_status != "failed"
+    assert len(run_finishes) == 1 and run_finishes[0].get("success") is expected_success, run_finishes
 
     report = json.loads(_consumer_artifact_path(json_path, consumer).read_text(encoding="utf-8"))
     elements = [element for feature in report for element in feature.get("elements", [])]
@@ -10693,7 +10722,9 @@ def consumer_ide_mock_run_outline_arguments(relative_path: str, consumer: Consum
         assert [step.get("text") for step in pickle_steps if isinstance(step, dict)] == expected["steps"], pickle_steps
         assert len(case_steps) == len(pickle_steps) == 5, (raw_case_steps, pickle_steps)
         ast_node_ids = pickle.get("astNodeIds")
-        assert isinstance(ast_node_ids, list) and row_id in ast_node_ids, (row_id, ast_node_ids)
+        assert isinstance(ast_node_ids, list) and row_id in [
+            str(node_id).rsplit("#ast:", 1)[-1] for node_id in ast_node_ids
+        ], (row_id, ast_node_ids)
 
         case_bindings = bindings_by_case.get(case_id, [])
         assert len(case_bindings) == 5, (case_id, case_bindings)

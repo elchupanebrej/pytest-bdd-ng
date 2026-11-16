@@ -135,7 +135,7 @@ Feature: IDE step binding diagnostics
         Scenario: An unmatched step still fails naturally
           Given the unique missing phrase is needle-73
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-messages-ndjson=diagnostics.ndjson -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-ambiguous-steps=first --cuke-messages-ndjson=diagnostics.ndjson -q"
     Then pytest should exit with a non-zero code
     And pytest output should include "1 passed"
     And pytest output should include "Step definition is not found"

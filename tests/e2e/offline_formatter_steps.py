@@ -557,6 +557,16 @@ def replay_does_not_publish_output_on_failure(output_path: str, consumer: Any) -
     assert not artifact.exists(), f"replay published output despite an input error: {artifact}"
 
 
+@then(parsers.parse('consumer artifact "{output_path}" should be published as an incomplete replay report'))
+def replay_publishes_incomplete_output(output_path: str, consumer: Any) -> None:
+    artifact = _consumer_path(consumer, output_path)
+    assert artifact.is_file(), f"replay did not publish the staged partial report: {artifact}"
+    sidecar = _consumer_path(consumer, f"{output_path}.incomplete.json")
+    assert sidecar.is_file(), f"replay did not mark {output_path} incomplete: {sidecar}"
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert payload.get("incomplete") is True, payload
+
+
 @then('consumer replay artifact "pretty-replay.txt" should match the pinned official Cucumber formatter output')
 def official_pretty_replay_output_is_recorded(consumer: Any) -> None:
     artifact = _consumer_path(consumer, "pretty-replay.txt")

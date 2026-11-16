@@ -61,6 +61,7 @@ from pytest_cuke.model.message_consolidation import (
     MessageFragment,
     consolidate_message_fragments,
     drop_unstarted_run_hooks,
+    drop_worker_run_hooks,
     namespace_envelope_ids,
 )
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_pickle_id, scenario_to_pickle
@@ -269,6 +270,7 @@ class MessagePlugin:
     message_publication_lock: Any = attrib(factory=RLock)
     test_cases_by_nodeid: dict[str, TestCase] = attrib(factory=dict)
     test_case_hook_steps_by_nodeid: dict[str, dict[str, TestStep]] = attrib(factory=dict)
+    scenario_hook_step_ids: set[str] = attrib(factory=set)
     parameter_type_registry: set[int] = attrib(factory=set)
     published_step_definition_ids: set[str] = attrib(factory=set)
     hook_registry: set[int] = attrib(factory=set)
@@ -785,6 +787,9 @@ class MessagePlugin:
         return worker_id if isinstance(worker_id, str) and worker_id else None
 
     def _take_worker_message_batch(self) -> dict[str, Any] | None:
+        return self._take_worker_message_batch_locked()
+
+    def _take_worker_message_batch_locked(self) -> dict[str, Any] | None:
         if self.worker_message_batcher is None or not hasattr(self, "process_messages_io_queue"):
             return None
         envelopes: list[dict[str, Any]] = []
@@ -1137,10 +1142,9 @@ class MessagePlugin:
         start_timestamp: Timestamp,
         exception: BaseException | None,
     ) -> None:
-        if exception is None:
+        if exception is None or isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
+            # A scenario hook that ran is passed even when the scenario unwinds with a skip.
             status = Status.passed
-        elif isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
-            status = Status.skipped
         elif isinstance(exception, KeyboardInterrupt):
             status = Status.unknown
         else:
@@ -1352,18 +1356,18 @@ class MessagePlugin:
                 RuntimeError("pytest-xdist did not provide workeroutput for the Messages completion manifest"),
             )
             return
-        tail_batch = self._take_worker_message_batch()
+        tail_batch = self._take_worker_message_batch_locked()
         complete = self.message_transport is not None and not self.message_transport.has_errors
         manifest = batcher.make_manifest(
             complete=complete,
             interruption_reason=None if complete else "worker message validation or a transport sink failed",
         )
+        with self.process_messages_lock:
+            self.process_messages_closed = True
         worker_output[_WORKER_MESSAGE_OUTPUT_KEY] = {
             "manifest": manifest.to_payload(),
             "tail_batch": tail_batch,
         }
-        with self.process_messages_lock:
-            self.process_messages_closed = True
 
     def _finalize_xdist_message_stream(self, session: Session) -> bool:
         receiver = self.worker_message_receiver
@@ -1379,18 +1383,11 @@ class MessagePlugin:
             fragments = [
                 MessageFragment(worker_id="master", role="controller", envelopes=tuple(self.accepted_message_payloads))
             ]
-        interrupted_workers = {
-            diagnostic.worker_id for diagnostic in received.diagnostics if diagnostic.worker_id is not None
-        }
         fragments.extend(
             MessageFragment(
                 worker_id=fragment.worker_id,
                 role="worker",
-                envelopes=(
-                    drop_unstarted_run_hooks(fragment.envelopes)
-                    if fragment.worker_id in interrupted_workers
-                    else fragment.envelopes
-                ),
+                envelopes=drop_unstarted_run_hooks(drop_worker_run_hooks(fragment.envelopes)),
             )
             for fragment in received.fragments
         )
@@ -1728,6 +1725,7 @@ class MessagePlugin:
                 phase: self._new_scenario_hook_test_step(config, phase=phase) for phase in sorted(external_hook_phases)
             }
             self.test_case_hook_steps_by_nodeid[item.nodeid] = case_hook_steps
+            self.scenario_hook_step_ids.update(step.id for step in case_hook_steps.values() if step.id is not None)
 
         case_test_steps = [
             *([case_hook_steps["before"]] if "before" in case_hook_steps else []),
@@ -2124,6 +2122,9 @@ class MessagePlugin:
             for test_step in self.current_test_case_step_order:
                 if test_step.id in self.current_finished_test_step_ids:
                     continue
+                if test_step.id in self.scenario_hook_step_ids:
+                    # Scenario hook steps are owned by their hook wrappers, which may run later.
+                    continue
                 start_timestamp = self.current_test_step_start_timestamps.get(test_step.id)
                 status = Status.failed if start_timestamp is not None else Status.skipped
                 if start_timestamp is None:
@@ -2238,6 +2239,11 @@ class MessagePlugin:
             start_timestamp=start_timestamp,
             status=Status.failed if status == "failed" else Status.skipped,
             message=message,
+            exception=(
+                ExceptionMessage(type="NotImplementedError", message=message or "Not-implemented step")
+                if status == "failed"
+                else None
+            ),
         )
 
     def pytest_cuke_after_step(self, request: FixtureRequest, run: RunContext, step_func: Any) -> None:
@@ -2310,18 +2316,22 @@ class MessagePlugin:
                 test_case_started_id=current_test_case_start.id,
             )
             status = Status.passed
+        tolerated_failure = tolerated and status is Status.passed
         self._finish_test_step(
             config=config,
             test_case_started=current_test_case_start,
             test_step=step_definition,
             start_timestamp=start_timestamp,
             status=status,
-            message=str(exception),
-            exception=ExceptionMessage(
-                type=type(exception).__name__,
-                message=str(exception),
+            # A tolerated failure stays an ordinary successful step on the wire; its
+            # original error and traceback travel in the step-outcome metadata.
+            message=None if tolerated_failure else str(exception),
+            exception=(
+                None
+                if tolerated_failure
+                else ExceptionMessage(type=type(exception).__name__, message=str(exception))
             ),
-            exception_stack_trace=exception_trace,
+            exception_stack_trace=None if tolerated_failure else exception_trace,
             defer_final_step=False,
         )
         if tolerated:
@@ -2334,6 +2344,9 @@ class MessagePlugin:
         )
         for skipped_step in self.current_test_case_step_order[failed_step_index + 1 :]:
             if skipped_step.id in self.current_finished_test_step_ids:
+                continue
+            if skipped_step.id in self.scenario_hook_step_ids:
+                # The after-scenario hook still runs after a failed or skipped step.
                 continue
             skipped_start = self._start_test_step(
                 config=config,

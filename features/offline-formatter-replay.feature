@@ -105,7 +105,7 @@ Feature: Standalone formatter rendering from saved Messages
     When I run command "cuke" with arguments "replay malformed-messages.ndjson --formatter probe=malformed-output.ndjson"
     Then the command should exit with a non-zero code
     And the malformed saved Messages diagnostic should identify "malformed-messages.ndjson" at line <error_line> with error "<expected_error>"
-    And consumer artifact "malformed-output.ndjson" should not be published by replay
+    And consumer artifact "malformed-output.ndjson" should be published as an incomplete replay report
 
     Examples:
       | malformed_case  | error_line | expected_error            |

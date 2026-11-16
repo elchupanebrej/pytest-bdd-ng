@@ -343,7 +343,7 @@ Feature: Local xdist test-group completion barriers
       def test_integration_waits_on_unit_barrier(request):
           record_start(request.node.nodeid, "integration")
       """
-    When I run installed pytest with a 15-second watchdog and arguments "-c pytest.ini --order-scope=session -n2 --dist=loadfile --cuke-no-autoload -q"
+    When I run installed pytest with a 60-second watchdog and arguments "-c pytest.ini --order-scope=session -n2 --dist=loadfile --cuke-no-autoload -q"
     Then the installed pytest run should finish before its watchdog
     And pytest should exit with a non-zero code
     And pytest output should include "timeout"

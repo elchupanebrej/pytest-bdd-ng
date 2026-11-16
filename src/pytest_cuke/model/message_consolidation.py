@@ -82,6 +82,54 @@ def _namespace_nested(value: Any, worker_id: str, *, use_payload_worker_ids: boo
     return value
 
 
+def drop_worker_run_hooks(envelopes: Sequence[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
+    """Drop a worker's session run hooks: the consolidated stream keeps the controller's run."""
+    hook_ids: set[str] = set()
+    for envelope in envelopes:
+        try:
+            kind = _payload_kind(envelope)
+        except ValueError:
+            continue
+        if kind == "hook" and str(_payload(envelope, "hook").get("type", "")) in {
+            "BEFORE_TEST_RUN",
+            "AFTER_TEST_RUN",
+        }:
+            hook_id = _payload(envelope, "hook").get("id")
+            if isinstance(hook_id, str):
+                hook_ids.add(hook_id)
+    if not hook_ids:
+        return tuple(envelopes)
+    started_ids = {
+        str(_payload(envelope, "test_run_hook_started").get("id"))
+        for envelope in envelopes
+        if _payload_kind(envelope) == "test_run_hook_started"
+        and str(_payload(envelope, "test_run_hook_started").get("hookId")) in hook_ids
+    }
+    dropped: list[dict[str, Any]] = []
+    for envelope in envelopes:
+        try:
+            kind = _payload_kind(envelope)
+        except ValueError:
+            dropped.append(envelope)
+            continue
+        if kind == "hook" and str(_payload(envelope, "hook").get("id")) in hook_ids:
+            continue
+        if (
+            kind == "test_run_hook_started"
+            and str(_payload(envelope, "test_run_hook_started").get("hookId")) in hook_ids
+        ):
+            continue
+        if (
+            kind == "test_run_hook_finished"
+            and str(_payload(envelope, "test_run_hook_finished").get("testRunHookStartedId")) in started_ids
+        ):
+            continue
+        if kind == "attachment" and str(_payload(envelope, "attachment").get("testRunHookStartedId")) in started_ids:
+            continue
+        dropped.append(envelope)
+    return tuple(dropped)
+
+
 def drop_unstarted_run_hooks(envelopes: Sequence[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
     """Drop run hook definitions whose lifecycle never started, as after a worker crash."""
     try:

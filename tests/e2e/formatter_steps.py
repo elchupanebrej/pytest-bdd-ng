@@ -528,9 +528,12 @@ def failed_formatter_prevents_sibling_output_publication(consumer: Any) -> None:
     combined_output = result.stdout + result.stderr
     assert result.returncode != 0, f"a failing formatter unexpectedly passed:\n{combined_output}"
     _assert_formatter_failure_diagnostic(combined_output, "broken", "formatter child failure sentinel")
+    healthy = _consumer_root(consumer) / "healthy.ndjson"
+    assert healthy.is_file(), "the healthy sibling formatter output was not published"
+    broken = _consumer_root(consumer) / "broken.ndjson"
+    assert not broken.exists(), f"failed shared session published an artifact: {broken}"
     for output in ("healthy.ndjson", "broken.ndjson"):
         target = _consumer_root(consumer) / output
-        assert not target.exists(), f"failed shared session published an artifact: {target}"
         leftovers = list(target.parent.glob(f".{target.name}.*.pytest-cuke-tmp"))
         assert not leftovers, f"failed shared session left staged output files behind: {leftovers}"
 

@@ -119,6 +119,8 @@ def iter_step_definition_matches(
                     )
         except Matcher.MatchNotFoundError:
             yield StepDefinitionMatch(step=step, matched=False, ambiguous=False)
+        except Matcher.MatchAmbiguousError:
+            yield StepDefinitionMatch(step=step, matched=True, ambiguous=detect_ambiguity)
         except Exception as error:
             raise StepDefinitionInspectionError(
                 f"could not inspect existing parser for {step.keyword.strip()} {step.text!r}: {error}"

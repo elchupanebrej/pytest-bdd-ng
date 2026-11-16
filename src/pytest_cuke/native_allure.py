@@ -112,6 +112,7 @@ class NativeAllureReporter:
         self._active_cases: dict[str, _ActiveCase] = {}
         self._cases_by_attempt: dict[str, _ActiveCase] = {}
         self._active_run_hooks: dict[str, _ActiveRunHook] = {}
+        self._worker_run_hooks: set[str] = set()
         self._session_container_uuid: str | None = None
         self._session_children: list[str] = []
         self._case_result_uuids: dict[str, list[str]] = {}
@@ -385,6 +386,10 @@ class NativeAllureReporter:
         hook = self._hooks.get(started.hook_id)
         if hook is None:
             raise AllureConversionError(f"test run hook start refers to unknown hook {started.hook_id!r}")
+        if started.worker_id not in {None, "", "master"}:
+            # Only the controller session owns the shared Allure session container.
+            self._worker_run_hooks.add(started.id)
+            return
         container_uuid = self._ensure_session_container()
         before = _enum_value(hook.type) == "BEFORE_TEST_RUN"
         fixture_uuid = str(uuid4())
@@ -396,6 +401,9 @@ class NativeAllureReporter:
         self._active_run_hooks[started.id] = _ActiveRunHook(fixture_uuid, "before" if before else "after")
 
     def _finish_run_hook(self, finished: messages.TestRunHookFinished, wire: dict[str, Any]) -> None:
+        if finished.test_run_hook_started_id in self._worker_run_hooks:
+            self._worker_run_hooks.discard(finished.test_run_hook_started_id)
+            return
         active = self._active_run_hooks.pop(finished.test_run_hook_started_id, None)
         if active is None:
             raise AllureConversionError(

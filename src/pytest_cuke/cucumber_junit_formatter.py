@@ -71,12 +71,13 @@ function collectDocumentProperties(document, documentIndex) {
   const documentPrefix = `cucumber.${encodeKeyPart(document.uri ?? "unknown")}.document.${documentIndex}`;
   let scenarioIndex = 0;
   let ruleIndex = 0;
-  const addScenario = (scenario) => {
+  const addScenario = (scenario, inheritedTags = []) => {
     const index = scenarioIndex++;
     const kind = scenario.examples?.length ? "outline" : "scenario";
     const prefix = `${documentPrefix}.${kind}.${index}.${encodeKeyPart(scenario.name)}`;
-    if (scenario.description) add(`${prefix}.description`, scenario.description);
-    addTags(prefix, scenario.tags);
+    if (scenario.description) add(`${prefix}.description`, scenario.description.trim());
+    const tagNames = [...inheritedTags, ...(scenario.tags ?? [])].map((tag) => tag.name);
+    addTags(prefix, [...new Set(tagNames)].map((name) => ({ name })));
     addSteps(prefix, scenario.steps);
     for (const [index, examples] of (scenario.examples ?? []).entries()) {
       const examplesPrefix = `${prefix}.examples.${index}.${encodeKeyPart(examples.name)}`;
@@ -87,16 +88,16 @@ function collectDocumentProperties(document, documentIndex) {
       if (rows.length) add(`${examplesPrefix}.table`, JSON.stringify(rows));
     }
   };
-  const addChildren = (children, prefix) => {
+  const addChildren = (children, prefix, inheritedTags = []) => {
     for (const child of children ?? []) {
       if (child.rule) {
         const rule = child.rule;
         const rulePrefix = `${documentPrefix}.rule.${ruleIndex++}.${encodeKeyPart(rule.name)}`;
-        if (rule.description) add(`${rulePrefix}.description`, rule.description);
+        if (rule.description) add(`${rulePrefix}.description`, rule.description.trim());
         addTags(rulePrefix, rule.tags);
-        addChildren(rule.children, rulePrefix);
+        addChildren(rule.children, rulePrefix, rule.tags ?? []);
       } else if (child.scenario) {
-        addScenario(child.scenario);
+        addScenario(child.scenario, inheritedTags);
       } else if (child.background) {
         addSteps(`${prefix}.background.${child.background.name}`, child.background.steps);
       }
@@ -106,7 +107,7 @@ function collectDocumentProperties(document, documentIndex) {
   const feature = document.feature;
   if (!feature) return [];
   const featurePrefix = `${documentPrefix}.feature`;
-  if (feature.description) add(`${featurePrefix}.description`, feature.description);
+  if (feature.description) add(`${featurePrefix}.description`, feature.description.trim());
   addTags(featurePrefix, feature.tags);
   addChildren(feature.children, featurePrefix);
   if (properties.length) {

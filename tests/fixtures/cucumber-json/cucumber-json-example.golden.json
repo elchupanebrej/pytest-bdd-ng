@@ -12,33 +12,33 @@
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 3834833
             },
             "arguments": [],
             "keyword": "Given ",
             "line": 6,
             "name": "the Cucumber JSON example prepares a request",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:14"
+              "location": "file:///consumer/cucumber_json_example_steps.py:13"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 3007827
             },
             "arguments": [],
             "keyword": "Given ",
             "line": 10,
             "name": "the Cucumber JSON example resets its output",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:20"
+              "location": "file:///consumer/cucumber_json_example_steps.py:19"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 2421821
             },
             "arguments": [
               {
@@ -50,13 +50,13 @@
             "line": 14,
             "name": "the Cucumber JSON example receives a document",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:25"
+              "location": "file:///consumer/cucumber_json_example_steps.py:24"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 4671041
             },
             "arguments": [
               {
@@ -80,46 +80,46 @@
             "line": 18,
             "name": "the Cucumber JSON example receives a table",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:32"
+              "location": "file:///consumer/cucumber_json_example_steps.py:31"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 3342430
             },
             "arguments": [],
             "keyword": "When ",
             "line": 21,
             "name": "the Cucumber JSON example processes the request",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:38"
+              "location": "file:///consumer/cucumber_json_example_steps.py:37"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 5097745
             },
             "arguments": [],
             "keyword": "Then ",
             "line": 22,
             "name": "the Cucumber JSON example response is \"hello\"",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:46"
+              "location": "file:///consumer/cucumber_json_example_steps.py:45"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 7524967
             },
             "arguments": [],
             "keyword": "And ",
             "line": 23,
             "name": "the Cucumber JSON example attaches a report",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:51"
+              "location": "file:///consumer/cucumber_json_example_steps.py:50"
             },
             "embeddings": [
               {
@@ -147,40 +147,40 @@
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 3260429
             },
             "arguments": [],
             "keyword": "Given ",
             "line": 6,
             "name": "the Cucumber JSON example prepares a request",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:14"
+              "location": "file:///consumer/cucumber_json_example_steps.py:13"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 4142136
             },
             "arguments": [],
             "keyword": "Given ",
             "line": 10,
             "name": "the Cucumber JSON example resets its output",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:20"
+              "location": "file:///consumer/cucumber_json_example_steps.py:19"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 4097836
             },
             "arguments": [],
             "keyword": "Given ",
             "line": 26,
             "name": "the Cucumber JSON example records \"alpha\"",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:60"
+              "location": "file:///consumer/cucumber_json_example_steps.py:59"
             }
           }
         ],
@@ -197,40 +197,40 @@
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 3541531
             },
             "arguments": [],
             "keyword": "Given ",
             "line": 6,
             "name": "the Cucumber JSON example prepares a request",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:14"
+              "location": "file:///consumer/cucumber_json_example_steps.py:13"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 7041161
             },
             "arguments": [],
             "keyword": "Given ",
             "line": 10,
             "name": "the Cucumber JSON example resets its output",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:20"
+              "location": "file:///consumer/cucumber_json_example_steps.py:19"
             }
           },
           {
             "result": {
               "status": "passed",
-              "duration": 250000000
+              "duration": 4462339
             },
             "arguments": [],
             "keyword": "Given ",
             "line": 26,
             "name": "the Cucumber JSON example records \"bravo\"",
             "match": {
-              "location": "file:///consumer/cucumber_json_example_steps.py:60"
+              "location": "file:///consumer/cucumber_json_example_steps.py:59"
             }
           }
         ],

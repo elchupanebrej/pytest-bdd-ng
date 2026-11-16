@@ -9,8 +9,14 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
 from pytest_cuke import then
+
+
+def _raw_ast_id(node_id: str) -> str:
+    """Return the parser-local id behind a wire AST id (`<uri>#ast:<id>`)."""
+    return unquote(node_id.rsplit("#ast:", 1)[-1])
 
 
 def _runtime_artifact_path(relative_path: str, consumer: Any) -> Path:
@@ -474,7 +480,6 @@ def consumer_tolerant_step_and_teardown_failure_reporting(
     problems: list[str] = []
     scenario_name = "The tolerant failure and teardown error are both reported"
     step_names = ["the nonterminal tolerant step fails", "a later step passes"]
-    assertion_message = "nonterminal tolerant assertion sentinel"
     teardown_message = "late teardown failure sentinel"
 
     messages_case = _single_messages_case(messages_path, consumer, len(step_names), problems)
@@ -489,14 +494,13 @@ def consumer_tolerant_step_and_teardown_failure_reporting(
             problems.append("Messages TestCase does not reference its Pickle")
 
         statuses = [finish.get("testStepResult", {}).get("status") for finish in step_finishes]
-        if statuses != ["FAILED", "FAILED"]:
-            problems.append(f"Messages test step statuses={statuses!r}, expected ['FAILED', 'FAILED']")
+        if statuses != ["PASSED", "FAILED"]:
+            problems.append(f"Messages test step statuses={statuses!r}, expected ['PASSED', 'FAILED']")
         if len(step_finishes) == len(step_names):
             first_result = step_finishes[0].get("testStepResult", {})
-            first_exception = first_result.get("exception", {})
-            if assertion_message not in str(first_exception.get("message")):
+            if first_result.get("exception") is not None or first_result.get("message") is not None:
                 problems.append(
-                    f"tolerant Messages exception={first_exception!r}, expected to contain {assertion_message!r}"
+                    f"tolerated Messages step should stay successful in the canonical stream, got {first_result!r}"
                 )
             terminal_result = step_finishes[-1].get("testStepResult", {})
             terminal_exception = terminal_result.get("exception", {})
@@ -525,12 +529,12 @@ def consumer_tolerant_step_and_teardown_failure_reporting(
         statuses = [step.get("result", {}).get("status") for step in json_steps]
         if names != step_names:
             problems.append(f"JSON scenario steps={names!r}, expected {step_names!r}")
-        if statuses != ["failed", "failed"]:
-            problems.append(f"JSON step statuses={statuses!r}, expected ['failed', 'failed']")
+        if statuses != ["passed", "failed"]:
+            problems.append(f"JSON step statuses={statuses!r}, expected ['passed', 'failed']")
         if len(json_steps) == len(step_names):
             first_error = json_steps[0].get("result", {}).get("error_message")
-            if assertion_message not in str(first_error):
-                problems.append(f"tolerant JSON error={first_error!r}, expected to contain {assertion_message!r}")
+            if first_error is not None:
+                problems.append(f"tolerated JSON step should stay successful, got error={first_error!r}")
             terminal_error = json_steps[-1].get("result", {}).get("error_message")
             if teardown_message not in str(terminal_error):
                 problems.append(f"terminal JSON error={terminal_error!r}, expected to contain {teardown_message!r}")
@@ -584,7 +588,7 @@ def consumer_rule_background_runtime_links(
         assert [step["text"] for step in observation["steps"]] == [step["text"] for step in pickle["steps"]]
         assert [step["test_step_id"] for step in observation["steps"]] == [step["id"] for step in case["testSteps"]]
         assert all(step["status"] == "passed" and step["test_step_id"] for step in observation["steps"])
-        assert [step["astNodeIds"] for step in pickle["steps"]] == [
+        assert [[_raw_ast_id(node_id) for node_id in step["astNodeIds"]] for step in pickle["steps"]] == [
             [step["source_step_id"]] for step in observation["steps"]
         ]
         step_finish_ids = {
@@ -629,15 +633,18 @@ def consumer_rule_background_runtime_links(
         if isinstance(document, dict):
             collect_ast_steps(document.get("feature", {}))
     assert ast_steps, envelopes
+    ast_steps_by_raw_id = {_raw_ast_id(node_id): node for node_id, node in ast_steps.items()}
 
     for observation in observations:
         case = cases[observation["test_case_id"]]
         pickle = pickles[case["pickleId"]]
         assert case["pickleId"] == pickle["id"], (case, pickle)
-        assert observation["source_ast_node_ids"] == pickle["astNodeIds"], (observation, pickle)
+        assert [_raw_ast_id(node_id) for node_id in observation["source_ast_node_ids"]] == [
+            _raw_ast_id(node_id) for node_id in pickle["astNodeIds"]
+        ], (observation, pickle)
         assert observation["scenario_name"] == pickle["name"], (observation, pickle)
         for runtime_step, pickle_step in zip(observation["steps"], pickle["steps"], strict=True):
-            source_step = ast_steps[runtime_step["source_step_id"]]
+            source_step = ast_steps_by_raw_id[runtime_step["source_step_id"]]
             assert runtime_step["source_text"] == source_step["text"], (runtime_step, source_step)
             assert runtime_step["source_line"] == source_step["location"]["line"], (runtime_step, source_step)
             assert runtime_step["text"] == pickle_step["text"], (runtime_step, pickle_step)
@@ -646,7 +653,9 @@ def consumer_rule_background_runtime_links(
                     runtime_step,
                     pickle_step,
                 )
-            assert runtime_step["source_step_id"] in pickle_step["astNodeIds"], (runtime_step, pickle_step)
+            assert runtime_step["source_step_id"] in [
+                _raw_ast_id(node_id) for node_id in pickle_step["astNodeIds"]
+            ], (runtime_step, pickle_step)
 
             source_doc = source_step.get("docString")
             source_table = source_step.get("dataTable")
@@ -909,15 +918,17 @@ def consumer_distinct_source_identities(
         step = row["steps"][0]
         assert _source_uri_identity(pickle["uri"]) == _source_uri_identity(row["feature_uri"]), (pickle, row)
         assert pickle["name"] == row["scenario_name"], (pickle, row)
-        assert row["source_scenario_id"] in pickle["astNodeIds"], (pickle, row)
-        source_ids = document_ids_by_uri[_source_uri_identity(row["feature_uri"])]
+        assert row["source_scenario_id"] in [_raw_ast_id(node_id) for node_id in pickle["astNodeIds"]], (pickle, row)
+        source_ids = {_raw_ast_id(node_id) for node_id in document_ids_by_uri[_source_uri_identity(row["feature_uri"])]}
         assert row["source_scenario_id"] in source_ids, (source_ids, row)
         assert step["source_step_id"] in source_ids, (source_ids, step)
         assert len(pickle["steps"]) == len(case["testSteps"]) == 1, (pickle, case)
         assert [test_step["pickleStepId"] for test_step in case["testSteps"]] == [
             pickle_step["id"] for pickle_step in pickle["steps"]
         ], (case, pickle)
-        assert pickle["steps"][0]["astNodeIds"] == [step["source_step_id"]], (pickle, step)
+        assert [_raw_ast_id(node_id) for node_id in pickle["steps"][0]["astNodeIds"]] == [
+            step["source_step_id"]
+        ], (pickle, step)
         assert case["pickleId"] == pickle["id"], (case, pickle)
         assert [test_step["id"] for test_step in case["testSteps"]] == [step["test_step_id"]], (case, step)
         assert started["testCaseId"] == case["id"], (started, case)
@@ -1746,16 +1757,14 @@ def consumer_tolerant_failure_teardown_interrupt_are_retained(
         if hook_statuses != ["passed", "unknown"]:
             problems.append(f"Messages Before/After hook statuses={hook_statuses!r}, expected ['passed', 'unknown']")
         statuses = [finish.get("testStepResult", {}).get("status", "").lower() for finish in scenario_finishes]
-        if statuses != ["failed", "passed"]:
-            problems.append(f"Messages scenario step statuses={statuses!r}, expected ['failed', 'passed']")
+        if statuses != ["passed", "passed"]:
+            problems.append(f"Messages scenario step statuses={statuses!r}, expected ['passed', 'passed']")
         if len(scenario_finishes) == len(expected_step_names):
             first_result = scenario_finishes[0].get("testStepResult", {})
             first_exception = first_result.get("exception")
-            first_exception_message = first_exception.get("message") if isinstance(first_exception, dict) else None
-            if assertion_message not in str(first_exception_message):
+            if first_exception is not None:
                 problems.append(
-                    f"tolerant Messages exception.message={first_exception_message!r}, "
-                    f"expected to contain {assertion_message!r}"
+                    f"tolerated Messages step should stay successful, got exception={first_exception!r}"
                 )
             if scenario_finishes[-1].get("testStepResult", {}).get("message") is not None:
                 problems.append("passed terminal Messages scenario step should omit message")
@@ -1793,12 +1802,12 @@ def consumer_tolerant_failure_teardown_interrupt_are_retained(
         statuses = [step.get("result", {}).get("status") for step in scenario_json_steps]
         if names != expected_step_names:
             problems.append(f"JSON scenario steps={names!r}, expected {expected_step_names!r}")
-        if statuses != ["failed", "passed"]:
-            problems.append(f"JSON scenario step statuses={statuses!r}, expected ['failed', 'passed']")
+        if statuses != ["passed", "passed"]:
+            problems.append(f"JSON scenario step statuses={statuses!r}, expected ['passed', 'passed']")
         if len(scenario_json_steps) == len(expected_step_names):
             first_error = scenario_json_steps[0].get("result", {}).get("error_message")
-            if assertion_message not in str(first_error):
-                problems.append(f"tolerant JSON error={first_error!r}, expected to contain {assertion_message!r}")
+            if first_error is not None:
+                problems.append(f"tolerated JSON step should stay successful, got error={first_error!r}")
             terminal_error = scenario_json_steps[-1].get("result", {}).get("error_message")
             if terminal_error is not None:
                 problems.append(f"passed terminal JSON scenario step error_message={terminal_error!r}, expected None")

@@ -62,7 +62,7 @@ def test_structural_model_edits_use_the_model_projection():
     assert feature.name == "Source navigation"
 
 
-def test_pickle_uses_the_source_row_location_and_inherited_feature_tags():
+def test_pickle_uses_the_source_row_location_and_inherited_rule_tags():
     raw = Parser().parse(SOURCE)
     feature = build_feature_from_dict(raw, uri="features/navigation.feature")
     scenario = feature.rules[0].scenarios[0]
@@ -72,7 +72,10 @@ def test_pickle_uses_the_source_row_location_and_inherited_feature_tags():
     assert pickle.location is not None
     assert pickle.location.line == row.line
     assert pickle.location.column == 9
-    assert "@feature-tag" in {tag.name for tag in pickle.tags}
+    tag_names = {tag.name for tag in pickle.tags}
+    assert {"@rule-tag", "@scenario-tag"} <= tag_names
+    # The reference reports keep feature tags at the feature level.
+    assert "@feature-tag" not in tag_names
 
 
 def test_unknown_outline_row_location_is_not_replaced_by_the_heading_location():

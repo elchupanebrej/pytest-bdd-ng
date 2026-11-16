@@ -281,11 +281,16 @@ collection.
 
 Generated step stubs are marked with ``@not_implemented``, imported from
 ``pytest_cuke.steps``. This applies both to ``cuke generate steps`` and pytest's
-``--cuke-generate`` / ``--cuke-generate-missing`` output. They still raise
-``NotImplementedError`` under the default or explicit ``failed`` WIP policy.
-``--cuke-wip-status=skipped`` skips their execution so a generated scaffold can
-be collected and run while its steps await implementation. Existing user step
-functions retain their behavior; generation does not mark them as stubs.
+``--cuke-generate`` / ``--cuke-generate-missing`` output. A marked step never
+executes its body. The default ``failed`` policy fails it with the
+``NotImplementedError`` stub contract, and ``--cuke-wip-status=skipped`` records
+a skip so a generated scaffold can be collected and run while its steps await
+implementation. There is no success policy for not-implemented steps. An
+explicit Gherkin tag (``@wip-status-failed`` / ``@wip-status-skipped``) or
+pytest marker (``wip_status(...)``) overrides the global policy for one
+scenario, and an invalid local or global value fails collection with a clear
+diagnostic instead of falling back. Existing user step functions retain their
+behavior; generation does not mark them as stubs.
 
 Synchronizing Cucumber Messages schemas
 ---------------------------------------

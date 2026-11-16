@@ -121,7 +121,9 @@ jobs:
     name: Full runtime matrix (${{ matrix.cell.id }} / ${{ matrix.cell.tox_environment || 'all' }})
     needs: matrix-select
     runs-on: ${{ matrix.cell.runner }}
-    timeout-minutes: 360
+    # GraalPy runs the same suite roughly ten times slower; the measured full accepted
+    # suite took 4h30m on graalpy-253-pytestlatest-coverage-lin.
+    timeout-minutes: 480
     strategy:
       fail-fast: false
       matrix:

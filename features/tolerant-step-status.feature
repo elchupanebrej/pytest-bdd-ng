@@ -33,9 +33,12 @@ Feature: Tolerant step status policy
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "first-order,second-order"
-    And pytest output should include "When the first tolerant operation raises an AssertionError"
-    And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,FAILED,PASSED" and exception messages "first tolerant assertion sentinel,second tolerant runtime sentinel" for scenario "Both tolerant decorator orders continue" and TestRunFinished success "true"
-    And consumer artifact "cucumber.json" should report scenario "Both tolerant decorator orders continue" with step statuses "failed,failed,passed" and error messages "first tolerant assertion sentinel,second tolerant runtime sentinel"
+    And pytest output should include "3 steps (3 passed)"
+    And consumer artifact "messages.ndjson" should keep tolerant step statuses "PASSED,PASSED,PASSED" and exception messages "" for scenario "Both tolerant decorator orders continue" and TestRunFinished success "true"
+    And consumer artifact "cucumber.json" should report scenario "Both tolerant decorator orders continue" with step statuses "passed,passed,passed" and error messages ""
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-tolerated-as-failed --cuke-json=diagnostic.json -q"
+    Then pytest should exit with code 0
+    And consumer artifact "diagnostic.json" should report scenario "Both tolerant decorator orders continue" with step statuses "failed,failed,passed" and error messages "first tolerant assertion sentinel,second tolerant runtime sentinel"
 
   Scenario: A pytest marker overrides its conflicting Gherkin tag and policy
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -57,31 +60,28 @@ Feature: Tolerant step status policy
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer continuation artifact should list "tag,marker"
-    And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "A Gherkin tag overrides the failed global policy" and TestRunFinished success "true"
-    And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "A pytest marker overrides the conflicting Gherkin tag" and TestRunFinished success "true"
+    And consumer artifact "messages.ndjson" should keep tolerant step statuses "PASSED,PASSED" and exception messages "" for scenario "A Gherkin tag overrides the failed global policy" and TestRunFinished success "true"
+    And consumer artifact "messages.ndjson" should keep tolerant step statuses "PASSED,PASSED" and exception messages "" for scenario "A pytest marker overrides the conflicting Gherkin tag" and TestRunFinished success "true"
 
-  Scenario: Invalid tag and marker policies fall through to the next valid policy
+  Scenario: Invalid local tag and marker policies are clear errors
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the installed consumer exposes tolerant steps and a continuation artifact
     And consumer file "features/tolerant-status.feature" contains:
       """gherkin
       Feature: Invalid local tolerant policies
         @tolerant-status-unknown
-        Scenario: An invalid Gherkin tag falls through to the ignored global policy
+        Scenario: An invalid Gherkin tag is rejected
           When the first tolerant operation raises an AssertionError
           Then the continuation records "invalid-tag"
 
-        @tolerant-status-failed
-        Scenario: An invalid pytest marker falls through to the failed Gherkin tag
+        Scenario: An invalid pytest marker is rejected
           When the first tolerant operation raises an AssertionError
           Then the continuation records "invalid-marker"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=messages.ndjson -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored -q"
     Then pytest should exit with a non-zero code
-    And pytest output should include "1 passed"
-    And consumer continuation artifact should list "invalid-tag"
-    And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "An invalid Gherkin tag falls through to the ignored global policy" and TestRunFinished success "false"
-    And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,SKIPPED" and exception messages "first tolerant assertion sentinel" for scenario "An invalid pytest marker falls through to the failed Gherkin tag" and TestRunFinished success "false"
+    And pytest output should include "Invalid tolerant-status- policy"
+    And the consumer file "continuations.log" should not exist
 
   Scenario: The CLI policy overrides the configuration fallback
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -104,7 +104,7 @@ Feature: Tolerant step status policy
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "config"
-    And consumer artifact "config.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "A configured ignored policy continues by default" and TestRunFinished success "true"
+    And consumer artifact "config.ndjson" should keep tolerant step statuses "PASSED,PASSED" and exception messages "" for scenario "A configured ignored policy continues by default" and TestRunFinished success "true"
     When I remove consumer file "continuations.log"
     And I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=failed --cuke-messages-ndjson=cli-failed.ndjson -q"
     Then pytest should exit with a non-zero code
@@ -180,8 +180,8 @@ Feature: Tolerant step status policy
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "fixture-provided-target"
-    And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "tolerant target failure sentinel" for scenario "The later step consumes the real target fixture" and TestRunFinished success "true"
-    And consumer artifact "cucumber.json" should report scenario "The later step consumes the real target fixture" with step statuses "failed,passed" and error messages "tolerant target failure sentinel"
+    And consumer artifact "messages.ndjson" should keep tolerant step statuses "PASSED,PASSED" and exception messages "" for scenario "The later step consumes the real target fixture" and TestRunFinished success "true"
+    And consumer artifact "cucumber.json" should report scenario "The later step consumes the real target fixture" with step statuses "passed,passed" and error messages ""
 
   Scenario: An invalid CLI policy fails before executing a scenario
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
@@ -249,7 +249,7 @@ Feature: Tolerant step status policy
           When the ambiguous tolerant operation matches two definitions
           Then the continuation records "after-ambiguity"
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored -q"
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-ambiguous-steps=first -q"
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And pytest output should include "Alternative step definitions are found"
@@ -267,7 +267,7 @@ Feature: Tolerant step status policy
       """
     When I run installed pytest twice in one process with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=ignored --cuke-messages-ndjson=ignored.ndjson -q" and then "--rootdir=. --cuke-autoload --cuke-features-dir=features --cuke-tolerant-status=failed --cuke-messages-ndjson=failed.ndjson -q"
     Then consumer repeated pytest sessions should exit with codes "0,1"
-    And consumer artifact "ignored.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "The first session may continue the tolerant failure" and TestRunFinished success "true"
+    And consumer artifact "ignored.ndjson" should keep tolerant step statuses "PASSED,PASSED" and exception messages "" for scenario "The first session may continue the tolerant failure" and TestRunFinished success "true"
     And consumer artifact "failed.ndjson" should keep tolerant step statuses "FAILED,SKIPPED" and exception messages "first tolerant assertion sentinel" for scenario "The first session may continue the tolerant failure" and TestRunFinished success "false"
     And consumer continuation artifact should list "repeat-session"
 
@@ -278,5 +278,5 @@ Feature: Tolerant step status policy
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
     And consumer continuation artifact should list "continued"
-    And consumer artifact "messages.ndjson" should keep tolerant step statuses "FAILED,PASSED" and exception messages "first tolerant assertion sentinel" for scenario "Ignored tolerant step lets later steps run" and TestRunFinished success "true"
-    And consumer artifact "cucumber.json" should report scenario "Ignored tolerant step lets later steps run" with step statuses "failed,passed" and error messages "first tolerant assertion sentinel"
+    And consumer artifact "messages.ndjson" should keep tolerant step statuses "PASSED,PASSED" and exception messages "" for scenario "Ignored tolerant step lets later steps run" and TestRunFinished success "true"
+    And consumer artifact "cucumber.json" should report scenario "Ignored tolerant step lets later steps run" with step statuses "passed,passed" and error messages ""
