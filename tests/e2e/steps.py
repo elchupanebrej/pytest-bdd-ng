@@ -1789,6 +1789,11 @@ def start_filesystem_isolated_localhost_execnet_socket_gateway(
     bubblewrap = shutil.which("bwrap")
     if bubblewrap is None:
         pytest.skip("@external filesystem-isolation gateway acceptance requires bubblewrap; remote parity is unverified")
+    if not Path("/opt/pytest-cuke-remote/bin/python").is_file():
+        pytest.skip(
+            "@external filesystem-isolation gateway acceptance requires the /opt/pytest-cuke-remote "
+            "interpreter provisioned by the remote acceptance lane"
+        )
     _start_execnet_socket_gateways(
         consumer,
         request,

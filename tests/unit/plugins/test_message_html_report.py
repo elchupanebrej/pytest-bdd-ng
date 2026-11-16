@@ -17,7 +17,10 @@ class _Config:
         return ""
 
 
-def _plugin(messages_path: Path, html_path: Path) -> message_plugin.MessagePlugin:
+def _plugin(messages_path: Path, html_path: Path, monkeypatch) -> message_plugin.MessagePlugin:
+    # The unit target is HTML rendering, not the npm preflight.
+    monkeypatch.setattr(message_plugin, "check_npm", lambda: True)
+    monkeypatch.setattr(message_plugin, "check_npm_package", lambda *args, **kwargs: True)
     _Option.cuke_html = str(html_path)
     plugin = message_plugin.MessagePlugin(config=_Config())
     plugin.is_disabled = False
@@ -52,7 +55,7 @@ def test_html_report_prefers_the_package_mustache_template(tmp_path, monkeypatch
     )
 
     output = tmp_path / "report.html"
-    plugin = _plugin(messages, output)
+    plugin = _plugin(messages, output, monkeypatch)
     plugin.generate_html_report()
 
     html = output.read_text(encoding="utf-8")
@@ -72,7 +75,7 @@ def test_html_report_fallback_mounts_before_starting_the_formatter(tmp_path, mon
     monkeypatch.setattr(html_report, "find_resource", _resolver({"dist/main.js": script}))
 
     output = tmp_path / "report.html"
-    plugin = _plugin(messages, output)
+    plugin = _plugin(messages, output, monkeypatch)
     plugin.generate_html_report()
 
     html = output.read_text(encoding="utf-8")
