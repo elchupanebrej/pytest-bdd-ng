@@ -29,8 +29,11 @@ def _plugin(messages_path: Path, html_path: Path, monkeypatch) -> message_plugin
 
 
 def _resolver(files: dict[str, Path]):
+    # Resource lookups join with the platform separator; compare in one form.
+    normalized = {key.replace("\\", "/"): value for key, value in files.items()}
+
     def find_resource(package_name, resource_path):
-        path = files.get(resource_path)
+        path = normalized.get(resource_path.replace("\\", "/"))
         return iter([str(path)] if path is not None else [])
 
     return find_resource

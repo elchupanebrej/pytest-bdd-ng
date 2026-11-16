@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
@@ -12,6 +11,8 @@ pytestmark = pytest.mark.integration
 
 
 def test_before_step_hook_failure_paired_envelope_and_cucumber_json(pytester) -> None:
+    # The native Cucumber JSON backend needs the Pydantic models extra.
+    pytest.importorskip("pydantic")
     pytester.makeini(
         "[pytest]\n"
         "cuke_features_dir = .\n"

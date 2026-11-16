@@ -182,7 +182,10 @@ def test_remote():
     )
     result = pytester.runpytest_subprocess("--cuke-messages-ndjson=messages.ndjson", "-q")
     result.assert_outcomes(passed=1)
-    events = [json.loads(line) for line in (pytester.path / "messages.ndjson").read_text().splitlines()]
+    events = [
+        json.loads(line)
+        for line in (pytester.path / "messages.ndjson").read_text(encoding="utf-8").splitlines()
+    ]
     sources = [
         json.loads(event["attachment"]["body"])
         for event in events

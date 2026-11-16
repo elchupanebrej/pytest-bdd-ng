@@ -180,7 +180,8 @@ def test_replay_publishes_healthy_output_when_another_formatter_fails(tmp_path: 
         name="broken",
     )
 
-    with pytest.raises(FormatterRuntimeError, match=r"broken.*exited with status 3"):
+    # The child may be observed either while closing the stream or after it exits.
+    with pytest.raises(FormatterRuntimeError, match=r"broken.*status 3"):
         replay_messages(source, (healthy_request, broken_request))
 
     assert json.loads(healthy.read_text(encoding="utf-8")) == json.loads(original)
