@@ -36,6 +36,7 @@ def _resolver(files: dict[str, Path]):
 def test_html_report_prefers_the_package_mustache_template(tmp_path, monkeypatch):
     # The report path is process-local; keep it independent of xdist worker state.
     monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+    monkeypatch.setattr(message_plugin, "_worker_id_from_config", lambda config: None)
     template = tmp_path / "index.mustache"
     template.write_text('<style>{{css}}</style><div id="content"></div>{{script}}{{messages}}', encoding="utf-8")
     script = tmp_path / "main.js"
@@ -63,6 +64,7 @@ def test_html_report_prefers_the_package_mustache_template(tmp_path, monkeypatch
 
 def test_html_report_fallback_mounts_before_starting_the_formatter(tmp_path, monkeypatch):
     monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+    monkeypatch.setattr(message_plugin, "_worker_id_from_config", lambda config: None)
     messages = tmp_path / "messages.ndjson"
     messages.write_text(json.dumps({"testRunStarted": {"timestamp": "0"}}) + "\n", encoding="utf-8")
     script = tmp_path / "main.js"

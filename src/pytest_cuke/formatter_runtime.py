@@ -16,7 +16,7 @@ from threading import Lock, Thread
 from typing import TYPE_CHECKING, Any
 
 from pytest_cuke.const import PYTEST_STEP_OUTCOME_MEDIA_TYPE
-from pytest_cuke.model.message_consolidation import LiveMessageAdapter
+from pytest_cuke.model.message_consolidation import LiveMessageAdapter, drop_worker_run_hooks, worker_run_hook_ids
 from pytest_cuke.model.message_extension import external_attachment_reference
 from pytest_cuke.model.message_stream_validation import MessageStreamValidator, MessageValidationError
 from pytest_cuke.model.message_types import Envelope, message_from_dict, message_to_dict
@@ -575,6 +575,10 @@ class FormatterSession:
             )
         if not isinstance(envelopes, list):
             raise FormatterRuntimeError(f"A {self._label} received a malformed worker Messages batch.")
+        if not hasattr(self, "_worker_session_hook_ids"):
+            self._worker_session_hook_ids: set[str] = set()
+        self._worker_session_hook_ids.update(worker_run_hook_ids(envelopes))
+        envelopes = list(drop_worker_run_hooks(envelopes, frozenset(self._worker_session_hook_ids)))
         expected_sequence = self._next_worker_sequence.get(worker_id, 0)
         if sequence != expected_sequence:
             raise FormatterRuntimeError(

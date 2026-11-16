@@ -63,7 +63,6 @@ from pytest_cuke.model.message_consolidation import (
     drop_unstarted_run_hooks,
     drop_worker_run_hooks,
     namespace_envelope_ids,
-    worker_run_hook_ids,
 )
 from pytest_cuke.model.message_converter import feature_to_gherkin_document, scenario_pickle_id, scenario_to_pickle
 from pytest_cuke.model.message_source import callable_source_reference
@@ -272,7 +271,6 @@ class MessagePlugin:
     test_cases_by_nodeid: dict[str, TestCase] = attrib(factory=dict)
     test_case_hook_steps_by_nodeid: dict[str, dict[str, TestStep]] = attrib(factory=dict)
     scenario_hook_step_ids: set[str] = attrib(factory=set)
-    worker_session_hook_ids: set[str] = attrib(factory=set)
     parameter_type_registry: set[int] = attrib(factory=set)
     published_step_definition_ids: set[str] = attrib(factory=set)
     hook_registry: set[int] = attrib(factory=set)
@@ -839,15 +837,12 @@ class MessagePlugin:
                     self._publish_worker_message_batch(ready_batch)
 
     def _publish_worker_message_batch(self, batch: MessageBatch) -> None:
-        batch_envelopes = [dict(envelope) for envelope in batch.envelopes]
-        self.worker_session_hook_ids.update(worker_run_hook_ids(batch_envelopes))
-        canonical_envelopes = drop_worker_run_hooks(batch_envelopes, frozenset(self.worker_session_hook_ids))
         live_batch = {
             "worker_id": batch.worker_id,
             "sequence": batch.sequence,
             "envelopes": [
                 presented
-                for envelope in canonical_envelopes
+                for envelope in batch.envelopes
                 for presented in self.report_presentation.accept(
                     namespace_envelope_ids(envelope, worker_id=batch.worker_id)
                 )
