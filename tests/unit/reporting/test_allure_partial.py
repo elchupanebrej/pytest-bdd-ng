@@ -3,7 +3,12 @@ from pathlib import Path
 
 import pytest
 
-from pytest_cuke.allure_conversion import AllureConversionError, _completed_partial_envelopes, _read_envelopes
+from pytest_cuke.allure_conversion import (
+    AllureConversionError,
+    _completed_partial_envelopes,
+    _read_envelopes,
+    convert_allure_messages,
+)
 from pytest_cuke.model.message_types import (
     Envelope,
     Pickle,
@@ -33,6 +38,19 @@ def test_partial_read_stops_at_a_malformed_line(tmp_path):
     assert len(parsed.envelopes) == 1
     assert parsed.incomplete is not None
     assert "line 2" in parsed.incomplete
+
+
+def test_unpublishable_partial_stream_reports_its_cause(tmp_path):
+    source = tmp_path / "messages.ndjson"
+    _write_started(source)
+    with source.open("a", encoding="utf-8") as stream:
+        stream.write("{broken-json}\n")
+    output = tmp_path / "allure-results"
+
+    with pytest.raises(AllureConversionError, match=r"invalid JSON in .* at line 2"):
+        convert_allure_messages(source, output)
+
+    assert not output.exists()
 
 
 def test_missing_run_finish_is_marked_as_incomplete(tmp_path):

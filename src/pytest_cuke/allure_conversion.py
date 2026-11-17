@@ -57,6 +57,9 @@ class _NormalizedEnvelope:
 def convert_allure_messages(input_path: Path, output_dir: Path, *, xfail_as_failed: bool = False, skip_as_failed: bool = False, tolerated_as_failed: bool = False, wip_as_failed: bool = False) -> None:
     """Convert every completed scenario attempt in one Cucumber Messages run."""
     parsed = _read_envelopes(input_path, allow_incomplete=True)
+    if parsed.incomplete is not None and not any(envelope.pickle is not None for envelope in parsed.envelopes):
+        # Nothing is publishable, so report the stream defect instead of the derived symptom.
+        raise AllureConversionError(f"Messages stream is incomplete: {parsed.incomplete}")
     incomplete = parsed.incomplete
     if incomplete is not None:
         parsed = replace(parsed, envelopes=_completed_partial_envelopes(parsed.envelopes))
