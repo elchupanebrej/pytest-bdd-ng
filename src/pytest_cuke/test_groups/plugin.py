@@ -9,8 +9,13 @@ import pytest
 from pytest_cuke.compatibility.pytest import Parser, get_config_root_path
 from pytest_cuke.compatibility.pytest import fail as pytest_fail
 from pytest_cuke.test_groups.assignment import TestGroupAssignment, assign_test_group
-from pytest_cuke.test_groups.barrier import TestGroupBarrier, TestGroupBarrierTimeout
+from pytest_cuke.test_groups.barrier import (
+    TestGroupBarrier,
+    TestGroupBarrierTimeout,
+    dead_worker_diagnostic,
+)
 from pytest_cuke.test_groups.config import parse_test_group_configuration
+from pytest_cuke.test_groups.relay import BarrierRelay, start_relay
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -38,14 +43,21 @@ def add_test_group_ini(parser: Parser) -> None:
     )
     parser.addini(
         "cuke_test_group_barrier_timeout",
-        "Maximum seconds a local xdist worker waits for earlier test groups to settle.",
+        "Maximum seconds a worker waits for earlier test groups to settle.",
         default="60",
+        type="string",
+    )
+    parser.addini(
+        "cuke_test_group_relay",
+        "HOST:PORT of the socket relay that carries group barrier state for workers without a shared "
+        "filesystem; empty keeps local filesystem state.",
+        default="",
         type="string",
     )
 
 
 class TestGroupPlugin:
-    """Assign optional test groups, preserve collection order, and coordinate local xdist."""
+    """Assign optional test groups, preserve collection order, and coordinate xdist workers."""
 
     __test__ = False
 
@@ -56,6 +68,7 @@ class TestGroupPlugin:
                 default_group=config.getini("cuke_test_group_default"),
                 paths=config.getini("cuke_test_group_paths"),
                 barrier_timeout=config.getini("cuke_test_group_barrier_timeout"),
+                relay=config.getini("cuke_test_group_relay"),
             )
         except ValueError as error:
             raise pytest.UsageError(str(error)) from error
@@ -63,6 +76,7 @@ class TestGroupPlugin:
         self.config = config
         self.assignments: dict[str, TestGroupAssignment] = {}
         self.barrier: TestGroupBarrier | None = None
+        self.relay: BarrierRelay | None = None
         self._worker = isinstance(getattr(config, "workerinput", None), dict)
 
         for warning in self.group_configuration.warnings:
@@ -75,6 +89,44 @@ class TestGroupPlugin:
         if self.group_configuration.enabled:
             self._register_group_markers()
             self._reject_unsupported_xdist_modes()
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_configure(self, config: Any) -> None:
+        """Serve the barrier relay on the controller when workers share no filesystem."""
+        relay = self.group_configuration.relay
+        if self._worker or not self.group_configuration.enabled or relay is None:
+            return
+        host, port = relay
+        try:
+            self.relay = start_relay(port)
+        except OSError as error:
+            raise pytest.UsageError(
+                f"cuke_test_group_relay cannot bind port {port} on this controller: {error}. "
+                f"Choose a free port that every worker can reach at {host}:{port}."
+            ) from error
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_unconfigure(self, config: Any) -> None:
+        """Release the relay port at the end of the controller session."""
+        if self.relay is not None:
+            self.relay.stop()
+            self.relay = None
+
+    @pytest.hookimpl(optionalhook=True)
+    def pytest_testnodedown(self, node: Any, error: Any) -> None:
+        """Report a dead worker that still owed terminal receipts for earlier groups."""
+        if self.relay is None:
+            return
+        worker = str(getattr(node, "workerid", None) or getattr(getattr(node, "gateway", None), "id", "") or "")
+        if not worker:
+            return
+        self.relay.state.mark_worker_down(worker, str(error or ""))
+        diagnostic = dead_worker_diagnostic(self.relay.state.snapshot(), worker)
+        if diagnostic is None:
+            return
+        reporter = self.config.pluginmanager.getplugin("terminalreporter")
+        if reporter is not None:
+            reporter.write_line(f"pytest-cuke test-group barrier: {diagnostic}; later groups stay closed.", red=True)
 
     @pytest.hookimpl(hookwrapper=True, tryfirst=True)
     def pytest_collection_modifyitems(self, session: Any, config: Any, items: list[Any]) -> Generator[None, None, None]:
@@ -110,40 +162,50 @@ class TestGroupPlugin:
             return
 
         workerinput = self.config.workerinput
-        run_uid = workerinput.get("testrunuid")
-        if not isinstance(run_uid, str) or not run_uid:
-            raise pytest.UsageError(
-                "pytest-cuke test-group barriers require pytest-xdist to provide a per-run "
-                "testrunuid; upgrade pytest-xdist or disable cuke_test_group_order."
+        relay = self.group_configuration.relay
+        if relay is not None:
+            barrier = TestGroupBarrier.for_relay(
+                relay,
+                timeout=self.group_configuration.barrier_timeout,
+                groups=self.group_configuration.order,
+                worker_id=str(workerinput.get("workerid") or ""),
             )
-        safe_uid = "".join(char if char.isalnum() or char in "-_." else "_" for char in run_uid)
-        root_path = get_config_root_path(self.config)
-        state_dir = root_path / ".pytest_cache" / "pytest-cuke-test-groups" / safe_uid
-        barrier = TestGroupBarrier(
-            state_dir,
-            timeout=self.group_configuration.barrier_timeout,
-            groups=self.group_configuration.order,
-        )
+        else:
+            run_uid = workerinput.get("testrunuid")
+            if not isinstance(run_uid, str) or not run_uid:
+                raise pytest.UsageError(
+                    "pytest-cuke test-group barriers require pytest-xdist to provide a per-run "
+                    "testrunuid; upgrade pytest-xdist or disable cuke_test_group_order."
+                )
+            safe_uid = "".join(char if char.isalnum() or char in "-_." else "_" for char in run_uid)
+            root_path = get_config_root_path(self.config)
+            state_dir = root_path / ".pytest_cache" / "pytest-cuke-test-groups" / safe_uid
+            barrier = TestGroupBarrier.for_state_directory(
+                state_dir,
+                timeout=self.group_configuration.barrier_timeout,
+                groups=self.group_configuration.order,
+            )
         barrier.initialize(assignments)
         self.barrier = barrier
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_xdist_setupnodes(self, specs: Any) -> None:
-        """Reject remote xdist transports before pytest-xdist connects to workers."""
-        if not self.group_configuration.enabled:
+        """Reject remote xdist transports unless a barrier relay is configured."""
+        if not self.group_configuration.enabled or self.group_configuration.relay is not None:
             return
         for spec in specs:
             if not _is_local_xdist_spec(spec):
                 raise pytest.UsageError(
                     "cuke_test_group_order supports only local pytest-xdist workers on a shared "
-                    "filesystem; remote/non-shared --tx workers are unsupported. "
-                    "Use --tx=popen or disable cuke_test_group_order."
+                    "filesystem; remote/non-shared --tx workers need cuke_test_group_relay=HOST:PORT. "
+                    "Use --tx=popen, configure the barrier relay, or disable cuke_test_group_order."
                 )
 
     def pytest_runtest_setup(self, item: Any) -> None:
         """Hold later groups until every selected earlier-group item has a terminal receipt."""
         if self.barrier is None:
             return
+        self.barrier.claim(item.nodeid)
         assignment = self._assignment_for(item)
         if assignment.ordinal == 0:
             return
@@ -198,7 +260,7 @@ class TestGroupPlugin:
         if getattr(self.config.option, "dist", None) == "each":
             raise pytest.UsageError(
                 "cuke_test_group_order does not support pytest-xdist --dist=each because that mode "
-                "runs duplicate collections; use a local load scheduler with a shared filesystem."
+                "runs duplicate collections; use a load scheduler with a shared filesystem or a relay."
             )
 
         transactions = getattr(self.config.option, "tx", ()) or ()
@@ -206,11 +268,11 @@ class TestGroupPlugin:
             transactions = (transactions,)
         for transaction in transactions:
             value = str(transaction).strip()
-            if value and not value.startswith("popen"):
+            if value and not value.startswith("popen") and self.group_configuration.relay is None:
                 raise pytest.UsageError(
                     "cuke_test_group_order supports only local pytest-xdist workers on a shared "
-                    "filesystem; remote/non-shared --tx workers are unsupported. "
-                    "Use --tx=popen or disable cuke_test_group_order."
+                    "filesystem; remote/non-shared --tx workers need cuke_test_group_relay=HOST:PORT. "
+                    "Use --tx=popen, configure the barrier relay, or disable cuke_test_group_order."
                 )
 
 

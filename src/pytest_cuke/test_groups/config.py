@@ -28,6 +28,7 @@ class TestGroupConfiguration:
     path_mappings: tuple[TestGroupPathMapping, ...]
     barrier_timeout: float
     warnings: tuple[str, ...]
+    relay: tuple[str, int] | None = None
 
     @property
     def enabled(self) -> bool:
@@ -45,6 +46,7 @@ def parse_test_group_configuration(
     default_group: str | None = None,
     paths: Sequence[str] | None = None,
     barrier_timeout: int | float | str | None = DEFAULT_BARRIER_TIMEOUT,
+    relay: str | tuple[str, int] | None = None,
 ) -> TestGroupConfiguration:
     """Parse public pytest settings without depending on pytest hook state.
 
@@ -99,6 +101,7 @@ def parse_test_group_configuration(
         path_mappings=tuple(parsed_paths),
         barrier_timeout=timeout,
         warnings=tuple(warning_messages),
+        relay=_parse_relay(relay),
     )
 
 
@@ -152,3 +155,19 @@ def _parse_barrier_timeout(value: int | float | str | None) -> float:
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError("cuke_test_group_barrier_timeout must be a positive finite number")
     return timeout
+
+
+def _parse_relay(value: str | tuple[str, int] | None) -> tuple[str, int] | None:
+    if isinstance(value, tuple):
+        return value
+    text = (value or "").strip()
+    if not text:
+        return None
+    # shortcut: only HOST:PORT (IPv4/hostname) is parsed; add bracket handling if IPv6 is needed.
+    host, separator, port_text = text.rpartition(":")
+    port = int(port_text) if port_text.isdecimal() else 0
+    if not separator or not host or not 0 < port <= 65535:
+        raise ValueError(
+            "cuke_test_group_relay must be HOST:PORT, for example controller:8889, with a TCP port between 1 and 65535"
+        )
+    return (host, port)

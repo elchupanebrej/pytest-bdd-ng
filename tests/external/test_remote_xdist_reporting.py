@@ -7,10 +7,14 @@ import os
 import shutil
 import subprocess
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 pytestmark = pytest.mark.external
 
@@ -302,3 +306,105 @@ def test_remote_xdist_report_preserves_worker_contract(
                 f"remote xdist Compose cleanup failed; check Docker daemon state:\n{stopped.stdout}\n{stopped.stderr}",
                 pytrace=False,
             )
+
+
+@contextmanager
+def _remote_cluster(mode: str, tmp_path: Path) -> Iterator[tuple[str, dict[str, str]]]:
+    """Start one Compose cluster with independent worker containers and always tear it down."""
+    ssh_dir = tmp_path / "ssh"
+    ssh_dir.mkdir()
+    if mode == "ssh":
+        _make_ssh_key(ssh_dir)
+    project_name = f"pytest-cuke-remote-{uuid.uuid4().hex[:12]}"
+    env = _compose_environment(mode, ssh_dir, "")
+    started = _run_compose(project_name, env, "up", "--detach", "--build", timeout=1200)
+    assert started.returncode == 0, (
+        f"could not start the remote xdist Compose cluster:\n{started.stdout}\n{started.stderr}"
+    )
+    try:
+        yield project_name, env
+    finally:
+        stopped = _run_compose(project_name, env, "down", "--volumes", "--remove-orphans", timeout=180)
+        if stopped.returncode != 0:
+            pytest.fail(
+                f"remote xdist Compose cleanup failed; check Docker daemon state:\n{stopped.stdout}\n{stopped.stderr}",
+                pytrace=False,
+            )
+
+
+def _run_group_barrier(
+    mode: str,
+    project_name: str,
+    env: dict[str, str],
+    *extra: str,
+) -> subprocess.CompletedProcess[str]:
+    return _run_compose(
+        project_name,
+        env,
+        "exec",
+        "-T",
+        "controller",
+        "python",
+        "/workspace/tests/external/remote-xdist/controller_runner.py",
+        "--mode",
+        mode,
+        "--group-barrier",
+        *extra,
+        timeout=1000,
+    )
+
+
+def _read_group_events(project_name: str, env: dict[str, str]) -> list[dict[str, Any]]:
+    code = (
+        "import json; from pathlib import Path; root=Path('/artifacts/observations/groups'); "
+        "print(json.dumps([json.loads(p.read_text(encoding='utf-8')) for p in sorted(root.glob('*.json'))]))"
+    )
+    result = _run_compose(project_name, env, "exec", "-T", "controller", "python", "-c", code)
+    assert result.returncode == 0, f"could not read remote group events:\n{result.stdout}\n{result.stderr}"
+    events = json.loads(result.stdout)
+    assert isinstance(events, list) and events, "the grouped remote run recorded no events"
+    return events
+
+
+@pytest.mark.parametrize("mode", REMOTE_MODES, ids=REMOTE_MODES)
+def test_remote_xdist_group_barrier_carries_state_without_a_shared_volume(mode: str, tmp_path: Path) -> None:
+    """Grouped remote workers must hold group order through the relay, not a shared directory."""
+    _require_prerequisites(mode)
+    with _remote_cluster(mode, tmp_path) as (project_name, env):
+        runner = _run_group_barrier(mode, project_name, env)
+        output = runner.stdout + "\n" + runner.stderr
+        assert "REMOTE_XDIST_GROUP_BARRIER=relay=controller:8889" in output, output
+        assert runner.returncode == 0, output
+
+        events = _read_group_events(project_name, env)
+        assert {event.get("mode") for event in events} == {mode}, events
+        unit_timestamps = [event["timestamp_ns"] for event in events if event.get("group") == "unit"]
+        integration_timestamps = [event["timestamp_ns"] for event in events if event.get("group") == "integration"]
+        assert len(unit_timestamps) == 5, events
+        assert len(integration_timestamps) == 1, events
+        assert max(unit_timestamps) <= min(integration_timestamps), (
+            f"the integration group started before every remote unit scenario settled: {events!r}"
+        )
+        assert {event.get("worker") for event in events} == {"gw0", "gw1"}, events
+        assert not any(event.get("barrier_state_dir") for event in events), (
+            "a remote worker fell back to local barrier state; grouped state must travel over the relay"
+        )
+
+
+@pytest.mark.parametrize("mode", REMOTE_MODES, ids=REMOTE_MODES)
+def test_remote_xdist_group_barrier_names_the_dead_workers_unfinished_group(mode: str, tmp_path: Path) -> None:
+    """A worker that dies before its receipt must name the open group and keep the next one closed."""
+    _require_prerequisites(mode)
+    with _remote_cluster(mode, tmp_path) as (project_name, env):
+        runner = _run_group_barrier(mode, project_name, env, "--group-crash")
+        output = runner.stdout + "\n" + runner.stderr
+        assert runner.returncode != 0, f"the remote worker crash must fail the grouped run:\n{output}"
+        assert "stopped before publishing terminal receipts" in output, output
+        assert "'unit'" in output, output
+        assert "remote-unit-crash.feature" in output, output
+        assert "controller:8889" in output, output
+
+        events = _read_group_events(project_name, env)
+        assert not [event for event in events if event.get("group") == "integration"], (
+            f"the integration group ran even though a unit worker died: {events!r}"
+        )

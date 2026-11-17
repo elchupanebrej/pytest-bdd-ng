@@ -463,3 +463,95 @@ Feature: Local xdist test-group completion barriers
     And pytest output should include "duplicate"
     And pytest output should include "unknown"
     And pytest output should include "malformed"
+
+  Scenario: The barrier relay orders groups without a shared state directory
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And the consumer records monotonic test start and terminal events
+    And the consumer enables the relay barrier on a free local port
+    And consumer file "tests/test_a_unit.py" contains:
+      """python
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.mark.unit
+      def test_unit_a(request):
+          record_start(request.node.nodeid, "unit")
+
+
+      @pytest.mark.unit
+      def test_unit_b(request):
+          record_start(request.node.nodeid, "unit")
+      """
+    And consumer file "tests/test_b_unit.py" contains:
+      """python
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.mark.unit
+      def test_unit_c(request):
+          record_start(request.node.nodeid, "unit")
+
+
+      @pytest.mark.unit
+      def test_unit_d(request):
+          record_start(request.node.nodeid, "unit")
+      """
+    And consumer file "tests/test_z_integration.py" contains:
+      """python
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.mark.integration
+      def test_integration_waits_for_the_relay(request):
+          record_start(request.node.nodeid, "integration")
+      """
+    When I run installed pytest with a 60-second watchdog and arguments "-c pytest.ini --order-scope=session -n2 --dist=loadfile --cuke-no-autoload -q"
+    Then the installed pytest run should finish before its watchdog
+    And pytest should exit with code 0
+    And every selected "unit" test should settle before any "integration" test starts
+    And at least two xdist workers should have recorded group events
+    And the consumer should have no test-group barrier state root
+
+  Scenario: A dead relay worker names the unfinished group and test instead of opening the next group
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And the consumer records monotonic test start and terminal events
+    And the consumer enables the relay barrier on a free local port
+    And consumer file "tests/test_a_unit_worker_exit.py" contains:
+      """python
+      import os
+
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.mark.unit
+      def test_unit_worker_exits(request):
+          record_start(request.node.nodeid, "unit")
+          os._exit(17)
+      """
+    And consumer file "tests/test_z_integration_later.py" contains:
+      """python
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.mark.integration
+      def test_integration_waits_for_a_dead_relay_worker(request):
+          record_start(request.node.nodeid, "integration")
+      """
+    When I run installed pytest with a 30-second watchdog and arguments "-c pytest.ini --order-scope=session -n2 --dist=loadfile --max-worker-restart=0 --cuke-no-autoload -q"
+    Then the installed pytest run should finish before its watchdog
+    And pytest should exit with a non-zero code
+    And pytest output should include "stopped before publishing terminal receipts"
+    And pytest output should include "test_unit_worker_exits"
+    And pytest output should include "'unit'"
+    And pytest output should include "barrier relay"
+    And the consumer should have no test-group barrier state root

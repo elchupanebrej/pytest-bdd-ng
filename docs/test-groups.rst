@@ -68,11 +68,26 @@ are deduplicated by node ID.
 
 Each xdist run has its own coordinator state beneath
 ``.pytest_cache/pytest-cuke-test-groups``. Local workers must share that
-filesystem. Remote ``--tx`` workers and ``--dist=each`` are rejected because
-the file barrier cannot coordinate non-shared filesystems or duplicate
-collections. If a worker stops before it reports a selected test, waiting
-workers fail after the configured timeout with the outstanding group and node
-ID in the diagnostic.
+filesystem. Remote ``--tx`` workers need a socket relay instead:
+
+.. code-block:: ini
+
+   [pytest]
+   cuke_test_group_order = unit integration
+   cuke_test_group_relay = controller:8889
+
+The controller process binds the relay on every interface at that port, and
+workers connect to the same address. Barrier state (the selected manifest,
+terminal receipts, item ownership, and dead-worker notices) travels over the
+relay, so independent worker containers need no shared volume. Local
+``--tx=popen`` workers keep using the default filesystem state and need no
+relay. ``--dist=each`` remains unsupported because it duplicates collections.
+
+If a worker stops before it reports a selected test, the controller marks it
+down on the relay. Waiting workers then fail immediately with the dead worker,
+the outstanding group, and the pending node IDs in the diagnostic. Without a
+relay, the same situation fails after ``cuke_test_group_barrier_timeout`` with
+the outstanding group and node ID in the diagnostic.
 
 These pytest suite groups control whole-test execution across workers. They are
 separate from asynchronous Gherkin step groups, which coordinate steps within

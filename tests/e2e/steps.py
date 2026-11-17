@@ -7,6 +7,7 @@ import os
 import re
 import shlex
 import shutil
+import socket
 import subprocess
 import string
 import sys
@@ -5663,6 +5664,22 @@ def consumer_run_aware_xdist_isolation(consumer: ConsumerProject) -> None:
         assert len({row["run_identity"] for row in rows}) == 1, rows
         worker_run_ids.update(run_ids)
     assert len(worker_run_ids) == 2, worker_run_ids
+
+
+@given("the consumer enables the relay barrier on a free local port")
+def configure_consumer_relay_barrier(consumer: ConsumerProject) -> None:
+    """Point the consumer's barrier at a relay the controller will bind for this run."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    (consumer.path / "pytest.ini").write_text(
+        "[pytest]\n"
+        "cuke_test_group_order = unit integration\n"
+        "cuke_test_group_default = integration\n"
+        "cuke_test_group_barrier_timeout = 20\n"
+        f"cuke_test_group_relay = 127.0.0.1:{port}\n",
+        encoding="utf-8",
+    )
 
 
 @given("the consumer records monotonic test start and terminal events")

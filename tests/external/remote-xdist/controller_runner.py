@@ -13,6 +13,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path("/workspace/tests/external/remote-xdist/project")
 REPORT_PATH = Path("/artifacts/messages.ndjson")
+GROUP_BARRIER_RELAY = "controller:8889"
 
 
 def _wait_for_tcp(host: str, port: int, *, timeout: float = 90.0) -> None:
@@ -109,6 +110,8 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("socket", "via", "ssh"), required=True)
     parser.add_argument("--crash-worker", default="")
+    parser.add_argument("--group-barrier", action="store_true")
+    parser.add_argument("--group-crash", action="store_true")
     args = parser.parse_args()
 
     Path("/artifacts/observations").mkdir(parents=True, exist_ok=True)
@@ -118,6 +121,11 @@ def main() -> int:
         crash_marker.write_text(args.crash_worker, encoding="utf-8")
     else:
         crash_marker.unlink(missing_ok=True)
+    group_crash_marker = Path("/artifacts/group-crash")
+    if args.group_crash:
+        group_crash_marker.write_text("1", encoding="utf-8")
+    else:
+        group_crash_marker.unlink(missing_ok=True)
     transport_args, gateway_summary = _transport_args(args.mode)
     command = [
         sys.executable,
@@ -134,6 +142,24 @@ def main() -> int:
         *transport_args,
         "-q",
     ]
+    if args.group_barrier:
+        command.extend(
+            [
+                "-o",
+                "cuke_test_group_order=unit integration",
+                "-o",
+                "cuke_test_group_default=integration",
+                "-o",
+                "cuke_test_group_barrier_timeout=30",
+                "-o",
+                f"cuke_test_group_relay={GROUP_BARRIER_RELAY}",
+                str(PROJECT_ROOT / "features" / "remote-groups" / "unit" / "remote-unit.feature"),
+                str(PROJECT_ROOT / "features" / "remote-groups" / "unit" / "remote-unit-crash.feature"),
+                str(PROJECT_ROOT / "features" / "remote-groups" / "integration" / "remote-integration.feature"),
+            ]
+        )
+    else:
+        command.append(f"--ignore={PROJECT_ROOT / 'features' / 'remote-groups'}")
     print(f"REMOTE_XDIST_MODE={args.mode}", flush=True)
     print(
         "REMOTE_XDIST_RUNTIME="
@@ -141,6 +167,8 @@ def main() -> int:
         flush=True,
     )
     print(f"REMOTE_XDIST_GATEWAYS={gateway_summary}", flush=True)
+    if args.group_barrier:
+        print(f"REMOTE_XDIST_GROUP_BARRIER=relay={GROUP_BARRIER_RELAY}", flush=True)
     print(f"REMOTE_XDIST_COMMAND={shlex.join(command)}", flush=True)
     result = subprocess.run(command, capture_output=True, check=False, text=True, timeout=900)
     if result.stdout:

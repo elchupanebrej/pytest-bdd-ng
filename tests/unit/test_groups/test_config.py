@@ -63,3 +63,27 @@ def test_barrier_timeout_string_is_parsed_and_invalid_string_is_rejected() -> No
     assert config.barrier_timeout == 12.5
     with pytest.raises(ValueError, match="cuke_test_group_barrier_timeout"):
         parse_test_group_configuration(order=("unit",), barrier_timeout="invalid")
+
+
+def test_relay_address_is_parsed_for_remote_workers() -> None:
+    config = parse_test_group_configuration(order=("unit",), relay=" controller:8889 ")
+
+    assert config.relay == ("controller", 8889)
+
+
+def test_empty_relay_keeps_the_local_filesystem_transport() -> None:
+    config = parse_test_group_configuration(order=("unit",), relay="")
+
+    assert config.relay is None
+
+
+@pytest.mark.parametrize("relay", ["controller", "controller:", ":8889", "controller:0", "controller:99999", "a:b"])
+def test_invalid_relay_addresses_are_rejected(relay: str) -> None:
+    with pytest.raises(ValueError, match="cuke_test_group_relay"):
+        parse_test_group_configuration(order=("unit",), relay=relay)
+
+
+def test_relay_is_ignored_when_group_ordering_is_disabled() -> None:
+    config = parse_test_group_configuration(order=(), relay="invalid")
+
+    assert config.relay is None

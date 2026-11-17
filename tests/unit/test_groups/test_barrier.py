@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -11,9 +12,11 @@ from pytest_cuke.test_groups.assignment import TestGroupAssignment, TestGroupAss
 from pytest_cuke.test_groups.barrier import (
     TestGroupBarrier,
     TestGroupBarrierTimeout,
+    TestGroupBarrierWorkerDeath,
     _write_json_atomically,
 )
 from pytest_cuke.test_groups.plugin import TestGroupPlugin
+from pytest_cuke.test_groups.relay import BarrierRelayError, RelayBarrierClient, start_relay
 
 
 def _assignment(nodeid: str, group: str, ordinal: int) -> TestGroupAssignment:
@@ -26,7 +29,7 @@ def _assignment(nodeid: str, group: str, ordinal: int) -> TestGroupAssignment:
 
 
 def test_barrier_waits_for_receipt_and_deduplicates_terminal_reports(tmp_path: Path) -> None:
-    barrier = TestGroupBarrier(tmp_path / "run-a", timeout=0.1, groups=("unit", "integration"))
+    barrier = TestGroupBarrier.for_state_directory(tmp_path / "run-a", timeout=0.1, groups=("unit", "integration"))
     unit = _assignment("tests/test_unit.py::test_unit", "unit", 0)
     integration = _assignment("tests/test_integration.py::test_integration", "integration", 1)
     barrier.initialize((unit, integration))
@@ -46,8 +49,8 @@ def test_barrier_waits_for_receipt_and_deduplicates_terminal_reports(tmp_path: P
 def test_barrier_state_isolated_by_run_directory(tmp_path: Path) -> None:
     unit = _assignment("tests/test_unit.py::test_unit", "unit", 0)
     integration = _assignment("tests/test_integration.py::test_integration", "integration", 1)
-    first = TestGroupBarrier(tmp_path / "run-a", timeout=0.02, groups=("unit", "integration"))
-    second = TestGroupBarrier(tmp_path / "run-b", timeout=0.02, groups=("unit", "integration"))
+    first = TestGroupBarrier.for_state_directory(tmp_path / "run-a", timeout=0.02, groups=("unit", "integration"))
+    second = TestGroupBarrier.for_state_directory(tmp_path / "run-b", timeout=0.02, groups=("unit", "integration"))
     first.initialize((unit, integration))
     second.initialize((unit, integration))
     first.record_terminal(unit.nodeid)
@@ -59,7 +62,7 @@ def test_barrier_state_isolated_by_run_directory(tmp_path: Path) -> None:
 
 def test_empty_selection_does_not_create_barrier_state(tmp_path: Path) -> None:
     state_dir = tmp_path / "empty-run"
-    barrier = TestGroupBarrier(state_dir, timeout=1, groups=("unit", "integration"))
+    barrier = TestGroupBarrier.for_state_directory(state_dir, timeout=1, groups=("unit", "integration"))
 
     barrier.initialize(())
 
@@ -114,12 +117,12 @@ def test_barrier_retries_a_transient_replace_error_after_a_slow_initial_write(
 
     monkeypatch.setattr(barrier_module, "time", SimpleNamespace(monotonic=lambda: clock[0], sleep=advance))
     monkeypatch.setattr(barrier_module, "os", SimpleNamespace(fsync=slow_first_fsync, replace=transient_replace))
-    barrier = TestGroupBarrier(tmp_path / "run", timeout=1, groups=("unit",))
+    barrier = TestGroupBarrier.for_state_directory(tmp_path / "run", timeout=1, groups=("unit",))
 
     barrier.initialize((_assignment("tests/test_unit.py::test_unit", "unit", 0),))
 
     assert attempts == 2
-    assert json.loads(barrier.manifest_path.read_text(encoding="utf-8"))["items"][0]["group"] == "unit"
+    assert json.loads((tmp_path / "run" / "manifest.json").read_text(encoding="utf-8"))["items"][0]["group"] == "unit"
 
 
 def test_barrier_stops_retrying_a_persistent_replace_error(
@@ -140,14 +143,14 @@ def test_barrier_stops_retrying_a_persistent_replace_error(
 
     monkeypatch.setattr(barrier_module, "time", SimpleNamespace(monotonic=lambda: clock[0], sleep=advance))
     monkeypatch.setattr(barrier_module, "os", SimpleNamespace(fsync=os.fsync, replace=failing_replace))
-    barrier = TestGroupBarrier(tmp_path / "run", timeout=1, groups=("unit",))
+    barrier = TestGroupBarrier.for_state_directory(tmp_path / "run", timeout=1, groups=("unit",))
 
     with pytest.raises(PermissionError, match="temporarily in use"):
         barrier.initialize((_assignment("tests/test_unit.py::test_unit", "unit", 0),))
 
     assert attempts > 1
     assert 2.0 <= clock[0] < 2.1
-    assert not list(barrier.state_dir.glob("*.tmp"))
+    assert not list((tmp_path / "run").glob("*.tmp"))
 
 
 @pytest.mark.parametrize(
@@ -174,14 +177,179 @@ def test_plugin_records_only_terminal_reports(when: str, outcome: str, should_re
 
 def test_plugin_rejects_remote_xdist_specs_before_worker_setup() -> None:
     plugin = object.__new__(TestGroupPlugin)
-    plugin.group_configuration = SimpleNamespace(enabled=True)
+    plugin.group_configuration = SimpleNamespace(enabled=True, relay=None)
 
     with pytest.raises(pytest.UsageError, match="shared filesystem"):
         plugin.pytest_xdist_setupnodes([SimpleNamespace(popen=False, ssh="invalid.invalid")])
 
 
+def test_plugin_allows_remote_xdist_specs_when_the_barrier_relay_is_configured() -> None:
+    plugin = object.__new__(TestGroupPlugin)
+    plugin.group_configuration = SimpleNamespace(enabled=True, relay=("controller", 8889))
+
+    plugin.pytest_xdist_setupnodes([SimpleNamespace(popen=False, ssh="worker1")])
+
+
 def test_plugin_allows_local_popen_xdist_specs() -> None:
     plugin = object.__new__(TestGroupPlugin)
-    plugin.group_configuration = SimpleNamespace(enabled=True)
+    plugin.group_configuration = SimpleNamespace(enabled=True, relay=None)
 
     plugin.pytest_xdist_setupnodes([SimpleNamespace(popen=True)])
+
+
+@pytest.fixture
+def relay():
+    server = start_relay(0)
+    try:
+        yield server
+    finally:
+        server.stop()
+
+
+def _relay_barrier(relay, worker: str, *, timeout: float = 2.0) -> TestGroupBarrier:
+    return TestGroupBarrier.for_relay(
+        ("127.0.0.1", relay.port),
+        timeout=timeout,
+        groups=("unit", "integration"),
+        worker_id=worker,
+    )
+
+
+def test_relay_barrier_orders_groups_and_deduplicates_terminal_receipts(relay) -> None:
+    unit = _assignment("tests/test_unit.py::test_unit", "unit", 0)
+    integration = _assignment("tests/test_integration.py::test_integration", "integration", 1)
+    producer = _relay_barrier(relay, "gw0")
+    waiter = _relay_barrier(relay, "gw1", timeout=0.1)
+    producer.initialize((unit, integration))
+    waiter.initialize((unit, integration))
+
+    with pytest.raises(TestGroupBarrierTimeout, match=r"unit.*integration"):
+        waiter.wait_for_earlier_groups(integration)
+
+    producer.record_terminal(unit.nodeid)
+    producer.record_terminal(unit.nodeid)
+    waiter.wait_for_earlier_groups(integration)
+
+    receipts = relay.state.snapshot().receipts
+    assert list(receipts) == [unit.nodeid]
+    assert receipts[unit.nodeid] == {"nodeid": unit.nodeid, "group": "unit", "ordinal": 0}
+
+
+def test_relay_barrier_ignores_receipts_for_unselected_items(relay) -> None:
+    unit = _assignment("tests/test_unit.py::test_unit", "unit", 0)
+    barrier = _relay_barrier(relay, "gw0")
+    barrier.initialize((unit,))
+
+    barrier.record_terminal("tests/test_other.py::test_other")
+
+    assert relay.state.snapshot().receipts == {}
+
+
+def test_relay_barrier_names_the_unfinished_group_and_test_when_a_worker_dies(relay) -> None:
+    unit = _assignment("tests/test_a_unit.py::test_unit_exits", "unit", 0)
+    integration = _assignment("tests/test_z_integration.py::test_integration", "integration", 1)
+    doomed = _relay_barrier(relay, "gw1", timeout=30)
+    waiter = _relay_barrier(relay, "gw0", timeout=30)
+    doomed.initialize((unit, integration))
+    waiter.initialize((unit, integration))
+    doomed.claim(unit.nodeid)
+    relay.state.mark_worker_down("gw1", "worker gw1 crashed")
+
+    started = time.monotonic()
+    with pytest.raises(TestGroupBarrierWorkerDeath, match="test_unit_exits") as error:
+        waiter.wait_for_earlier_groups(integration)
+
+    assert time.monotonic() - started < 5
+    message = str(error.value)
+    assert "'gw1'" in message
+    assert "'unit'" in message
+    assert "tests/test_a_unit.py::test_unit_exits" in message
+    assert "127.0.0.1" in message
+
+
+def test_relay_barrier_keeps_waiting_when_a_finished_worker_dies(relay) -> None:
+    unit = _assignment("tests/test_unit.py::test_unit", "unit", 0)
+    integration = _assignment("tests/test_integration.py::test_integration", "integration", 1)
+    producer = _relay_barrier(relay, "gw1", timeout=0.2)
+    waiter = _relay_barrier(relay, "gw0", timeout=0.2)
+    producer.initialize((unit, integration))
+    waiter.initialize((unit, integration))
+    producer.claim(unit.nodeid)
+    producer.record_terminal(unit.nodeid)
+    relay.state.mark_worker_down("gw1", "normal shutdown")
+
+    waiter.wait_for_earlier_groups(integration)
+
+
+def test_relay_barrier_timeout_names_the_relay_and_pending_test(relay) -> None:
+    unit = _assignment("tests/test_unit.py::test_unit", "unit", 0)
+    integration = _assignment("tests/test_integration.py::test_integration", "integration", 1)
+    barrier = _relay_barrier(relay, "gw0", timeout=0.1)
+    barrier.initialize((unit, integration))
+
+    with pytest.raises(TestGroupBarrierTimeout, match="test_unit") as error:
+        barrier.wait_for_earlier_groups(integration)
+
+    message = str(error.value)
+    assert "Timed out" in message
+    assert "barrier relay" in message
+    assert "shared filesystem" not in message
+    assert barrier.relay_label == f"127.0.0.1:{relay.port}"
+
+
+def test_relay_client_retries_a_transient_connection_error(relay, monkeypatch: pytest.MonkeyPatch) -> None:
+    import pytest_cuke.test_groups.relay as relay_module
+
+    client = relay_module.RelayBarrierClient(
+        ("127.0.0.1", relay.port),
+        worker_id="gw0",
+        timeout=2,
+    )
+    original_post = client._post
+    attempts = 0
+
+    def flaky_post(request):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise ConnectionResetError("relay connection reset")
+        return original_post(request)
+
+    monkeypatch.setattr(client, "_post", flaky_post)
+    client.publish_manifest({"groups": ["unit"], "items": []})
+
+    assert attempts == 2
+    assert relay.state.snapshot().manifest == {"groups": ["unit"], "items": []}
+
+
+def test_relay_client_fails_loudly_when_the_relay_is_unreachable() -> None:
+    probe = start_relay(0)
+    port = probe.port
+    probe.stop()
+    client = RelayBarrierClient(("127.0.0.1", port), worker_id="gw0", timeout=0.2)
+
+    with pytest.raises(BarrierRelayError, match="cuke_test_group_relay"):
+        client.publish_manifest({"groups": ["unit"], "items": []})
+
+
+def test_filesystem_transport_remains_the_default() -> None:
+    barrier = TestGroupBarrier.for_state_directory(Path("/tmp/unused"), timeout=1, groups=("unit",))
+    assert barrier.relay_label == ""
+
+
+def test_relay_transport_carries_state_without_a_state_directory(relay, tmp_path: Path) -> None:
+    unit = _assignment("tests/test_unit.py::test_unit", "unit", 0)
+    barrier = TestGroupBarrier.for_relay(
+        ("127.0.0.1", relay.port),
+        timeout=2,
+        groups=("unit",),
+        worker_id="gw0",
+    )
+
+    barrier.initialize((unit,))
+    barrier.record_terminal(unit.nodeid)
+
+    assert list(tmp_path.iterdir()) == []
+    snapshot = relay.state.snapshot()
+    assert snapshot.manifest is not None
+    assert snapshot.receipts[unit.nodeid]["group"] == "unit"
