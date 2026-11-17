@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import http.client
 import json
+import socketserver
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -129,6 +130,12 @@ class _RelayHTTPServer(ThreadingHTTPServer):
     def __init__(self, address: tuple[str, int], state: BarrierRelayState) -> None:
         super().__init__(address, _RelayRequestHandler)
         self.state = state
+
+    def server_bind(self) -> None:
+        # Skip BaseHTTPServer's getfqdn reverse lookup: resolving 0.0.0.0 stalls on macOS.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name = str(self.server_address[0])
+        self.server_port = int(self.server_address[1])
 
 
 class BarrierRelay:
