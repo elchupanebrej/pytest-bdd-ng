@@ -150,8 +150,23 @@ def _write_preflight_lines(request: Any, lines: list[str]) -> None:
     write_line = getattr(reporter, "write_line", None)
     if write_line is None:
         return
-    for line in lines:
-        write_line(line)
+    capture = pluginmanager.get_plugin("capturemanager") if pluginmanager is not None else None
+    suspend = getattr(capture, "suspend_global_capture", None)
+    resume = getattr(capture, "resume_global_capture", None)
+    suspended = callable(suspend) and callable(resume)
+    if suspended:
+        # The finding is a diagnostic, not test output: show it even while the
+        # call phase is captured (unbuffered interpreters capture it otherwise).
+        cast("Callable[[bool], None]", suspend)(False)
+    try:
+        for line in lines:
+            write_line(line)
+        flush = getattr(getattr(reporter, "_tw", None), "flush", None)
+        if callable(flush):
+            flush()
+    finally:
+        if suspended:
+            cast("Callable[[], None]", resume)()
 
 
 class StepRunner:

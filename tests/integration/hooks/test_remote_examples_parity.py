@@ -207,7 +207,8 @@ def test_local_feature_can_load_basic_authenticated_remote_examples(pytester, mo
             capture_output=True,
         )
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-        context.load_cert_chain(cert, key)
+        # Some interpreters (GraalPy) require string paths here.
+        context.load_cert_chain(str(cert), str(key))
         server.socket = context.wrap_socket(server.socket, server_side=True)
         monkeypatch.setenv("SSL_CERT_FILE", str(cert))
     Thread(target=server.serve_forever, daemon=True).start()
