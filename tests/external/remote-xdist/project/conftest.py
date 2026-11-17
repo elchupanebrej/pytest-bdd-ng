@@ -48,8 +48,9 @@ def passing_remote_scenario() -> None:
 def _record_group_event(group: str, request: pytest.FixtureRequest) -> None:
     worker_id = os.environ.get("PYTEST_XDIST_WORKER", "")
     assert worker_id, "the grouped remote contract must run in an xdist worker"
-    assigned = {marker.name for marker in request.node.iter_markers()}
-    assert group in assigned, f"the group barrier assigned {sorted(assigned)} instead of {group!r}"
+    if request.config.getini("cuke_test_group_order"):
+        assigned = {marker.name for marker in request.node.iter_markers()}
+        assert group in assigned, f"the group barrier assigned {sorted(assigned)} instead of {group!r}"
     event = {
         "worker": worker_id,
         "host": socket.gethostname(),

@@ -154,12 +154,10 @@ def main() -> int:
                 "-o",
                 f"cuke_test_group_relay={GROUP_BARRIER_RELAY}",
                 str(PROJECT_ROOT / "features" / "remote-groups" / "unit" / "remote-unit.feature"),
-                str(PROJECT_ROOT / "features" / "remote-groups" / "unit" / "remote-unit-crash.feature"),
+                str(PROJECT_ROOT / "features" / "remote-groups" / "unit" / "remote-units-crash.feature"),
                 str(PROJECT_ROOT / "features" / "remote-groups" / "integration" / "remote-integration.feature"),
             ]
         )
-    else:
-        command.append(f"--ignore={PROJECT_ROOT / 'features' / 'remote-groups'}")
     print(f"REMOTE_XDIST_MODE={args.mode}", flush=True)
     print(
         "REMOTE_XDIST_RUNTIME="

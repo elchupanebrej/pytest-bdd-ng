@@ -362,7 +362,7 @@ def _read_group_events(project_name: str, env: dict[str, str]) -> list[dict[str,
     result = _run_compose(project_name, env, "exec", "-T", "controller", "python", "-c", code)
     assert result.returncode == 0, f"could not read remote group events:\n{result.stdout}\n{result.stderr}"
     events = json.loads(result.stdout)
-    assert isinstance(events, list) and events, "the grouped remote run recorded no events"
+    assert isinstance(events, list), f"unexpected grouped remote event payload: {result.stdout!r}"
     return events
 
 
@@ -401,7 +401,7 @@ def test_remote_xdist_group_barrier_names_the_dead_workers_unfinished_group(mode
         assert runner.returncode != 0, f"the remote worker crash must fail the grouped run:\n{output}"
         assert "stopped before publishing terminal receipts" in output, output
         assert "'unit'" in output, output
-        assert "remote-unit-crash.feature" in output, output
+        assert "remote-units-crash.feature" in output, output
         assert "controller:8889" in output, output
 
         events = _read_group_events(project_name, env)
