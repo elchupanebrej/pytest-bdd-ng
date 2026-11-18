@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import socket
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -59,6 +60,7 @@ def test_debug_mcp_options_use_cli_values_before_ini_values() -> None:
             "cuke_mcp_max_holds": "0",
             "cuke_mcp_expose_env": False,
             "cuke_mcp_redact_patterns": "",
+            "cuke_mcp_registry": "",
         }[name],
     )
 
@@ -84,6 +86,7 @@ def test_debug_mcp_artifact_cli_path_overrides_ini_path() -> None:
         "cuke_mcp_max_holds": "0",
         "cuke_mcp_expose_env": False,
         "cuke_mcp_redact_patterns": "",
+        "cuke_mcp_registry": "",
     }
     config = SimpleNamespace(
         option=SimpleNamespace(cuke_mcp_artifacts="cli-artifacts"),
@@ -115,6 +118,7 @@ def test_debug_mcp_options_have_inert_loopback_defaults() -> None:
             "cuke_mcp_max_holds": "0",
             "cuke_mcp_expose_env": False,
             "cuke_mcp_redact_patterns": "",
+            "cuke_mcp_registry": "",
         }[name],
     )
 
@@ -151,6 +155,7 @@ def test_debug_mcp_options_reject_invalid_ini_values() -> None:
             "cuke_mcp_max_holds": "0",
             "cuke_mcp_expose_env": False,
             "cuke_mcp_redact_patterns": "",
+            "cuke_mcp_registry": "",
         }[name],
     )
 
@@ -160,6 +165,35 @@ def test_debug_mcp_options_reject_invalid_ini_values() -> None:
 
 def test_bracketed_ipv6_host_is_normalized_for_bind_and_url_use() -> None:
     assert _host("[::1]") == "::1"
+
+
+def test_auto_host_binds_every_interface_and_advertises_the_machine_hostname() -> None:
+    options = DebugMcpOptions(host="auto")
+
+    assert _host("auto") == "auto"
+    assert options.bind_host == "0.0.0.0"
+    assert options.advertised_host == socket.gethostname()
+    assert options.uses_nonlocal_host is True
+
+
+def test_registry_address_is_resolved_from_cli_then_ini() -> None:
+    ini = {
+        "cuke_mcp_on_fail": False,
+        "cuke_mcp_timeout": "30s",
+        "cuke_mcp_lease": "10s",
+        "cuke_mcp_host": "127.0.0.1",
+        "cuke_mcp_port": "auto",
+        "cuke_mcp_artifacts": "",
+        "cuke_mcp_max_holds": "0",
+        "cuke_mcp_expose_env": False,
+        "cuke_mcp_redact_patterns": "",
+        "cuke_mcp_registry": "controller:8890",
+    }
+    config = SimpleNamespace(option=SimpleNamespace(cuke_mcp_registry=None), getini=lambda name: ini[name])
+    assert DebugMcpOptions.from_config(config).registry == ("controller", 8890)
+
+    config.option = SimpleNamespace(cuke_mcp_registry="cli-controller:8891")
+    assert DebugMcpOptions.from_config(config).registry == ("cli-controller", 8891)
 
 
 @pytest.mark.parametrize("value", ["0.0.0.0", "::"])
@@ -196,6 +230,7 @@ def test_new_controls_resolve_ini_and_cli_precedence() -> None:
         "cuke_mcp_max_holds": "2",
         "cuke_mcp_expose_env": True,
         "cuke_mcp_redact_patterns": "ini-secret, private",
+        "cuke_mcp_registry": "",
     }
     config = SimpleNamespace(option=SimpleNamespace(), getini=lambda name: ini[name])
     from_ini = DebugMcpOptions.from_config(config)

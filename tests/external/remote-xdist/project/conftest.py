@@ -7,6 +7,7 @@ from importlib.metadata import version
 import os
 import platform
 import socket
+import threading
 import time
 from pathlib import Path
 
@@ -43,6 +44,30 @@ def passing_remote_scenario() -> None:
     temporary_path.write_text(json.dumps(observation), encoding="utf-8")
     temporary_path.replace(observation_dir / f"{worker_id}.json")
     time.sleep(0.15)
+
+
+@given("a remote debug failure that waits for inspection")
+def remote_debug_failure() -> None:
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER")
+    secret = os.environ.get("REMOTE_DEBUG_SECRET", "remote-debug-secret-value")
+    assert worker_id, "the remote Debug MCP contract must run in an xdist worker"
+    raise RuntimeError(f"remote debug failure on {worker_id} with {secret}")
+
+
+def _exit_on_stop_request(worker_id: str) -> None:
+    marker = Path("/artifacts/debug-stop-worker")
+    while True:
+        if marker.is_file() and marker.read_text(encoding="utf-8").strip() == worker_id:
+            os._exit(86)
+        time.sleep(0.05)
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    del config
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER")
+    if not worker_id or not Path("/artifacts/debug-watch-stop").is_file():
+        return
+    threading.Thread(target=_exit_on_stop_request, args=(worker_id,), daemon=True).start()
 
 
 def _record_group_event(group: str, request: pytest.FixtureRequest) -> None:

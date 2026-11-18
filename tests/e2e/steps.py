@@ -11639,6 +11639,9 @@ def start_consumer_pytest_for_mcp_inspection(arguments: str, consumer: ConsumerP
     occupied_port = getattr(consumer, "_mcp_occupied_port", None)
     if occupied_port is not None:
         cli_arguments = [argument.replace("{mcp_occupied_port}", str(occupied_port)) for argument in cli_arguments]
+    registry_port = getattr(consumer, "_mcp_registry_port", None)
+    if registry_port is not None:
+        cli_arguments = [argument.replace("{mcp_registry_port}", str(registry_port)) for argument in cli_arguments]
     nonlocal_host = getattr(consumer, "_mcp_nonlocal_host", None)
     if nonlocal_host is not None:
         cli_arguments = [argument.replace("{mcp_nonlocal_host}", str(nonlocal_host)) for argument in cli_arguments]
@@ -14400,6 +14403,7 @@ def consumer_pytest_help_documents_debug_mcp_defaults(consumer: ConsumerProject)
         "--cuke-mcp-lease",
         "--cuke-mcp-host",
         "--cuke-mcp-port",
+        "--cuke-mcp-registry",
         "default: 30 seconds",
         "default: 10 seconds",
         "default: 127.0.0.1",
@@ -14771,6 +14775,30 @@ def install_concurrent_xdist_debugger_failures(consumer: ConsumerProject) -> Non
         ),
         encoding="utf-8",
     )
+
+
+@given("the controller reserves a free Debug MCP registry port")
+def reserve_debug_mcp_registry_port(consumer: ConsumerProject) -> None:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:
+        listener.bind(("127.0.0.1", 0))
+        consumer._mcp_registry_port = int(listener.getsockname()[1])
+
+
+@then("the controller registry should have carried every worker record")
+def consumer_debug_mcp_registry_carried_worker_records(consumer: ConsumerProject) -> None:
+    command = getattr(consumer, "_mcp_pytest_command", None)
+    final_index = getattr(consumer, "_mcp_xdist_duplicate_final_index", None)
+    observation = getattr(consumer, "_mcp_xdist_duplicate_client_observation", None)
+    assert isinstance(command, list), command
+    assert any(str(argument).startswith("--cuke-mcp-registry=") for argument in command), command
+    assert isinstance(final_index, dict), final_index
+    assert isinstance(observation, dict), observation
+    output = consumer.pytest_result.stdout if consumer.pytest_result is not None else ""
+    assert "Debug MCP discovery registry: http://127.0.0.1:" in output, output
+    workers = final_index.get("workers")
+    assert isinstance(workers, list) and len(workers) == 2, final_index
+    assert all(worker.get("status") == "closed" for worker in workers if isinstance(worker, dict)), final_index
+    assert final_index.get("status") == "closed", final_index
 
 
 @given("the installed consumer exposes an identical failure on each xdist worker")

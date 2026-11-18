@@ -76,11 +76,19 @@ def probe_mcp_endpoint(endpoint: str, *, timeout: float = 2.0) -> None:
 class DebuggerMcpProcess:
     """Manage the optional mcp-pdb HTTP server process and drain its stderr pipe."""
 
-    def __init__(self, *, host: str, port: int, inspection_endpoint: str) -> None:
+    def __init__(
+        self,
+        *,
+        host: str,
+        port: int,
+        inspection_endpoint: str,
+        advertise_host: str | None = None,
+    ) -> None:
         self.host = host
         self.port = port
         self.inspection_endpoint = inspection_endpoint
-        self.endpoint = endpoint_url(host, port)
+        self.advertise_host = advertise_host or host
+        self.endpoint = endpoint_url(self.advertise_host, port)
         self.process: subprocess.Popen[str] | None = None
         self._stderr_thread: threading.Thread | None = None
         self._stderr_tail: list[str] = []
@@ -95,6 +103,8 @@ class DebuggerMcpProcess:
             self.host,
             "--port",
             str(self.port),
+            "--advertise-host",
+            self.advertise_host,
             "--inspection-url",
             self.inspection_endpoint,
         ]
@@ -185,13 +195,14 @@ class InspectionMcpServer:
         port: int,
         artifact_sink: ArtifactSink | None = None,
         pluginmanager: Any | None = None,
+        advertise_host: str | None = None,
     ) -> None:
         self.queue = queue
         self.host = host
         self.port = port
         self.artifact_sink = artifact_sink
         self.pluginmanager = pluginmanager
-        self.endpoint = endpoint_url(host, port)
+        self.endpoint = endpoint_url(advertise_host or host, port)
         self._server: Any = None
         self._thread: threading.Thread | None = None
 

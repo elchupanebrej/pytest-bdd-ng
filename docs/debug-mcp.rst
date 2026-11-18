@@ -20,7 +20,8 @@ port is selected.
    pytest --cuke-mcp-on-fail --cuke-mcp-timeout=30s --cuke-mcp-lease=10s
 
 The equivalent pytest settings are ``cuke_mcp_timeout``, ``cuke_mcp_lease``,
-``cuke_mcp_host``, ``cuke_mcp_port`` and ``cuke_mcp_artifacts``. Durations accept bare seconds or the
+``cuke_mcp_host``, ``cuke_mcp_port``, ``cuke_mcp_artifacts`` and
+``cuke_mcp_registry``. Durations accept bare seconds or the
 ``ms``, ``s``, ``m`` and ``h`` suffixes and must be positive finite values.
 The debugger port accepts ``auto`` or a fixed value from 1 through 65535.
 Command-line values take precedence over pytest configuration.
@@ -28,7 +29,10 @@ Command-line values take precedence over pytest configuration.
 Binding to a host other than loopback prints a trusted-environment warning.
 Wildcard addresses such as ``0.0.0.0`` and ``::`` are rejected because clients
 cannot connect to an advertised wildcard endpoint; choose a specific interface
-address that the MCP client can reach.
+address that the MCP client can reach. ``--cuke-mcp-host=auto`` is the explicit
+remote-worker mode: it binds every interface and advertises the process
+hostname, which resolves to the worker container or host from the controller
+network.
 The optional mcp-pdb server exposes tools that execute Python debugger
 commands, so use it only in an environment you trust; see the
 `mcp-pdb security note <https://pypi.org/project/mcp-pdb/>`_.
@@ -141,11 +145,33 @@ numbers from different workers from sharing artifact paths.
 Workers allocate their debugger and inspection ports independently, so leave
 the debugger port at its default ``auto`` value when using xdist. A fixed
 ``--cuke-mcp-port`` is rejected for xdist workers because multiple workers
-cannot bind the same debugger port. Remote execnet gateways are unsupported:
-workers must be able to publish to the controller's cache directory on a
-shared local filesystem. Enabling Debug MCP with a remote gateway reports an
-error before starting workers. Run without Debug MCP or use local xdist
-workers for this workflow.
+cannot bind the same debugger port.
+
+Remote workers without a shared filesystem publish through a controller-owned
+registry. Start the controller with ``--cuke-mcp-registry=HOST:PORT`` (or
+``cuke_mcp_registry = HOST:PORT``), where ``HOST`` is the controller address
+every worker can reach. The controller binds the registry on every interface,
+adds its URL to each worker's xdist input, and workers post their discovery
+records to it instead of writing to the cache directory. The registry applies
+the same root-session validation, atomic root index update and file lock as
+local workers, so agents keep reading ``workers.json`` and the per-worker
+records at the usual paths. A remote worker must advertise a reachable
+endpoint; use ``--cuke-mcp-host=auto`` for workers in independent containers.
+A remote gateway without a configured registry is rejected before workers
+start. The registry accepts only records carrying the controller's current
+root session ID; use it only on a trusted network.
+
+The registry transport redacts recognized secret values again before writing
+a transported record, and never echoes a submitted payload in an error.
+Detection does not rely on the worker writing a final record. If a remote
+worker exits, crashes or is torn down, pytest-xdist reports the node down on
+the controller; the controller marks that worker ``worker_crashed``, clears
+both endpoints and keeps its last failure context for diagnosis. A released
+hold publishes a null active failure, so its fixture and traceback snapshot is
+removed from the transported record after continuation. Local popen workers
+keep the filesystem discovery path and messages. Investigation artifacts are
+written on the worker unless ``cuke_mcp_artifacts`` names a shared directory;
+their path is returned by ``submit_artifact``.
 
 Failure hold controls and environment inspection
 -----------------------------------------------

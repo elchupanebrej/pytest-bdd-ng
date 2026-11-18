@@ -22,6 +22,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="pytest-cuke-debugger-mcp")
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", required=True, type=int)
+    parser.add_argument("--advertise-host", default=None)
     parser.add_argument("--inspection-url", required=True)
     args = parser.parse_args(argv)
 
@@ -34,7 +35,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     install_debugger_continuation(mcp, debugger.send_pdb_command, args.inspection_url)
     mcp.settings.host = args.host
     mcp.settings.port = args.port
-    _configure_transport_security(mcp.settings, host=args.host, port=args.port)
+    _configure_transport_security(mcp.settings, host=args.advertise_host or args.host, port=args.port)
     mcp.run(transport="streamable-http")
     return 0
 

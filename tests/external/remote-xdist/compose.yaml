@@ -9,6 +9,7 @@ services:
     environment:
       REMOTE_XDIST_MODE: ${REMOTE_XDIST_MODE:?set REMOTE_XDIST_MODE}
       REMOTE_XDIST_CRASH_WORKER: ${REMOTE_XDIST_CRASH_WORKER:-}
+      REMOTE_DEBUG_SECRET: ${REMOTE_DEBUG_SECRET:-}
     volumes:
       - artifacts:/artifacts
       - type: bind
@@ -23,6 +24,7 @@ services:
     environment:
       REMOTE_XDIST_MODE: ${REMOTE_XDIST_MODE:?set REMOTE_XDIST_MODE}
       REMOTE_XDIST_CRASH_WORKER: ${REMOTE_XDIST_CRASH_WORKER:-}
+      REMOTE_DEBUG_SECRET: ${REMOTE_DEBUG_SECRET:-}
     volumes:
       - artifacts:/artifacts
       - type: bind
@@ -37,6 +39,7 @@ services:
     environment:
       REMOTE_XDIST_MODE: ${REMOTE_XDIST_MODE:?set REMOTE_XDIST_MODE}
       REMOTE_XDIST_CRASH_WORKER: ${REMOTE_XDIST_CRASH_WORKER:-}
+      REMOTE_DEBUG_SECRET: ${REMOTE_DEBUG_SECRET:-}
     volumes:
       - artifacts:/artifacts
       - type: bind
@@ -51,6 +54,7 @@ services:
     environment:
       REMOTE_XDIST_MODE: ${REMOTE_XDIST_MODE:?set REMOTE_XDIST_MODE}
       REMOTE_XDIST_CRASH_WORKER: ${REMOTE_XDIST_CRASH_WORKER:-}
+      REMOTE_DEBUG_SECRET: ${REMOTE_DEBUG_SECRET:-}
     volumes:
       - artifacts:/artifacts
 

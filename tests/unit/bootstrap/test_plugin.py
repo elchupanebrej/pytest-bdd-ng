@@ -74,6 +74,7 @@ def test_pytest_configure_lifecycle() -> None:
     config.option.cuke_mcp_max_holds = None
     config.option.cuke_mcp_expose_env = None
     config.option.cuke_mcp_redact_patterns = None
+    config.option.cuke_mcp_registry = None
     config.getoption.side_effect = lambda name: getattr(config.option, name, None)
     config.getini.side_effect = lambda name: {
         "cuke_tolerant_status": "failed",
@@ -86,6 +87,7 @@ def test_pytest_configure_lifecycle() -> None:
         "cuke_mcp_max_holds": "0",
         "cuke_mcp_expose_env": False,
         "cuke_mcp_redact_patterns": "",
+        "cuke_mcp_registry": "",
     }.get(name, "")
 
     pytest_configure(config)

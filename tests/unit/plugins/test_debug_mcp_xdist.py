@@ -389,6 +389,12 @@ def test_xdist_detection_and_worker_ids_cover_workers_gateways_and_local_specs()
     assert xdist.xdist_root_session_id(
         SimpleNamespace(workerinput={"cuke_debug_mcp_root_session_id": "root-7"})
     ) == "root-7"
+    assert xdist.xdist_registry_url(
+        SimpleNamespace(workerinput={"cuke_debug_mcp_registry_url": "http://controller:8890"})
+    ) == "http://controller:8890"
+    assert xdist.xdist_registry_url(SimpleNamespace(workerinput={})) is None
+    with pytest.raises(xdist.XdistDiscoveryError, match="invalid Debug MCP registry URL"):
+        xdist.xdist_registry_url(SimpleNamespace(workerinput={"cuke_debug_mcp_registry_url": ""}))
     assert xdist.is_xdist_controller(SimpleNamespace(pluginmanager=SimpleNamespace(get_plugin=lambda name: object())))
     assert xdist.is_local_xdist_spec(SimpleNamespace(popen=True))
     assert not xdist.is_local_xdist_spec(SimpleNamespace(popen=False))
@@ -406,11 +412,37 @@ def test_plugin_xdist_paths_share_the_debug_mcp_cache_root(tmp_path: Path) -> No
     assert _xdist_workers_dir(config) == tmp_path / ".pytest_cache" / "cuke" / "debug-mcp" / "workers"
 
 
-def test_remote_gateway_is_rejected_before_worker_startup() -> None:
+def test_remote_gateway_is_rejected_without_a_controller_registry() -> None:
     plugin = DebugMcpPlugin(config=SimpleNamespace(), options=DebugMcpOptions(enabled=True))
 
-    with pytest.raises(pytest.UsageError, match="remote gateways are unsupported"):
+    with pytest.raises(pytest.UsageError, match="--cuke-mcp-registry=HOST:PORT"):
         plugin.pytest_xdist_setupnodes([SimpleNamespace(popen=False)])
+
+
+def test_remote_gateway_is_allowed_when_a_controller_registry_is_running() -> None:
+    plugin = DebugMcpPlugin(config=SimpleNamespace(), options=DebugMcpOptions(enabled=True))
+    plugin.registry = SimpleNamespace(url="http://controller:8890")
+
+    plugin.pytest_xdist_setupnodes([SimpleNamespace(popen=False), SimpleNamespace(popen=True)])
+
+
+def test_configure_node_propagates_the_controller_registry(tmp_path: Path) -> None:
+    index = _index(tmp_path)
+    index.initialize()
+    config = SimpleNamespace(
+        pluginmanager=SimpleNamespace(get_plugin=lambda name: object() if name == "dsession" else None),
+        option=SimpleNamespace(numprocesses=2, tx=()),
+    )
+    plugin = DebugMcpPlugin(config=config, options=DebugMcpOptions(enabled=True))
+    plugin.xdist_index = index
+    plugin.registry = SimpleNamespace(url="http://controller:8890")
+    node = SimpleNamespace(workerinput={"workerid": "gw0"})
+
+    plugin.pytest_configure_node(node)
+
+    assert node.workerinput["cuke_debug_mcp_registry_url"] == "http://controller:8890"
+    assert node.workerinput["cuke_debug_mcp_root_session_id"] == plugin.root_session_id
+    assert _read(index.path)["workers"][0]["status"] == "starting"
 
 
 def test_xdist_worker_rejects_a_fixed_debugger_port(tmp_path: Path) -> None:
@@ -428,3 +460,76 @@ def test_xdist_worker_rejects_a_fixed_debugger_port(tmp_path: Path) -> None:
 
     with pytest.raises(DebugMcpDependencyError, match="need --cuke-mcp-port=auto"):
         plugin._start_xdist_worker()
+
+
+def test_xdist_worker_publishes_through_the_registry_without_a_filesystem_index(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = SimpleNamespace(
+        rootpath=tmp_path,
+        option=SimpleNamespace(cache_dir=None),
+        getini=lambda name: ".pytest_cache",
+        workerinput={
+            "cuke_debug_mcp_root_session_id": "root-session",
+            "cuke_debug_mcp_registry_url": "http://controller:8890",
+        },
+    )
+    plugin = DebugMcpPlugin(config=config, options=DebugMcpOptions(enabled=True))
+    plugin.worker_id = "gw0"
+    started: list[dict[str, object]] = []
+    monkeypatch.setattr(plugin, "_start_services", lambda **kwargs: started.append(kwargs))
+
+    plugin._start_xdist_worker()
+
+    assert plugin.xdist_index is None
+    assert plugin.discovery_relay is not None
+    assert plugin.discovery_relay.label == "controller:8890"
+    assert len(started) == 1
+    assert started[0]["discovery_path"] is None
+    assert started[0]["worker_id"] == "gw0"
+    assert started[0]["root_session_id"] == "root-session"
+    assert callable(started[0]["on_publish"])
+    assert callable(started[0]["on_remove"])
+
+
+def test_xdist_worker_rejects_an_invalid_registry_address(tmp_path: Path) -> None:
+    config = SimpleNamespace(
+        rootpath=tmp_path,
+        option=SimpleNamespace(cache_dir=None),
+        getini=lambda name: ".pytest_cache",
+        workerinput={
+            "cuke_debug_mcp_root_session_id": "root-session",
+            "cuke_debug_mcp_registry_url": "not-an-address",
+        },
+    )
+    plugin = DebugMcpPlugin(config=config, options=DebugMcpOptions(enabled=True))
+    plugin.worker_id = "gw0"
+
+    with pytest.raises(DebugMcpDependencyError, match="invalid discovery registry"):
+        plugin._start_xdist_worker()
+
+
+def test_xdist_worker_falls_back_to_the_configured_registry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = SimpleNamespace(
+        rootpath=tmp_path,
+        option=SimpleNamespace(cache_dir=None),
+        getini=lambda name: ".pytest_cache",
+        workerinput={"cuke_debug_mcp_root_session_id": "root-session"},
+    )
+    plugin = DebugMcpPlugin(
+        config=config,
+        options=DebugMcpOptions(enabled=True, registry=("controller", 8890)),
+    )
+    plugin.worker_id = "gw0"
+    started: list[dict[str, object]] = []
+    monkeypatch.setattr(plugin, "_start_services", lambda **kwargs: started.append(kwargs))
+
+    plugin._start_xdist_worker()
+
+    assert plugin.discovery_relay is not None
+    assert plugin.discovery_relay.label == "controller:8890"
+    assert started[0]["discovery_path"] is None

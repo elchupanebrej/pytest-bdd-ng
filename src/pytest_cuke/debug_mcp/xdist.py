@@ -396,6 +396,19 @@ def xdist_root_session_id(config: Any) -> str | None:
     return session_id
 
 
+def xdist_registry_url(config: Any) -> str | None:
+    """Read the controller registry address when workers publish without a shared filesystem."""
+    worker_input = getattr(config, "workerinput", None)
+    if not isinstance(worker_input, dict):
+        return None
+    registry_url = worker_input.get("cuke_debug_mcp_registry_url")
+    if registry_url is None:
+        return None
+    if not isinstance(registry_url, str) or not registry_url.strip():
+        raise XdistDiscoveryError("pytest-xdist worker received an invalid Debug MCP registry URL")
+    return registry_url.strip()
+
+
 def is_xdist_controller(config: Any) -> bool:
     """Detect the xdist controller without importing or requiring pytest-xdist."""
     pluginmanager = getattr(config, "pluginmanager", None)
@@ -437,6 +450,7 @@ __all__ = [
     "is_local_xdist_spec",
     "is_xdist_controller",
     "safe_worker_id",
+    "xdist_registry_url",
     "xdist_root_session_id",
     "xdist_worker_id",
 ]

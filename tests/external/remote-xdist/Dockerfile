@@ -12,6 +12,6 @@ COPY pyproject.toml setup.cfg setup.py README.rst LICENSE.rst ./
 COPY src/pytest_cuke ./src/pytest_cuke
 COPY tests/external/remote-xdist ./tests/external/remote-xdist
 
-RUN python -m pip install --no-cache-dir -e '.[test]' 'pytest-xdist>=3.8,<4'
+RUN python -m pip install --no-cache-dir -e '.[test,debug-mcp]' 'pytest-xdist>=3.8,<4'
 
 CMD ["sleep", "infinity"]

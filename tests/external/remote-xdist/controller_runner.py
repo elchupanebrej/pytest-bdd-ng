@@ -14,6 +14,8 @@ from pathlib import Path
 PROJECT_ROOT = Path("/workspace/tests/external/remote-xdist/project")
 REPORT_PATH = Path("/artifacts/messages.ndjson")
 GROUP_BARRIER_RELAY = "controller:8889"
+DEBUG_MCP_REGISTRY = "controller:8890"
+DEBUG_MCP_ARTIFACTS = "/artifacts/debug-mcp"
 
 
 def _wait_for_tcp(host: str, port: int, *, timeout: float = 90.0) -> None:
@@ -112,10 +114,13 @@ def main() -> int:
     parser.add_argument("--crash-worker", default="")
     parser.add_argument("--group-barrier", action="store_true")
     parser.add_argument("--group-crash", action="store_true")
+    parser.add_argument("--debug-mcp", action="store_true")
     args = parser.parse_args()
 
     Path("/artifacts/observations").mkdir(parents=True, exist_ok=True)
     Path("/artifacts/remote-mode").write_text(args.mode, encoding="utf-8")
+    Path("/artifacts/debug-stop-worker").unlink(missing_ok=True)
+    Path("/artifacts/debug-watch-stop").unlink(missing_ok=True)
     crash_marker = Path("/artifacts/crash-worker")
     if args.crash_worker:
         crash_marker.write_text(args.crash_worker, encoding="utf-8")
@@ -142,6 +147,19 @@ def main() -> int:
         *transport_args,
         "-q",
     ]
+    if args.debug_mcp:
+        Path("/artifacts/debug-watch-stop").write_text("1", encoding="utf-8")
+        command[command.index("--dist=load")] = "--dist=each"
+        debug_args = [
+            "--cuke-mcp-on-fail",
+            "--cuke-mcp-timeout=120s",
+            "--cuke-mcp-lease=30s",
+            "--cuke-mcp-host=auto",
+            f"--cuke-mcp-registry={DEBUG_MCP_REGISTRY}",
+            f"--cuke-mcp-artifacts={DEBUG_MCP_ARTIFACTS}",
+            str(PROJECT_ROOT / "features" / "remote-debug" / "remote-debug.feature"),
+        ]
+        command[command.index("-q") : command.index("-q")] = debug_args
     if args.group_barrier:
         command.extend(
             [
@@ -167,6 +185,9 @@ def main() -> int:
     print(f"REMOTE_XDIST_GATEWAYS={gateway_summary}", flush=True)
     if args.group_barrier:
         print(f"REMOTE_XDIST_GROUP_BARRIER=relay={GROUP_BARRIER_RELAY}", flush=True)
+    if args.debug_mcp:
+        print(f"REMOTE_XDIST_DEBUG_MCP=registry={DEBUG_MCP_REGISTRY}", flush=True)
+        print(f"REMOTE_XDIST_DEBUG_ARTIFACTS={DEBUG_MCP_ARTIFACTS}", flush=True)
     print(f"REMOTE_XDIST_COMMAND={shlex.join(command)}", flush=True)
     result = subprocess.run(command, capture_output=True, check=False, text=True, timeout=900)
     if result.stdout:

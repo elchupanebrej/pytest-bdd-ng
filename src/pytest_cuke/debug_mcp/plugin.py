@@ -10,6 +10,11 @@ import pytest
 from pytest_cuke.debug_mcp.artifacts import ArtifactSink
 from pytest_cuke.debug_mcp.discovery import DiscoveryPublisher
 from pytest_cuke.debug_mcp.redaction import redact_data, redact_text, redacted_environment, secret_values
+from pytest_cuke.debug_mcp.registry import (
+    DiscoveryRegistry,
+    DiscoveryRegistryClient,
+    start_registry,
+)
 from pytest_cuke.debug_mcp.server import (
     DebuggerMcpProcess,
     DebugMcpDependencyError,
@@ -24,6 +29,7 @@ from pytest_cuke.debug_mcp.xdist import (
     is_local_xdist_spec,
     is_xdist_controller,
     safe_worker_id,
+    xdist_registry_url,
     xdist_root_session_id,
     xdist_worker_id,
 )
@@ -72,6 +78,8 @@ class DebugMcpPlugin:
         self.debugger: DebuggerMcpProcess | None = None
         self.inspection: InspectionMcpServer | None = None
         self.xdist_index: XdistDiscoveryIndex | None = None
+        self.registry: DiscoveryRegistry | None = None
+        self.discovery_relay: DiscoveryRegistryClient | None = None
         self.worker_id: str | None = None
         self.root_session_id = uuid4().hex
         self._xdist_controller = False
@@ -149,20 +157,21 @@ class DebugMcpPlugin:
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_xdist_setupnodes(self, specs: Any) -> None:
-        """Reject unsupported remote discovery before xdist starts worker processes."""
+        """Require the controller registry before xdist starts remote workers."""
         if not self.options.enabled:
             return
         for spec in specs:
-            if not is_local_xdist_spec(spec):
+            if not is_local_xdist_spec(spec) and self.registry is None:
                 raise pytest.UsageError(
-                    "Debug MCP xdist discovery supports local popen workers on a shared filesystem; "
-                    "remote gateways are unsupported because workers must publish to the root cache. "
-                    "Use local pytest-xdist workers or disable --cuke-mcp-on-fail."
+                    "Debug MCP xdist discovery supports local popen workers on a shared filesystem "
+                    "and remote workers through a controller registry. Configure "
+                    "--cuke-mcp-registry=HOST:PORT so remote workers can publish their endpoints, "
+                    "or use local pytest-xdist workers."
                 )
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_configure_node(self, node: Any) -> None:
-        """Share the controller's run identity with each worker and register it as starting."""
+        """Share the controller's run identity and registry with each worker and register it as starting."""
         if not self.options.enabled or not is_xdist_controller(self.config):
             return
         if self.xdist_index is None:
@@ -172,6 +181,8 @@ class DebugMcpPlugin:
         if not isinstance(worker_input, dict):
             raise pytest.UsageError(f"Debug MCP xdist worker {worker_id!r} has no worker input record")
         worker_input["cuke_debug_mcp_root_session_id"] = self.root_session_id
+        if self.registry is not None:
+            worker_input["cuke_debug_mcp_registry_url"] = self.registry.url
         try:
             self.xdist_index.register_worker(worker_id)
         except XdistDiscoveryError as error:
@@ -227,6 +238,23 @@ class DebugMcpPlugin:
         reporter = self.config.pluginmanager.get_plugin("terminalreporter")
         if reporter is not None:
             reporter.write_line(f"Debug MCP worker discovery index: {_xdist_index_path(self.config)}")
+        if self.options.registry is not None:
+            host, port = self.options.registry
+            try:
+                self.registry = start_registry(
+                    host=host,
+                    port=port,
+                    index=self.xdist_index,
+                    session_id=self.root_session_id,
+                    redact_patterns=self.options.redact_patterns,
+                )
+            except OSError as error:
+                raise DebugMcpDependencyError(
+                    f"Debug MCP discovery registry cannot bind port {port} on this controller: {error}. "
+                    f"Choose a free port that every worker can reach at {host}:{port}."
+                ) from error
+            if reporter is not None:
+                reporter.write_line(f"Debug MCP discovery registry: {self.registry.url}")
 
     @staticmethod
     def _clear_stale_cache_discovery(cache_path: Path) -> None:
@@ -242,37 +270,64 @@ class DebugMcpPlugin:
         if root_session_id is None or self.worker_id is None:
             raise DebugMcpDependencyError("Debug MCP xdist worker identity is missing")
         self.root_session_id = root_session_id
-        self.xdist_index = XdistDiscoveryIndex(
-            path=_xdist_index_path(self.config),
-            workers_dir=_xdist_workers_dir(self.config),
-            session_id=root_session_id,
-        )
         if self.options.port is not None:
             raise DebugMcpDependencyError(
                 "Debug MCP xdist workers need --cuke-mcp-port=auto so each worker can bind a distinct debugger endpoint"
             )
+        registry_url = xdist_registry_url(self.config)
+        if registry_url is None and self.options.registry is not None:
+            host, port = self.options.registry
+            registry_url = f"http://{host}:{port}"
+        if registry_url is None:
+            self.xdist_index = XdistDiscoveryIndex(
+                path=_xdist_index_path(self.config),
+                workers_dir=_xdist_workers_dir(self.config),
+                session_id=root_session_id,
+            )
+            self._start_services(
+                discovery_path=self.xdist_index.worker_path(self.worker_id),
+                worker_id=self.worker_id,
+                root_session_id=root_session_id,
+                on_publish=self.xdist_index.publish_worker,
+                on_remove=self.xdist_index.remove_worker,
+            )
+            return
+        try:
+            client = DiscoveryRegistryClient(
+                registry_url,
+                worker_id=self.worker_id,
+                root_session_id=root_session_id,
+            )
+        except ValueError as error:
+            raise DebugMcpDependencyError(
+                f"Debug MCP xdist worker received an invalid discovery registry: {error}"
+            ) from error
+        secrets = secret_values(self.options.redact_patterns)
+        self.discovery_relay = client
         self._start_services(
-            discovery_path=self.xdist_index.worker_path(self.worker_id),
+            discovery_path=None,
             worker_id=self.worker_id,
             root_session_id=root_session_id,
-            on_publish=self.xdist_index.publish_worker,
-            on_remove=self.xdist_index.remove_worker,
+            on_publish=lambda record: client.publish(redact_data(record, secrets)),
+            on_remove=client.remove,
         )
 
     def _start_services(
         self,
         *,
-        discovery_path: Path,
+        discovery_path: Path | None,
         worker_id: str | None = None,
         root_session_id: str | None = None,
         on_publish: Any | None = None,
         on_remove: Any | None = None,
     ) -> None:
         ensure_optional_dependencies()
+        bind_host = self.options.bind_host
+        advertised_host = self.options.advertised_host
         debugger_port = self.options.port
         if debugger_port is None:
-            debugger_port = allocate_port(self.options.host)
-        inspection_port = allocate_port(self.options.host, excluding={debugger_port})
+            debugger_port = allocate_port(bind_host)
+        inspection_port = allocate_port(bind_host, excluding={debugger_port})
 
         session_id = self._session_id()
         self.artifact_sink = ArtifactSink(
@@ -286,24 +341,26 @@ class DebugMcpPlugin:
         )
         self.inspection = InspectionMcpServer(
             queue=self.queue,
-            host=self.options.host,
+            host=bind_host,
             port=inspection_port,
             artifact_sink=self.artifact_sink,
             pluginmanager=self.config.pluginmanager,
+            advertise_host=advertised_host,
         )
         self.inspection.start()
 
         self.debugger = DebuggerMcpProcess(
-            host=self.options.host,
+            host=bind_host,
             port=debugger_port,
             inspection_endpoint=self.inspection.endpoint,
+            advertise_host=advertised_host,
         )
         self.debugger.start()
 
         self.discovery = DiscoveryPublisher(
             path=discovery_path,
             session_id=session_id,
-            host=self.options.host,
+            host=advertised_host,
             debugger_endpoint=self.debugger.endpoint,
             inspection_endpoint=self.inspection.endpoint,
             debugger_pid=self.debugger.process.pid if self.debugger.process is not None else 0,
@@ -336,7 +393,10 @@ class DebugMcpPlugin:
         if self.debugger is not None and self.inspection is not None and self.discovery is not None:
             reporter.write_line(f"Debug MCP debugger: {self.debugger.endpoint}")
             reporter.write_line(f"Debug MCP inspection: {self.inspection.endpoint}")
-            reporter.write_line(f"Debug MCP discovery: {self.discovery.path}")
+            if self.discovery.path is not None:
+                reporter.write_line(f"Debug MCP discovery: {self.discovery.path}")
+            elif self.discovery_relay is not None:
+                reporter.write_line(f"Debug MCP discovery relay: {self.discovery_relay.label}")
 
     def _publish_state(self, state: dict[str, Any]) -> None:
         if self.discovery is None:
@@ -384,6 +444,12 @@ class DebugMcpPlugin:
                     self.xdist_index.close()
             except Exception as error:
                 errors.append(error)
+        if self.registry is not None:
+            try:
+                self.registry.stop()
+            except Exception as error:
+                errors.append(error)
+            self.registry = None
         if errors:
             reporter = self.config.pluginmanager.get_plugin("terminalreporter")
             if reporter is not None:

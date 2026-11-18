@@ -18,7 +18,7 @@ class DiscoveryPublisher:
     def __init__(
         self,
         *,
-        path: Path,
+        path: Path | None,
         session_id: str,
         host: str,
         debugger_endpoint: str,
@@ -50,6 +50,8 @@ class DiscoveryPublisher:
                 raise ValueError("worker discovery requires a root session ID and index callbacks")
             self._record["root_session_id"] = root_session_id
             self._record["worker_id"] = worker_id
+        elif path is None:
+            raise ValueError("local discovery requires a record path")
 
     def write_initial(self) -> None:
         with self._lock:
@@ -79,11 +81,13 @@ class DiscoveryPublisher:
         with self._lock:
             if self._worker_id is not None and self._on_remove is not None:
                 self._on_remove(self._worker_id)
-            else:
+            elif self.path is not None:
                 self.path.unlink(missing_ok=True)
 
     def _write_locked(self) -> None:
         if self._on_publish is None:
+            if self.path is None:
+                raise ValueError("local discovery requires a record path")
             write_json_atomically(self.path, self._record)
         else:
             self._on_publish(deepcopy(self._record))

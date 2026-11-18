@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import re
+import socket
 from dataclasses import dataclass
 from ipaddress import ip_address
 from pathlib import Path
@@ -62,10 +63,36 @@ def parse_max_holds(value: str | int) -> int:
     return int(text)
 
 
+def parse_registry_address(value: str | tuple[str, int] | None) -> tuple[str, int] | None:
+    """Parse the controller ``HOST:PORT`` address used by remote workers."""
+    if isinstance(value, tuple):
+        return value
+    text = (value or "").strip()
+    if not text:
+        return None
+    if text.startswith("http://"):
+        text = text.removeprefix("http://")
+    host, separator, port_text = text.rpartition(":")
+    port = int(port_text) if port_text.isdecimal() else 0
+    if not separator or not host or not 0 < port <= 65535:
+        raise ValueError(
+            "cuke_mcp_registry must be HOST:PORT, for example controller:8890, with a TCP port between 1 and 65535"
+        )
+    try:
+        address = ip_address(host)
+    except ValueError:
+        return (host, port)
+    if address.is_unspecified:
+        raise ValueError("cuke_mcp_registry cannot advertise a wildcard address; use a reachable controller host")
+    return (host, port)
+
+
 def _host(value: Any) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError("cuke_mcp_host must be a non-empty host name or IP address")
     host = value.strip()
+    if host.casefold() == "auto":
+        return "auto"
     if host.startswith("[") or host.endswith("]"):
         if not host.startswith("[") or not host.endswith("]"):
             raise ValueError("cuke_mcp_host has mismatched IPv6 brackets")
@@ -102,6 +129,7 @@ class DebugMcpOptions:
     max_holds: int = 0
     expose_env: bool = False
     redact_patterns: tuple[str, ...] = ()
+    registry: tuple[str, int] | None = None
 
     @classmethod
     def from_config(cls, config: Config) -> DebugMcpOptions:
@@ -139,7 +167,18 @@ class DebugMcpOptions:
                 for pattern in str(configured("cuke_mcp_redact_patterns", "cuke_mcp_redact_patterns")).split(",")
                 if pattern.strip()
             ),
+            registry=parse_registry_address(configured("cuke_mcp_registry", "cuke_mcp_registry") or ""),
         )
+
+    @property
+    def bind_host(self) -> str:
+        """The interface the MCP servers bind, including the remote ``auto`` mode."""
+        return "0.0.0.0" if self.host == "auto" else self.host  # noqa: S104
+
+    @property
+    def advertised_host(self) -> str:
+        """The host written into endpoints clients use to reach this process."""
+        return socket.gethostname() if self.host == "auto" else self.host
 
     @property
     def uses_nonlocal_host(self) -> bool:
@@ -184,9 +223,10 @@ def add_options(parser: Parser) -> None:
         "--cuke-mcp-host",
         action="store",
         dest="cuke_mcp_host",
-        metavar="HOST",
+        metavar="HOST|auto",
         default=None,
-        help="interface used by the Debug MCP servers (default: 127.0.0.1)",
+        help="interface used by the Debug MCP servers, or auto to bind every interface and advertise "
+        "this machine's hostname for remote xdist workers (default: 127.0.0.1)",
     )
     group.addoption(
         "--cuke-mcp-port",
@@ -207,6 +247,22 @@ def add_options(parser: Parser) -> None:
     parser.addini("cuke_mcp_lease", "Debug MCP heartbeat lease, as a positive duration.", default="10s")
     parser.addini("cuke_mcp_host", "Debug MCP server bind host.", default="127.0.0.1")
     parser.addini("cuke_mcp_port", "Debug MCP debugger port, or auto.", default="auto")
+    group.addoption(
+        "--cuke-mcp-registry",
+        action="store",
+        dest="cuke_mcp_registry",
+        metavar="HOST:PORT",
+        default=None,
+        help="controller registry that carries xdist worker discovery without a shared filesystem "
+        "(default: local worker records)",
+    )
+    parser.addini(
+        "cuke_mcp_registry",
+        "HOST:PORT of the controller registry that carries Debug MCP xdist worker discovery for "
+        "workers without a shared filesystem; empty keeps local worker records.",
+        default="",
+        type="string",
+    )
     group.addoption(
         "--cuke-mcp-artifacts",
         action="store",

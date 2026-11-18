@@ -22,6 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 REMOTE_XDIST_DIR = Path(__file__).with_name("remote-xdist")
 COMPOSE_FILE = REMOTE_XDIST_DIR / "compose.yaml"
 REMOTE_MODES = ("socket", "via", "ssh")
+REMOTE_DEBUG_SECRET = "remote-debug-secret-value"
 
 
 def _run_compose(
@@ -114,6 +115,7 @@ def _compose_environment(mode: str, ssh_dir: Path, crash_worker: str) -> dict[st
     environment["REMOTE_XDIST_MODE"] = mode
     environment["REMOTE_XDIST_CRASH_WORKER"] = crash_worker
     environment["REMOTE_XDIST_SSH_DIR"] = ssh_dir.as_posix()
+    environment["REMOTE_DEBUG_SECRET"] = REMOTE_DEBUG_SECRET
     return environment
 
 
@@ -408,3 +410,219 @@ def test_remote_xdist_group_barrier_names_the_dead_workers_unfinished_group(mode
         assert not [event for event in events if event.get("group") == "integration"], (
             f"the integration group ran even though a unit worker died: {events!r}"
         )
+
+
+def _debug_environment(env: dict[str, str]) -> dict[str, str]:
+    return {**env, "REMOTE_DEBUG_SECRET": REMOTE_DEBUG_SECRET}
+
+
+def _start_remote_debug_run(
+    mode: str,
+    project_name: str,
+    env: dict[str, str],
+    tmp_path: Path,
+) -> tuple[subprocess.Popen[str], Path]:
+    log_path = tmp_path / f"remote-debug-{mode}.log"
+    command = [
+        "docker",
+        "compose",
+        "--project-name",
+        project_name,
+        "--file",
+        str(COMPOSE_FILE),
+        "exec",
+        "-T",
+        "controller",
+        "python",
+        "/workspace/tests/external/remote-xdist/controller_runner.py",
+        "--mode",
+        mode,
+        "--debug-mcp",
+    ]
+    output = log_path.open("w", encoding="utf-8")
+    process = subprocess.Popen(  # noqa: S603  # Fixed docker compose command and arguments.
+        command,
+        cwd=REPO_ROOT,
+        env=env,
+        stdout=output,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    process._pytest_cuke_log = output  # type: ignore[attr-defined]
+    return process, log_path
+
+
+def _wait_remote_debug_run(process: subprocess.Popen[str], log_path: Path, *, timeout: int = 600) -> tuple[int, str]:
+    try:
+        returncode = process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired as error:
+        process.kill()
+        process.wait(timeout=30)
+        raise AssertionError(
+            f"remote Debug MCP run did not finish within {timeout}s:\n{log_path.read_text(encoding='utf-8')}"
+        ) from error
+    finally:
+        output = getattr(process, "_pytest_cuke_log", None)
+        if output is not None:
+            output.close()
+    return returncode, log_path.read_text(encoding="utf-8")
+
+
+def _run_remote_debug_client(
+    project_name: str,
+    env: dict[str, str],
+    *arguments: str,
+    timeout: int = 240,
+) -> dict[str, Any]:
+    result = _run_compose(
+        project_name,
+        env,
+        "exec",
+        "-T",
+        "controller",
+        "python",
+        "/workspace/tests/external/remote-xdist/debug_client.py",
+        *arguments,
+        timeout=timeout,
+    )
+    output = result.stdout + "\n" + result.stderr
+    assert result.returncode == 0, f"remote Debug MCP client failed:\n{output}"
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    assert lines, output
+    observation = json.loads(lines[-1])
+    assert isinstance(observation, dict), observation
+    return observation
+
+
+def _read_remote_debug_files(project_name: str, env: dict[str, str]) -> dict[str, str]:
+    code = (
+        "import json; from pathlib import Path; "
+        "roots=[Path('/artifacts/debug-mcp'), "
+        "Path('/workspace/tests/external/remote-xdist/project/.pytest_cache/cuke/debug-mcp')]; "
+        "print(json.dumps({str(p): p.read_text(encoding='utf-8') for root in roots "
+        "if root.exists() for p in root.rglob('*') if p.is_file()}))"
+    )
+    result = _run_compose(project_name, env, "exec", "-T", "controller", "python", "-c", code)
+    assert result.returncode == 0, f"could not read remote Debug MCP files:\n{result.stdout}\n{result.stderr}"
+    payload = json.loads(result.stdout)
+    assert isinstance(payload, dict), payload
+    return payload
+
+
+def _stop_remote_worker(project_name: str, env: dict[str, str], worker_id: str) -> None:
+    code = f"from pathlib import Path; Path('/artifacts/debug-stop-worker').write_text({worker_id!r}, encoding='utf-8')"
+    result = _run_compose(project_name, env, "exec", "-T", "controller", "python", "-c", code)
+    assert result.returncode == 0, f"could not request a remote worker stop:\n{result.stdout}\n{result.stderr}"
+
+
+@pytest.mark.parametrize("mode", REMOTE_MODES, ids=REMOTE_MODES)
+def test_remote_xdist_debug_mcp_attaches_releases_and_redacts(mode: str, tmp_path: Path) -> None:
+    """Remote workers publish endpoints through the registry and the agent attaches across the network."""
+    _require_prerequisites(mode)
+    with _remote_cluster(mode, tmp_path) as (project_name, base_env):
+        env = _debug_environment(base_env)
+        process, log_path = _start_remote_debug_run(mode, project_name, env, tmp_path)
+        try:
+            observation = _run_remote_debug_client(
+                project_name,
+                env,
+                "--action",
+                "release",
+                "--expected-holds",
+                "2",
+                "--secret",
+                REMOTE_DEBUG_SECRET,
+                "--output",
+                "/artifacts/debug-release.json",
+            )
+        finally:
+            returncode, output = _wait_remote_debug_run(process, log_path)
+
+        assert returncode != 0, output
+        assert f"REMOTE_XDIST_DEBUG_MCP=registry=controller:8890" in output, output
+        initial = observation["initial"]
+        expected_hosts = {"proxy"} if mode == "via" else {"worker1", "worker2"}
+        assert {worker["host"] for worker in initial["workers"]} == expected_hosts, initial
+        assert {release["endpoint_host"] for release in observation["released"]} == expected_hosts, observation
+        assert all(observation["cleared"].values()), observation
+
+        files = _read_remote_debug_files(project_name, env)
+        combined = "\n".join(files.values())
+        assert REMOTE_DEBUG_SECRET not in combined, "the remote Debug MCP transport or artifacts leaked a secret"
+        assert "<redacted>" in combined, "the remote failure was not redacted in transported state or artifacts"
+        index = json.loads(
+            files["/workspace/tests/external/remote-xdist/project/.pytest_cache/cuke/debug-mcp/workers.json"]
+        )
+        assert index["status"] == "closed", index
+        assert len(index["workers"]) == 2, index
+        assert all(worker["active_failure"] is None for worker in index["workers"]), index
+        assert all(worker["debugger_endpoint"] is None for worker in index["workers"]), index
+        assert all(worker["inspection_endpoint"] is None for worker in index["workers"]), index
+
+
+@pytest.mark.parametrize("mode", REMOTE_MODES, ids=REMOTE_MODES)
+def test_remote_xdist_debug_mcp_reports_a_stopped_worker_to_the_agent(mode: str, tmp_path: Path) -> None:
+    """A worker that exits during its hold is advertised as stopped instead of a stale waiting endpoint."""
+    _require_prerequisites(mode)
+    with _remote_cluster(mode, tmp_path) as (project_name, base_env):
+        env = _debug_environment(base_env)
+        process, log_path = _start_remote_debug_run(mode, project_name, env, tmp_path)
+        try:
+            waiting = _run_remote_debug_client(
+                project_name,
+                env,
+                "--action",
+                "wait",
+                "--expected-holds",
+                "2",
+                "--output",
+                "/artifacts/debug-wait.json",
+            )
+            workers = waiting["initial"]["workers"]
+            target = workers[0]["worker_id"]
+            _stop_remote_worker(project_name, env, target)
+            crashed = _run_remote_debug_client(
+                project_name,
+                env,
+                "--action",
+                "observe-crash",
+                "--worker-id",
+                target,
+                "--output",
+                "/artifacts/debug-crash.json",
+            )
+            survivor = next(worker["worker_id"] for worker in workers if worker["worker_id"] != target)
+            released = _run_remote_debug_client(
+                project_name,
+                env,
+                "--action",
+                "release",
+                "--expected-holds",
+                "1",
+                "--secret",
+                REMOTE_DEBUG_SECRET,
+                "--output",
+                "/artifacts/debug-survivor.json",
+            )
+        finally:
+            returncode, output = _wait_remote_debug_run(process, log_path)
+
+        assert returncode != 0, output
+        record = crashed["worker"]
+        assert record["worker_id"] == target, crashed
+        assert record["status"] == "worker_crashed", crashed
+        assert record["debugger_endpoint"] is None, crashed
+        assert record["inspection_endpoint"] is None, crashed
+        assert survivor in released["cleared"], (survivor, released)
+        assert all(released["cleared"].values()), released
+
+        files = _read_remote_debug_files(project_name, env)
+        combined = "\n".join(files.values())
+        assert REMOTE_DEBUG_SECRET not in combined, "the stopped remote worker leaked a secret"
+        index = json.loads(
+            files["/workspace/tests/external/remote-xdist/project/.pytest_cache/cuke/debug-mcp/workers.json"]
+        )
+        records = {worker["worker_id"]: worker for worker in index["workers"]}
+        assert records[target]["status"] == "worker_crashed", records
+        assert records[target]["debugger_endpoint"] is None, records
+        assert records[survivor]["active_failure"] is None, records

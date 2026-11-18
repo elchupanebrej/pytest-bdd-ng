@@ -79,6 +79,42 @@ def test_main_retargets_debugger_host_allowlist_to_the_configured_endpoint(
     assert transport_security.allowed_origins == ["http://192.0.2.15:41001"]
 
 
+def test_main_advertises_a_remote_host_while_binding_every_interface(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    server = _Server()
+    transport_security = SimpleNamespace(allowed_hosts=[], allowed_origins=[])
+    server.settings = SimpleNamespace(host="127.0.0.1", port=8000, transport_security=transport_security)
+    server.run = lambda *, transport: setattr(server, "transport", transport)
+    package = ModuleType("mcp_pdb")
+    package.main = lambda: None
+    debugger = ModuleType("mcp_pdb.main")
+    debugger.mcp = server
+    debugger.send_pdb_command = server._old_tool
+    monkeypatch.setitem(sys.modules, "mcp_pdb", package)
+    monkeypatch.setitem(sys.modules, "mcp_pdb.main", debugger)
+
+    assert (
+        backend.main(
+            [
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "41001",
+                "--advertise-host",
+                "worker1",
+                "--inspection-url",
+                "http://worker1:41002/mcp",
+            ]
+        )
+        == 0
+    )
+
+    assert server.settings.host == "0.0.0.0"
+    assert transport_security.allowed_hosts == ["worker1:41001"]
+    assert transport_security.allowed_origins == ["http://worker1:41001"]
+
+
 def _install(
     monkeypatch: pytest.MonkeyPatch,
     server: _Server,
