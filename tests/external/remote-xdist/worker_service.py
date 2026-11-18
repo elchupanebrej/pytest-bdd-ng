@@ -22,6 +22,12 @@ def _start_ssh_daemon() -> None:
     ssh_dir.chmod(0o700)
     shutil.copyfile(key_path, ssh_dir / "authorized_keys")
     (ssh_dir / "authorized_keys").chmod(0o600)
+    environment = ssh_dir / "environment"
+    environment.write_text(
+        f"REMOTE_DEBUG_SECRET={os.environ.get('REMOTE_DEBUG_SECRET', '')}\n",
+        encoding="utf-8",
+    )
+    environment.chmod(0o600)
 
     sshd_config = Path("/etc/ssh/sshd_config.d/remote-xdist.conf")
     sshd_config.write_text(
@@ -29,6 +35,7 @@ def _start_ssh_daemon() -> None:
         "PasswordAuthentication no\n"
         "PubkeyAuthentication yes\n"
         "AuthorizedKeysFile .ssh/authorized_keys\n"
+        "PermitUserEnvironment yes\n"
         "UsePAM no\n",
         encoding="utf-8",
     )
