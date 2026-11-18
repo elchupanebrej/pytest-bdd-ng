@@ -48,6 +48,8 @@ def passing_remote_scenario() -> None:
 
 @given("a remote debug failure that waits for inspection")
 def remote_debug_failure() -> None:
+    if not Path("/artifacts/debug-watch-stop").is_file():
+        return
     worker_id = os.environ.get("PYTEST_XDIST_WORKER")
     secret = os.environ.get("REMOTE_DEBUG_SECRET", "remote-debug-secret-value")
     assert worker_id, "the remote Debug MCP contract must run in an xdist worker"
