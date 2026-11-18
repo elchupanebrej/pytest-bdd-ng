@@ -67,6 +67,8 @@ def parse_registry_address(value: str | tuple[str, int] | None) -> tuple[str, in
     """Parse the controller ``HOST:PORT`` address used by remote workers."""
     if isinstance(value, tuple):
         return value
+    if value is not None and not isinstance(value, str):
+        raise ValueError("cuke_mcp_registry must be HOST:PORT or empty")
     text = (value or "").strip()
     if not text:
         return None

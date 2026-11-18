@@ -70,6 +70,7 @@ def test_seam6_plugin_lifecycle_and_stash_contract() -> None:
     config.option.cuke_mcp_max_holds = None
     config.option.cuke_mcp_expose_env = None
     config.option.cuke_mcp_redact_patterns = None
+    config.option.cuke_mcp_registry = None
     config.getoption.side_effect = lambda name: {
         "cuke_report_policy": "normal",
         "cuke_xfail_as_failed": None,
@@ -88,6 +89,7 @@ def test_seam6_plugin_lifecycle_and_stash_contract() -> None:
         "cuke_mcp_max_holds": "0",
         "cuke_mcp_expose_env": False,
         "cuke_mcp_redact_patterns": "",
+        "cuke_mcp_registry": "",
     }.get(name, "")
 
     pytest_configure(config)
