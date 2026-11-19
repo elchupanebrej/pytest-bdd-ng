@@ -1,5 +1,5 @@
 pytest-cuke command line
-=======================
+========================
 
 pytest-cuke installs two equivalent standalone command names:
 

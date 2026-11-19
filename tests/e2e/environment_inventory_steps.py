@@ -2965,11 +2965,12 @@ def probe_required_doc_generation_lane(consumer: Any) -> None:
     assert result.returncode == 0, f"doc-generation lane probe failed:\n{result.stdout}\n{result.stderr}"
 
 
-@then("it should declare the doc-gen extra and Pandoc prerequisite")
+@then("it should declare the doc-gen and docs extras with their prerequisites")
 def doc_generation_lane_declares_extra_and_pandoc(consumer: Any) -> None:
     lane = _doc_generation_lane(_context(consumer))
     extras = lane.get("extras")
     assert isinstance(extras, list) and any(str(extra).casefold() == "doc-gen" for extra in extras), lane
+    assert any(str(extra).casefold() == "docs" for extra in extras), lane
 
     prerequisites = _prerequisite_entries(lane)
     package_names = {
@@ -2977,7 +2978,7 @@ def doc_generation_lane_declares_extra_and_pandoc(consumer: Any) -> None:
         for item in prerequisites
         if item.get("type") == "python-package"
     }
-    expected_packages = {"pandoc", "panflute", "pycmarkgfm", "pypandoc"}
+    expected_packages = {"pandoc", "panflute", "pycmarkgfm", "pypandoc", "sphinx"}
     assert expected_packages <= package_names, (expected_packages, package_names)
     pandoc = [
         item

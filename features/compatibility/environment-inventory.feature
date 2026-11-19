@@ -233,7 +233,7 @@ Feature: Supported environment inventory and acceptance proof
     When I run the project environment inventory check in JSON mode
     And I probe the required doc-generation lane
     Then the required doc-generation lane should select its pytest carrier
-    And it should declare the doc-gen extra and Pandoc prerequisite
+    And it should declare the doc-gen and docs extras with their prerequisites
     And its tox environment and workflow selector should be active
 
   Scenario: An unresolved required lane fails with an actionable diagnostic

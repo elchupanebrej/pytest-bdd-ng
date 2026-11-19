@@ -1,5 +1,5 @@
 Gather missing bindings and steps
-================================
+=================================
 
 Use the pytest option ``--cuke-gather-missing-steps`` to inspect selected
 features without running test bodies or step implementations:

@@ -1,5 +1,5 @@
 Bind scenarios without generating steps
-======================================
+=======================================
 
 Use ``cuke generate steps --feature features/example.feature --target test_example.py --bind-only``
 to add missing scenario bindings to an existing Python module without adding step

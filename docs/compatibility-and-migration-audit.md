@@ -136,9 +136,11 @@ establish that a lane ran. The fast PR selector excludes
 `slow`, `e2e`, `external`, `typecheck` and `doc_gen`; full runtime tox commands
 exclude `e2e`, `external`, `typecheck` and `doc_gen`. The required
 `py314-doc-gen` quality lane runs the documentation test with its optional
-Python dependencies and Pandoc. Dedicated browser, native and remote jobs
-install or verify their own prerequisites. xdist proof is reported as
-`parallel`, separately from serial runtime proof.
+Python dependencies and Pandoc, then builds the documentation with the pinned
+Sphinx release in strict mode (`-W --keep-going`), so missing includes,
+unreferenced pages and structural warnings fail the lane. Dedicated browser,
+native and remote jobs install or verify their own prerequisites. xdist proof
+is reported as `parallel`, separately from serial runtime proof.
 
 PyPy 3.12 is product-supported on Linux x86_64. Upstream PyPy builds also exist
 for macOS and Windows, but pytest-cuke has not verified installation and
@@ -253,7 +255,9 @@ The fast pull-request selector is only a Linux CPython 3.13 feedback run:
 
 The fast selector excludes `slow`, `e2e`, `external`, `typecheck` and `doc_gen`.
 The `py314-doc-gen` quality cell runs the optional documentation-generation
-test with Pandoc on pull requests and full proof runs. Full runtime tox commands
+test with Pandoc on pull requests and full proof runs, then builds the
+documentation with the pinned Sphinx release in strict mode
+(`-W --keep-going`). Full runtime tox commands
 exclude `e2e`, `external`, `typecheck` and `doc_gen`; dedicated browser, native
 and remote jobs run their own contracts and prerequisites.
 On push and manual workflow dispatch, the full runtime matrix, browser report,

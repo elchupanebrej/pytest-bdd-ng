@@ -174,7 +174,7 @@ written on the worker unless ``cuke_mcp_artifacts`` names a shared directory;
 their path is returned by ``submit_artifact``.
 
 Failure hold controls and environment inspection
------------------------------------------------
+------------------------------------------------
 
 ``--cuke-mcp-max-holds=N`` limits the number of failure holds in each pytest
 process. ``0`` (the default) keeps unlimited holds. Under local xdist each

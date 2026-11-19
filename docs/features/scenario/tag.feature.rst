@@ -63,8 +63,6 @@ Scenario:
    1      0
    ====== ======
 
-.. _scenario-1:
-
 Scenario:
 '''''''''
 
@@ -77,8 +75,6 @@ Scenario:
    ====== ======
    0      1
    ====== ======
-
-.. _scenario-2:
 
 Scenario:
 '''''''''
@@ -93,8 +89,6 @@ Scenario:
    1      1
    ====== ======
 
-.. _scenario-3:
-
 Scenario:
 '''''''''
 
@@ -108,8 +102,6 @@ Scenario:
    1      1
    ====== ======
 
-.. _scenario-4:
-
 Scenario:
 '''''''''
 
@@ -122,8 +114,6 @@ Scenario:
    ====== ======
    1      1
    ====== ======
-
-.. _scenario-5:
 
 Scenario:
 '''''''''

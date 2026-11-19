@@ -59,12 +59,12 @@ def test_doc_generation(testdir: "Testdir"):
                 simple_markdown
                 ---------------
 
-                .. include:: features/simple_markdown.gherkin.rst
+                .. include:: simple_markdown.gherkin.rst
 
                 simple
                 ------
 
-                .. include:: features/simple.gherkin
+                .. include:: ../features/simple.gherkin
                    :code: gherkin
 
                 extra
@@ -73,7 +73,15 @@ def test_doc_generation(testdir: "Testdir"):
                 other_simple
                 ############
 
-                .. include:: features/extra/other_simple.gherkin
+                .. include:: ../features/extra/other_simple.gherkin
                    :code: gherkin
             """
         )
+
+
+@mark.doc_gen
+def test_generated_headings_have_no_duplicate_targets():
+    from pytest_cuke.script.bdd_tree_to_rst import strip_pandoc_heading_targets
+
+    generated = ".. _scenario-1:\n\nScenario:\n'''''''''\n"
+    assert strip_pandoc_heading_targets(generated) == "Scenario:\n'''''''''\n"

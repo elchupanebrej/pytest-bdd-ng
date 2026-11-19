@@ -10,19 +10,19 @@ Features
 mypy-runtime-gate
 -----------------
 
-.. include:: ../features/mypy-runtime-gate.feature
+.. include:: ../../features/mypy-runtime-gate.feature
    :code: gherkin
 
 pytest-cuke-bootstrap
 ---------------------
 
-.. include:: ../features/pytest-cuke-bootstrap.feature
+.. include:: ../../features/pytest-cuke-bootstrap.feature
    :code: gherkin
 
 feature-source-selection
 ------------------------
 
-.. include:: ../features/feature-source-selection.feature
+.. include:: ../../features/feature-source-selection.feature
    :code: gherkin
 
 tutorial
@@ -31,7 +31,7 @@ tutorial
 launch
 ######
 
-.. include:: features/tutorial/launch.feature.rst
+.. include:: tutorial/launch.feature.rst
 
 step-definition
 ---------------
@@ -44,40 +44,40 @@ tolerant-step-status
 pytest-fixtures-substitution
 ############################
 
-.. include:: features/step-definition/pytest-fixtures-substitution.feature.rst
+.. include:: step-definition/pytest-fixtures-substitution.feature.rst
 
 target-fixtures-specification
 #############################
 
-.. include:: features/step-definition/target-fixtures-specification.feature.rst
+.. include:: step-definition/target-fixtures-specification.feature.rst
 
 parameters
 ##########
 
 conversion
-!!!!!!!!!!
+^^^^^^^^^^
 
-.. include:: features/step-definition/parameters/conversion.feature.rst
+.. include:: step-definition/parameters/conversion.feature.rst
 
 defaults
-!!!!!!!!
+^^^^^^^^
 
-.. include:: features/step-definition/parameters/defaults.feature.rst
+.. include:: step-definition/parameters/defaults.feature.rst
 
 injection-as-fixtures
-!!!!!!!!!!!!!!!!!!!!!
+^^^^^^^^^^^^^^^^^^^^^
 
-.. include:: features/step-definition/parameters/injection-as-fixtures.feature.rst
+.. include:: step-definition/parameters/injection-as-fixtures.feature.rst
 
 parsing-by-custom-parser
-!!!!!!!!!!!!!!!!!!!!!!!!
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. include:: features/step-definition/parameters/parsing-by-custom-parser.feature.rst
+.. include:: step-definition/parameters/parsing-by-custom-parser.feature.rst
 
 parsing
-!!!!!!!
+^^^^^^^
 
-.. include:: features/step-definition/parameters/parsing.feature.rst
+.. include:: step-definition/parameters/parsing.feature.rst
 
 step
 ----
@@ -85,17 +85,17 @@ step
 data-table
 ##########
 
-.. include:: features/step/data-table.feature.rst
+.. include:: step/data-table.feature.rst
 
 doc-string
 ##########
 
-.. include:: features/step/doc-string.feature.rst
+.. include:: step/doc-string.feature.rst
 
 step-definition-bounding
 ########################
 
-.. include:: features/step/step-definition-bounding.feature.rst
+.. include:: step/step-definition-bounding.feature.rst
 
 scenario
 --------
@@ -103,20 +103,20 @@ scenario
 description
 ###########
 
-.. include:: features/scenario/description.feature.rst
+.. include:: scenario/description.feature.rst
 
 tag
 ###
 
-.. include:: features/scenario/tag.feature.rst
+.. include:: scenario/tag.feature.rst
 
 outline
 #######
 
 examples-tag
-!!!!!!!!!!!!
+^^^^^^^^^^^^
 
-.. include:: features/scenario/outline/examples-tag.feature.rst
+.. include:: scenario/outline/examples-tag.feature.rst
 
 report
 ------
@@ -124,7 +124,7 @@ report
 gathering
 #########
 
-.. include:: features/report/gathering.feature.rst
+.. include:: report/gathering.feature.rst
 
 heading-validation
 ------------------
@@ -132,7 +132,7 @@ heading-validation
 semantic-heading-validation
 ###########################
 
-.. include:: ../features/heading-validation/semantic-heading-validation.feature
+.. include:: ../../features/heading-validation/semantic-heading-validation.feature
    :code: gherkin
 
 feature
@@ -141,52 +141,52 @@ feature
 description
 ###########
 
-.. include:: features/feature/description.feature.rst
+.. include:: feature/description.feature.rst
 
 localization
 ############
 
-.. include:: features/feature/localization.feature.rst
+.. include:: feature/localization.feature.rst
 
 tag-conversion
 ##############
 
-.. include:: features/feature/tag-conversion.feature.rst
+.. include:: feature/tag-conversion.feature.rst
 
 tag
 ###
 
-.. include:: features/feature/tag.feature.rst
+.. include:: feature/tag.feature.rst
 
 load
 ####
 
 custom-parser-adapter
-!!!!!!!!!!!!!!!!!!!!!!
+^^^^^^^^^^^^^^^^^^^^^^
 
-.. include:: features/feature/load/custom-parser-adapter.rst
+.. include:: feature/load/custom-parser-adapter.rst
 
 autoload
-!!!!!!!!
+^^^^^^^^
 
-.. include:: features/feature/load/autoload.feature.rst
+.. include:: feature/load/autoload.feature.rst
 
 external-examples
-!!!!!!!!!!!!!!!!!
+^^^^^^^^^^^^^^^^^
 
-.. include:: features/feature/load/external-examples.feature.rst
+.. include:: feature/load/external-examples.feature.rst
 
 scenario-function-loader
-!!!!!!!!!!!!!!!!!!!!!!!!
+^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. include:: features/feature/load/scenario-function-loader.feature.rst
+.. include:: feature/load/scenario-function-loader.feature.rst
 
 scenario-search-from-base-directory
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. include:: features/feature/load/scenario-search-from-base-directory.feature.rst
+.. include:: feature/load/scenario-search-from-base-directory.feature.rst
 
 scenario-search-from-base-url
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. include:: features/feature/load/scenario-search-from-base-url.feature.rst
+.. include:: feature/load/scenario-search-from-base-url.feature.rst

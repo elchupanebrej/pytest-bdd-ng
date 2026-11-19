@@ -2652,7 +2652,11 @@ lanes:
   command: tox run -e py314-doc-gen
   extras:
   - doc-gen
+  - docs
   prerequisites:
+  - type: python-package
+    name: sphinx
+    remedy: install pytest-cuke[docs] in the documentation tox environment
   - type: python-package
     name: pandoc
     remedy: install pytest-cuke[doc-gen] in the documentation tox environment

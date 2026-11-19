@@ -27,3 +27,8 @@ Set up the tutorial
 From ``examples/tutorial``, activate a virtual environment and run:
 ``pip install -r requirements.txt``
 Then run ``python -m pytest`` from the same directory.
+
+.. toctree::
+   :maxdepth: 1
+
+   fast-debug

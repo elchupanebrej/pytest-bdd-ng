@@ -1,5 +1,5 @@
 Custom parser adapters
-======================
+''''''''''''''''''''''
 
 Parser extensions written for the historical parser protocol can be registered
 explicitly while pytest-cuke continues to expose its native ``Feature`` model

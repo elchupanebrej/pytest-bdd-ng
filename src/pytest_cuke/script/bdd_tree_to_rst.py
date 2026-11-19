@@ -7,6 +7,7 @@ Options:
     --snapshot=<snapshot_path> Path to save snapshot on found diff between old and new documentation
 """
 
+import re
 import sys
 from collections import deque
 from filecmp import dircmp
@@ -26,6 +27,16 @@ import pypandoc  # type: ignore[import-not-found]  # Optional doc-gen dependency
 from docopt import docopt
 
 SECTION_SYMBOLS = "-#!\"$%&'()*+,./:;<=>?@[\\]^_`{|}~="
+
+# GFM reuses heading ids such as scenario-1 across pages, and Pandoc turns
+# every heading id into an explicit RST target. Those targets collide once the
+# fragments are included into one document, so drop them; no generated page
+# links to them.
+PANDOC_HEADING_TARGET = re.compile(r"^\.\. _[A-Za-z0-9][A-Za-z0-9_-]*:\n\n", re.MULTILINE)
+
+
+def strip_pandoc_heading_targets(rst_content: str) -> str:
+    return PANDOC_HEADING_TARGET.sub("", rst_content)
 
 
 def diff_folders(dcmp: dircmp[Any]) -> list[Any]:
@@ -47,7 +58,7 @@ def adjust_heading_level(elem: Any, doc: Any, *, level: int) -> Any:
 def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
     base_output_common_path = Path(commonpath([str(features_path), str(output_path)]))
     features_path_rel_to_common_path = features_path.relative_to(base_output_common_path)
-    output_path_rel_to_common_path = output_path.parent.relative_to(base_output_common_path)
+    output_path_rel_to_common_path = output_path.relative_to(base_output_common_path)
     # TODO move side effect from this method
     index_file = temp_path / "features.rst"
 
@@ -102,6 +113,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
             rst_content = pypandoc.convert_text(
                 html_data, "rst", format="html", extra_args=[f"--shift-heading-level-by={offset + 1}"]
             )
+            rst_content = strip_pandoc_heading_targets(rst_content)
 
             abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8")
 
@@ -113,7 +125,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
                     {stemmed_path}
                     {SECTION_SYMBOLS[offset - 1] * len(stemmed_path)}
 
-                    .. include:: {(Path("features") / path.relative_to(features_path)).with_suffix(".rst").as_posix()}
+                    .. include:: {path.relative_to(features_path).with_suffix(".rst").as_posix()}
 
                 """
             )

@@ -83,8 +83,6 @@ Scenario:
    | 1      |
    +--------+
 
-.. _scenario-1:
-
 Scenario:
 
 

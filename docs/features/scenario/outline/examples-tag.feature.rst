@@ -70,8 +70,6 @@ Scenario:
    1      0
    ====== ======
 
-.. _scenario-1:
-
 Scenario:
 
 
@@ -84,8 +82,6 @@ Scenario:
    ====== ======
    0      1
    ====== ======
-
-.. _scenario-2:
 
 Scenario:
 
@@ -100,8 +96,6 @@ Scenario:
    1      1
    ====== ======
 
-.. _scenario-3:
-
 Scenario:
 
 
@@ -115,8 +109,6 @@ Scenario:
    1      1
    ====== ======
 
-.. _scenario-4:
-
 Scenario:
 
 
@@ -129,8 +121,6 @@ Scenario:
    ====== ======
    1      1
    ====== ======
-
-.. _scenario-5:
 
 Scenario:
 
@@ -146,8 +136,6 @@ Scenario:
 
 Rule: Mixing tags on feature & examples level
 
-
-.. _background-1:
 
 Background:
 
@@ -207,8 +195,6 @@ Example:
    1      1
    ====== ======
 
-.. _example-1:
-
 Example:
 
 
@@ -221,8 +207,6 @@ Example:
    ====== ======
    0      1
    ====== ======
-
-.. _example-2:
 
 Example:
 
@@ -237,8 +221,6 @@ Example:
    0      0
    ====== ======
 
-.. _example-3:
-
 Example:
 
 
@@ -252,8 +234,6 @@ Example:
    1      0
    ====== ======
 
-.. _example-4:
-
 Example:
 
 
@@ -265,8 +245,6 @@ Example:
    | collected 2 items |
    +===================+
    +-------------------+
-
-.. _example-5:
 
 Example:
 
@@ -280,8 +258,6 @@ Example:
    +===============================================+
    +-----------------------------------------------+
 
-.. _example-6:
-
 Example:
 
 
@@ -294,8 +270,6 @@ Example:
    | collected 2 items / 2 deselected\* |
    +====================================+
    +------------------------------------+
-
-.. _example-7:
 
 Example:
 

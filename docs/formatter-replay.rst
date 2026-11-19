@@ -79,7 +79,7 @@ never modified. The replay command does not collect tests, execute fixtures,
 or import ``conftest.py``.
 
 Scenario hooks in saved streams
-------------------------------
+-------------------------------
 
 The summary and snippets adapters preserve before/after scenario hook definitions
 when replaying native pytest hook events. Hook locations and names come from the

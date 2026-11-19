@@ -169,7 +169,7 @@ example, an undefined quoted Given produces this binding shape:
    });
 
 Built-in Cucumber summary
-------------------------
+-------------------------
 
 Select Cucumber's official scenario and step summary with ``--cuke-summary``
 or ``cuke_summary = true`` in pytest configuration. The summary reports

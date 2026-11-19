@@ -74,7 +74,7 @@ A reporting failure changes the run result, while preserving the existing
 classification of the individual step.
 
 Step types, definitions and match arguments
-------------------------------------------
+-------------------------------------------
 
 ``pickle.steps[].type`` reflects the parsed step's Context, Action, Outcome or
 Unknown type. Scenario Outline expansion and Background steps retain their
@@ -141,7 +141,7 @@ them. Serialized Feature models retain the existing public shape and rebuild
 Messages documents from the model when original parser metadata is unavailable.
 
 External Examples source coordinates
------------------------------------
+------------------------------------
 
 External CSV/JSON rows are runtime data, rather than physical Gherkin source
 rows. Generated table nodes with no original feature location are excluded
