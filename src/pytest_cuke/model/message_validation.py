@@ -9,10 +9,6 @@ from importlib import resources
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast
 from urllib.parse import urljoin
 
-from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
-from referencing import Registry, Resource
-from referencing.exceptions import NoSuchResource
-
 from pytest_cuke.message_schema_sync import SchemaSyncError, UpstreamRelease, resolve_upstream_release
 from pytest_cuke.model import message_types as messages
 from pytest_cuke.model.message_extension import PAYLOAD_KINDS, get_payload_kind
@@ -20,6 +16,8 @@ from pytest_cuke.model.message_types import message_to_dict
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
+
+    from referencing import Registry, Resource
 
     from pytest_cuke.model import message_types as messages
 
@@ -116,6 +114,9 @@ def _installed_release() -> tuple[str, UpstreamRelease]:
 
 @lru_cache(maxsize=1)
 def _schema_registry() -> tuple[dict[str, dict[str, object]], Registry]:
+    from referencing import Registry, Resource  # noqa: PLC0415
+    from referencing.exceptions import NoSuchResource  # noqa: PLC0415
+
     _, release = _installed_release()
     schema_dir = resources.files("pytest_cuke.model").joinpath("message_schemas")
     schemas: dict[str, dict[str, object]] = {}
@@ -208,6 +209,8 @@ def _validate_envelope_instance(
         )
 
     errors: list[MessageValidationDiagnostic] = []
+    from jsonschema import Draft202012Validator  # type: ignore[import-untyped]  # noqa: PLC0415
+
     validator = Draft202012Validator(schema, registry=registry)
     for schema_error in sorted(
         validator.iter_errors(instance),
