@@ -4548,6 +4548,13 @@ def write_file(name, extension, tmp_path: Path, step):
     (tmp_path / f"{name}{extension}").write_text(content)
 
 
+@given(re.compile(r'File "(?P<relative_path>(?:[^"/]+/)+[^"/]+\.\w+)" with content:'))
+def write_nested_file_with_content(relative_path, testdir, step):
+    target = Path(testdir.tmpdir.strpath) / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(step.doc_string.content, encoding="utf-8")
+
+
 @given(
     re.compile(r'Localserver endpoint "(?P<endpoint>.+)" responding content:'),
 )

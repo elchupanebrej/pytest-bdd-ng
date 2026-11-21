@@ -121,7 +121,8 @@ URL-backed bindings with ``--cuke-features-base-url`` or
 ``cuke_features_base_url``. The precedence for each setting is an explicit
 ``scenarios(..., features_base_dir=...)`` or
 ``scenarios(..., features_base_url=...)`` binding, then the command line, then
-pytest configuration. The local directory defaults to ``features``.
+pytest configuration. The local directory defaults to the pytest root, so
+feature files next to tests are discovered without a ``features`` directory.
 
 Relative local roots are resolved from pytest's project root, including when
 pytest is started from another working directory. Relative feature paths under
@@ -131,11 +132,12 @@ HTTP(S) URLs without a query or fragment, and URL-backed bindings fetch only
 the named feature paths.
 
 With autoload enabled, an explicitly selected local feature file can be outside
-the configured feature root, including when the default ``features`` directory
-does not exist. For example, ``pytest doc.feature.md`` collects that Markdown
-feature directly. Directory discovery remains limited to the configured root;
-use ``--cuke-features-dir`` to discover a different directory. Markdown feature
-parsing is available through the Python parser without Node or npm. This also
+the configured feature root. For example, ``pytest doc.feature.md`` collects
+that Markdown feature directly. Directory discovery remains limited to the
+configured root; use ``--cuke-features-dir`` to discover a different directory.
+An explicit scenario binding wins over autoload for the same scenario, so each
+scenario runs once. Markdown feature parsing is available through the Python
+parser without Node or npm. This also
 applies to ``.gherkin.md`` files and explicit scenario bindings with their own
 ``features_base_dir``. ``--cuke-no-autoload`` disables direct feature collection.
 

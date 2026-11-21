@@ -19,7 +19,7 @@ pytestmark = pytest.mark.integration
         ("features/doc.feature.md", None, ["features/doc.feature.md"], 0, "1 passed"),
         ("doc.feature.md", "specs/features", ["doc.feature.md"], 0, "1 passed"),
         ("specs/features/doc.feature.md", "specs/features", ["specs/features"], 0, "1 passed"),
-        ("doc.feature.md", None, ["."], 5, None),
+        ("doc.feature.md", None, ["."], 0, "1 passed"),
         ("doc.feature.md", None, ["--cuke-no-autoload", "doc.feature.md"], 4, "not found"),
         ("doc.feature.md", None, ["--cuke-no-autoload", "test_binding.py"], 0, "1 passed"),
     ],
