@@ -2,7 +2,29 @@ import json
 
 import pytest
 
+from pytest_cuke.model.message_extension import (
+    IDE_DIAGNOSTIC_MEDIA_TYPE,
+    IDE_LAUNCH_MEDIA_TYPE,
+    IDE_STEP_BINDING_MEDIA_TYPE,
+)
 from pytest_cuke.model.report_presentation import ReportPresentation, resolve_report_policy
+
+
+@pytest.mark.parametrize(
+    "media_type",
+    [IDE_LAUNCH_MEDIA_TYPE, IDE_STEP_BINDING_MEDIA_TYPE, IDE_DIAGNOSTIC_MEDIA_TYPE],
+)
+def test_live_presentation_drops_internal_ide_attachments(media_type):
+    envelope = {"attachment": {"mediaType": media_type, "body": '{"testCaseId":"internal"}'}}
+
+    assert ReportPresentation().accept(dict(envelope)) == []
+    assert ReportPresentation(retain_metadata=True).accept(dict(envelope)) == [envelope]
+
+
+def test_live_presentation_keeps_ordinary_attachments():
+    envelope = {"attachment": {"mediaType": "text/plain", "body": "readable"}}
+
+    assert ReportPresentation().accept(envelope) == [envelope]
 
 
 @pytest.mark.parametrize("category", ["skip_as_failed", "xfail_as_failed", "tolerated_as_failed"])

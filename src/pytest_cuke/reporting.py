@@ -206,7 +206,7 @@ class ScenarioReport:
             "steps": steps_data,
             "name": pickle.name,
             "line_number": pickle_line,
-            "tags": sorted(set(pickle_tags).difference(feature_tags)),
+            "tags": sorted(set(pickle_tags)),
             "feature": {
                 "name": feature.name,
                 "filename": feature.filename or feature.uri,

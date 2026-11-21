@@ -68,6 +68,20 @@ def test_html_report_prefers_the_package_mustache_template(tmp_path, monkeypatch
     assert "testRunStarted" in html
 
 
+def test_html_report_keeps_a_closing_script_tag_inside_the_messages_data(monkeypatch):
+    monkeypatch.setattr(html_report, "find_resource", _resolver({}))
+    feature_line = json.dumps(
+        {"testRunStarted": {"timestamp": "0"}, "testRunHookStarted": {"id": "</script><script>alert(1)</script>"}}
+    )
+
+    html = html_report.render_cucumber_html(feature_line)
+
+    embedded = html.split("window.CUCUMBER_MESSAGES = [", 1)[1].split("];", 1)[0]
+    assert "</script><script>" not in embedded
+    assert json.loads(embedded) == json.loads(feature_line)
+    assert html.count("</script>") == 2
+
+
 def test_html_report_fallback_mounts_before_starting_the_formatter(tmp_path, monkeypatch):
     monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
     monkeypatch.setattr(message_plugin, "_worker_id_from_config", lambda config: None)
