@@ -92,7 +92,7 @@ def _workflow_link_identity(value: Any, *, job_link: bool) -> tuple[str, str, st
 
 
 def _pytest_factor(tox_environment: str) -> str | None:
-    match = re.search(r"(?:^|-)pytest(\d{2}|9|latest)(?:-|$)", tox_environment)
+    match = re.search(r"(?:^|-)pytest(\d{2,3}|9|latest)(?:-|$)", tox_environment)
     return match.group(1) if match else None
 
 
@@ -103,7 +103,14 @@ def _pytest_factor_pair(tox_environment: str) -> tuple[int, int] | None:
     return int(factor[0]), int(factor[1])
 
 
-def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], dict[str, str]]:
+def _pytest_factor_triplet(tox_environment: str) -> tuple[int, int, int] | None:
+    factor = _pytest_factor(tox_environment)
+    if factor is None or factor == "latest" or len(factor) != 3:
+        return None
+    return int(factor[0]), int(factor[1]), int(factor[2])
+
+
+def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], dict[str, Any]]:
     try:
         inventory = yaml.safe_load(inventory_path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as error:
@@ -132,8 +139,21 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
         or set(declared_groups) != expected_groups
     ):
         raise RuntimeError(f"inventory evidence.aggregate_groups must declare exactly {sorted(expected_groups)!r}")
+    pytest_floors = project_config.get("pytest_floors") if isinstance(project_config, dict) else None
+    if not isinstance(pytest_floors, dict) or not pytest_floors:
+        raise RuntimeError(f"environment inventory {inventory_path} must declare project.pytest_floors")
+    for python_version, floor in pytest_floors.items():
+        if (
+            not isinstance(python_version, str)
+            or _version_pair(python_version) is None
+            or not isinstance(floor, str)
+            or _version_triplet(floor) is None
+        ):
+            raise RuntimeError(
+                f"environment inventory {inventory_path} has an invalid pytest floor {python_version!r}: {floor!r}"
+            )
 
-    expected: dict[tuple[str, str, str], dict[str, str]] = {}
+    expected: dict[tuple[str, str, str], dict[str, Any]] = {}
     for job in EXPECTED_JOBS:
         job_cells = [cell for cell in cells if cell.get("job") == job]
         if not job_cells:
@@ -168,6 +188,7 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
                     "platform": platform_name,
                     "architecture": expected_architecture,
                     "expected_interpreter": expected_interpreter,
+                    "pytest_floor": pytest_floors.get(python),
                 }
                 expected[key] = specification
     return expected
@@ -652,8 +673,10 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                     invalid_groups.add(expected_group)
         pytest_version = record.get("pytest")
         actual_pytest_pair = _version_pair(pytest_version)
+        actual_pytest_triplet = _version_triplet(pytest_version)
         declared_pytest_factor = _pytest_factor(tox_environment)
         declared_pytest_pair = _pytest_factor_pair(tox_environment)
+        declared_pytest_triplet = _pytest_factor_triplet(tox_environment)
         requires_pytest = (
             expected_group in TEST_EVIDENCE_GROUPS
             or declared_pytest_factor is not None
@@ -661,6 +684,35 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
         )
         if requires_pytest and actual_pytest_pair is None:
             errors.append(f"{job}/{cell}/{tox_environment} is missing an actual pytest version")
+            invalid_groups.add(expected_group)
+        pytest_floor = specification.get("pytest_floor")
+        floor_triplet = _version_triplet(str(pytest_floor)) if pytest_floor is not None else None
+        if requires_pytest and pytest_floor is not None and actual_pytest_triplet is None:
+            errors.append(
+                f"{job}/{cell}/{tox_environment} is missing an exact pytest version for the "
+                f"CPython {specification['python']} floor {pytest_floor}"
+            )
+            invalid_groups.add(expected_group)
+        elif (
+            requires_pytest
+            and floor_triplet is not None
+            and actual_pytest_triplet is not None
+            and actual_pytest_triplet < floor_triplet
+        ):
+            errors.append(
+                f"{job}/{cell}/{tox_environment} reports pytest {pytest_version!r}; "
+                f"CPython {specification['python']} requires at least {pytest_floor}"
+            )
+            invalid_groups.add(expected_group)
+        if (
+            actual_pytest_triplet is not None
+            and declared_pytest_triplet is not None
+            and actual_pytest_triplet != declared_pytest_triplet
+        ):
+            errors.append(
+                f"{job}/{cell}/{tox_environment} reports pytest {pytest_version!r}; "
+                f"tox factor requires exactly {'.'.join(str(part) for part in declared_pytest_triplet)}"
+            )
             invalid_groups.add(expected_group)
         if actual_pytest_pair is not None and declared_pytest_factor == "latest" and actual_pytest_pair[0] != 9:
             errors.append(

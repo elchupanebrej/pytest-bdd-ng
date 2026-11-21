@@ -267,6 +267,18 @@ Feature: Aggregate the full supported environment proof
     When I run the full environment proof aggregator
     Then the proof summary should fail with a selected no tests diagnostic
 
+  Scenario: The aggregator rejects pytest below the CPython floor
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the CPython 3.14 floor environment reports pytest below its floor
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a below-floor pytest diagnostic
+
+  Scenario: The aggregator rejects a pytest patch that differs from the exact floor cell
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the CPython 3.14 floor environment reports a different pytest patch
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with an exact pytest patch diagnostic
+
   Scenario: The aggregator rejects an absent test selection count
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
     And one test-group environment omits its selected test count

@@ -105,12 +105,14 @@ def _group_for(job: str, tox_environment: str) -> str:
     return "quality"
 
 
-def _pytest_version(tox_environment: str, group: str) -> str | None:
-    match = re.search(r"(?:^|-)pytest(?P<factor>\d{1,2}|latest)(?:-|$)", tox_environment)
+def _pytest_version(tox_environment: str, group: str, python_version: str = "") -> str | None:
+    match = re.search(r"(?:^|-)pytest(?P<factor>\d{1,3}|latest)(?:-|$)", tox_environment)
     if match and match.group("factor") == "latest":
-        return "9.0.1"
+        return "9.2.0" if python_version == "3.15" else "9.0.1"
     if match:
         factor = match.group("factor")
+        if len(factor) == 3:
+            return f"{factor[0]}.{factor[1]}.{factor[2]}"
         return f"{factor[0]}.{factor[1]}.0" if len(factor) == 2 else f"{factor}.0.0"
     if tox_environment == "typecheck":
         return "9.0.1"
@@ -325,7 +327,7 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
             runtime = cell_record.get("runtime")
             expected_platform = cell_record.get("platform")
             architecture = cell_record.get("architecture", "x86_64")
-            pytest_version = _pytest_version(tox_environment, group)
+            pytest_version = _pytest_version(tox_environment, group, python_version)
             optional_versions = _optional_versions(tox_environment)
             assert isinstance(python_version, str) and python_version, cell_record
             assert isinstance(runtime, str) and runtime, cell_record
@@ -586,6 +588,30 @@ def zero_selected_tests_for_environment(proof_aggregation: ProofAggregationConte
 def zero_passed_tests_for_environment(proof_aggregation: ProofAggregationContext) -> None:
     artifact = _first_test_artifact(proof_aggregation)
     _mutate_environment(artifact, lambda environment: environment.__setitem__("passed_tests", 0))
+
+
+@given("the CPython 3.14 floor environment reports pytest below its floor")
+def report_pytest_below_cpython_314_floor(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _tox_environment_artifact(proof_aggregation, "py314-pytest842-coverage-lin")
+    _set_pytest_version(artifact, "8.4.1")
+
+
+@given("the CPython 3.14 floor environment reports a different pytest patch")
+def report_wrong_pytest_patch_for_cpython_314_floor(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _tox_environment_artifact(proof_aggregation, "py314-pytest842-coverage-lin")
+    _set_pytest_version(artifact, "8.4.3")
+
+
+def _set_pytest_version(artifact: EvidenceArtifact, pytest_version: str) -> None:
+    def mutate(environment: dict[str, Any]) -> None:
+        environment["pytest"] = pytest_version
+        entry = environment["tox_result"]["testenvs"][environment["tox_environment"]]
+        entry["installed_packages"] = [
+            f"pytest=={pytest_version}" if package.startswith("pytest==") else package
+            for package in entry["installed_packages"]
+        ]
+
+    _mutate_environment(artifact, mutate)
 
 
 @given("one test-group environment omits its selected test count")
@@ -2172,6 +2198,26 @@ def proof_summary_fails_for_empty_test_selection(
     assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
     assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
     assert "selected no tests" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with a below-floor pytest diagnostic")
+def proof_summary_fails_for_pytest_below_floor(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires at least 8.4.2" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with an exact pytest patch diagnostic")
+def proof_summary_fails_for_wrong_pytest_patch(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires exactly 8.4.2" in proof_aggregation_result.stderr
 
 
 @then("the proof summary should fail with a duplicate evidence diagnostic")

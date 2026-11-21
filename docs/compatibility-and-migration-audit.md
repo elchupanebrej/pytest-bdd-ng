@@ -11,7 +11,7 @@ The project matrix is configured in `pyproject.toml`:
 
     [tool.pytest-cuke.compatibility]
     python-factors = ["3.11", "3.12", "3.13", "3.14", "3.15"]
-    pytest-factors = ["8.0", "8.1", "8.2", "8.3", "8.4", "9", "9.1", "latest"]
+    pytest-factors = ["8.0", "8.1", "8.2", "8.3", "8.4", "8.4.2", "9", "9.1", "9.1.1", "latest"]
     execution-targets = ["lin", "mac", "win"]
     tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"
     compatibility-source = "pytest-official-policy-and-release-notes"
