@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from warnings import warn
@@ -77,6 +78,7 @@ class TestGroupPlugin:
         self.assignments: dict[str, TestGroupAssignment] = {}
         self.barrier: TestGroupBarrier | None = None
         self.relay: BarrierRelay | None = None
+        self.relay_credential: str | None = None
         self._worker = isinstance(getattr(config, "workerinput", None), dict)
 
         for warning in self.group_configuration.warnings:
@@ -97,8 +99,9 @@ class TestGroupPlugin:
         if self._worker or not self.group_configuration.enabled or relay is None:
             return
         host, port = relay
+        self.relay_credential = secrets.token_urlsafe(32)
         try:
-            self.relay = start_relay(port)
+            self.relay = start_relay(port, credential=self.relay_credential)
         except OSError as error:
             raise pytest.UsageError(
                 f"cuke_test_group_relay cannot bind port {port} on this controller: {error}. "
@@ -111,6 +114,15 @@ class TestGroupPlugin:
         if self.relay is not None:
             self.relay.stop()
             self.relay = None
+
+    @pytest.hookimpl(optionalhook=True)
+    def pytest_configure_node(self, node: Any) -> None:
+        """Share the per-run relay credential with each xdist worker."""
+        if self.relay_credential is None:
+            return
+        workerinput = getattr(node, "workerinput", None)
+        if isinstance(workerinput, dict):
+            workerinput["cuke_test_group_relay_credential"] = self.relay_credential
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_testnodedown(self, node: Any, error: Any) -> None:
@@ -164,11 +176,18 @@ class TestGroupPlugin:
         workerinput = self.config.workerinput
         relay = self.group_configuration.relay
         if relay is not None:
+            credential = workerinput.get("cuke_test_group_relay_credential")
+            if not isinstance(credential, str) or not credential:
+                raise pytest.UsageError(
+                    "pytest-cuke test-group barriers require the controller's per-run relay credential; "
+                    "run the same pytest-cuke version on the controller and every worker."
+                )
             barrier = TestGroupBarrier.for_relay(
                 relay,
                 timeout=self.group_configuration.barrier_timeout,
                 groups=self.group_configuration.order,
                 worker_id=str(workerinput.get("workerid") or ""),
+                credential=credential,
             )
         else:
             run_uid = workerinput.get("testrunuid")

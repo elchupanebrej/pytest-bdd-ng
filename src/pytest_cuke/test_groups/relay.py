@@ -8,6 +8,7 @@ unfinished group and test instead of waiting silently for a dead worker.
 
 from __future__ import annotations
 
+import hmac
 import http.client
 import json
 import socketserver
@@ -33,7 +34,8 @@ class BarrierRelayState:
 
     __test__ = False
 
-    def __init__(self) -> None:
+    def __init__(self, credential: str) -> None:
+        self._credential = credential
         self._lock = threading.Lock()
         self._manifest: dict[str, Any] | None = None
         self._receipts: dict[str, dict[str, Any]] = {}
@@ -41,37 +43,46 @@ class BarrierRelayState:
         self._dead_workers: dict[str, str] = {}
 
     def apply(self, request: Mapping[str, Any]) -> dict[str, Any]:
-        """Apply one relay operation and return its JSON-ready response."""
+        """Apply one authenticated relay operation and return its JSON-ready response."""
+        if not self._authenticated(request.get("credential")):
+            return {
+                "ok": False,
+                "error": "barrier relay rejected the request: missing or invalid per-run credential",
+            }
         with self._lock:
-            operation = request.get("op")
-            if operation == "publish_manifest":
-                manifest = request.get("manifest")
-                if isinstance(manifest, dict):
-                    self._manifest = manifest
-                return {"ok": True}
-            if operation == "claim":
-                nodeid = request.get("nodeid")
-                worker = request.get("worker")
-                if isinstance(nodeid, str) and isinstance(worker, str) and self._item(nodeid) is not None:
-                    self._owners[nodeid] = worker
-                return {"ok": True}
-            if operation == "publish_receipt":
-                item = self._item(request.get("nodeid"))
-                if item is not None:
-                    self._receipts.setdefault(str(item["nodeid"]), item)
-                return {"ok": True}
-            if operation == "worker_down":
-                worker = request.get("worker")
-                if isinstance(worker, str) and worker:
-                    self._dead_workers[worker] = str(request.get("detail") or "")
-                return {"ok": True}
-            if operation == "snapshot":
-                return self._snapshot_payload()
-            return {"ok": False, "error": f"unknown barrier relay operation: {operation!r}"}
+            return self._apply(request)
+
+    def _apply(self, request: Mapping[str, Any]) -> dict[str, Any]:
+        operation = request.get("op")
+        if operation == "publish_manifest":
+            manifest = request.get("manifest")
+            if isinstance(manifest, dict):
+                self._manifest = manifest
+            return {"ok": True}
+        if operation == "claim":
+            nodeid = request.get("nodeid")
+            worker = request.get("worker")
+            if isinstance(nodeid, str) and isinstance(worker, str) and self._item(nodeid) is not None:
+                self._owners[nodeid] = worker
+            return {"ok": True}
+        if operation == "publish_receipt":
+            item = self._item(request.get("nodeid"))
+            if item is not None:
+                self._receipts.setdefault(str(item["nodeid"]), item)
+            return {"ok": True}
+        if operation == "worker_down":
+            worker = request.get("worker")
+            if isinstance(worker, str) and worker:
+                self._dead_workers[worker] = str(request.get("detail") or "")
+            return {"ok": True}
+        if operation == "snapshot":
+            return self._snapshot_payload()
+        return {"ok": False, "error": f"unknown barrier relay operation: {operation!r}"}
 
     def mark_worker_down(self, worker: str, detail: str = "") -> None:
         """Record that the controller saw a worker exit before the run finished."""
-        self.apply({"op": "worker_down", "worker": worker, "detail": detail})
+        with self._lock:
+            self._dead_workers[worker] = detail
 
     def snapshot(self) -> BarrierSnapshot:
         """Return the current barrier state."""
@@ -92,6 +103,11 @@ class BarrierRelayState:
             "owners": dict(self._owners),
             "dead_workers": sorted(self._dead_workers),
         }
+
+    def _authenticated(self, candidate: Any) -> bool:
+        return isinstance(candidate, str) and hmac.compare_digest(
+            candidate.encode("utf-8"), self._credential.encode("utf-8")
+        )
 
     def _item(self, nodeid: Any) -> dict[str, Any] | None:
         if not isinstance(nodeid, str) or self._manifest is None:
@@ -169,9 +185,9 @@ class BarrierRelay:
         self._thread.join(timeout=5)
 
 
-def start_relay(port: int) -> BarrierRelay:
+def start_relay(port: int, *, credential: str) -> BarrierRelay:
     """Bind a relay on every interface so remote workers can reach the controller."""
-    state = BarrierRelayState()
+    state = BarrierRelayState(credential)
     # shortcut: binds 0.0.0.0 so independent worker containers can connect;
     # add a bind-address setting if the relay must stay on a private interface.
     return BarrierRelay(state, _RelayHTTPServer(("0.0.0.0", port), state)).start()  # noqa: S104
@@ -182,9 +198,10 @@ class RelayBarrierClient:
 
     __test__ = False
 
-    def __init__(self, address: tuple[str, int], *, worker_id: str, timeout: float) -> None:
+    def __init__(self, address: tuple[str, int], *, worker_id: str, credential: str, timeout: float) -> None:
         self.address = address
         self.worker_id = worker_id
+        self.credential = credential
         self.timeout = timeout
         self.label = f"{address[0]}:{address[1]}"
 
@@ -244,7 +261,7 @@ class RelayBarrierClient:
             connection.request(
                 "POST",
                 "/",
-                body=json.dumps(request),
+                body=json.dumps({**request, "credential": self.credential}),
                 headers={"Content-Type": "application/json"},
             )
             response = connection.getresponse()

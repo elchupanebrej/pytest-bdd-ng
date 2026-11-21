@@ -128,10 +128,11 @@ class TestGroupBarrier:
         timeout: float,
         groups: tuple[str, ...],
         worker_id: str,
+        credential: str,
     ) -> TestGroupBarrier:
         """Coordinate through a socket relay when workers share no filesystem."""
         return cls(
-            RelayBarrierClient(address, worker_id=worker_id, timeout=timeout),
+            RelayBarrierClient(address, worker_id=worker_id, credential=credential, timeout=timeout),
             timeout=timeout,
             groups=groups,
         )

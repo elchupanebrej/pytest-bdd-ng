@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import time
@@ -17,6 +18,9 @@ from pytest_cuke.test_groups.barrier import (
 )
 from pytest_cuke.test_groups.plugin import TestGroupPlugin
 from pytest_cuke.test_groups.relay import BarrierRelayError, RelayBarrierClient, start_relay
+from pytest_cuke.test_groups.transport import BarrierSnapshot
+
+RELAY_CREDENTIAL = "test-run-credential"
 
 
 def _assignment(nodeid: str, group: str, ordinal: int) -> TestGroupAssignment:
@@ -125,9 +129,7 @@ def test_barrier_retries_a_transient_replace_error_after_a_slow_initial_write(
     assert json.loads((tmp_path / "run" / "manifest.json").read_text(encoding="utf-8"))["items"][0]["group"] == "unit"
 
 
-def test_barrier_stops_retrying_a_persistent_replace_error(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_barrier_stops_retrying_a_persistent_replace_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import pytest_cuke.test_groups.barrier as barrier_module
 
     clock = [0.0]
@@ -199,7 +201,7 @@ def test_plugin_allows_local_popen_xdist_specs() -> None:
 
 @pytest.fixture
 def relay():
-    server = start_relay(0)
+    server = start_relay(0, credential=RELAY_CREDENTIAL)
     try:
         yield server
     finally:
@@ -212,7 +214,21 @@ def _relay_barrier(relay, worker: str, *, timeout: float = 2.0) -> TestGroupBarr
         timeout=timeout,
         groups=("unit", "integration"),
         worker_id=worker,
+        credential=RELAY_CREDENTIAL,
     )
+
+
+def _raw_relay_post(relay, request: dict, *, credential: str | None = None, timeout: float = 2.0) -> dict:
+    body = dict(request)
+    if credential is not None:
+        body["credential"] = credential
+    connection = http.client.HTTPConnection("127.0.0.1", relay.port, timeout=timeout)
+    try:
+        connection.request("POST", "/", body=json.dumps(body), headers={"Content-Type": "application/json"})
+        response = connection.getresponse()
+        return json.loads(response.read() or b"{}")
+    finally:
+        connection.close()
 
 
 def test_relay_barrier_orders_groups_and_deduplicates_terminal_receipts(relay) -> None:
@@ -243,6 +259,64 @@ def test_relay_barrier_ignores_receipts_for_unselected_items(relay) -> None:
     barrier.record_terminal("tests/test_other.py::test_other")
 
     assert relay.state.snapshot().receipts == {}
+
+
+def test_relay_rejects_every_operation_without_the_run_credential(relay) -> None:
+    forged_requests = [
+        {"op": "publish_manifest", "manifest": {"groups": ["unit"], "items": []}},
+        {"op": "claim", "nodeid": "tests/test_unit.py::test_unit", "worker": "gw9"},
+        {"op": "publish_receipt", "nodeid": "tests/test_unit.py::test_unit"},
+        {"op": "worker_down", "worker": "gw0", "detail": "forged"},
+        {"op": "snapshot"},
+    ]
+
+    for request in forged_requests:
+        response = _raw_relay_post(relay, request)
+
+        assert response["ok"] is False, request
+        assert "credential" in response["error"], request
+
+    assert relay.state.snapshot() == BarrierSnapshot(manifest=None, receipts={}, owners={}, dead_workers=())
+
+
+def test_relay_rejects_every_operation_with_a_wrong_run_credential(relay) -> None:
+    response = _raw_relay_post(relay, {"op": "worker_down", "worker": "gw0"}, credential="not-the-credential")
+
+    assert response["ok"] is False
+    assert "credential" in response["error"]
+    assert relay.state.snapshot().dead_workers == ()
+
+
+def test_forged_receipt_without_the_run_credential_cannot_open_the_next_group(relay) -> None:
+    unit = _assignment("tests/test_unit.py::test_unit", "unit", 0)
+    integration = _assignment("tests/test_integration.py::test_integration", "integration", 1)
+    producer = _relay_barrier(relay, "gw0")
+    waiter = _relay_barrier(relay, "gw1", timeout=0.3)
+    producer.initialize((unit, integration))
+    waiter.initialize((unit, integration))
+
+    forged = _raw_relay_post(relay, {"op": "publish_receipt", "nodeid": unit.nodeid})
+
+    assert forged["ok"] is False
+    with pytest.raises(TestGroupBarrierTimeout, match="test_unit"):
+        waiter.wait_for_earlier_groups(integration)
+
+    producer.record_terminal(unit.nodeid)
+    waiter.wait_for_earlier_groups(integration)
+
+
+def test_relay_client_with_a_wrong_credential_fails_loudly_without_changing_state(relay) -> None:
+    client = RelayBarrierClient(
+        ("127.0.0.1", relay.port),
+        worker_id="gw0",
+        credential="not-the-credential",
+        timeout=0.2,
+    )
+
+    with pytest.raises(BarrierRelayError, match="credential"):
+        client.publish_manifest({"groups": ["unit"], "items": []})
+
+    assert relay.state.snapshot().manifest is None
 
 
 def test_relay_barrier_names_the_unfinished_group_and_test_when_a_worker_dies(relay) -> None:
@@ -303,6 +377,7 @@ def test_relay_client_retries_a_transient_connection_error(relay, monkeypatch: p
     client = relay_module.RelayBarrierClient(
         ("127.0.0.1", relay.port),
         worker_id="gw0",
+        credential=RELAY_CREDENTIAL,
         timeout=2,
     )
     original_post = client._post
@@ -323,13 +398,23 @@ def test_relay_client_retries_a_transient_connection_error(relay, monkeypatch: p
 
 
 def test_relay_client_fails_loudly_when_the_relay_is_unreachable() -> None:
-    probe = start_relay(0)
+    probe = start_relay(0, credential=RELAY_CREDENTIAL)
     port = probe.port
     probe.stop()
-    client = RelayBarrierClient(("127.0.0.1", port), worker_id="gw0", timeout=0.2)
+    client = RelayBarrierClient(("127.0.0.1", port), worker_id="gw0", credential=RELAY_CREDENTIAL, timeout=0.2)
 
     with pytest.raises(BarrierRelayError, match="cuke_test_group_relay"):
         client.publish_manifest({"groups": ["unit"], "items": []})
+
+
+def test_plugin_shares_the_relay_credential_with_each_worker() -> None:
+    plugin = object.__new__(TestGroupPlugin)
+    plugin.relay_credential = "per-run-credential"
+    node = SimpleNamespace(workerinput={})
+
+    plugin.pytest_configure_node(node)
+
+    assert node.workerinput["cuke_test_group_relay_credential"] == "per-run-credential"
 
 
 def test_filesystem_transport_remains_the_default() -> None:
@@ -344,6 +429,7 @@ def test_relay_transport_carries_state_without_a_state_directory(relay, tmp_path
         timeout=2,
         groups=("unit",),
         worker_id="gw0",
+        credential=RELAY_CREDENTIAL,
     )
 
     barrier.initialize((unit,))
