@@ -14,6 +14,7 @@ class BarrierSnapshot:
     receipts: dict[str, dict[str, Any]]
     owners: dict[str, str] = field(default_factory=dict)
     dead_workers: tuple[str, ...] = ()
+    shutdown: bool = False
 
 
 class BarrierTransport(Protocol):

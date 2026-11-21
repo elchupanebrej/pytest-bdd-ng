@@ -555,3 +555,146 @@ Feature: Local xdist test-group completion barriers
     And pytest output should include "'unit'"
     And pytest output should include "barrier relay"
     And the consumer should have no test-group barrier state root
+
+  Scenario: A later group waits for the earlier group's teardown to finish
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And the consumer records monotonic test start and terminal events
+    And consumer file "pytest.ini" contains:
+      """ini
+      [pytest]
+      cuke_test_group_order = unit integration
+      cuke_test_group_default = integration
+      cuke_test_group_barrier_timeout = 20
+      """
+    And consumer file "tests/test_a_unit_teardown.py" contains:
+      """python
+      import time
+      from pathlib import Path
+
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.fixture
+      def slow_teardown():
+          yield
+          time.sleep(1)
+          Path("unit-teardown-finished").write_text("yes", encoding="utf-8")
+
+
+      @pytest.mark.unit
+      def test_unit_teardown_finishes_first(request, slow_teardown):
+          record_start(request.node.nodeid, "unit")
+      """
+    And consumer file "tests/test_z_integration.py" contains:
+      """python
+      from pathlib import Path
+
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.mark.integration
+      def test_integration_waits_for_unit_teardown(request):
+          assert Path("unit-teardown-finished").is_file(), "the unit teardown had not finished"
+          record_start(request.node.nodeid, "integration")
+      """
+    When I run installed pytest with a 30-second watchdog and arguments "-c pytest.ini --order-scope=session -n2 --dist=loadfile --cuke-no-autoload -q"
+    Then the installed pytest run should finish before its watchdog
+    And pytest should exit with code 0
+    And every selected "unit" test should settle before any "integration" test starts
+
+  Scenario: A teardown failure keeps the later group closed
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And the consumer records monotonic test start and terminal events
+    And consumer file "pytest.ini" contains:
+      """ini
+      [pytest]
+      cuke_test_group_order = unit integration
+      cuke_test_group_default = integration
+      cuke_test_group_barrier_timeout = 2
+      """
+    And consumer file "tests/test_a_unit_teardown_failure.py" contains:
+      """python
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.fixture
+      def failing_teardown():
+          yield
+          raise RuntimeError("expected teardown failure")
+
+
+      @pytest.mark.unit
+      def test_unit_teardown_fails(request, failing_teardown):
+          record_start(request.node.nodeid, "unit")
+      """
+    And consumer file "tests/test_z_integration.py" contains:
+      """python
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.mark.integration
+      def test_integration_waits_for_unit_teardown(request):
+          record_start(request.node.nodeid, "integration")
+      """
+    When I run installed pytest with a 30-second watchdog and arguments "-c pytest.ini --order-scope=session -n2 --dist=loadfile --cuke-no-autoload -q"
+    Then the installed pytest run should finish before its watchdog
+    And pytest should exit with a non-zero code
+    And pytest output should include "expected teardown failure"
+    And pytest output should include "Timed out"
+    And pytest output should include "unit"
+    And the consumer should have no recorded "integration" start events
+
+  Scenario: A failing earlier group releases a blocked later group when the controller stops with -x
+    Given the pytest-cuke wheel with pytest-xdist is installed in a fresh test-group consumer
+    And the consumer records monotonic test start and terminal events
+    And consumer file "pytest.ini" contains:
+      """ini
+      [pytest]
+      cuke_test_group_order = unit integration
+      cuke_test_group_default = integration
+      cuke_test_group_barrier_timeout = 60
+      """
+    And consumer file "tests/test_a_unit_failure.py" contains:
+      """python
+      import time
+
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.fixture
+      def failing_teardown():
+          yield
+          raise RuntimeError("expected teardown failure stops the run")
+
+
+      @pytest.mark.unit
+      def test_unit_teardown_fails_while_the_next_group_waits(request, failing_teardown):
+          record_start(request.node.nodeid, "unit")
+          time.sleep(1)
+      """
+    And consumer file "tests/test_z_integration.py" contains:
+      """python
+      import pytest
+
+      from group_events import record_start
+
+
+      @pytest.mark.integration
+      def test_integration_never_starts_when_the_controller_stops(request):
+          record_start(request.node.nodeid, "integration")
+      """
+    When I run installed pytest with a 30-second watchdog and arguments "-c pytest.ini --order-scope=session -n2 --dist=loadfile -x --cuke-no-autoload -q"
+    Then the installed pytest run should finish before its watchdog
+    And pytest should exit with a non-zero code
+    And pytest output should include "expected teardown failure"
+    And the consumer should have no recorded "integration" start events

@@ -45,6 +45,7 @@ class BarrierRelayState:
         self._receipts: dict[str, dict[str, Any]] = {}
         self._owners: dict[str, str] = {}
         self._dead_workers: dict[str, str] = {}
+        self._shutdown = False
 
     def apply(self, request: Mapping[str, Any]) -> dict[str, Any]:
         """Apply one authenticated relay operation and return its JSON-ready response."""
@@ -95,6 +96,11 @@ class BarrierRelayState:
         with self._lock:
             self._dead_workers[worker] = detail
 
+    def publish_shutdown(self) -> None:
+        """Tell waiting workers the controller is stopping the run."""
+        with self._lock:
+            self._shutdown = True
+
     def snapshot(self) -> BarrierSnapshot:
         """Return the current barrier state."""
         with self._lock:
@@ -104,6 +110,7 @@ class BarrierRelayState:
             receipts={str(receipt["nodeid"]): receipt for receipt in payload["receipts"]},
             owners=payload["owners"],
             dead_workers=tuple(payload["dead_workers"]),
+            shutdown=bool(payload["shutdown"]),
         )
 
     def _snapshot_payload(self) -> dict[str, Any]:
@@ -113,6 +120,7 @@ class BarrierRelayState:
             "receipts": list(self._receipts.values()),
             "owners": dict(self._owners),
             "dead_workers": sorted(self._dead_workers),
+            "shutdown": self._shutdown,
         }
 
     def _authenticated(self, candidate: Any) -> bool:
@@ -217,6 +225,7 @@ class RelayBarrierClient:
             receipts=receipts,
             owners=dict(owners) if isinstance(owners, dict) else {},
             dead_workers=tuple(dead_workers) if isinstance(dead_workers, list) else (),
+            shutdown=payload.get("shutdown") is True,
         )
 
     def _call(self, request: dict[str, Any], *, swallow_errors: bool = False) -> dict[str, Any] | None:

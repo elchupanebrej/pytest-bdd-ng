@@ -6137,6 +6137,13 @@ def consumer_terminal_outcomes_include(outcomes, consumer: ConsumerProject) -> N
     assert expected <= actual, f"terminal outcomes were {sorted(actual)}; expected at least {sorted(expected)}"
 
 
+@then(re.compile(r'the consumer should have no recorded "(?P<group>[^"]+)" start events'))
+def consumer_has_no_recorded_start_events(group, consumer: ConsumerProject) -> None:
+    events = _read_consumer_test_group_events(consumer)
+    started = [event for event in events if event["phase"] == "start" and event.get("group") == group]
+    assert not started, f"group {group!r} started although it should have stayed closed: {started}"
+
+
 @then("the consumer should have no recorded test-group events")
 def consumer_has_no_test_group_events(consumer: ConsumerProject) -> None:
     event_directory = consumer.path / ".pytest-cuke-group-events"
