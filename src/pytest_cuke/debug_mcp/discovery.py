@@ -31,6 +31,7 @@ class DiscoveryPublisher:
     ) -> None:
         self.path = path
         self._lock = threading.Lock()
+        self._removed = False
         self._worker_id = worker_id
         self._on_publish = on_publish
         self._on_remove = on_remove
@@ -79,12 +80,15 @@ class DiscoveryPublisher:
 
     def remove(self) -> None:
         with self._lock:
+            self._removed = True
             if self._worker_id is not None and self._on_remove is not None:
                 self._on_remove(self._worker_id)
             elif self.path is not None:
                 self.path.unlink(missing_ok=True)
 
     def _write_locked(self) -> None:
+        if self._removed:
+            return
         if self._on_publish is None:
             if self.path is None:
                 raise ValueError("local discovery requires a record path")

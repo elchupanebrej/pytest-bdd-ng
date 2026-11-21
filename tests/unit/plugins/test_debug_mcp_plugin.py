@@ -1,15 +1,24 @@
 from __future__ import annotations
 
+import json
+import threading
+import time
+from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
 pytest.importorskip("pydantic")
 
+from pytest_cuke.debug_mcp.discovery import DiscoveryPublisher
 from pytest_cuke.debug_mcp.options import DebugMcpOptions
 from pytest_cuke.debug_mcp import plugin as debug_mcp_plugin
 from pytest_cuke.debug_mcp.plugin import DebugMcpPlugin, _artifact_root, _cache_discovery_path
+from pytest_cuke.debug_mcp.registry import DiscoveryRegistryError
+from pytest_cuke.debug_mcp.state import FailureQueue
 
 
 def test_debug_mcp_discovery_path_uses_pytest_cache_dir_setting(tmp_path) -> None:
@@ -262,3 +271,167 @@ def test_failure_hold_includes_redacted_fixtures_and_traceback(monkeypatch) -> N
     assert failure["fixtures"]["token_value"] == "<redacted>"
     assert failure["fixtures"]["count"] == 3
     assert failure["fixtures"]["widget"].startswith("<Widget:")
+
+
+def test_oversized_failure_diagnostics_are_truncated_before_the_hold() -> None:
+    oversized = "あ" * 2_000_000
+    plugin = DebugMcpPlugin(config=SimpleNamespace(), options=DebugMcpOptions(enabled=True))
+    queue = _FailureQueue()
+    plugin.queue = queue  # type: ignore[assignment]
+    item = SimpleNamespace(nodeid="tests/test_example.py::test_failure", callspec=None, config=SimpleNamespace())
+    call = SimpleNamespace(excinfo=SimpleNamespace(value=RuntimeError(oversized)))
+    report = SimpleNamespace(failed=True, when="call", longreprtext=oversized)
+    hook = plugin.pytest_runtest_makereport(item, call)
+
+    next(hook)
+    with pytest.raises(StopIteration):
+        hook.send(SimpleNamespace(get_result=lambda: report))
+
+    failure = queue.failures[0]
+    error_message = failure["error_message"]
+    traceback = failure["traceback"]
+    assert isinstance(error_message, str)
+    assert isinstance(traceback, str)
+    assert len(error_message) < 100_000
+    assert len(traceback) < 100_000
+    assert "truncated" in traceback
+    assert len(json.dumps(failure)) < 1_000_000
+
+
+class _Reporter:
+    def __init__(self) -> None:
+        self.lines: list[str] = []
+
+    def write_line(self, line: str, **markup: object) -> None:
+        self.lines.append(line)
+
+
+class _FailingDiscovery:
+    def __init__(self) -> None:
+        self.attempts = 0
+
+    def publish_queue_state(self, state: dict[str, object]) -> None:
+        self.attempts += 1
+        raise DiscoveryRegistryError("registry unreachable")
+
+
+class _CountingDiscovery:
+    def __init__(self, inner: Any) -> None:
+        self.inner = inner
+        self.attempts = 0
+
+    def publish_queue_state(self, state: dict[str, object]) -> None:
+        self.attempts += 1
+        self.inner.publish_queue_state(state)
+
+
+class _RecordingDiscovery:
+    def __init__(self) -> None:
+        self.states: list[dict[str, object]] = []
+
+    def publish_queue_state(self, state: dict[str, object]) -> None:
+        self.states.append(state)
+
+
+def _wait_until(predicate: Callable[[], bool], timeout: float = 2.0) -> None:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.01)
+    pytest.fail("timed out waiting for the Debug MCP publish attempt")
+
+
+def _wait_for_active(queue: FailureQueue, timeout: float = 2.0) -> dict[str, object]:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        active = queue.inspect_failure().get("active_failure")
+        if isinstance(active, dict):
+            return active
+        time.sleep(0.005)
+    pytest.fail("the Debug MCP failure hold did not become active")
+
+
+def _start_failure_hold(
+    plugin: DebugMcpPlugin,
+    *,
+    nodeid: str = "tests/test_example.py::test_failure",
+    error_message: str = "failure sentinel",
+) -> tuple[threading.Thread, list[BaseException]]:
+    errors: list[BaseException] = []
+    item = SimpleNamespace(nodeid=nodeid, callspec=None, config=SimpleNamespace())
+    call = SimpleNamespace(excinfo=SimpleNamespace(value=RuntimeError(error_message)))
+    report = SimpleNamespace(failed=True, when="call", longreprtext=error_message)
+
+    def run() -> None:
+        try:
+            hook = plugin.pytest_runtest_makereport(item, call)
+            next(hook)
+            with suppress(StopIteration):
+                hook.send(SimpleNamespace(get_result=lambda: report))
+        except BaseException as error:
+            errors.append(error)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    return thread, errors
+
+
+@pytest.mark.parametrize("transport", ["registry", "cache"])
+def test_failed_discovery_publish_keeps_the_hold_and_warns_once(transport: str, tmp_path) -> None:
+    reporter = _Reporter()
+    plugin = DebugMcpPlugin(
+        config=SimpleNamespace(pluginmanager=SimpleNamespace(get_plugin=lambda name: reporter)),
+        options=DebugMcpOptions(enabled=True),
+    )
+    queue = FailureQueue(session_id="session-1", timeout_seconds=5.0, lease_seconds=5.0)
+    plugin.queue = queue
+    if transport == "registry":
+        counting = _CountingDiscovery(_FailingDiscovery())
+        plugin.discovery = counting  # type: ignore[assignment]
+        failing = counting  # type: ignore[assignment]
+    else:
+        blocker = tmp_path / "cache-is-a-file"
+        blocker.write_text("not a directory", encoding="utf-8")
+        counting = _CountingDiscovery(
+            DiscoveryPublisher(
+                path=blocker / "session.json",
+                session_id="session-1",
+                host="127.0.0.1",
+                debugger_endpoint="http://127.0.0.1:40001/mcp",
+                inspection_endpoint="http://127.0.0.1:40002/mcp",
+                debugger_pid=0,
+            )
+        )
+        plugin.discovery = counting  # type: ignore[assignment]
+        failing = counting  # type: ignore[assignment]
+    queue.set_change_callback(plugin._publish_state)
+
+    hold, errors = _start_failure_hold(plugin)
+    active = _wait_for_active(queue)
+    _wait_until(lambda: failing.attempts >= 1)
+    assert errors == []
+    assert plugin._holds == 1
+    assert any("holding failure #1" in line for line in reporter.lines)
+    assert sum("discovery publish failed" in line for line in reporter.lines) == 1
+
+    queue.release_failure(session_id="session-1", sequence=active["sequence"])
+    hold.join(timeout=2.0)
+    assert not hold.is_alive()
+    _wait_until(lambda: failing.attempts >= 2)
+    assert sum("discovery publish failed" in line for line in reporter.lines) == 1
+
+    recording = _RecordingDiscovery()
+    plugin.discovery = recording  # type: ignore[assignment]
+    hold, errors = _start_failure_hold(plugin, nodeid="tests/test_example.py::test_second", error_message="second")
+    active = _wait_for_active(queue)
+    assert active["sequence"] == 2
+    _wait_until(lambda: any(state.get("active_failure") for state in recording.states))
+    queue.release_failure(session_id="session-1", sequence=active["sequence"])
+    hold.join(timeout=2.0)
+
+    assert not hold.is_alive()
+    assert errors == []
+    assert plugin._holds == 2
+    assert any("holding failure #2" in line for line in reporter.lines)
+    assert sum("discovery publish failed" in line for line in reporter.lines) == 1

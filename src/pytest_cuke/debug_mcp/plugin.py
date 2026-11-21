@@ -43,6 +43,18 @@ if TYPE_CHECKING:
     from pytest_cuke.model.scenario_run import ScenarioRun
 
 
+# Keep diagnostics small enough that the 1 MB discovery transport cap survives JSON escaping.
+_MAX_DIAGNOSTIC_CHARS = 16_384
+
+
+def _bounded_diagnostic(text: str) -> str:
+    """Truncate a failure diagnostic before it reaches the discovery transport."""
+    if len(text) <= _MAX_DIAGNOSTIC_CHARS:
+        return text
+    omitted = len(text) - _MAX_DIAGNOSTIC_CHARS
+    return f"{text[:_MAX_DIAGNOSTIC_CHARS]}\n... Debug MCP truncated {omitted} characters ..."
+
+
 def _inspect_value(value: Any, *, depth: int = 0) -> Any:
     """Describe a fixture value without invoking properties or expanding indefinitely."""
     if value is None or isinstance(value, bool | int | float):
@@ -85,6 +97,7 @@ class DebugMcpPlugin:
         self._xdist_controller = False
         self._closed = False
         self._holds = 0
+        self._publish_error_reported = False
 
     def pytest_sessionstart(self, session: Any) -> None:
         if session.config is not self.config:
@@ -127,9 +140,11 @@ class DebugMcpPlugin:
             "longrepr",
             "pytest reported a failure",
         )
-        error_message = redact_text(
-            str(exception) if exception is not None else str(report_message),
-            secrets,
+        error_message = _bounded_diagnostic(
+            redact_text(
+                str(exception) if exception is not None else str(report_message),
+                secrets,
+            )
         )
         try:
             queue.hold_failure(
@@ -140,7 +155,7 @@ class DebugMcpPlugin:
                 bdd_context=_bdd_context(item),
                 environment=environment,
                 fixtures=redact_data(_fixture_snapshot(item), secrets),
-                traceback=redact_text(str(report_message), secrets),
+                traceback=_bounded_diagnostic(redact_text(str(report_message), secrets)),
             )
         except KeyboardInterrupt:
             self._cleanup(remove_discovery=False)
@@ -399,9 +414,11 @@ class DebugMcpPlugin:
                 reporter.write_line(f"Debug MCP discovery relay: {self.discovery_relay.label}")
 
     def _publish_state(self, state: dict[str, Any]) -> None:
-        if self.discovery is None:
-            return
-        self.discovery.publish_queue_state(state)
+        if self.discovery is not None:
+            try:
+                self.discovery.publish_queue_state(state)
+            except Exception as error:
+                self._warn_publish_failure(error)
         active = state.get("active_failure")
         if not isinstance(active, dict):
             return
@@ -413,6 +430,18 @@ class DebugMcpPlugin:
             f"#{active['sequence']} ({active['phase']}) at {active['nodeid']}: "
             f"{active['error_type']}: {active['error_message']}"
         )
+
+    def _warn_publish_failure(self, error: Exception) -> None:
+        if self._publish_error_reported:
+            return
+        self._publish_error_reported = True
+        reporter = self.config.pluginmanager.get_plugin("terminalreporter")
+        if reporter is not None:
+            reporter.write_line(
+                f"Debug MCP discovery publish failed: {error}. "
+                "Failure holds continue without discovery updates; further publish errors are suppressed.",
+                yellow=True,
+            )
 
     def _cleanup(self, *, remove_discovery: bool) -> None:
         if self._closed:
