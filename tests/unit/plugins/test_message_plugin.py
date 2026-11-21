@@ -8,6 +8,8 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
 from pytest_cuke.model.message_validation import MessageValidationDiagnostic
 from pytest_cuke.formatter_api import FormatterRequest
 from pytest_cuke.model.message_types import (
@@ -652,3 +654,38 @@ def test_message_plugin_emits_skipped_messages_for_a_setup_skip() -> None:
     assert len(finished_cases) == 1
     assert finished_cases[0].test_case_started_id == started[0].id
     assert finished_cases[0].will_be_retried is False
+
+
+@pytest.mark.parametrize(
+    ("allure_output", "expected_count"),
+    [("allure-results", 1), (None, 0)],
+)
+def test_xdist_batch_keeps_tolerated_diagnostics_for_native_allure(allure_output, expected_count) -> None:
+    from pytest_cuke.const import PYTEST_STEP_OUTCOME_MEDIA_TYPE
+    from pytest_cuke.model.message_worker_transport import MessageBatch
+
+    observed: list[dict[str, Any]] = []
+    config = SimpleNamespace(
+        stash={},
+        rootpath=Path.cwd(),
+        option=SimpleNamespace(cuke_messages_ndjson=None, cuke_html=None, cuke_allure=allure_output),
+        getini=lambda name: "",
+        hook=SimpleNamespace(
+            pytest_cuke_message_batch=lambda *, config, batch: observed.append(batch),
+            pytest_cuke_message_validated=lambda *, config, message: None,
+        ),
+    )
+    plugin = MessagePlugin(config=config)
+    diagnostic = Attachment(
+        body=json.dumps({"testCaseStartedId": "tcs1", "testStepId": "ts1", "actualResult": {"message": "sentinel"}}),
+        content_encoding=ContentEncoding.identity,
+        media_type=PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+        test_case_started_id="tcs1",
+    )
+    batch = MessageBatch("gw0", 0, (message_to_dict(Message(attachment=diagnostic)),))
+
+    plugin._publish_worker_message_batch(batch)
+
+    assert len(observed[0]["envelopes"]) == expected_count
+    if expected_count:
+        assert observed[0]["envelopes"][0]["attachment"]["mediaType"] == PYTEST_STEP_OUTCOME_MEDIA_TYPE

@@ -588,3 +588,20 @@ def test_formatter_detects_early_exit_and_removes_staged_output(
     assert "formatter exited early sentinel" in captured.err
     assert not output.exists()
     assert not list(tmp_path.glob(".formatter-output.txt.*.pytest-cuke-tmp"))
+
+
+def test_worker_batch_keeps_internal_step_outcome_metadata_out_of_formatters() -> None:
+    from pytest_cuke.const import PYTEST_STEP_OUTCOME_MEDIA_TYPE
+
+    session = FormatterSession(None, ())
+    written: list[dict[str, object]] = []
+    session._write_envelope = written.append  # type: ignore[method-assign]
+    diagnostic = {"attachment": {"mediaType": PYTEST_STEP_OUTCOME_MEDIA_TYPE, "body": "{}"}}
+    readable = {"attachment": {"mediaType": "text/plain", "body": "readable"}}
+
+    session.pytest_cuke_message_batch(
+        config=None,
+        batch={"worker_id": "gw0", "sequence": 0, "envelopes": [diagnostic, readable]},
+    )
+
+    assert written == [readable]

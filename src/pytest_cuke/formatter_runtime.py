@@ -588,6 +588,10 @@ class FormatterSession:
         for envelope in envelopes:
             if not isinstance(envelope, dict):
                 raise FormatterRuntimeError(f"A {self._label} received a non-object worker Messages envelope.")
+            attachment = envelope.get("attachment")
+            if isinstance(attachment, dict) and attachment.get("mediaType") == PYTEST_STEP_OUTCOME_MEDIA_TYPE:
+                # Internal step outcome metadata is consumed by report converters only.
+                continue
             try:
                 normalized = self._message_adapter.worker_envelope(envelope, worker_id=worker_id)
             except (TypeError, ValueError) as error:

@@ -30,6 +30,7 @@ from pytest_cuke.allure_conversion import (
     _scenario_status,
     _status_details,
     _status_priority,
+    _step_outcome_diagnostic,
     _timestamp_millis,
 )
 from pytest_cuke.allure_status import _allure_api_step_status
@@ -473,32 +474,14 @@ class NativeAllureReporter:
 
     def _record_step_outcome_metadata(self, attachment: messages.Attachment) -> None:
         """Keep an allowed step failure diagnosable without changing its reported status."""
-        try:
-            payload = json.loads(_attachment_bytes(attachment))
-        except (AllureConversionError, UnicodeDecodeError, ValueError, TypeError) as error:
-            raise AllureConversionError("step outcome metadata contains invalid JSON") from error
-        if not isinstance(payload, dict):
+        diagnostic = _step_outcome_diagnostic(attachment)
+        if diagnostic is None:
             return
-        case_id = attachment.test_case_started_id or payload.get("testCaseStartedId")
-        step_id = attachment.test_step_id or payload.get("testStepId")
-        case = self._active_cases.get(case_id) if isinstance(case_id, str) else None
-        step = case.step_uuids.get(step_id) if case is not None and isinstance(step_id, str) else None
+        case_id, step_id, details = diagnostic
+        case = self._active_cases.get(case_id)
+        step = case.step_uuids.get(step_id) if case is not None else None
         if step is None:
             return
-        actual = payload.get("actualResult") or payload.get("diagnosticResult")
-        if not isinstance(actual, dict):
-            return
-        exception = actual.get("exception")
-        exception = exception if isinstance(exception, dict) else {}
-        message = actual.get("message") or exception.get("message")
-        trace = exception.get("stackTrace")
-        if not isinstance(message, str) and not isinstance(trace, str):
-            return
-        details = {}
-        if isinstance(message, str):
-            details["message"] = message
-        if isinstance(trace, str):
-            details["trace"] = trace
         with self._lifecycle.update_step(step.uuid) as allure_step:
             allure_step.statusDetails = self._model["StatusDetails"](**details)
 
