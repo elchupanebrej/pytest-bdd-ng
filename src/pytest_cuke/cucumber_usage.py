@@ -20,12 +20,12 @@ import { createRequire } from "node:module";
 import { createInterface } from "node:readline";
 
 import {
-  FormatterBuilder,
-  UsageFormatter,
   formatterHelpers,
   supportCodeLibraryBuilder,
 } from "@cucumber/cucumber";
 
+const require = createRequire(import.meta.resolve("@cucumber/cucumber"));
+const Table = require("cli-table3");
 const useTtyLayout = __USE_TTY_LAYOUT__;
 const terminalColumns = __TERMINAL_COLUMNS__;
 const input = createInterface({ input: process.stdin, crlfDelay: Infinity });
@@ -33,22 +33,21 @@ const envelopes = [];
 const parameterTypesByName = new Map();
 const stepDefinitionsById = new Map();
 
-if (useTtyLayout) {
-  const require = createRequire(import.meta.resolve("@cucumber/cucumber"));
-  const Table = require("cli-table3");
-  const renderTable = Table.prototype.toString;
-  Table.prototype.toString = function (...args) {
-    if (this.options?.head?.[0] === "Pattern / Text") {
-      const availableWidth = Math.max(30, terminalColumns - 4);
-      const durationWidth = Math.min(14, Math.max(10, Math.floor(availableWidth * 0.2)));
-      const locationWidth = Math.min(24, Math.max(12, Math.floor(availableWidth * 0.28)));
-      const patternWidth = Math.max(12, availableWidth - durationWidth - locationWidth);
-      this.options.colWidths = [patternWidth, durationWidth, locationWidth];
-      this.options.wordWrap = true;
-    }
-    return renderTable.apply(this, args);
-  };
-}
+const renderTable = Table.prototype.toString;
+Table.prototype.toString = function (...args) {
+  if (useTtyLayout && this.options?.head?.[0] === "Pattern / Text") {
+    const availableWidth = Math.max(30, terminalColumns - 4);
+    const countWidth = 5;
+    const durationWidth = Math.min(14, Math.max(10, Math.floor(availableWidth * 0.2)));
+    const locationWidth = Math.min(24, Math.max(12, Math.floor(availableWidth * 0.28)));
+    const patternWidth = Math.max(12, availableWidth - countWidth - durationWidth - locationWidth);
+    this.options.colWidths = [patternWidth, durationWidth, locationWidth, countWidth];
+    this.options.wordWrap = true;
+  }
+  return renderTable.apply(this, args);
+};
+
+const durationMilliseconds = (duration) => duration.seconds * 1000 + duration.nanos / 1_000_000;
 
 const createSupportCodeLibrary = () => {
   let generatedId = 0;
@@ -123,22 +122,47 @@ for await (const line of input) {
 
 const eventBroadcaster = new EventEmitter();
 const eventDataCollector = new formatterHelpers.EventDataCollector(eventBroadcaster);
-await FormatterBuilder.build(UsageFormatter, {
-  env: process.env,
-  cwd: process.cwd(),
-  eventBroadcaster,
-  eventDataCollector,
-  log: (output) => {
-    if (output) process.stdout.write(output);
-  },
-  parsedArgvOptions: {},
-  stream: process.stdout,
-  cleanup: async () => {},
-  supportCodeLibrary: createSupportCodeLibrary(),
-});
-
 for (const envelope of envelopes) {
   eventBroadcaster.emit("envelope", envelope);
+}
+
+const usage = formatterHelpers.getUsage({
+  stepDefinitions: createSupportCodeLibrary().stepDefinitions,
+  eventDataCollector,
+});
+if (usage.length === 0) {
+  process.stdout.write("No step definitions\n");
+} else {
+  const table = new Table({
+    head: ["Pattern / Text", "Duration", "Location", "Uses"],
+    style: { border: [], head: [] },
+  });
+  for (const { line, matches, meanDuration, pattern, patternType, uri } of usage) {
+    const formattedPattern = patternType === "RegularExpression" ? `/${pattern}/` : pattern;
+    const patterns = [formattedPattern];
+    const durations = [];
+    if (matches.length > 0) {
+      durations.push(meanDuration !== undefined ? `${durationMilliseconds(meanDuration).toFixed(2)}ms` : "-");
+    } else {
+      durations.push("UNUSED");
+    }
+    const locations = [formatterHelpers.formatLocation({ line, uri })];
+    const counts = [String(matches.length)];
+    for (const match of matches.slice(0, 5)) {
+      patterns.push(`  ${match.text}`);
+      durations.push(match.duration !== undefined ? `${durationMilliseconds(match.duration).toFixed(2)}ms` : "-");
+      locations.push(formatterHelpers.formatLocation(match));
+      counts.push("");
+    }
+    if (matches.length > 5) {
+      patterns.push(`  ${(matches.length - 5).toString()} more`);
+      durations.push("");
+      locations.push("");
+      counts.push("");
+    }
+    table.push([patterns.join("\n"), durations.join("\n"), locations.join("\n"), counts.join("\n")]);
+  }
+  process.stdout.write(`${table.toString()}\n`);
 }
 """.strip()
 

@@ -141,6 +141,11 @@ def test_parse_syntax_error_raises_feature_concrete_parse_error() -> None:
     assert "Line number:" in str(exc_info.value)
 
 
+def test_source_without_feature_declaration_is_a_parse_error() -> None:
+    with pytest.raises(FeatureConcreteParseError, match="does not declare a Feature"):
+        GherkinParser().parse_text("# only a comment\n", uri="comments.feature")
+
+
 def test_parse_file_path(tmp_path: Path) -> None:
     feature_file = tmp_path / "example.feature"
     feature_file.write_text(

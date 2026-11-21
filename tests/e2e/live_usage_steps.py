@@ -503,7 +503,7 @@ def _table_rows(output: str) -> list[list[str]]:
         if "│" not in line:
             continue
         cells = [cell.strip() for cell in line.split("│")[1:-1]]
-        if len(cells) == 3:
+        if len(cells) == 4:
             rows.append(cells)
     return rows
 
@@ -581,7 +581,7 @@ def _assert_displayed_usage_durations_match_messages(report: str, messages: list
     definitions, counts = _message_definition_records(run)
     durations_by_definition = _message_definition_durations(run)
     table_rows = _table_rows(report)
-    assert table_rows and table_rows[0] == ["Pattern / Text", "Duration", "Location"], table_rows
+    assert table_rows and table_rows[0] == ["Pattern / Text", "Duration", "Location", "Uses"], table_rows
 
     for definition_id, definition in definitions.items():
         match_count = counts[definition_id]
@@ -666,7 +666,7 @@ def _assert_usage_matches_messages(consumer: Any) -> str:
     _assert_pytest_failure(consumer, expected_failures=1, expected_passes=1)
     output = _usage_stream(consumer)
     table_rows = _table_rows(output)
-    assert table_rows and table_rows[0] == ["Pattern / Text", "Duration", "Location"], table_rows
+    assert table_rows and table_rows[0] == ["Pattern / Text", "Duration", "Location", "Uses"], table_rows
     assert re.search(r"\b\d+(?:\.\d+)?ms\b", output), output
 
     messages = _read_messages(consumer, "artifacts/messages.ndjson")
@@ -702,6 +702,9 @@ def _assert_usage_matches_messages(consumer: Any) -> str:
         assert (row[1] == "UNUSED") is (
             not is_used
         ), f"UsageFormatter usage status disagreed with Messages match identity {definition_id}: {row!r}"
+        assert row[3] == str(counts[definition_id]), (
+            f"UsageFormatter use count disagreed with Messages match identity {definition_id}: {row!r}"
+        )
 
     shared_locations = {
         _source_line(definition)[1]
@@ -850,6 +853,7 @@ def usage_output_lists_unused_definition(consumer: Any) -> None:
     added_unused_rows = [row for row in unused_rows if row[0] == "the never exercised usage pattern"]
     assert len(unused_rows) == first_unused_count + 1, (first_unused_count, unused_rows)
     assert len(added_unused_rows) == 1, added_unused_rows
+    assert added_unused_rows[0][3] == "0", added_unused_rows
     plugin_lines = (
         (getattr(consumer, "_usage_workspace", _consumer_root(consumer)) / "usage_consumer_steps.py")
         .read_text(encoding="utf-8")
@@ -897,7 +901,7 @@ def prepare_dash_configured_usage_consumer(consumer: Any) -> None:
 @then("configured usage should report the passing definition and its source")
 def configured_usage_reports_passing_definition(consumer: Any) -> None:
     report = _usage_stream(consumer)
-    assert _table_rows(report)[0] == ["Pattern / Text", "Duration", "Location"]
+    assert _table_rows(report)[0] == ["Pattern / Text", "Duration", "Location", "Uses"]
     _assert_single_passing_usage_definition(consumer, report)
     assert getattr(consumer, "_usage_cucumber_version", None) == "13.3.0"
 
@@ -1136,6 +1140,7 @@ def public_usage_example_preserves_real_matches_and_unused(consumer: Any) -> Non
     ]
     assert len(trace_rows) == 1, trace_rows
     assert trace_rows[0][0] == "trace" and trace_rows[0][1] == "UNUSED", trace_rows
+    assert trace_rows[0][3] == "0", trace_rows
     for pattern, expected_count in expected_patterns.items():
         found = [
             definition for definition in example_definitions.values() if definition["pattern"]["source"] == pattern
@@ -1146,6 +1151,7 @@ def public_usage_example_preserves_real_matches_and_unused(consumer: Any) -> Non
         assert counts[definition["id"]] == expected_count, (definition, counts)
         row = _assert_reported_definition(table_rows, definition, expected_duration=expected_count > 0)
         assert (row[1] == "UNUSED") is (expected_count == 0), row
+        assert row[3] == str(expected_count), row
     for text in (
         "the Usage example starts a clean request",
         "the Usage example handles alpha",
@@ -1192,6 +1198,7 @@ def added_unused_public_usage_definition_changes_report(consumer: Any) -> None:
     assert counts[definition["id"]] == 0, (definition, counts)
     row = _assert_reported_definition(table_rows, definition, expected_duration=False)
     assert row[1] == "UNUSED", row
+    assert row[3] == "0", row
     assert sum(row[1] == "UNUSED" for row in table_rows) == 3, table_rows
     plugin_lines = (
         (consumer._usage_workspace / "cucumber_usage_example_steps.py").read_text(encoding="utf-8").splitlines()

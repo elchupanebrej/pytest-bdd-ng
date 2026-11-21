@@ -253,7 +253,8 @@ setting accepts ``-`` for terminal output or a file path. With no option or
 setting, the formatter is disabled.
 
 The report includes every discovered step definition, marks unused definitions,
-and reports match examples, durations, patterns and source locations from
+and reports a computed use count for each definition, including zero. It also
+reports match examples, durations, patterns and source locations from
 Cucumber Messages. Terminal output adapts its columns to the available width.
 File output does not occupy the terminal formatter slot, so it can coexist
 with a terminal renderer and distinct JSON, JUnit XML, and other formatter
