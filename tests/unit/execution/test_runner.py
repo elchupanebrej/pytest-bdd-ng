@@ -282,8 +282,15 @@ def test_mock_run_aggregates_missing_steps_and_keeps_previous_step_context(
 
 
 class _FakeDefinition:
-    def __init__(self, *, target_fixtures: tuple[str, ...] = (), not_implemented: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        target_fixtures: tuple[str, ...] = (),
+        mapped_fixtures: tuple[str, ...] = (),
+        not_implemented: bool = False,
+    ) -> None:
         self.target_fixtures = target_fixtures
+        self.fixtures_mapped_from_step_definition = {*target_fixtures, *mapped_fixtures}
         self.not_implemented = not_implemented
 
 
@@ -345,7 +352,7 @@ def test_mock_run_preflight_marks_previous_step_fixture_dependency_unverified(
     def match_to_step(request: object, run: RunContext) -> object:
         step = run.require_step("pytest_cuke_match_step_definition_to_step")
         if step is producer:
-            return _FakeDefinition(target_fixtures=("known_names",))
+            return SimpleNamespace(target_fixtures=("known_names",), not_implemented=False)
         request.getfixturevalue("known_names")  # type: ignore[attr-defined]  # Emulates a custom parser fixture dependency.
         return _FakeDefinition()
 
@@ -359,6 +366,38 @@ def test_mock_run_preflight_marks_previous_step_fixture_dependency_unverified(
     assert "Scenario binding preflight is incomplete" in message
     assert "these step bindings are unverified" in message
     assert 'depends on fixture "known_names" produced by an earlier step' in message
+    assert "without matching step definitions" not in message
+    assert run_context.status == "failed"
+
+
+def test_mock_run_preflight_marks_step_injected_parameter_fixture_unverified(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    producer = Step(name="the pickle has a mapped taste", keyword="Given", line=2)
+    dependent = Step(name="I select the taste", keyword="When", line=3)
+    feature = Feature(name="Feature", uri="feature.feature")
+    scenario = Scenario(name="Scenario", steps=(producer, dependent))
+    run_context = RunContext()
+    monkeypatch.setattr("pytest_cuke.runner.get_run_context", lambda _config: run_context)
+
+    step_runner = MagicMock()
+
+    def match_to_step(request: object, run: RunContext) -> object:
+        step = run.require_step("pytest_cuke_match_step_definition_to_step")
+        if step is producer:
+            return _FakeDefinition(mapped_fixtures=("cuke_taste",))
+        request.getfixturevalue("cuke_taste")  # type: ignore[attr-defined]  # Emulates a custom parser fixture dependency.
+        return _FakeDefinition()
+
+    step_runner.match_to_step.side_effect = match_to_step
+    request, item = _mock_run_fixture()
+
+    with pytest.raises(pytest.fail.Exception) as error:
+        ScenarioRunner(step_runner=step_runner)._verify_mock_run_bindings(item, request, feature, scenario)
+
+    message = str(error.value)
+    assert "Scenario binding preflight is incomplete" in message
+    assert 'depends on fixture "cuke_taste" produced by an earlier step' in message
     assert "without matching step definitions" not in message
     assert run_context.status == "failed"
 

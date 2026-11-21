@@ -628,7 +628,11 @@ class ScenarioRunner:
             except LookupError as error:
                 unverified.append((step, f"could not be matched because a fixture was unavailable ({error})"))
             else:
-                unavailable.update(getattr(definition, "target_fixtures", ()) or ())
+                unavailable.update(
+                    getattr(definition, "fixtures_mapped_from_step_definition", None)
+                    or getattr(definition, "target_fixtures", ())
+                    or ()
+                )
                 if getattr(definition, "not_implemented", False):
                     not_implemented.append((step, resolve_wip_status(request.config, item, scenario)))
             finally:

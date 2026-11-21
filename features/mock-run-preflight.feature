@@ -101,6 +101,78 @@ Feature: Mock-run binding preflight
     And pytest output should not include "without matching step definitions"
     And the consumer file "preflight-markers.txt" should not exist
 
+  Scenario: A parser bound to a step-injected parameter fixture is unverified, not missing
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And consumer file "conftest.py" contains:
+      """python
+      import re
+      from pathlib import Path
+
+      from pytest_cuke import given, parsers, when
+
+
+      def _record(name):
+          with Path("preflight-markers.txt").open("a", encoding="utf-8") as stream:
+              stream.write(name + "\n")
+
+
+      class TasteParser(parsers.StepParser):
+          def __init__(self):
+              self.regex = re.compile(r"^I select the taste (?P<taste>.+)$")
+
+          def parse_arguments(self, request, name, anonymous_group_names=None):
+              return self.regex.match(name).groupdict()
+
+          @property
+          def arguments(self):
+              return ["taste"]
+
+          def is_matching(self, request, name):
+              match = self.regex.match(name)
+              if match is None:
+                  return False
+              return match.group("taste") == request.getfixturevalue("cuke_taste")
+
+          def __str__(self):
+              return "I select the taste %(taste)s"
+
+
+      @given(
+          parsers.re(r"^the pickle has a (?P<freshness>\w+) taste$"),
+          params_fixtures_mapping={"freshness": "cuke_taste"},
+      )
+      def pickle_has_mapped_taste(freshness):
+          _record("producer-body")
+          assert freshness == "salted"
+
+
+      @when(TasteParser())
+      def select_taste(taste):
+          _record("dependent-body")
+          assert taste == "salted"
+      """
+    And consumer file "features/preflight-parameter-fixture.feature" contains:
+      """gherkin
+      Feature: Preflight parameter fixture
+        Scenario: The parser reads a fixture injected from the previous step parameters
+          Given the pickle has a salted taste
+          When I select the taste salted
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features -q"
+    Then pytest should exit with code 0
+    And the test outcome should have 1 passed scenarios
+    And the consumer file "preflight-markers.txt" should exist
+    When I remove consumer file "preflight-markers.txt"
+    And I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-mock-run -q"
+    Then pytest should exit with a non-zero code
+    And pytest output should include "Scenario binding preflight is incomplete"
+    And pytest output should include "these step bindings are unverified"
+    And pytest output should include "depends on fixture"
+    And pytest output should include "cuke_taste"
+    And pytest output should include "produced by an earlier step"
+    And pytest output should not include "without matching step definitions"
+    And the consumer file "preflight-markers.txt" should not exist
+
   Scenario: A not-implemented definition is reported separately and mock run still succeeds
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And consumer file "conftest.py" contains:
