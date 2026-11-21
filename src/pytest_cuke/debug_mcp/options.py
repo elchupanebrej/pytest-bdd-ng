@@ -56,7 +56,7 @@ def parse_port(value: str | int) -> int | str:
 
 
 def parse_max_holds(value: str | int) -> int:
-    """Parse a non-negative per-worker hold limit; zero is unlimited."""
+    """Parse a non-negative per-run hold limit; zero is unlimited."""
     text = str(value).strip()
     if not text.isdecimal():
         raise ValueError(f"max holds must be a non-negative integer; got {value!r}")
@@ -280,7 +280,7 @@ def add_options(parser: Parser) -> None:
         action="store",
         type=parse_max_holds,
         default=None,
-        help="maximum failure holds per worker; zero means unlimited (default: 0)",
+        help="maximum failure holds per run; zero means unlimited (default: 0)",
     )
     group.addoption(
         "--cuke-mcp-expose-env",
@@ -295,7 +295,7 @@ def add_options(parser: Parser) -> None:
         metavar="PATTERNS",
         help="additional comma-separated environment name substrings to redact",
     )
-    parser.addini("cuke_mcp_max_holds", "Maximum failure holds per worker; zero is unlimited.", default="0")
+    parser.addini("cuke_mcp_max_holds", "Maximum failure holds per run; zero is unlimited.", default="0")
     parser.addini(
         "cuke_mcp_expose_env", "Expose redacted environment in failure inspection.", type="bool", default=False
     )

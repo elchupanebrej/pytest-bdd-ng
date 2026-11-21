@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import shutil
 from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -114,7 +116,7 @@ class DebugMcpPlugin:
         if queue is None or not report.failed or report.when not in {"setup", "call", "teardown"}:
             return
 
-        if self.options.max_holds and self._holds >= self.options.max_holds:
+        if not self._acquire_hold():
             return
         self._holds += 1
         secrets = secret_values(self.options.redact_patterns)
@@ -181,6 +183,8 @@ class DebugMcpPlugin:
         if not isinstance(worker_input, dict):
             raise pytest.UsageError(f"Debug MCP xdist worker {worker_id!r} has no worker input record")
         worker_input["cuke_debug_mcp_root_session_id"] = self.root_session_id
+        if self.options.max_holds:
+            _hold_slots_dir(self.config, self.root_session_id).mkdir(parents=True, exist_ok=True)
         if self.registry is not None:
             worker_input["cuke_debug_mcp_registry_url"] = self.registry.url
         try:
@@ -208,6 +212,27 @@ class DebugMcpPlugin:
             reporter = self.config.pluginmanager.get_plugin("terminalreporter")
             if reporter is not None:
                 reporter.write_line(f"Debug MCP worker discovery error for {worker_id}: {publish_error}", yellow=True)
+
+    def _acquire_hold(self) -> bool:
+        """Reserve one failure hold from the run-wide limit."""
+        if not self.options.max_holds:
+            return True
+        if self.worker_id is None:
+            return self._holds < self.options.max_holds
+        slots = _hold_slots_dir(self.config, self.root_session_id)
+        try:
+            slots.mkdir(parents=True, exist_ok=True)
+            for index in range(self.options.max_holds):
+                try:
+                    os.close(os.open(slots / str(index), os.O_CREAT | os.O_EXCL | os.O_WRONLY))
+                except FileExistsError:
+                    continue
+                return True
+            return False
+        except OSError:
+            # shortcut: workers without a shared filesystem keep a per-worker count; coordinate
+            # through the controller registry when remote workers must share one budget.
+            return self._holds < self.options.max_holds
 
     def _start(self) -> None:
         if self._xdist_controller:
@@ -450,6 +475,8 @@ class DebugMcpPlugin:
             except Exception as error:
                 errors.append(error)
             self.registry = None
+        if self._xdist_controller:
+            shutil.rmtree(_hold_slots_dir(self.config, self.root_session_id), ignore_errors=True)
         if errors:
             reporter = self.config.pluginmanager.get_plugin("terminalreporter")
             if reporter is not None:
@@ -517,6 +544,11 @@ def _cache_discovery_path(config: Any) -> Path:
 
 def _xdist_index_path(config: Any) -> Path:
     return _cache_discovery_path(config).with_name("workers.json")
+
+
+def _hold_slots_dir(config: Any, root_session_id: str) -> Path:
+    """Directory holding one marker per consumed failure hold for this run."""
+    return _cache_discovery_path(config).with_name("hold-slots") / root_session_id
 
 
 def _xdist_workers_dir(config: Any) -> Path:

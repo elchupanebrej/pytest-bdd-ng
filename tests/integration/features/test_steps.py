@@ -572,6 +572,43 @@ def test_steps_parameter_mapping(testdir):
     result.assert_outcomes(passed=1, failed=0)
 
 
+def test_steps_disabled_parameter_is_not_shadowed_by_another_definition(testdir):
+    testdir.makefile(
+        ".feature",
+        # language=gherkin
+        steps="""\
+            Feature: Disabled parameters stay undiscoverable
+
+                Scenario: Another definition names the same parameter
+                    Given a disabled "bar-disabled" parameter
+                    Then the disabled parameter is not a fixture
+            """,
+    )
+    testdir.makeconftest(
+        # language=python
+        """\
+        from pytest_cuke.compatibility.pytest import FixtureLookupError
+        from pytest import raises
+        from pytest_cuke import given, then
+
+        @given('a disabled "{bar}" parameter', params_fixtures_mapping=False)
+        def disabled_definition(bar):
+            assert bar == "bar-disabled"
+
+        @given('an enabled "{bar}" parameter')
+        def enabled_definition(bar):
+            assert bar == "bar-enabled"
+
+        @then('the disabled parameter is not a fixture')
+        def disabled_parameter_is_not_a_fixture(request):
+            with raises(FixtureLookupError):
+                request.getfixturevalue('bar')
+        """
+    )
+    result = testdir.runpytest()
+    result.assert_outcomes(passed=1, failed=0)
+
+
 def test_steps_parameter_mapping_could_redirect_to_fixture(testdir):
     testdir.makefile(
         ".feature",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 from warnings import warn
 
@@ -23,8 +23,12 @@ if TYPE_CHECKING:
 
 def _none_fixture(fixture_name: str) -> object:
     @pytest.fixture(name=fixture_name)
-    def _fixture() -> None:
-        return None
+    def _fixture(request: Any) -> None:
+        # A disabled parameter must not leak a None placeholder owned by another definition.
+        if fixture_name in getattr(getattr(request, "node", None), "_pytest_cuke_disabled_parameters", ()):
+            from _pytest.fixtures import FixtureLookupError  # noqa: PLC0415
+
+            raise FixtureLookupError(fixture_name, request)
 
     return _fixture
 

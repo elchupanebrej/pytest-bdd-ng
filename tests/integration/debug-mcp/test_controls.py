@@ -121,5 +121,5 @@ def test_installed_consumer_hold_cap_and_redacted_environment(tmp_path, workers,
                 process.kill()
                 process.wait(timeout=5)
     expected_workers = workers or 1
-    assert len(seen) == expected_workers * (cap or 2)
-    assert len(set(seen.values())) == expected_workers
+    assert len(seen) == (cap or expected_workers * 2)
+    assert 1 <= len(set(seen.values())) <= expected_workers

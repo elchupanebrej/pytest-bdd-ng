@@ -209,6 +209,24 @@ class StepRunner:
                 + missing_step_hint(step)
             ) from e
 
+    @staticmethod
+    def _disabled_step_parameters(step_definition: Definition, step_params: dict[str, Any]) -> set[str]:
+        """Return parameters this definition deliberately keeps out of pytest fixtures."""
+        mapping = DefaultMapping.instantiate_from_collection_or_bool(
+            getattr(step_definition, "params_fixtures_mapping", True),
+            warm_up_keys=step_params.keys(),
+        )
+        disabled: set[str] = set()
+        for param in step_params:
+            try:
+                fixture_name = mapping[param]
+            except KeyError:
+                disabled.add(param)
+            else:
+                if fixture_name is None or fixture_name is ...:
+                    disabled.add(param)
+        return disabled
+
     def inject_step_parameters_as_fixtures(
         self,
         request: FixtureRequest,
@@ -327,6 +345,13 @@ class StepRunner:
             step_params = (
                 step_definition.get_parameters(request, step) if hasattr(step_definition, "get_parameters") else {}
             )
+            disabled_params = self._disabled_step_parameters(step_definition, step_params)
+            marker = getattr(request.node, "_pytest_cuke_disabled_parameters", None)
+            if marker is None:
+                marker = set()
+                request.node._pytest_cuke_disabled_parameters = marker
+            marker.difference_update(set(step_params) - disabled_params)
+            marker.update(disabled_params)
             self.inject_step_parameters_as_fixtures(
                 request,
                 step_params=step_params,
