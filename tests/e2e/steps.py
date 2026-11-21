@@ -9834,6 +9834,41 @@ def consumer_wip_scenario_messages(
     assert actual_messages == expected_messages, (actual_messages, expected_messages, steps)
 
 
+@then(
+    re.compile(
+        r'consumer artifacts "(?P<messages_path>[^"]+)" and "(?P<json_path>[^"]+)" '
+        r"should report skipped scenario hooks without an error payload"
+    )
+)
+def consumer_scenario_hook_skip_artifacts(
+    messages_path: str, json_path: str, consumer: ConsumerProject
+) -> None:
+    envelopes = _background_messages_artifact(messages_path, consumer)
+    cases = [envelope["testCase"] for envelope in envelopes if isinstance(envelope.get("testCase"), dict)]
+    assert len(cases) == 1, f"expected one test case, got {cases!r}"
+    hook_steps = [step for step in cases[0]["testSteps"] if "hookId" in step]
+    assert len(hook_steps) == 2, f"expected before and after hook steps, got {hook_steps!r}"
+    finishes = {
+        finish["testStepId"]: finish["testStepResult"]
+        for envelope in envelopes
+        if isinstance((finish := envelope.get("testStepFinished")), dict)
+    }
+    for hook_step in hook_steps:
+        result = finishes[hook_step["id"]]
+        assert result["status"] == "SKIPPED", result
+        assert "exception" not in result, result
+        assert "hook skip sentinel" in result.get("message", ""), result
+
+    report = json.loads(_consumer_artifact_path(json_path, consumer).read_text(encoding="utf-8"))
+    elements = [element for feature in report for element in feature.get("elements", [])]
+    assert len(elements) == 1, f"expected one Cucumber JSON scenario, got {elements!r}"
+    hook_results = [step for step in elements[0]["steps"] if step.get("hidden")]
+    assert len(hook_results) == 2, hook_results
+    for hook in hook_results:
+        assert hook["result"]["status"] == "skipped", hook
+        assert "error_message" not in hook["result"], hook
+
+
 @then("the consumer xdist WIP side-effect artifacts should not exist")
 def consumer_xdist_wip_side_effects_absent(consumer: ConsumerProject) -> None:
     leftovers = sorted(path.name for path in consumer.path.glob("wip-effects-*.log"))

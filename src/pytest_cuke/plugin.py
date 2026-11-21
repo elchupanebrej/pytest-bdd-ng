@@ -619,10 +619,26 @@ def _drop_autoload_duplicates(items: list[Any]) -> None:
     ]
 
 
+_EMPTY_SCENARIO_SKIP_REASON = "Scenario has no executable steps."
+
+
+def _skip_empty_scenarios(items: list[Any]) -> None:
+    """Mark scenarios without executable steps as skipped before setup."""
+    for item in items:
+        binding = _bound_scenario(item)
+        if binding is None:
+            continue
+        feature, scenario = binding
+        if execution_steps(feature, scenario):
+            continue
+        item.add_marker(pytest.mark.skip(reason=_EMPTY_SCENARIO_SKIP_REASON))
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     """Validate explicit bindings after pytest has applied item selection."""
     _drop_autoload_duplicates(items)
+    _skip_empty_scenarios(items)
     if (
         _generation_mode_enabled(config)
         or bool(getattr(config.option, "keyword", None))
