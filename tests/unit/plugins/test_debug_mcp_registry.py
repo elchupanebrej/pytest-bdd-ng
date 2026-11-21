@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import socket
+import time
 from pathlib import Path
 
 import pytest
@@ -41,6 +43,13 @@ def _record(worker_id: str = "gw0", *, status: str = "waiting", root_session_id:
 
 def _read(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _recv_all(connection: socket.socket) -> bytes:
+    response = b""
+    while chunk := connection.recv(4096):
+        response += chunk
+    return response
 
 
 def _client(registry, *, root_session_id: str = "root-session", timeout: float = 2.0) -> DiscoveryRegistryClient:
@@ -166,6 +175,7 @@ def test_registry_client_fails_with_an_actionable_error_when_unreachable() -> No
         ("controller:8890", ("controller", 8890)),
         (" http://controller:8890 ", ("controller", 8890)),
         (" 127.0.0.1:1 ", ("127.0.0.1", 1)),
+        ("[::1]:8890", ("::1", 8890)),
         ("", None),
         (None, None),
     ],
@@ -174,10 +184,98 @@ def test_parse_registry_address_accepts_host_port_or_empty(value: str | None, ex
     assert parse_registry_address(value) == expected
 
 
-@pytest.mark.parametrize("value", ["controller", "controller:0", "controller:70000", ":8890"])
-def test_parse_registry_address_rejects_invalid_values(value: str) -> None:
-    with pytest.raises(ValueError, match="cuke_mcp_registry must be HOST:PORT"):
+@pytest.mark.parametrize(
+    ("value", "match"),
+    [
+        ("controller", "must be HOST:PORT"),
+        ("controller:0", "must be HOST:PORT"),
+        ("controller:70000", "must be HOST:PORT"),
+        (":8890", "must be HOST:PORT"),
+        ("[::1:8890", "mismatched IPv6 brackets"),
+        ("[controller]:8890", "invalid bracketed IPv6"),
+    ],
+)
+def test_parse_registry_address_rejects_invalid_values(value: str, match: str) -> None:
+    with pytest.raises(ValueError, match=match):
         parse_registry_address(value)
+
+
+def test_registry_rejects_a_negative_content_length_promptly(tmp_path: Path) -> None:
+    index = _index(tmp_path)
+    index.initialize()
+    registry = start_registry(host="127.0.0.1", port=0, index=index, session_id="root-session")
+    try:
+        with socket.create_connection(("127.0.0.1", registry.port), timeout=2) as connection:
+            connection.sendall(b"POST / HTTP/1.1\r\nHost: registry\r\nContent-Length: -1\r\n\r\n")
+
+            response = _recv_all(connection)
+    finally:
+        registry.stop()
+
+    assert b"Content-Length" in response
+
+
+def test_registry_rejects_an_oversized_body_without_waiting_for_it(tmp_path: Path) -> None:
+    index = _index(tmp_path)
+    index.initialize()
+    registry = start_registry(host="127.0.0.1", port=0, index=index, session_id="root-session")
+    try:
+        with socket.create_connection(("127.0.0.1", registry.port), timeout=2) as connection:
+            connection.sendall(b"POST / HTTP/1.1\r\nHost: registry\r\nContent-Length: 1000001\r\n\r\n")
+
+            response = _recv_all(connection)
+    finally:
+        registry.stop()
+
+    assert b"exceeds" in response
+
+
+def test_registry_bounds_socket_reads(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from pytest_cuke.debug_mcp import registry as registry_module
+
+    assert 0 < registry_module._RegistryRequestHandler.timeout <= 60
+    monkeypatch.setattr(registry_module._RegistryRequestHandler, "timeout", 0.2)
+    index = _index(tmp_path)
+    index.initialize()
+    registry = start_registry(host="127.0.0.1", port=0, index=index, session_id="root-session")
+    try:
+        started = time.monotonic()
+        with socket.create_connection(("127.0.0.1", registry.port), timeout=2) as connection:
+            connection.sendall(b"POST / HTTP/1.1\r\nHost: registry\r\nContent-Length: 10\r\n\r\nshort")
+
+            response = _recv_all(connection)
+    finally:
+        registry.stop()
+
+    assert time.monotonic() - started < 2
+    assert b"timed out" in response
+
+
+def test_registry_binds_and_serves_an_ipv6_advertised_host(tmp_path: Path) -> None:
+    if not socket.has_ipv6:
+        pytest.skip("this host has no IPv6 support")
+    index = _index(tmp_path)
+    index.initialize()
+    index.register_worker("gw0")
+    try:
+        registry = start_registry(host="::1", port=0, index=index, session_id="root-session")
+    except OSError as error:
+        pytest.skip(f"IPv6 loopback is unavailable: {error}")
+    try:
+        client = DiscoveryRegistryClient(
+            ("::1", registry.port),
+            worker_id="gw0",
+            root_session_id="root-session",
+            timeout=2,
+        )
+
+        client.publish(_record())
+
+        assert _read(index.path)["workers"][0]["status"] == "waiting"
+        assert registry.url == f"http://[::1]:{registry.port}"
+        assert client.label == f"[::1]:{registry.port}"
+    finally:
+        registry.stop()
 
 
 @pytest.mark.parametrize("value", ["0.0.0.0:8890"])

@@ -8,6 +8,8 @@ from ipaddress import ip_address
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from pytest_cuke.remote_http import parse_host_port
+
 if TYPE_CHECKING:
     from pytest_cuke.compatibility.pytest import Config, Parser
 
@@ -65,28 +67,12 @@ def parse_max_holds(value: str | int) -> int:
 
 def parse_registry_address(value: str | tuple[str, int] | None) -> tuple[str, int] | None:
     """Parse the controller ``HOST:PORT`` address used by remote workers."""
-    if isinstance(value, tuple):
-        return value
-    if value is not None and not isinstance(value, str):
-        raise ValueError("cuke_mcp_registry must be HOST:PORT or empty")
-    text = (value or "").strip()
-    if not text:
-        return None
-    if text.startswith("http://"):
-        text = text.removeprefix("http://")
-    host, separator, port_text = text.rpartition(":")
-    port = int(port_text) if port_text.isdecimal() else 0
-    if not separator or not host or not 0 < port <= 65535:
-        raise ValueError(
-            "cuke_mcp_registry must be HOST:PORT, for example controller:8890, with a TCP port between 1 and 65535"
-        )
-    try:
-        address = ip_address(host)
-    except ValueError:
-        return (host, port)
-    if address.is_unspecified:
-        raise ValueError("cuke_mcp_registry cannot advertise a wildcard address; use a reachable controller host")
-    return (host, port)
+    return parse_host_port(
+        value,
+        setting="cuke_mcp_registry",
+        example="controller:8890",
+        allow_wildcard=False,
+    )
 
 
 def _host(value: Any) -> str:

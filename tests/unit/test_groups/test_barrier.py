@@ -3,6 +3,7 @@ from __future__ import annotations
 import http.client
 import json
 import os
+import socket
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -218,6 +219,13 @@ def _relay_barrier(relay, worker: str, *, timeout: float = 2.0) -> TestGroupBarr
     )
 
 
+def _recv_all(connection: socket.socket) -> bytes:
+    response = b""
+    while chunk := connection.recv(4096):
+        response += chunk
+    return response
+
+
 def _raw_relay_post(relay, request: dict, *, credential: str | None = None, timeout: float = 2.0) -> dict:
     body = dict(request)
     if credential is not None:
@@ -317,6 +325,104 @@ def test_relay_client_with_a_wrong_credential_fails_loudly_without_changing_stat
         client.publish_manifest({"groups": ["unit"], "items": []})
 
     assert relay.state.snapshot().manifest is None
+
+
+def test_relay_rejects_a_negative_content_length_promptly(relay) -> None:
+    with socket.create_connection(("127.0.0.1", relay.port), timeout=2) as connection:
+        connection.sendall(b"POST / HTTP/1.1\r\nHost: relay\r\nContent-Length: -1\r\n\r\n")
+
+        response = _recv_all(connection)
+
+    assert b"Content-Length" in response
+    assert relay.state.snapshot().manifest is None
+
+
+def test_relay_rejects_an_oversized_body_without_waiting_for_it(relay) -> None:
+    with socket.create_connection(("127.0.0.1", relay.port), timeout=2) as connection:
+        connection.sendall(b"POST / HTTP/1.1\r\nHost: relay\r\nContent-Length: 1000001\r\n\r\n")
+
+        response = _recv_all(connection)
+
+    assert b"exceeds" in response
+    assert relay.state.snapshot().manifest is None
+
+
+def test_relay_bounds_socket_reads(relay, monkeypatch: pytest.MonkeyPatch) -> None:
+    from pytest_cuke.test_groups import relay as relay_module
+
+    default_timeout = relay_module._RelayRequestHandler.timeout
+    assert 0 < default_timeout <= 60
+    monkeypatch.setattr(relay_module._RelayRequestHandler, "timeout", 0.2)
+    started = time.monotonic()
+
+    with socket.create_connection(("127.0.0.1", relay.port), timeout=2) as connection:
+        connection.sendall(b"POST / HTTP/1.1\r\nHost: relay\r\nContent-Length: 10\r\n\r\nshort")
+
+        response = _recv_all(connection)
+
+    assert time.monotonic() - started < 2
+    assert b"timed out" in response
+
+
+@pytest.mark.parametrize(
+    "manifest",
+    [
+        {"items": []},
+        {"groups": ["unit"]},
+        {"groups": ["unit"], "items": "not-a-list"},
+        {"groups": ["unit"], "items": [{"nodeid": 3, "group": "unit", "ordinal": 0}]},
+        {"groups": ["unit"], "items": [{"nodeid": "test-id", "group": "unit"}]},
+        {"groups": ["unit"], "items": [{"nodeid": "test-id", "group": "unit", "ordinal": "0"}]},
+        {"groups": "unit", "items": []},
+    ],
+)
+def test_relay_rejects_a_malformed_manifest(relay, manifest: dict) -> None:
+    valid = {"groups": ["unit"], "items": []}
+    assert _raw_relay_post(relay, {"op": "publish_manifest", "manifest": valid}, credential=RELAY_CREDENTIAL)["ok"]
+
+    response = _raw_relay_post(relay, {"op": "publish_manifest", "manifest": manifest}, credential=RELAY_CREDENTIAL)
+
+    assert response["ok"] is False
+    assert "publish_manifest" in response["error"]
+    assert relay.state.snapshot().manifest == valid
+
+
+def test_a_rejected_manifest_leaves_waiters_with_the_timeout_diagnostic(relay) -> None:
+    integration = _assignment("tests/test_integration.py::test_integration", "integration", 1)
+    waiter = _relay_barrier(relay, "gw0", timeout=0.2)
+
+    response = _raw_relay_post(
+        relay,
+        {"op": "publish_manifest", "manifest": {"groups": ["unit"], "items": [{"nodeid": 3}]}},
+        credential=RELAY_CREDENTIAL,
+    )
+
+    assert response["ok"] is False
+    with pytest.raises(TestGroupBarrierTimeout, match="run manifest was not published"):
+        waiter.wait_for_earlier_groups(integration)
+
+
+def test_relay_binds_and_serves_an_ipv6_advertised_host() -> None:
+    if not socket.has_ipv6:
+        pytest.skip("this host has no IPv6 support")
+    try:
+        server = start_relay(0, credential=RELAY_CREDENTIAL, host="::1")
+    except OSError as error:
+        pytest.skip(f"IPv6 loopback is unavailable: {error}")
+    try:
+        client = RelayBarrierClient(
+            ("::1", server.port),
+            worker_id="gw0",
+            credential=RELAY_CREDENTIAL,
+            timeout=2,
+        )
+
+        client.publish_manifest({"groups": ["unit"], "items": []})
+
+        assert server.state.snapshot().manifest == {"groups": ["unit"], "items": []}
+        assert client.label == f"[::1]:{server.port}"
+    finally:
+        server.stop()
 
 
 def test_relay_barrier_names_the_unfinished_group_and_test_when_a_worker_dies(relay) -> None:

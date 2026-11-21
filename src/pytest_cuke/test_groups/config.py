@@ -4,6 +4,8 @@ import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from pytest_cuke.remote_http import parse_host_port
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -158,16 +160,4 @@ def _parse_barrier_timeout(value: int | float | str | None) -> float:
 
 
 def _parse_relay(value: str | tuple[str, int] | None) -> tuple[str, int] | None:
-    if isinstance(value, tuple):
-        return value
-    text = (value or "").strip()
-    if not text:
-        return None
-    # shortcut: only HOST:PORT (IPv4/hostname) is parsed; add bracket handling if IPv6 is needed.
-    host, separator, port_text = text.rpartition(":")
-    port = int(port_text) if port_text.isdecimal() else 0
-    if not separator or not host or not 0 < port <= 65535:
-        raise ValueError(
-            "cuke_test_group_relay must be HOST:PORT, for example controller:8889, with a TCP port between 1 and 65535"
-        )
-    return (host, port)
+    return parse_host_port(value, setting="cuke_test_group_relay", example="controller:8889")

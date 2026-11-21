@@ -101,7 +101,7 @@ class TestGroupPlugin:
         host, port = relay
         self.relay_credential = secrets.token_urlsafe(32)
         try:
-            self.relay = start_relay(port, credential=self.relay_credential)
+            self.relay = start_relay(port, credential=self.relay_credential, host=host)
         except OSError as error:
             raise pytest.UsageError(
                 f"cuke_test_group_relay cannot bind port {port} on this controller: {error}. "
