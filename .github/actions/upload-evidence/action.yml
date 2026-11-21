@@ -1,0 +1,52 @@
+name: Upload evidence artifact
+description: Publish one evidence artifact, retry a transient failure, and fail loudly when evidence stays unpublished
+inputs:
+  name:
+    description: Artifact name
+    required: true
+  path:
+    description: Files to publish
+    required: true
+  cell:
+    description: Matrix cell named in a failure message
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Verify evidence files were produced
+      shell: bash
+      env:
+        EVIDENCE_PATHS: ${{ inputs.path }}
+      run: |
+        missing=0
+        while IFS= read -r path; do
+          [ -z "$path" ] && continue
+          if ! compgen -G "$path" > /dev/null; then
+            echo "::error::evidence artifact '${{ inputs.name }}' for '${{ inputs.cell }}' is missing $path"
+            missing=1
+          fi
+        done <<< "$EVIDENCE_PATHS"
+        exit "$missing"
+    - id: first
+      uses: actions/upload-artifact@v4
+      continue-on-error: true
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+    - name: Wait before retrying the artifact upload
+      if: steps.first.outcome == 'failure'
+      shell: bash
+      run: sleep 15
+    - id: second
+      if: steps.first.outcome == 'failure'
+      uses: actions/upload-artifact@v4
+      continue-on-error: true
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+    - name: Fail when the evidence artifact could not be published
+      if: steps.first.outcome == 'failure' && steps.second.outcome == 'failure'
+      shell: bash
+      run: |
+        echo "::error::evidence artifact '${{ inputs.name }}' for '${{ inputs.cell }}' could not be published after two attempts"
+        exit 1

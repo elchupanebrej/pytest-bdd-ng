@@ -109,12 +109,12 @@ jobs:
           --cell "${{ matrix.cell.id }}"
           --sha "${{ github.sha }}"
           --output "artifacts/evidence-live-formatters-${{ matrix.cell.id }}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/upload-evidence
         if: always()
         with:
           name: env-evidence-live-formatters-${{ matrix.cell.id }}
           path: artifacts/evidence-live-formatters-${{ matrix.cell.id }}.json
-          if-no-files-found: warn
+          cell: ${{ matrix.cell.id }}
 
   full-matrix:
     if: github.event_name != 'pull_request'
@@ -157,7 +157,7 @@ jobs:
       - name: Run the selected tox environment or runtime cell
         shell: bash
         run: python scripts/run_env_matrix_cell.py --job full-matrix --cell "${{ matrix.cell.id }}" --tox-env "${{ matrix.cell.tox_environment || '' }}" --sha "${{ github.sha }}" --output "artifacts/evidence-full-matrix-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/upload-evidence
         if: always()
         with:
           name: env-evidence-full-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}
@@ -165,7 +165,7 @@ jobs:
             artifacts/evidence-full-matrix-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json
             artifacts/npm-versions.json
             artifacts/tool-versions.txt
-          if-no-files-found: warn
+          cell: ${{ matrix.cell.id }}
 
   optional-integrations:
     if: github.event_name != 'pull_request'
@@ -205,12 +205,12 @@ jobs:
           --tox-env "${{ matrix.cell.tox_environment || '' }}"
           --sha "${{ github.sha }}"
           --output "artifacts/evidence-optional-integrations-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/upload-evidence
         if: always()
         with:
           name: env-evidence-optional-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}
           path: artifacts/evidence-optional-integrations-${{ matrix.cell.id }}-${{ matrix.cell.tox_environment || 'all' }}.json
-          if-no-files-found: warn
+          cell: ${{ matrix.cell.id }}
 
   remote:
     if: github.event_name != 'pull_request'
@@ -242,12 +242,12 @@ jobs:
       - name: Run the selected real remote xdist contract
         shell: bash
         run: python scripts/run_env_matrix_cell.py --job remote --cell "${{ matrix.cell.id }}" --sha "${{ github.sha }}" --output "artifacts/evidence-remote-${{ matrix.cell.id }}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/upload-evidence
         if: always()
         with:
           name: env-evidence-remote-${{ matrix.cell.id }}
           path: artifacts/evidence-remote-${{ matrix.cell.id }}.json
-          if-no-files-found: warn
+          cell: ${{ matrix.cell.id }}
 
   browser-report:
     if: github.event_name != 'pull_request'
@@ -286,7 +286,7 @@ jobs:
       - name: Run the actual Chromium report review
         shell: bash
         run: python scripts/run_env_matrix_cell.py --job browser-report --cell "${{ matrix.cell.id }}" --sha "${{ github.sha }}" --output "artifacts/evidence-browser-report-${{ matrix.cell.id }}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/upload-evidence
         if: always()
         with:
           name: env-evidence-browser-${{ matrix.cell.id }}
@@ -294,7 +294,7 @@ jobs:
             artifacts/evidence-browser-report-${{ matrix.cell.id }}.json
             artifacts/allure-cli-version.txt
             artifacts/tool-versions.txt
-          if-no-files-found: warn
+          cell: ${{ matrix.cell.id }}
 
   native-go-parser:
     if: github.event_name != 'pull_request'
@@ -331,12 +331,12 @@ jobs:
       - name: Run the source-distribution native parser contract
         shell: bash
         run: python scripts/run_env_matrix_cell.py --job native-go-parser --cell "${{ matrix.cell.id }}" --sha "${{ github.sha }}" --output "artifacts/evidence-native-go-parser-${{ matrix.cell.id }}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/upload-evidence
         if: always()
         with:
           name: env-evidence-native-${{ matrix.cell.id }}
           path: artifacts/evidence-native-go-parser-${{ matrix.cell.id }}.json
-          if-no-files-found: warn
+          cell: ${{ matrix.cell.id }}
 
   quality:
     needs: matrix-select
@@ -365,12 +365,12 @@ jobs:
       - name: Run the selected quality lane
         shell: bash
         run: python scripts/run_env_matrix_cell.py --job quality --cell "${{ matrix.cell.id }}" --sha "${{ github.sha }}" --output "artifacts/evidence-quality-${{ matrix.cell.id }}.json"
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/upload-evidence
         if: always()
         with:
           name: env-evidence-quality-${{ matrix.cell.id }}
           path: artifacts/evidence-quality-${{ matrix.cell.id }}.json
-          if-no-files-found: warn
+          cell: ${{ matrix.cell.id }}
 
   aggregate-proof:
     if: always() && github.event_name != 'pull_request'
@@ -390,9 +390,9 @@ jobs:
           merge-multiple: true
       - name: Verify every inventory environment and outcome for this exact SHA
         run: python scripts/aggregate_env_evidence.py --input-dir artifacts --inventory config/env-matrix.yaml --sha "${{ github.sha }}" --output artifacts/full-proof-summary.json
-      - uses: actions/upload-artifact@v4
+      - uses: ./.github/actions/upload-evidence
         if: always()
         with:
           name: full-supported-proof-${{ github.sha }}
           path: artifacts/
-          if-no-files-found: warn
+          cell: aggregate-proof

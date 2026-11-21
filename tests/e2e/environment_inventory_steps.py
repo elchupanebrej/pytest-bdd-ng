@@ -31,6 +31,14 @@ from pytest_cuke.compatibility.environment_matrix import _collected_count, check
 from pytest_cuke.compatibility.runtime_compat import is_pair_compatible
 
 
+def _is_evidence_upload_step(step: object) -> bool:
+    """Accept both the upstream upload action and the repo retry wrapper around it."""
+    if not isinstance(step, dict):
+        return False
+    uses = str(step.get("uses", ""))
+    return uses.startswith("actions/upload-artifact@") or uses == "./.github/actions/upload-evidence"
+
+
 @dataclass
 class EnvironmentInventoryContext:
     consumer: Any
@@ -1253,7 +1261,8 @@ def run_graalpy_253_linux_acceptance(
         for job in workflow["jobs"].values()
         if isinstance(job, dict)
         for step in job.get("steps", [])
-        if isinstance(step, dict) and step.get("uses") == "actions/upload-artifact@v4"
+        if isinstance(step, dict)
+        and step.get("uses") in {"actions/upload-artifact@v4", "./.github/actions/upload-evidence"}
     ]
     return {
         **acceptance,
@@ -2087,8 +2096,7 @@ def rename_runtime_evidence_artifact_outside_aggregate_pattern(
     upload_steps = [
         step
         for step in job["steps"]
-        if isinstance(step, dict)
-        and str(step.get("uses", "")).startswith("actions/upload-artifact@")
+        if _is_evidence_upload_step(step)
         and isinstance(step.get("with"), dict)
         and str(step["with"].get("name", "")).startswith("env-evidence-full-")
     ]
@@ -3501,7 +3509,13 @@ def aggregate_proof_requires_live_formatter_acceptance_evidence(consumer: Any) -
     formatter_steps = formatter_job.get("steps")
     assert isinstance(formatter_steps, list), formatter_job
     upload_steps = [
-        step for step in formatter_steps if isinstance(step, dict) and step.get("uses") == "actions/upload-artifact@v4"
+        step
+        for step in formatter_steps
+        if isinstance(step, dict)
+        and (
+            step.get("uses") == "actions/upload-artifact@v4"
+            or step.get("uses") == "./.github/actions/upload-evidence"
+        )
     ]
     assert any(
         isinstance(step.get("with"), dict)
