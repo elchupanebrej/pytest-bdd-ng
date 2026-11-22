@@ -71,13 +71,22 @@ def test_relay_address_is_parsed_for_remote_workers() -> None:
     assert config.relay == ("controller", 8889)
 
 
+def test_bracketed_ipv6_relay_address_is_parsed_without_brackets() -> None:
+    config = parse_test_group_configuration(order=("unit",), relay="[::1]:8889")
+
+    assert config.relay == ("::1", 8889)
+
+
 def test_empty_relay_keeps_the_local_filesystem_transport() -> None:
     config = parse_test_group_configuration(order=("unit",), relay="")
 
     assert config.relay is None
 
 
-@pytest.mark.parametrize("relay", ["controller", "controller:", ":8889", "controller:0", "controller:99999", "a:b"])
+@pytest.mark.parametrize(
+    "relay",
+    ["controller", "controller:", ":8889", "controller:0", "controller:99999", "a:b", "[::1:8889", "[controller]:8889"],
+)
 def test_invalid_relay_addresses_are_rejected(relay: str) -> None:
     with pytest.raises(ValueError, match="cuke_test_group_relay"):
         parse_test_group_configuration(order=("unit",), relay=relay)

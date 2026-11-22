@@ -44,6 +44,12 @@ class TestGroupBarrierWorkerDeath(TestGroupBarrierTimeout):
     __test__ = False
 
 
+class TestGroupBarrierShutdown(RuntimeError):
+    """Raised when the controller is stopping the run, so the next group never opens."""
+
+    __test__ = False
+
+
 @dataclass(frozen=True, slots=True)
 class _ExpectedItem:
     nodeid: str
@@ -62,6 +68,7 @@ class FilesystemBarrierState:
         self.manifest_path = state_dir / "manifest.json"
         self.receipts_dir = state_dir / "receipts"
         self.lock_path = state_dir / "state.lock"
+        self.shutdown_path = state_dir / "shutdown"
 
     def publish_manifest(self, manifest: dict[str, Any]) -> None:
         self.state_dir.mkdir(parents=True, exist_ok=True)
@@ -90,6 +97,11 @@ class FilesystemBarrierState:
                 {"nodeid": nodeid, "group": item["group"], "ordinal": item["ordinal"]},
             )
 
+    def publish_shutdown(self) -> None:
+        """Tell waiting workers the controller is stopping the run."""
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        self.shutdown_path.touch(exist_ok=True)
+
     def snapshot(self) -> BarrierSnapshot:
         manifest = _read_json_with_retry(self.manifest_path, timeout=min(0.2, self.timeout))
         receipts: dict[str, dict[str, Any]] = {}
@@ -98,7 +110,7 @@ class FilesystemBarrierState:
                 receipt = _read_json_with_retry(self._receipt_path(item["nodeid"]), timeout=0.2)
                 if receipt is not None:
                     receipts[item["nodeid"]] = receipt
-        return BarrierSnapshot(manifest=manifest, receipts=receipts)
+        return BarrierSnapshot(manifest=manifest, receipts=receipts, shutdown=self.shutdown_path.exists())
 
     def _receipt_path(self, nodeid: str) -> Path:
         digest = hashlib.sha256(nodeid.encode("utf-8")).hexdigest()
@@ -128,10 +140,11 @@ class TestGroupBarrier:
         timeout: float,
         groups: tuple[str, ...],
         worker_id: str,
+        credential: str,
     ) -> TestGroupBarrier:
         """Coordinate through a socket relay when workers share no filesystem."""
         return cls(
-            RelayBarrierClient(address, worker_id=worker_id, timeout=timeout),
+            RelayBarrierClient(address, worker_id=worker_id, credential=credential, timeout=timeout),
             timeout=timeout,
             groups=groups,
         )
@@ -178,6 +191,11 @@ class TestGroupBarrier:
 
         while time.monotonic() < deadline:
             snapshot = self.transport.snapshot()
+            if snapshot.shutdown:
+                raise TestGroupBarrierShutdown(
+                    f"The pytest session is stopping, so group {assignment.group!r} at "
+                    f"{assignment.nodeid!r} will not open."
+                )
             if snapshot.manifest is not None:
                 expected = [item for item in snapshot.manifest["items"] if item["ordinal"] < assignment.ordinal]
                 unfinished = [

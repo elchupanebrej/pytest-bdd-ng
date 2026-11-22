@@ -10,20 +10,22 @@ from __future__ import annotations
 
 import http.client
 import json
-import socketserver
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import TYPE_CHECKING, Any
 
 from pytest_cuke.debug_mcp.options import parse_registry_address
 from pytest_cuke.debug_mcp.redaction import redact_data, secret_values
 from pytest_cuke.debug_mcp.xdist import XdistDiscoveryError, XdistDiscoveryIndex
+from pytest_cuke.remote_http import (
+    JsonRequestHandler,
+    StatefulThreadingHTTPServer,
+    bind_address_for,
+    format_host_port,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-
-_MAX_REQUEST_BYTES = 1_000_000
 
 
 class DiscoveryRegistryError(ConnectionError):
@@ -83,47 +85,13 @@ class DiscoveryRegistryState:
         self.index.mark_worker_down(worker_id, error)
 
 
-class _RegistryRequestHandler(BaseHTTPRequestHandler):
+class _RegistryRequestHandler(JsonRequestHandler):
     server: _RegistryHTTPServer
 
-    def do_POST(self) -> None:
-        try:
-            length = int(self.headers.get("Content-Length") or 0)
-        except ValueError:
-            length = 0
-        if length > _MAX_REQUEST_BYTES:
-            response: dict[str, Any] = {"ok": False, "error": "worker discovery record is too large"}
-            self.close_connection = True
-        else:
-            try:
-                request = json.loads(self.rfile.read(length) or b"{}")
-                response = self.server.state.apply(request if isinstance(request, dict) else {})
-            except (OSError, ValueError) as error:
-                response = {"ok": False, "error": str(error)}
-        body = json.dumps(response).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
 
-    def log_message(self, *args: Any) -> None:
-        return
-
-
-class _RegistryHTTPServer(ThreadingHTTPServer):
-    daemon_threads = True
-    allow_reuse_address = True
-
-    def __init__(self, address: tuple[str, int], state: DiscoveryRegistryState) -> None:
-        super().__init__(address, _RegistryRequestHandler)
-        self.state = state
-
-    def server_bind(self) -> None:
-        # Skip BaseHTTPServer's getfqdn reverse lookup: resolving 0.0.0.0 stalls on macOS.
-        socketserver.TCPServer.server_bind(self)
-        self.server_name = str(self.server_address[0])
-        self.server_port = int(self.server_address[1])
+class _RegistryHTTPServer(StatefulThreadingHTTPServer):
+    def __init__(self, address: tuple[str, int], state: DiscoveryRegistryState, *, family: int) -> None:
+        super().__init__(address, _RegistryRequestHandler, state, family=family)
 
 
 class DiscoveryRegistry:
@@ -149,7 +117,7 @@ class DiscoveryRegistry:
     @property
     def url(self) -> str:
         """The controller address workers and agents use."""
-        return f"http://{self.host}:{self.port}"
+        return f"http://{format_host_port(self.host, self.port)}"
 
     def start(self) -> DiscoveryRegistry:
         """Serve discovery requests until ``stop`` is called."""
@@ -173,9 +141,11 @@ def start_registry(
 ) -> DiscoveryRegistry:
     """Bind a registry on every interface so remote workers can reach the controller."""
     state = DiscoveryRegistryState(index, session_id=session_id, redact_patterns=redact_patterns)
-    # shortcut: binds 0.0.0.0 so independent worker containers can connect;
-    # add a bind-address setting if the registry must stay on a private interface.
-    server = _RegistryHTTPServer(("0.0.0.0", port), state)  # noqa: S104
+    # shortcut: binds the wildcard address of the advertised host so independent
+    # worker containers can connect; add a bind-address setting if the registry
+    # must stay on a private interface.
+    address, family = bind_address_for(host, port)
+    server = _RegistryHTTPServer(address, state, family=family)
     return DiscoveryRegistry(state, server, host=host).start()
 
 
@@ -199,7 +169,7 @@ class DiscoveryRegistryClient:
         self.worker_id = worker_id
         self.root_session_id = root_session_id
         self.timeout = timeout
-        self.label = f"{self.address[0]}:{self.address[1]}"
+        self.label = format_host_port(self.address[0], self.address[1])
 
     def publish(self, record: dict[str, Any]) -> None:
         self._call({"op": "publish", "record": record})

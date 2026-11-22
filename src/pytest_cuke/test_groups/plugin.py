@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import secrets
+from contextlib import suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from warnings import warn
@@ -10,7 +12,9 @@ from pytest_cuke.compatibility.pytest import Parser, get_config_root_path
 from pytest_cuke.compatibility.pytest import fail as pytest_fail
 from pytest_cuke.test_groups.assignment import TestGroupAssignment, assign_test_group
 from pytest_cuke.test_groups.barrier import (
+    FilesystemBarrierState,
     TestGroupBarrier,
+    TestGroupBarrierShutdown,
     TestGroupBarrierTimeout,
     dead_worker_diagnostic,
 )
@@ -77,6 +81,13 @@ class TestGroupPlugin:
         self.assignments: dict[str, TestGroupAssignment] = {}
         self.barrier: TestGroupBarrier | None = None
         self.relay: BarrierRelay | None = None
+        self.relay_credential: str | None = None
+        self.run_id = secrets.token_hex(16)
+        self._state_dir: Path | None = None
+        self._xdist_workers_configured = False
+        self._shutdown_published = False
+        self._session: Any = None
+        self._retry_teardowns: set[str] = set()
         self._worker = isinstance(getattr(config, "workerinput", None), dict)
 
         for warning in self.group_configuration.warnings:
@@ -97,8 +108,9 @@ class TestGroupPlugin:
         if self._worker or not self.group_configuration.enabled or relay is None:
             return
         host, port = relay
+        self.relay_credential = secrets.token_urlsafe(32)
         try:
-            self.relay = start_relay(port)
+            self.relay = start_relay(port, credential=self.relay_credential, host=host)
         except OSError as error:
             raise pytest.UsageError(
                 f"cuke_test_group_relay cannot bind port {port} on this controller: {error}. "
@@ -111,6 +123,43 @@ class TestGroupPlugin:
         if self.relay is not None:
             self.relay.stop()
             self.relay = None
+
+    def pytest_sessionstart(self, session: Any) -> None:
+        """Keep the session so the controller can see when the run is stopping."""
+        self._session = session
+
+    @pytest.hookimpl(tryfirst=True)
+    def pytest_sessionfinish(self, session: Any, exitstatus: int) -> None:
+        """Release blocked workers when the controller session ends."""
+        if self._publish_shutdown():
+            self._shutdown_published = True
+
+    def _publish_shutdown(self) -> bool:
+        if self._worker or not self.group_configuration.enabled or not self._xdist_workers_configured:
+            return False
+        if self.relay is not None:
+            self.relay.state.publish_shutdown()
+        elif self._state_dir is not None:
+            # The run is already ending, so a failed shutdown marker must not mask its result.
+            with suppress(OSError):
+                FilesystemBarrierState(
+                    self._state_dir, timeout=self.group_configuration.barrier_timeout
+                ).publish_shutdown()
+        return True
+
+    @pytest.hookimpl(optionalhook=True)
+    def pytest_configure_node(self, node: Any) -> None:
+        """Share the per-run barrier identity and relay credential with each xdist worker."""
+        if not self.group_configuration.enabled:
+            return
+        workerinput = getattr(node, "workerinput", None)
+        if not isinstance(workerinput, dict):
+            return
+        workerinput["cuke_test_group_run_id"] = self.run_id
+        if self.relay_credential is not None:
+            workerinput["cuke_test_group_relay_credential"] = self.relay_credential
+        self._xdist_workers_configured = True
+        self._state_dir = _test_group_state_dir(self.config, self.run_id)
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_testnodedown(self, node: Any, error: Any) -> None:
@@ -164,24 +213,28 @@ class TestGroupPlugin:
         workerinput = self.config.workerinput
         relay = self.group_configuration.relay
         if relay is not None:
+            credential = workerinput.get("cuke_test_group_relay_credential")
+            if not isinstance(credential, str) or not credential:
+                raise pytest.UsageError(
+                    "pytest-cuke test-group barriers require the controller's per-run relay credential; "
+                    "run the same pytest-cuke version on the controller and every worker."
+                )
             barrier = TestGroupBarrier.for_relay(
                 relay,
                 timeout=self.group_configuration.barrier_timeout,
                 groups=self.group_configuration.order,
                 worker_id=str(workerinput.get("workerid") or ""),
+                credential=credential,
             )
         else:
-            run_uid = workerinput.get("testrunuid")
-            if not isinstance(run_uid, str) or not run_uid:
+            run_id = workerinput.get("cuke_test_group_run_id")
+            if not isinstance(run_id, str) or not run_id:
                 raise pytest.UsageError(
-                    "pytest-cuke test-group barriers require pytest-xdist to provide a per-run "
-                    "testrunuid; upgrade pytest-xdist or disable cuke_test_group_order."
+                    "pytest-cuke test-group barriers require the controller's per-run barrier ID; "
+                    "run the same pytest-cuke version on the controller and every worker."
                 )
-            safe_uid = "".join(char if char.isalnum() or char in "-_." else "_" for char in run_uid)
-            root_path = get_config_root_path(self.config)
-            state_dir = root_path / ".pytest_cache" / "pytest-cuke-test-groups" / safe_uid
             barrier = TestGroupBarrier.for_state_directory(
-                state_dir,
+                _test_group_state_dir(self.config, run_id),
                 timeout=self.group_configuration.barrier_timeout,
                 groups=self.group_configuration.order,
             )
@@ -211,15 +264,29 @@ class TestGroupPlugin:
             return
         try:
             self.barrier.wait_for_earlier_groups(assignment)
+        except TestGroupBarrierShutdown as error:
+            pytest.skip(str(error), allow_module_level=False)
         except TestGroupBarrierTimeout as error:
             pytest_fail(str(error), pytrace=False)
 
+    @pytest.hookimpl(trylast=True)
     def pytest_runtest_logreport(self, report: Any) -> None:
-        """Count final calls and setup failures/skips, ignoring retry-only reports."""
-        if self.barrier is None or report.outcome == "rerun":
+        """Release blocked workers when pytest stops, and record receipts after teardown."""
+        if not self._worker and not self._shutdown_published:
+            session = self._session
+            if session is not None and (session.shouldstop or session.shouldfail):
+                self._shutdown_published = self._publish_shutdown()
+        if self.barrier is None:
             return
-        if report.when == "call" or (report.when == "setup" and report.outcome in {"failed", "skipped"}):
-            self.barrier.record_terminal(report.nodeid)
+        if report.outcome == "rerun":
+            self._retry_teardowns.add(report.nodeid)
+            return
+        if report.when != "teardown" or report.outcome != "passed":
+            return
+        if report.nodeid in self._retry_teardowns:
+            self._retry_teardowns.discard(report.nodeid)
+            return
+        self.barrier.record_terminal(report.nodeid)
 
     def _assignment_for(self, item: Any) -> TestGroupAssignment:
         existing = self.assignments.get(item.nodeid)
@@ -274,6 +341,11 @@ class TestGroupPlugin:
                     "filesystem; remote/non-shared --tx workers need cuke_test_group_relay=HOST:PORT. "
                     "Use --tx=popen, configure the barrier relay, or disable cuke_test_group_order."
                 )
+
+
+def _test_group_state_dir(config: Any, run_id: str) -> Path:
+    safe_run_id = "".join(char if char.isalnum() or char in "-_." else "_" for char in run_id)
+    return get_config_root_path(config) / ".pytest_cache" / "pytest-cuke-test-groups" / safe_run_id
 
 
 def _is_local_xdist_spec(spec: Any) -> bool:

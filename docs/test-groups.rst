@@ -61,10 +61,15 @@ duplicate valid path mappings are allowed and the last match wins.
 Serial pytest runs keep groups in the configured order and preserve the
 existing order of tests within each group, including ordering supplied by
 pytest-order. With local xdist workers, a later group waits until every
-selected test from earlier groups reaches a terminal result. Passed, failed,
-skipped, and fixture-setup-failed items settle the barrier. Tests deselected by
-``-m`` do not count. Retry-only reports do not count as terminal, and receipts
-are deduplicated by node ID.
+selected test from earlier groups finishes teardown. The receipt is recorded
+after the item's teardown, so a later group never starts while an earlier
+item's fixtures are still finalizing. Passed, failed, skipped, and fixture-setup-failed items
+settle the barrier when their teardown passes; a teardown failure keeps the
+next group closed. Tests deselected by ``-m`` do not count. Retry-only reports
+do not count as terminal, and receipts are deduplicated by node ID. When the
+controller stops the run because of ``-x`` or ``--maxfail``, blocked workers
+stop waiting immediately instead of burning
+``cuke_test_group_barrier_timeout``.
 
 Each xdist run has its own coordinator state beneath
 ``.pytest_cache/pytest-cuke-test-groups``. Local workers must share that
@@ -82,6 +87,14 @@ terminal receipts, item ownership, and dead-worker notices) travels over the
 relay, so independent worker containers need no shared volume. Local
 ``--tx=popen`` workers keep using the default filesystem state and need no
 relay. ``--dist=each`` remains unsupported because it duplicates collections.
+
+Each grouped run generates its own credential on the controller. The controller
+passes it to its workers through pytest-xdist's worker input, and the relay
+rejects every operation from a client without it, including snapshot reads. The
+relay listens on all interfaces so worker containers can reach it, and the
+credential is not a substitute for network isolation: restrict the relay port
+to the worker network with a firewall, security group, or container network
+policy.
 
 If a worker stops before it reports a selected test, the controller marks it
 down on the relay. Waiting workers then fail immediately with the dead worker,
