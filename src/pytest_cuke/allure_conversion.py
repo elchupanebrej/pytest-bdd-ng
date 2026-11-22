@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import TYPE_CHECKING, Any, cast
 from uuid import uuid4
 
+from pytest_cuke.const import PYTEST_STEP_OUTCOME_MEDIA_TYPE
 from pytest_cuke.model.message_converter import envelope_from_dict
 from pytest_cuke.model.message_extension import PAYLOAD_KINDS, external_attachment_reference, get_payload_kind
 from pytest_cuke.model.message_types import (
@@ -84,6 +85,7 @@ def convert_allure_messages(input_path: Path, output_dir: Path, *, xfail_as_fail
                 ],
             )
     presentation = ReportPresentation(xfail_as_failed=xfail_as_failed, skip_as_failed=skip_as_failed, tolerated_as_failed=tolerated_as_failed, wip_as_failed=wip_as_failed)
+    step_outcome_diagnostics = _step_outcome_diagnostics(parsed.envelopes)
     parsed = replace(
         parsed,
         envelopes=[
@@ -93,7 +95,7 @@ def convert_allure_messages(input_path: Path, output_dir: Path, *, xfail_as_fail
         ],
     )
     converted, attachments, results_by_case_id = _convert_scenarios(
-        parsed.envelopes, parsed.exception_traces, presentation
+        parsed.envelopes, parsed.exception_traces, presentation, step_outcome_diagnostics
     )
     run_hook_container, run_hook_attachments = _convert_run_hooks(
         parsed.envelopes, converted, parsed.run_hook_traces
@@ -459,7 +461,10 @@ def _validation_summary(error: BaseException) -> str:
 
 
 def _convert_scenarios(
-    envelopes: list[messages.Envelope], exception_traces: dict[tuple[str, str], str], presentation: ReportPresentation
+    envelopes: list[messages.Envelope],
+    exception_traces: dict[tuple[str, str], str],
+    presentation: ReportPresentation,
+    step_outcome_diagnostics: dict[tuple[str, str], dict[str, str]],
 ) -> tuple[
     list[tuple[dict[str, Any], dict[str, Any]]],
     list[tuple[str, bytes]],
@@ -505,6 +510,7 @@ def _convert_scenarios(
             pickle,
             attempt,
             hooks,
+            step_outcome_diagnostics,
         )
         if scenario_outcome := presentation.scenario_outcome(attempt["started"].id):
             result["status"] = scenario_outcome[0]
@@ -952,6 +958,7 @@ def _convert_attempt(
     pickle: Any,
     attempt: dict[str, Any],
     hooks: dict[str, Any],
+    step_outcome_diagnostics: dict[tuple[str, str], dict[str, str]],
 ) -> tuple[dict[str, Any], dict[str, Any], list[tuple[str, bytes]]]:
     attempt_id = attempt["started"].id
     case_started = attempt["started"]
@@ -976,6 +983,9 @@ def _convert_attempt(
             finished.test_step_result,
             exception_traces.get((attempt_id, test_step.id)),
         )
+        diagnostic_details = step_outcome_diagnostics.get((attempt_id, test_step.id))
+        if diagnostic_details is not None:
+            details = diagnostic_details
         if test_step.pickle_step_id is not None:
             pickle_step = pickle_steps[test_step.pickle_step_id]
             step_result: dict[str, Any] = {
@@ -1091,6 +1101,51 @@ def _step_message(
         if message.test_case_started_id == attempt_id and message.test_step_id == step_id:
             return message
     raise AllureConversionError(f"missing {kind.replace('_', ' ')} for attempt {attempt_id!r}, step {step_id!r}")
+
+
+def _step_outcome_diagnostics(
+    envelopes: list[messages.Envelope],
+) -> dict[tuple[str, str], dict[str, str]]:
+    """Index the diagnostics an allowed step failure keeps out of its status."""
+    diagnostics: dict[tuple[str, str], dict[str, str]] = {}
+    for envelope in envelopes:
+        attachment = envelope.attachment
+        if attachment is None:
+            continue
+        diagnostic = _step_outcome_diagnostic(attachment)
+        if diagnostic is not None:
+            attempt_id, step_id, details = diagnostic
+            diagnostics[(attempt_id, step_id)] = details
+    return diagnostics
+
+
+def _step_outcome_diagnostic(
+    attachment: messages.Attachment,
+) -> tuple[str, str, dict[str, str]] | None:
+    """Return the attempt, step, and details recorded for an allowed step failure."""
+    if attachment.media_type != PYTEST_STEP_OUTCOME_MEDIA_TYPE:
+        return None
+    try:
+        payload = json.loads(_attachment_bytes(attachment))
+    except (AllureConversionError, UnicodeDecodeError, ValueError, TypeError) as error:
+        raise AllureConversionError("step outcome metadata contains invalid JSON") from error
+    if not isinstance(payload, dict):
+        return None
+    attempt_id = attachment.test_case_started_id or payload.get("testCaseStartedId")
+    step_id = attachment.test_step_id or payload.get("testStepId")
+    actual = payload.get("actualResult") or payload.get("diagnosticResult")
+    if not isinstance(attempt_id, str) or not isinstance(step_id, str) or not isinstance(actual, dict):
+        return None
+    exception = actual.get("exception")
+    exception = exception if isinstance(exception, dict) else {}
+    message = actual.get("message") or exception.get("message")
+    trace = exception.get("stackTrace")
+    details: dict[str, str] = {}
+    if isinstance(message, str):
+        details["message"] = message
+    if isinstance(trace, str):
+        details["trace"] = trace
+    return (attempt_id, step_id, details) if details else None
 
 
 def _status_details(test_step_result: messages.TestStepResult, stack_trace: str | None) -> dict[str, str]:

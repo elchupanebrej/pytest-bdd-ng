@@ -1723,34 +1723,42 @@ def consumer_local_xdist_manifests_match_batches(
         assert manifest.get("complete") is True, record
         assert manifest.get("worker_id") == worker_id, record
         worker_batches = observed_batches.pop(worker_id, [])
+        batches_by_sequence = {batch.get("sequence"): batch for batch in worker_batches}
+        assert len(batches_by_sequence) == len(worker_batches), (record, worker_batches)
         if isinstance(tail_batch, dict):
             tail_batch_worker_id = tail_batch.get("worker_id")
             tail_sequence = tail_batch.get("sequence")
             assert tail_batch_worker_id == worker_id, (record, tail_batch)
             assert isinstance(tail_sequence, int) and not isinstance(tail_sequence, bool), tail_batch
-            matching_batches = [batch for batch in worker_batches if batch.get("sequence") == tail_sequence]
-            if matching_batches:
-                assert len(matching_batches) == 1, (record, matching_batches)
-                live_batch = matching_batches[0]
-                assert live_batch.get("worker_id") == tail_batch_worker_id, (live_batch, tail_batch)
-                tail_envelopes = tail_batch.get("envelopes")
-                assert isinstance(tail_envelopes, list), tail_batch
-                namespaced_tail_envelopes = [
-                    namespace_envelope_ids(envelope, worker_id=worker_id) for envelope in tail_envelopes
-                ]
-                assert canonical_envelopes(live_batch.get("envelopes", [])) == namespaced_tail_envelopes, (
+            tail_envelopes = tail_batch.get("envelopes")
+            assert isinstance(tail_envelopes, list), tail_batch
+            namespaced_tail_envelopes = [
+                namespace_envelope_ids(envelope, worker_id=worker_id) for envelope in tail_envelopes
+            ]
+            presented_tail_envelopes = canonical_envelopes(namespaced_tail_envelopes)
+            live_batch = batches_by_sequence.get(tail_sequence)
+            if live_batch is not None:
+                assert canonical_envelopes(live_batch.get("envelopes", [])) == presented_tail_envelopes, (
                     live_batch,
                     tail_batch,
                 )
             else:
-                worker_batches.append(tail_batch)
-        sequences = sorted(batch.get("sequence") for batch in worker_batches)
-        envelope_count = sum(len(canonical_envelopes(batch.get("envelopes", []))) for batch in worker_batches)
+                batches_by_sequence[tail_sequence] = {
+                    "worker_id": worker_id,
+                    "sequence": tail_sequence,
+                    "envelopes": presented_tail_envelopes,
+                }
+        sequences = sorted(batches_by_sequence)
+        presented_envelope_count = sum(len(batch.get("envelopes", [])) for batch in batches_by_sequence.values())
+        internal_envelope_count = record.get("internal_envelope_count")
         assert sequences == list(range(manifest["batch_count"])), (record, sequences)
-        assert manifest.get("batch_count") == len(worker_batches), (record, len(worker_batches))
-        # The manifest describes the worker's canonical envelopes; the live sink is a
-        # presented view that may drop internal report metadata.
-        assert manifest.get("envelope_count") >= envelope_count, (record, envelope_count)
+        assert manifest.get("batch_count") == len(batches_by_sequence), (record, len(batches_by_sequence))
+        assert isinstance(internal_envelope_count, int), record
+        assert manifest.get("envelope_count") == presented_envelope_count + internal_envelope_count, (
+            record,
+            presented_envelope_count,
+            internal_envelope_count,
+        )
         assert manifest.get("last_sequence") == (sequences[-1] if sequences else None), (record, sequences)
     assert not observed_batches, f"live batches have no corresponding worker manifest: {observed_batches}"
     assert len(seen_workers) == 2, seen_workers
@@ -2182,6 +2190,29 @@ def consumer_crashed_xdist_partial_stream(relative_path: str, consumer: Consumer
     assert run_finished[0].get("success") is False, run_finished[0]
     assert envelopes[-1].get("testRunFinished") == run_finished[0], "the partial stream must flush its terminal message"
     assert case_finished, f"the survivor worker's completed case was not flushed: {envelopes!r}"
+    hook_definitions = {
+        envelope["hook"]["id"]
+        for envelope in envelopes
+        if isinstance(envelope.get("hook"), dict)
+        and envelope["hook"].get("type") in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}
+    }
+    hook_starts = {
+        envelope["testRunHookStarted"]["id"]: envelope["testRunHookStarted"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunHookStarted"), dict)
+    }
+    hook_finishes = {
+        envelope["testRunHookFinished"]["testRunHookStartedId"]
+        for envelope in envelopes
+        if isinstance(envelope.get("testRunHookFinished"), dict)
+    }
+    assert set(hook_starts) == hook_finishes, "a run hook started without finishing after the worker crash"
+    assert {started["hookId"] for started in hook_starts.values()} == hook_definitions, (
+        "a surviving run hook definition has no started lifecycle"
+    )
+    assert {started.get("workerId") for started in hook_starts.values()} <= {None, "", "master"}, (
+        "a crashed worker's run hook survived consolidation"
+    )
 
 
 @then(re.compile(r'consumer artifact "(?P<relative_path>[^\"]+)" should record the crashed worker'))

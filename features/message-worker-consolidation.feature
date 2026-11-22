@@ -54,6 +54,40 @@ Feature: Local and subprocess Cucumber Messages consolidation
           raise AssertionError("the installed pytest run did not execute cases on two xdist workers")
 
 
+      from pytest_cuke.const import (
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+      )
+      from pytest_cuke.model.message_extension import (
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      )
+
+      _INTERNAL_ATTACHMENT_MEDIA_TYPES = {
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      }
+
+
+      def pytest_cuke_message(config, message):
+          attachment = message.attachment
+          if attachment is not None and attachment.media_type in _INTERNAL_ATTACHMENT_MEDIA_TYPES:
+              config._cuke_internal_envelopes = getattr(config, "_cuke_internal_envelopes", 0) + 1
+
+
+      @pytest.hookimpl(tryfirst=True)
+      def pytest_sessionfinish(session, exitstatus):
+          worker_output = getattr(session.config, "workeroutput", None)
+          if isinstance(worker_output, dict):
+              worker_output["cuke_internal_envelopes"] = getattr(session.config, "_cuke_internal_envelopes", 0)
+
+
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
@@ -72,6 +106,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
               "exitstatus": worker_output.get("exitstatus"),
               "worker_output_keys": sorted(worker_output),
               "transport": worker_output.get("pytest_cuke_message_transport"),
+              "internal_envelope_count": worker_output.get("cuke_internal_envelopes"),
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")
@@ -135,6 +170,40 @@ Feature: Local and subprocess Cucumber Messages consolidation
           assert os.environ.get("PYTEST_XDIST_WORKER"), "the subprocess gateway must execute the case in a worker"
 
 
+      from pytest_cuke.const import (
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+      )
+      from pytest_cuke.model.message_extension import (
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      )
+
+      _INTERNAL_ATTACHMENT_MEDIA_TYPES = {
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      }
+
+
+      def pytest_cuke_message(config, message):
+          attachment = message.attachment
+          if attachment is not None and attachment.media_type in _INTERNAL_ATTACHMENT_MEDIA_TYPES:
+              config._cuke_internal_envelopes = getattr(config, "_cuke_internal_envelopes", 0) + 1
+
+
+      @pytest.hookimpl(tryfirst=True)
+      def pytest_sessionfinish(session, exitstatus):
+          worker_output = getattr(session.config, "workeroutput", None)
+          if isinstance(worker_output, dict):
+              worker_output["cuke_internal_envelopes"] = getattr(session.config, "_cuke_internal_envelopes", 0)
+
+
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
@@ -153,6 +222,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
               "exitstatus": worker_output.get("exitstatus"),
               "worker_output_keys": sorted(worker_output),
               "transport": worker_output.get("pytest_cuke_message_transport"),
+              "internal_envelope_count": worker_output.get("cuke_internal_envelopes"),
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")
@@ -211,6 +281,40 @@ Feature: Local and subprocess Cucumber Messages consolidation
               pytest.skip("expected worker case skip")
 
 
+      from pytest_cuke.const import (
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+      )
+      from pytest_cuke.model.message_extension import (
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      )
+
+      _INTERNAL_ATTACHMENT_MEDIA_TYPES = {
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      }
+
+
+      def pytest_cuke_message(config, message):
+          attachment = message.attachment
+          if attachment is not None and attachment.media_type in _INTERNAL_ATTACHMENT_MEDIA_TYPES:
+              config._cuke_internal_envelopes = getattr(config, "_cuke_internal_envelopes", 0) + 1
+
+
+      @pytest.hookimpl(tryfirst=True)
+      def pytest_sessionfinish(session, exitstatus):
+          worker_output = getattr(session.config, "workeroutput", None)
+          if isinstance(worker_output, dict):
+              worker_output["cuke_internal_envelopes"] = getattr(session.config, "_cuke_internal_envelopes", 0)
+
+
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
@@ -229,6 +333,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
               "exitstatus": worker_output.get("exitstatus"),
               "worker_output_keys": sorted(worker_output),
               "transport": worker_output.get("pytest_cuke_message_transport"),
+              "internal_envelope_count": worker_output.get("cuke_internal_envelopes"),
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")
@@ -283,6 +388,40 @@ Feature: Local and subprocess Cucumber Messages consolidation
           assert os.environ.get("PYTEST_XDIST_WORKER"), "the survivor must run in an xdist worker"
 
 
+      from pytest_cuke.const import (
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+      )
+      from pytest_cuke.model.message_extension import (
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      )
+
+      _INTERNAL_ATTACHMENT_MEDIA_TYPES = {
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      }
+
+
+      def pytest_cuke_message(config, message):
+          attachment = message.attachment
+          if attachment is not None and attachment.media_type in _INTERNAL_ATTACHMENT_MEDIA_TYPES:
+              config._cuke_internal_envelopes = getattr(config, "_cuke_internal_envelopes", 0) + 1
+
+
+      @pytest.hookimpl(tryfirst=True)
+      def pytest_sessionfinish(session, exitstatus):
+          worker_output = getattr(session.config, "workeroutput", None)
+          if isinstance(worker_output, dict):
+              worker_output["cuke_internal_envelopes"] = getattr(session.config, "_cuke_internal_envelopes", 0)
+
+
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
@@ -301,6 +440,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
               "exitstatus": worker_output.get("exitstatus"),
               "worker_output_keys": sorted(worker_output),
               "transport": worker_output.get("pytest_cuke_message_transport"),
+              "internal_envelope_count": worker_output.get("cuke_internal_envelopes"),
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")
@@ -386,6 +526,40 @@ Feature: Local and subprocess Cucumber Messages consolidation
           assert os.environ.get("PYTEST_XDIST_WORKER"), "the batch publisher probe must run in an xdist worker"
 
 
+      from pytest_cuke.const import (
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+      )
+      from pytest_cuke.model.message_extension import (
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      )
+
+      _INTERNAL_ATTACHMENT_MEDIA_TYPES = {
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      }
+
+
+      def pytest_cuke_message(config, message):
+          attachment = message.attachment
+          if attachment is not None and attachment.media_type in _INTERNAL_ATTACHMENT_MEDIA_TYPES:
+              config._cuke_internal_envelopes = getattr(config, "_cuke_internal_envelopes", 0) + 1
+
+
+      @pytest.hookimpl(tryfirst=True)
+      def pytest_sessionfinish(session, exitstatus):
+          worker_output = getattr(session.config, "workeroutput", None)
+          if isinstance(worker_output, dict):
+              worker_output["cuke_internal_envelopes"] = getattr(session.config, "_cuke_internal_envelopes", 0)
+
+
       def pytest_cuke_message_batch(config, batch):
           raise RuntimeError("controlled live batch publisher failure")
       """
@@ -465,6 +639,40 @@ Feature: Local and subprocess Cucumber Messages consolidation
           assert os.environ.get("PYTEST_XDIST_WORKER"), "the socket gateway must execute the case in a worker"
 
 
+      from pytest_cuke.const import (
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+      )
+      from pytest_cuke.model.message_extension import (
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      )
+
+      _INTERNAL_ATTACHMENT_MEDIA_TYPES = {
+          PYTEST_OUTCOME_MEDIA_TYPE,
+          PYTEST_SOURCE_MEDIA_TYPE,
+          PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+          IDE_DIAGNOSTIC_MEDIA_TYPE,
+          IDE_LAUNCH_MEDIA_TYPE,
+          IDE_STEP_BINDING_MEDIA_TYPE,
+      }
+
+
+      def pytest_cuke_message(config, message):
+          attachment = message.attachment
+          if attachment is not None and attachment.media_type in _INTERNAL_ATTACHMENT_MEDIA_TYPES:
+              config._cuke_internal_envelopes = getattr(config, "_cuke_internal_envelopes", 0) + 1
+
+
+      @pytest.hookimpl(tryfirst=True)
+      def pytest_sessionfinish(session, exitstatus):
+          worker_output = getattr(session.config, "workeroutput", None)
+          if isinstance(worker_output, dict):
+              worker_output["cuke_internal_envelopes"] = getattr(session.config, "_cuke_internal_envelopes", 0)
+
+
       def pytest_cuke_message_batch(config, batch):
           messages_path = config.getoption("cuke_messages_ndjson")
           live_batches = Path(f"{messages_path}.live-batches.jsonl")
@@ -483,6 +691,7 @@ Feature: Local and subprocess Cucumber Messages consolidation
               "exitstatus": worker_output.get("exitstatus"),
               "worker_output_keys": sorted(worker_output),
               "transport": worker_output.get("pytest_cuke_message_transport"),
+              "internal_envelope_count": worker_output.get("cuke_internal_envelopes"),
           }
           messages_path = _consumer_config.getoption("cuke_messages_ndjson")
           manifests = Path(f"{messages_path}.worker-manifests.jsonl")

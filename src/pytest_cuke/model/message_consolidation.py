@@ -150,27 +150,6 @@ def drop_worker_run_hooks(
     return tuple(dropped)
 
 
-def drop_unstarted_run_hooks(envelopes: Sequence[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
-    """Drop run hook definitions whose lifecycle never started, as after a worker crash."""
-    try:
-        started = {
-            str(_payload(envelope, "test_run_hook_started").get("hookId"))
-            for envelope in envelopes
-            if _payload_kind(envelope) == "test_run_hook_started"
-        }
-        return tuple(
-            envelope
-            for envelope in envelopes
-            if not (
-                _payload_kind(envelope) == "hook"
-                and str(_payload(envelope, "hook").get("type", "")) in {"BEFORE_TEST_RUN", "AFTER_TEST_RUN"}
-                and str(_payload(envelope, "hook").get("id")) not in started
-            )
-        )
-    except ValueError:
-        return tuple(envelopes)
-
-
 def namespace_envelope_ids(envelope: Mapping[str, Any], *, worker_id: str) -> dict[str, Any]:
     """Namespace every message identifier and reference while retaining worker identity."""
     return cast("dict[str, Any]", _namespace_nested(envelope, worker_id))

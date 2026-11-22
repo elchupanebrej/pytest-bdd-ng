@@ -96,17 +96,17 @@ Feature: Live Cucumber formatter bridge
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q"
     Then the selected formatter failure should be visible and "broken.ndjson" should not be published
 
-  Scenario: A failing formatter prevents sibling formatters from publishing partial artifacts
+  Scenario: A failing formatter leaves a healthy sibling free to publish
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the consumer registers a healthy formatter alongside one that fails
     And consumer file "features/failing-formatter-sibling.feature" contains:
       """gherkin
       Feature: Failing formatter with a healthy sibling
-        Scenario: No formatter may publish a partial shared run
+        Scenario: The broken formatter publishes nothing and its sibling finishes
           Given the formatter scenario records that it started
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-autoload --cuke-features-dir=features -q"
-    Then the formatter failure should prevent every selected output from being published
+    Then the formatter failure should be reported and the healthy sibling output published
 
   Scenario: A formatter that exits on the first Messages envelope fails before scenario reporting
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

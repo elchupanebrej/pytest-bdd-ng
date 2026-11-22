@@ -10,6 +10,11 @@ from pytest_cuke.const import (
     PYTEST_SOURCE_MEDIA_TYPE,
     PYTEST_STEP_OUTCOME_MEDIA_TYPE,
 )
+from pytest_cuke.model.message_extension import (
+    IDE_DIAGNOSTIC_MEDIA_TYPE,
+    IDE_LAUNCH_MEDIA_TYPE,
+    IDE_STEP_BINDING_MEDIA_TYPE,
+)
 
 
 def resolve_report_policy(
@@ -46,6 +51,9 @@ def is_report_metadata(envelope: Mapping[str, Any]) -> bool:
         PYTEST_OUTCOME_MEDIA_TYPE,
         PYTEST_STEP_OUTCOME_MEDIA_TYPE,
         PYTEST_SOURCE_MEDIA_TYPE,
+        IDE_LAUNCH_MEDIA_TYPE,
+        IDE_STEP_BINDING_MEDIA_TYPE,
+        IDE_DIAGNOSTIC_MEDIA_TYPE,
     }
 
 

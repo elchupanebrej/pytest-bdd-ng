@@ -11,7 +11,18 @@ from pytest_cuke.model.scenario import Scenario
 from pytest_cuke.model.scenario_report import ScenarioReport as RuntimeScenarioReport
 from pytest_cuke.model.session_run import RunContext
 from pytest_cuke.model.step import Step
+from pytest_cuke.model.tag import Tag
 from pytest_cuke.reporting import ScenarioReport, ScenarioReporterPlugin, StepReport
+
+
+def test_scenario_tag_repeating_a_feature_tag_stays_on_the_serialized_element() -> None:
+    feature = Feature(name="Shared tags", tags=(Tag(name="@smoke"),))
+    scenario = Scenario(name="Also smoke", tags=(Tag(name="@smoke"), Tag(name="@scenario-only")))
+
+    serialized = ScenarioReport(feature=feature, scenario=scenario).serialize()
+
+    assert serialized["feature"]["tags"] == ["smoke"]
+    assert serialized["tags"] == ["scenario-only", "smoke"]
 
 
 def test_scenario_report_uses_normalized_file_uri_independent_of_cwd(

@@ -487,6 +487,8 @@ def verbose_tee_sys_output_is_preserved(consumer: Any) -> None:
     output = _output(consumer)
     assert "PASSED" in output, output
     assert "pretty capture sentinel" in output, "tee-sys should forward passing step stdout"
+    for internal_identifier in ("testCaseId", "pickleId", "sourceIdentity"):
+        assert internal_identifier not in output, f"live output exposed internal binding field {internal_identifier!r}"
 
 
 @given("the piped pretty consumer has a Unicode scenario and a narrow terminal width")

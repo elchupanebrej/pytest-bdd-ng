@@ -61,10 +61,15 @@ def render_cucumber_html(messages: str, package: str = "@cucumber/html-formatter
         {
             "css": css_content,
             "script": script_content,
-            "messages": messages,
+            "messages": _script_safe_json(messages),
         },
     )
     return rendered
+
+
+def _script_safe_json(content: str) -> str:
+    """Keep inline JSON from closing the script element or breaking JavaScript."""
+    return content.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 
 
 __all__ = ["render_cucumber_html"]

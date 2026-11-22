@@ -10,7 +10,7 @@ from pytest_cuke.model.message_consolidation import (
     LiveMessageAdapter,
     MessageFragment,
     consolidate_message_fragments,
-    drop_unstarted_run_hooks,
+    drop_worker_run_hooks,
     namespace_envelope_ids,
 )
 from pytest_cuke.model.message_converter import feature_to_envelope, pickle_to_envelope, scenario_to_pickle
@@ -27,6 +27,7 @@ from pytest_cuke.model.message_types import (
     TestCaseFinished as CucumberTestCaseFinished,
     TestCaseStarted,
     TestRunFinished,
+    TestRunHookFinished,
     TestRunHookStarted,
     TestRunStarted,
     TestStep as CucumberTestStep,
@@ -49,6 +50,8 @@ from pytest_cuke.model.message_worker_transport import MessageBatcher, WorkerMes
 TestCaseStarted.__test__ = False
 TestRunFinished.__test__ = False
 TestRunStarted.__test__ = False
+TestRunHookFinished.__test__ = False
+TestRunHookStarted.__test__ = False
 TestStepResult.__test__ = False
 TestStepResultStatus.__test__ = False
 
@@ -514,11 +517,11 @@ def test_consolidation_deduplicates_a_source_from_its_execnet_rsync_staged_path(
     assert sources == [{"uri": controller_uri, "data": source_data, "mediaType": media_type}]
 
 
-def test_drop_unstarted_run_hooks_removes_a_crashed_workers_after_hook() -> None:
+def test_drop_worker_run_hooks_removes_a_crashed_workers_dangling_after_hook() -> None:
     def hook(hook_id: str, hook_type: HookType) -> dict[str, Any]:
         return message_to_dict(Envelope(hook=Hook(id=hook_id, name=hook_type.value, type=hook_type, source_reference=None)))
 
-    started = message_to_dict(
+    before_started = message_to_dict(
         Envelope(
             test_run_hook_started=TestRunHookStarted(
                 id="started-1",
@@ -529,11 +532,30 @@ def test_drop_unstarted_run_hooks_removes_a_crashed_workers_after_hook() -> None
             )
         )
     )
-    envelopes = (hook("before-run", HookType.before_test_run), started, hook("after-run", HookType.after_test_run))
+    before_finished = message_to_dict(
+        Envelope(
+            test_run_hook_finished=TestRunHookFinished(
+                test_run_hook_started_id="started-1",
+                timestamp=Timestamp(seconds=1, nanos=0),
+                result=TestStepResult(
+                    duration=Duration(seconds=1, nanos=0),
+                    status=TestStepResultStatus.passed,
+                ),
+            )
+        )
+    )
+    unrelated = message_to_dict(Envelope(test_run_started=TestRunStarted(id="run-1", timestamp=Timestamp(seconds=0, nanos=0))))
+    envelopes = (
+        hook("before-run", HookType.before_test_run),
+        before_started,
+        before_finished,
+        hook("after-run", HookType.after_test_run),
+        unrelated,
+    )
 
-    kept = drop_unstarted_run_hooks(envelopes)
+    kept = drop_worker_run_hooks(envelopes)
 
-    assert [envelope["hook"]["id"] for envelope in kept if "hook" in envelope] == ["before-run"]
+    assert kept == (unrelated,)
 
 
 def test_consolidation_deduplicates_same_source_from_execnet_staging_roots_without_controller_source() -> None:

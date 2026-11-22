@@ -60,7 +60,6 @@ from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_consolidation import (
     MessageFragment,
     consolidate_message_fragments,
-    drop_unstarted_run_hooks,
     drop_worker_run_hooks,
     namespace_envelope_ids,
 )
@@ -837,16 +836,23 @@ class MessagePlugin:
                     self._publish_worker_message_batch(ready_batch)
 
     def _publish_worker_message_batch(self, batch: MessageBatch) -> None:
+        envelopes: list[dict[str, Any]] = []
+        for envelope in batch.envelopes:
+            namespaced = namespace_envelope_ids(envelope, worker_id=batch.worker_id)
+            envelopes.extend(self.report_presentation.accept(namespaced))
+            attachment = namespaced.get("attachment")
+            if (
+                isinstance(attachment, dict)
+                and attachment.get("mediaType") == PYTEST_STEP_OUTCOME_MEDIA_TYPE
+                and self._configured_output("cuke_allure") is not None
+            ):
+                # Native Allure keeps an allowed step failure diagnosable on the
+                # controller, while other sinks see the canonical success.
+                envelopes.append(namespaced)
         live_batch = {
             "worker_id": batch.worker_id,
             "sequence": batch.sequence,
-            "envelopes": [
-                presented
-                for envelope in batch.envelopes
-                for presented in self.report_presentation.accept(
-                    namespace_envelope_ids(envelope, worker_id=batch.worker_id)
-                )
-            ],
+            "envelopes": envelopes,
             "complete": False,
         }
         try:
@@ -1403,7 +1409,7 @@ class MessagePlugin:
             MessageFragment(
                 worker_id=fragment.worker_id,
                 role="worker",
-                envelopes=drop_unstarted_run_hooks(drop_worker_run_hooks(fragment.envelopes)),
+                envelopes=drop_worker_run_hooks(fragment.envelopes),
             )
             for fragment in received.fragments
         )

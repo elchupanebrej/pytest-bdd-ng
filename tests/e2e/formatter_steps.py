@@ -521,8 +521,8 @@ def selected_formatter_failure_is_reported(output: str, consumer: Any) -> None:
     assert not leftovers, f"failed formatter left staged output files behind: {leftovers}"
 
 
-@then("the formatter failure should prevent every selected output from being published")
-def failed_formatter_prevents_sibling_output_publication(consumer: Any) -> None:
+@then("the formatter failure should be reported and the healthy sibling output published")
+def failed_formatter_reports_failure_and_publishes_healthy_sibling(consumer: Any) -> None:
     result = consumer.pytest_result
     assert result is not None, "installed pytest has not run"
     combined_output = result.stdout + result.stderr
