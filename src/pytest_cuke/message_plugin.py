@@ -1155,9 +1155,10 @@ class MessagePlugin:
         start_timestamp: Timestamp,
         exception: BaseException | None,
     ) -> None:
-        if exception is None or isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
-            # A scenario hook that ran is passed even when the scenario unwinds with a skip.
+        if exception is None:
             status = Status.passed
+        elif isinstance(exception, (pytest.skip.Exception, pytest.xfail.Exception)):
+            status = Status.skipped
         elif isinstance(exception, KeyboardInterrupt):
             status = Status.unknown
         else:
@@ -1168,7 +1169,7 @@ class MessagePlugin:
                 message=str(exception),
                 stack_trace="".join(traceback.format_exception(exception)),
             )
-            if exception is not None
+            if exception is not None and status in (Status.failed, Status.unknown)
             else None
         )
         self._finish_test_step(

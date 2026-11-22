@@ -74,7 +74,7 @@ Configure an explicit inventory in the active `pyproject.toml`:
     threshold-percent = 80
 
 The feature root defaults to `PROJECT/<cuke_features_dir>` from the active
-`[tool.pytest.ini_options]` (or `PROJECT/features` when unset); the test root
+`[tool.pytest.ini_options]` (or `PROJECT` when unset); the test root
 defaults to `PROJECT/tests`. Configured patterns are applied beneath their
 respective roots. A leading `features/` or `tests/` segment is removed, so the
 default patterns work when the feature directory is customized. Root-relative

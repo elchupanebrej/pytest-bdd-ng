@@ -18,7 +18,7 @@ pytestmark = mark.unit
 def test_add_bdd_ini() -> None:
     parser = MagicMock()
     add_bdd_ini(parser)
-    parser.addini.assert_any_call("cuke_features_dir", "Base features directory.", default="features", type="string")
+    parser.addini.assert_any_call("cuke_features_dir", "Base features directory.", default="", type="string")
     parser.addini.assert_any_call("cuke_features_base_url", "Base features URL.", default="", type="string")
     parser.addini.assert_any_call(
         "cuke_mock_run",
@@ -76,7 +76,7 @@ def test_pytest_addoption_calls_all_submodules() -> None:
 
     pytest_addoption(parser)
 
-    parser.addini.assert_any_call("cuke_features_dir", "Base features directory.", default="features", type="string")
+    parser.addini.assert_any_call("cuke_features_dir", "Base features directory.", default="", type="string")
     parser.addini.assert_any_call("cuke_features_base_url", "Base features URL.", default="", type="string")
     assert parser.getgroup.call_count >= 5
     group = parser.getgroup.return_value

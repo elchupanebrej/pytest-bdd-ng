@@ -142,6 +142,7 @@ def scenarios(
     """
     if features_base_dir and features_base_url:
         raise ValueError('Both "features_base_dir" and "features_base_url" were specified')
+    features_mimetype = getattr(features_mimetype, "value", features_mimetype)
     if features_base_dir:
         features_path_type = FeaturePathType.PATH
     elif features_base_url:

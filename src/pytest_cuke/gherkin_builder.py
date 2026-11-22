@@ -4,6 +4,7 @@ from typing import Any
 
 from attrs import evolve
 
+from pytest_cuke.exceptions import FeatureConcreteParseError
 from pytest_cuke.model import (
     Background,
     DataTable,
@@ -216,7 +217,14 @@ def _build_rule(rule_dict: dict[str, Any], parent_background: Background | None 
 
 
 def build_feature_from_dict(raw_dict: dict[str, Any], uri: str = "", filename: str | None = None) -> Feature:
-    feature_dict = raw_dict.get("feature", {})
+    feature_dict = raw_dict.get("feature")
+    if not isinstance(feature_dict, dict):
+        raise FeatureConcreteParseError(
+            "Feature file does not declare a Feature",
+            1,
+            "",
+            uri,
+        )
     background = None
     scenarios: list[Scenario] = []
     rules: list[Rule] = []

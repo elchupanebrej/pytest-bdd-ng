@@ -17,6 +17,42 @@ Feature: Live message-driven Cucumber JSON formatter
     And I run installed pytest in the Cucumber JSON workspace with arguments "--rootdir=. --cuke-autoload --cuke-parser=python --cuke-features-dir=features --cuke-json -q --color=no"
     Then the bare Cucumber JSON option should write the official report to "cucumber.json" under pytest root
 
+  Scenario: A skipping scenario hook stays a skipped hook step
+    Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer installs the pinned official Cucumber JSON runtime
+    And consumer directory "artifacts" exists
+    And consumer file "pyproject.toml" has content:
+      """toml
+      [tool.pytest.ini_options]
+      cuke_autoload = true
+      cuke_features_dir = "features"
+      """
+    And consumer file "conftest.py" has content:
+      """python
+      import pytest
+      from pytest_cuke import given
+
+      @given("a passing step")
+      def step():
+          pass
+
+      def pytest_cuke_before_scenario(request, run):
+          pytest.skip("hook skip sentinel")
+
+      def pytest_cuke_after_scenario(request, run):
+          pytest.skip("hook skip sentinel")
+      """
+    And consumer file "features/hook-skip.feature" has content:
+      """gherkin
+      Feature: Hook skip
+        Scenario: Hooks skip
+          Given a passing step
+      """
+    When I run installed pytest with arguments "--rootdir=. --cuke-json=artifacts/hook.json --cuke-messages-ndjson=artifacts/hook.ndjson -q"
+    Then pytest should exit with code 0
+    And pytest output should include "1 skipped"
+    And consumer artifacts "artifacts/hook.ndjson" and "artifacts/hook.json" should report skipped scenario hooks without an error payload
+
   Scenario: Saved Messages replay after removing sources is semantically equivalent
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
     And the Cucumber JSON consumer prepares a rich replay feature with source import and fixture traps

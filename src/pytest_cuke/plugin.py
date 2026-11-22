@@ -353,7 +353,7 @@ def pytest_addoption(parser: Parser) -> None:
 
 
 def add_bdd_ini(parser: Parser) -> None:
-    parser.addini("cuke_features_dir", "Base features directory.", default="features", type="string")
+    parser.addini("cuke_features_dir", "Base features directory.", default="", type="string")
     parser.addini("cuke_features_base_url", "Base features URL.", default="", type="string")
     parser.addini("cuke_http_servers", "HTTP source rules as JSON objects, one per line.", default=[], type="linelist")
     parser.addini("cuke_parser", "Gherkin parser backend: python, auto, or go.", default="auto", type="string")
@@ -590,9 +590,55 @@ def _zero_match_skip_reason(feature: Feature, scenario: Scenario) -> str:
     )
 
 
+def _scenario_identity(binding: tuple[Feature, Scenario]) -> tuple[str, int]:
+    feature, scenario = binding
+    source = feature.filename or feature.uri or feature.rel_filename or ""
+    path = Path(source)
+    if path.is_absolute():
+        source = str(path.resolve())
+    return source, scenario.line
+
+
+def _drop_autoload_duplicates(items: list[Any]) -> None:
+    """Keep the explicit binding when autoload collected the same scenario."""
+    explicit = {
+        _scenario_identity(binding)
+        for item in items
+        if not _is_feature_autoload_item(item) and (binding := _bound_scenario(item)) is not None
+    }
+    if not explicit:
+        return
+    items[:] = [
+        item
+        for item in items
+        if not (
+            _is_feature_autoload_item(item)
+            and (binding := _bound_scenario(item)) is not None
+            and _scenario_identity(binding) in explicit
+        )
+    ]
+
+
+_EMPTY_SCENARIO_SKIP_REASON = "Scenario has no executable steps."
+
+
+def _skip_empty_scenarios(items: list[Any]) -> None:
+    """Mark scenarios without executable steps as skipped before setup."""
+    for item in items:
+        binding = _bound_scenario(item)
+        if binding is None:
+            continue
+        feature, scenario = binding
+        if execution_steps(feature, scenario):
+            continue
+        item.add_marker(pytest.mark.skip(reason=_EMPTY_SCENARIO_SKIP_REASON))
+
+
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     """Validate explicit bindings after pytest has applied item selection."""
+    _drop_autoload_duplicates(items)
+    _skip_empty_scenarios(items)
     if (
         _generation_mode_enabled(config)
         or bool(getattr(config.option, "keyword", None))

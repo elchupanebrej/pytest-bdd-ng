@@ -176,11 +176,11 @@ their path is returned by ``submit_artifact``.
 Failure hold controls and environment inspection
 ------------------------------------------------
 
-``--cuke-mcp-max-holds=N`` limits the number of failure holds in each pytest
-process. ``0`` (the default) keeps unlimited holds. Under local xdist each
-worker owns its own counter; one worker reaching its cap does not consume the
-other workers' allowance. Later failures still fail normally without a hold.
-The corresponding ini setting is ``cuke_mcp_max_holds``.
+``--cuke-mcp-max-holds=N`` limits the number of failure holds for the whole
+run. ``0`` (the default) keeps unlimited holds. Under local xdist workers share
+one counter, so the first worker to consume the allowance spends it for the
+run. Later failures still fail normally without a hold. The corresponding ini
+setting is ``cuke_mcp_max_holds``.
 
 Environment inspection is disabled by default. With
 ``--cuke-mcp-expose-env`` (or ``cuke_mcp_expose_env = true``), the inspection
