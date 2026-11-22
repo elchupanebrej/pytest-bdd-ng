@@ -31,6 +31,11 @@ Update those bounds deliberately when adding a pytest release line.
 `tox-env-template` must include `{python}`, `{pytest}`, and either `{target}` or
 `{platform}`. Expansion emits names only for pairs accepted by both upstream
 compatibility bounds and the project's minimum supported Python/pytest versions.
+Names generated from a TOML template are policy-only: the JSON payload sets
+`policyOnly: true` and text output says so on stderr, because the template
+cannot know which environments tox.ini declares. Verify them with
+`tox list --no-desc` before running. An explicit INI expansion keeps only
+concrete configured environments, so `policyOnly` is false.
 
 Examples:
 

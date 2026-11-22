@@ -109,6 +109,7 @@ def _environment(
     python: str = "3.14.0",
     selected_tests: int = 2,
     passed_tests: int = 2,
+    pytest_commands: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     version_parts = [int(part) for part in python.split(".")]
     tox_entry = {
@@ -139,6 +140,16 @@ def _environment(
         "returncode": 0,
         "selected_tests": selected_tests,
         "passed_tests": passed_tests,
+        "pytest_commands": pytest_commands
+        or [
+            {
+                "index": 0,
+                "command": "python -m pytest -q",
+                "selected_tests": selected_tests,
+                "passed_tests": passed_tests,
+                "outcome": "passed",
+            }
+        ],
         "optional_versions": {
             key: None
             for key in (
@@ -217,6 +228,18 @@ def _collect(
     return errors
 
 
+def test_aggregation_rejects_duplicate_workflow_cell_ids(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    aggregator = _aggregator(monkeypatch)
+    cells = _workflow_cells()
+    cells.append(dict(cells[0], job="quality", tox_envs=["py314-ruff"]))
+    inventory_path = _write_inventory(tmp_path, cells)
+    (tmp_path / "evidence").mkdir()
+
+    _summary, errors = aggregator["collect_evidence"](tmp_path / "evidence", _SHA, inventory_path)
+
+    assert any("repeats workflow cell id 'cpython-314-linux'" in error for error in errors), errors
+
+
 def test_aggregation_rejects_pytest_below_the_cpython_floor(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     errors = _collect(
         monkeypatch,
@@ -249,6 +272,58 @@ def test_aggregation_rejects_a_pytest_patch_that_differs_from_the_exact_floor(
     )
 
     assert any("requires exactly 8.4.2" in error for error in errors), errors
+
+
+def test_aggregation_rejects_a_pytest_command_that_selected_no_tests(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    errors = _collect(
+        monkeypatch,
+        tmp_path,
+        _environment(
+            job="optional-integrations",
+            cell="struct-bdd-py314-linux",
+            tox_environment="py314-struct-bdd",
+            group="optional",
+            pytest_commands=[
+                {
+                    "index": 0,
+                    "command": "python -m pytest optional.feature",
+                    "selected_tests": 0,
+                    "passed_tests": 0,
+                    "outcome": "failed",
+                }
+            ],
+        ),
+    )
+
+    assert any("pytest command 0 selected no tests" in error for error in errors), errors
+
+
+def test_aggregation_rejects_a_pytest_command_whose_tests_all_skipped(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    errors = _collect(
+        monkeypatch,
+        tmp_path,
+        _environment(
+            job="optional-integrations",
+            cell="struct-bdd-py314-linux",
+            tox_environment="py314-struct-bdd",
+            group="optional",
+            pytest_commands=[
+                {
+                    "index": 0,
+                    "command": "python -m pytest optional.feature",
+                    "selected_tests": 2,
+                    "passed_tests": 0,
+                    "outcome": "failed",
+                }
+            ],
+        ),
+    )
+
+    assert any("pytest command 0 passed no tests" in error for error in errors), errors
 
 
 def test_aggregation_accepts_the_exact_floor_versions(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

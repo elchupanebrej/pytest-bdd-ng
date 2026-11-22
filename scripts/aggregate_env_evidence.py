@@ -154,6 +154,7 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
             )
 
     expected: dict[tuple[str, str, str], dict[str, Any]] = {}
+    cell_ids: set[str] = set()
     for job in EXPECTED_JOBS:
         job_cells = [cell for cell in cells if cell.get("job") == job]
         if not job_cells:
@@ -166,6 +167,9 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
             tox_environments = cell.get("tox_envs")
             if any(not isinstance(value, str) or not value for value in (cell_id, runtime, python, platform_name)):
                 raise RuntimeError(f"inventory cell for job {job!r} must declare id, runtime, python, and platform")
+            if cell_id in cell_ids:
+                raise RuntimeError(f"inventory repeats workflow cell id {cell_id!r}")
+            cell_ids.add(cell_id)
             if not isinstance(tox_environments, list) or not tox_environments:
                 raise RuntimeError(f"inventory cell {cell_id!r} must declare tox_envs")
             if any(not isinstance(value, str) or not value for value in tox_environments):
@@ -407,6 +411,43 @@ def _remote_worker_evidence_errors(
             errors.append(f"{prefix} {run_label} {expected_mode} run must report two distinct worker IDs")
         if len(runtime_versions) > 1:
             errors.append(f"{prefix} {run_label} {expected_mode} workers report inconsistent runtime versions")
+    return errors
+
+
+def _pytest_command_errors(
+    prefix: str,
+    record: dict[str, Any],
+    tox_result_entry: dict[str, Any] | None,
+) -> list[str]:
+    """Require non-empty per-command results for every pytest command in a tox run."""
+    errors: list[str] = []
+    commands = record.get("pytest_commands")
+    if not isinstance(commands, list):
+        return [f"{prefix} is missing per-command pytest evidence"]
+    recorded = {
+        command["index"]: command
+        for command in commands
+        if isinstance(command, dict)
+        and isinstance(command.get("index"), int)
+        and not isinstance(command.get("index"), bool)
+    }
+    test_commands = tox_result_entry.get("test") if isinstance(tox_result_entry, dict) else None
+    for index, entry in enumerate(test_commands if isinstance(test_commands, list) else []):
+        argv = entry.get("command") if isinstance(entry, dict) else None
+        if not isinstance(argv, list) or "pytest" not in argv:
+            continue
+        observed = recorded.get(index)
+        if observed is None:
+            errors.append(f"{prefix} is missing evidence for pytest command {index}")
+            continue
+        selected = observed.get("selected_tests")
+        if isinstance(selected, bool) or not isinstance(selected, int) or selected < 1:
+            errors.append(f"{prefix} pytest command {index} selected no tests")
+        passed = observed.get("passed_tests")
+        if isinstance(passed, bool) or not isinstance(passed, int) or passed < 1:
+            errors.append(f"{prefix} pytest command {index} passed no tests")
+        if observed.get("outcome") != "passed":
+            errors.append(f"{prefix} pytest command {index} did not pass")
     return errors
 
 
@@ -753,6 +794,9 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
             if isinstance(passed_tests, bool) or not isinstance(passed_tests, int) or passed_tests < 1:
                 errors.append(f"{job}/{cell}/{tox_environment} selected no tests that passed")
                 invalid_groups.add(expected_group)
+            for command_error in _pytest_command_errors(f"{job}/{cell}/{tox_environment}", record, tox_result_entry):
+                errors.append(command_error)
+                invalid_groups.add(expected_group)
 
     groups: dict[str, dict[str, Any]] = {}
     for group, grouped in group_records.items():
@@ -796,6 +840,7 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                     "command",
                     "selected_tests",
                     "passed_tests",
+                    "pytest_commands",
                     "remote_worker_runs",
                     "outcome",
                     "returncode",
