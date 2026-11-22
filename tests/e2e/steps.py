@@ -17212,7 +17212,9 @@ def _without_internal_metadata(envelopes: list[dict[str, Any]]) -> list[dict[str
     return [
         envelope
         for envelope in envelopes
-        if not str(envelope.get("attachment", {}).get("mediaType", "")).startswith("application/vnd.pytest-cuke.")
+        if not str(envelope.get("attachment", {}).get("mediaType", "")).startswith(
+            ("application/vnd.pytest-cuke.", "application/vnd.pytest-bdd.")
+        )
     ]
 
 

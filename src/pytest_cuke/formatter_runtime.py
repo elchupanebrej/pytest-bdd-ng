@@ -15,7 +15,12 @@ from pathlib import Path, PurePosixPath
 from threading import Lock, Thread
 from typing import TYPE_CHECKING, Any
 
-from pytest_cuke.const import PYTEST_STEP_OUTCOME_MEDIA_TYPE
+from pytest_cuke.const import (
+    IDE_DIAGNOSTIC_MEDIA_TYPE,
+    IDE_LAUNCH_MEDIA_TYPE,
+    IDE_STEP_BINDING_MEDIA_TYPE,
+    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+)
 from pytest_cuke.model.message_consolidation import LiveMessageAdapter, drop_worker_run_hooks, worker_run_hook_ids
 from pytest_cuke.model.message_extension import external_attachment_reference
 from pytest_cuke.model.message_stream_validation import MessageStreamValidator, MessageValidationError
@@ -549,8 +554,13 @@ class FormatterSession:
     def write_message(self, message: Message) -> None:
         """Send one controller message through the live/replay normalization path."""
         attachment = message.attachment
-        if attachment is not None and attachment.media_type == PYTEST_STEP_OUTCOME_MEDIA_TYPE:
-            # Internal step outcome metadata is consumed by report converters only.
+        if attachment is not None and attachment.media_type in {
+            PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+            IDE_DIAGNOSTIC_MEDIA_TYPE,
+            IDE_LAUNCH_MEDIA_TYPE,
+            IDE_STEP_BINDING_MEDIA_TYPE,
+        }:
+            # Internal diagnostics stay in the saved stream, not in live output.
             return
         with self._delivery_lock:
             try:

@@ -423,6 +423,8 @@ class MessagePlugin:
             self.messages_file_path = Path(messages_path)
 
         self.message_transport = ValidatedMessageTransport()
+        if not self.is_xdist_worker:
+            self.message_transport.add_sink(self._deliver_validated_message, name="pytest_cuke_message_validated")
         self.message_transport.add_sink(self._publish_canonical_message, name="Cucumber Messages NDJSON writer")
 
         if self.formatter_requests and not self.is_xdist_worker:
@@ -766,12 +768,22 @@ class MessagePlugin:
         for payload in self.canonical_presentation.accept(message_to_dict(message)):
             self.accepted_message_payloads.append(payload)
             self._queue_validated_payload(payload)
-            if not self.is_xdist_worker:
-                # Observers mirror the canonical saved stream, including internal
-                # report metadata; live formatter sinks filter it separately.
-                self.config.hook.pytest_cuke_message_validated(
-                    config=self.config, message=message_from_dict(payload, Message)
-                )
+
+    def _deliver_validated_message(self, message: Message) -> None:
+        wire = message_to_dict(message)
+        for envelope in self.report_presentation.accept(wire):
+            self.config.hook.pytest_cuke_message_validated(
+                config=self.config, message=message_from_dict(envelope, Message)
+            )
+        attachment = wire.get("attachment")
+        if (
+            isinstance(attachment, dict)
+            and attachment.get("mediaType") == PYTEST_STEP_OUTCOME_MEDIA_TYPE
+            and self._configured_output("cuke_allure") is not None
+        ):
+            # Native Allure keeps an allowed step failure diagnosable while the
+            # canonical success stays untouched for every other sink.
+            self.config.hook.pytest_cuke_message_validated(config=self.config, message=message)
 
     @staticmethod
     def _worker_id_for_node(node: Any) -> str | None:
