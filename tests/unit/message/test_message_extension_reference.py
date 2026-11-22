@@ -1,5 +1,22 @@
-from pytest_cuke.model.message_extension import REFERENCE_MEDIA_TYPE, external_attachment_reference
+from pytest_cuke.const import (
+    PYTEST_OUTCOME_MEDIA_TYPE,
+    PYTEST_SOURCE_MEDIA_TYPE,
+    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
+)
+from pytest_cuke.model.message_extension import (
+    PYTEST_OUTCOME_MEDIA_TYPE as RE_EXPORTED_OUTCOME,
+    PYTEST_SOURCE_MEDIA_TYPE as RE_EXPORTED_SOURCE,
+    PYTEST_STEP_OUTCOME_MEDIA_TYPE as RE_EXPORTED_STEP_OUTCOME,
+    REFERENCE_MEDIA_TYPE,
+    external_attachment_reference,
+)
 from pytest_cuke.model.message_types import Envelope, ExternalAttachment, Timestamp
+
+
+def test_media_type_constants_remain_importable_from_message_extension():
+    assert RE_EXPORTED_OUTCOME == PYTEST_OUTCOME_MEDIA_TYPE
+    assert RE_EXPORTED_STEP_OUTCOME == PYTEST_STEP_OUTCOME_MEDIA_TYPE
+    assert RE_EXPORTED_SOURCE == PYTEST_SOURCE_MEDIA_TYPE
 
 
 def _external(url: str, name: str | None = None) -> Envelope:

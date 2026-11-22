@@ -60,7 +60,6 @@ from pytest_cuke.model.execution_steps import execution_steps
 from pytest_cuke.model.message_consolidation import (
     MessageFragment,
     consolidate_message_fragments,
-    drop_unstarted_run_hooks,
     drop_worker_run_hooks,
     namespace_envelope_ids,
 )
@@ -1409,7 +1408,7 @@ class MessagePlugin:
             MessageFragment(
                 worker_id=fragment.worker_id,
                 role="worker",
-                envelopes=drop_unstarted_run_hooks(drop_worker_run_hooks(fragment.envelopes)),
+                envelopes=drop_worker_run_hooks(fragment.envelopes),
             )
             for fragment in received.fragments
         )

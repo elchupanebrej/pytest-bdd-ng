@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
@@ -17,9 +18,21 @@ from pytest import mark
 pytestmark = mark.unit
 
 
-def test_log_bdd_cucumber_json_lifecycle_and_output(tmp_path: Path) -> None:
-    pytest.importorskip("pydantic")
+@pytest.fixture(autouse=True)
+def _pydantic_validation_available(monkeypatch):
+    """Keep output serialization covered when the optional native model is absent."""
+    if importlib.util.find_spec("pydantic") is not None:
+        return
+    from pytest_cuke import cucumber_json
 
+    monkeypatch.setattr(
+        cucumber_json,
+        "_cucumber_json_models",
+        lambda: SimpleNamespace(Feature=SimpleNamespace(model_validate=lambda feature: feature)),
+    )
+
+
+def test_log_bdd_cucumber_json_lifecycle_and_output(tmp_path: Path) -> None:
     out_file = tmp_path / "subdir" / "cucumber.json"
     logger = LogBDDCucumberJSON(str(out_file))
     logger.pytest_sessionstart()
@@ -93,8 +106,6 @@ def test_log_bdd_cucumber_json_status_fallback_and_stepless_scenario(tmp_path: P
 
 
 def test_log_bdd_cucumber_json_strips_file_uri_from_relative_filename(tmp_path: Path) -> None:
-    pytest.importorskip("pydantic")
-
     out_file = tmp_path / "cucumber.json"
     logger = LogBDDCucumberJSON(str(out_file))
 
