@@ -14,10 +14,10 @@ from pytest_cuke.model.report_presentation import ReportPresentation, resolve_re
     "media_type",
     [IDE_LAUNCH_MEDIA_TYPE, IDE_STEP_BINDING_MEDIA_TYPE, IDE_DIAGNOSTIC_MEDIA_TYPE],
 )
-def test_live_presentation_drops_internal_ide_attachments(media_type):
+def test_live_presentation_keeps_ide_attachments_for_validated_observers(media_type):
     envelope = {"attachment": {"mediaType": media_type, "body": '{"testCaseId":"internal"}'}}
 
-    assert ReportPresentation().accept(dict(envelope)) == []
+    assert ReportPresentation().accept(dict(envelope)) == [envelope]
     assert ReportPresentation(retain_metadata=True).accept(dict(envelope)) == [envelope]
 
 
