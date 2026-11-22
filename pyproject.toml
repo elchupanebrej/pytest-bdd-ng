@@ -67,6 +67,8 @@ dependencies = [
   "py",
   "referencing>=0.30",
   "pytest>=8.0",
+  "pytest>=8.4.2; python_version >= '3.14'",
+  "pytest>=9.1.1; python_version >= '3.15'",
   "cucumber-tag-expressions"
 ]
 description = "BDD for pytest"
@@ -124,6 +126,8 @@ testtypes = [
 ]
 test = [
   "pytest>=8.0.0",
+  "pytest>=8.4.2; python_version >= '3.14'",
+  "pytest>=9.1.1; python_version >= '3.15'",
   "attrs>=22.2.0",
   "pytest-httpserver>=1.1.5",
   "PyYAML==6.0.3"
@@ -358,7 +362,7 @@ required_distributions = [
 [tool.pytest-cuke.compatibility]
 python-factors = ["3.11", "3.12", "3.13", "3.14", "3.15"]
 pytest-factors = [
-  "8.0", "8.1", "8.2", "8.3", "8.4", "9", "9.1", "latest"
+  "8.0", "8.1", "8.2", "8.3", "8.4", "8.4.2", "9", "9.1", "9.1.1", "latest"
 ]
 execution-targets = ["lin", "mac", "win"]
 tox-env-template = "py{python}-pytest{pytest}-coverage-{target}"

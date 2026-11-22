@@ -92,7 +92,7 @@ def _workflow_link_identity(value: Any, *, job_link: bool) -> tuple[str, str, st
 
 
 def _pytest_factor(tox_environment: str) -> str | None:
-    match = re.search(r"(?:^|-)pytest(\d{2}|9|latest)(?:-|$)", tox_environment)
+    match = re.search(r"(?:^|-)pytest(\d{2,3}|9|latest)(?:-|$)", tox_environment)
     return match.group(1) if match else None
 
 
@@ -103,7 +103,14 @@ def _pytest_factor_pair(tox_environment: str) -> tuple[int, int] | None:
     return int(factor[0]), int(factor[1])
 
 
-def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], dict[str, str]]:
+def _pytest_factor_triplet(tox_environment: str) -> tuple[int, int, int] | None:
+    factor = _pytest_factor(tox_environment)
+    if factor is None or factor == "latest" or len(factor) != 3:
+        return None
+    return int(factor[0]), int(factor[1]), int(factor[2])
+
+
+def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], dict[str, Any]]:
     try:
         inventory = yaml.safe_load(inventory_path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as error:
@@ -132,8 +139,22 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
         or set(declared_groups) != expected_groups
     ):
         raise RuntimeError(f"inventory evidence.aggregate_groups must declare exactly {sorted(expected_groups)!r}")
+    pytest_floors = project_config.get("pytest_floors") if isinstance(project_config, dict) else None
+    if not isinstance(pytest_floors, dict) or not pytest_floors:
+        raise RuntimeError(f"environment inventory {inventory_path} must declare project.pytest_floors")
+    for python_version, floor in pytest_floors.items():
+        if (
+            not isinstance(python_version, str)
+            or _version_pair(python_version) is None
+            or not isinstance(floor, str)
+            or _version_triplet(floor) is None
+        ):
+            raise RuntimeError(
+                f"environment inventory {inventory_path} has an invalid pytest floor {python_version!r}: {floor!r}"
+            )
 
-    expected: dict[tuple[str, str, str], dict[str, str]] = {}
+    expected: dict[tuple[str, str, str], dict[str, Any]] = {}
+    cell_ids: set[str] = set()
     for job in EXPECTED_JOBS:
         job_cells = [cell for cell in cells if cell.get("job") == job]
         if not job_cells:
@@ -146,6 +167,9 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
             tox_environments = cell.get("tox_envs")
             if any(not isinstance(value, str) or not value for value in (cell_id, runtime, python, platform_name)):
                 raise RuntimeError(f"inventory cell for job {job!r} must declare id, runtime, python, and platform")
+            if cell_id in cell_ids:
+                raise RuntimeError(f"inventory repeats workflow cell id {cell_id!r}")
+            cell_ids.add(cell_id)
             if not isinstance(tox_environments, list) or not tox_environments:
                 raise RuntimeError(f"inventory cell {cell_id!r} must declare tox_envs")
             if any(not isinstance(value, str) or not value for value in tox_environments):
@@ -168,6 +192,7 @@ def _inventory_environments(inventory_path: Path) -> dict[tuple[str, str, str], 
                     "platform": platform_name,
                     "architecture": expected_architecture,
                     "expected_interpreter": expected_interpreter,
+                    "pytest_floor": pytest_floors.get(python),
                 }
                 expected[key] = specification
     return expected
@@ -386,6 +411,43 @@ def _remote_worker_evidence_errors(
             errors.append(f"{prefix} {run_label} {expected_mode} run must report two distinct worker IDs")
         if len(runtime_versions) > 1:
             errors.append(f"{prefix} {run_label} {expected_mode} workers report inconsistent runtime versions")
+    return errors
+
+
+def _pytest_command_errors(
+    prefix: str,
+    record: dict[str, Any],
+    tox_result_entry: dict[str, Any] | None,
+) -> list[str]:
+    """Require non-empty per-command results for every pytest command in a tox run."""
+    errors: list[str] = []
+    commands = record.get("pytest_commands")
+    if not isinstance(commands, list):
+        return [f"{prefix} is missing per-command pytest evidence"]
+    recorded = {
+        command["index"]: command
+        for command in commands
+        if isinstance(command, dict)
+        and isinstance(command.get("index"), int)
+        and not isinstance(command.get("index"), bool)
+    }
+    test_commands = tox_result_entry.get("test") if isinstance(tox_result_entry, dict) else None
+    for index, entry in enumerate(test_commands if isinstance(test_commands, list) else []):
+        argv = entry.get("command") if isinstance(entry, dict) else None
+        if not isinstance(argv, list) or "pytest" not in argv:
+            continue
+        observed = recorded.get(index)
+        if observed is None:
+            errors.append(f"{prefix} is missing evidence for pytest command {index}")
+            continue
+        selected = observed.get("selected_tests")
+        if isinstance(selected, bool) or not isinstance(selected, int) or selected < 1:
+            errors.append(f"{prefix} pytest command {index} selected no tests")
+        passed = observed.get("passed_tests")
+        if isinstance(passed, bool) or not isinstance(passed, int) or passed < 1:
+            errors.append(f"{prefix} pytest command {index} passed no tests")
+        if observed.get("outcome") != "passed":
+            errors.append(f"{prefix} pytest command {index} did not pass")
     return errors
 
 
@@ -652,8 +714,10 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                     invalid_groups.add(expected_group)
         pytest_version = record.get("pytest")
         actual_pytest_pair = _version_pair(pytest_version)
+        actual_pytest_triplet = _version_triplet(pytest_version)
         declared_pytest_factor = _pytest_factor(tox_environment)
         declared_pytest_pair = _pytest_factor_pair(tox_environment)
+        declared_pytest_triplet = _pytest_factor_triplet(tox_environment)
         requires_pytest = (
             expected_group in TEST_EVIDENCE_GROUPS
             or declared_pytest_factor is not None
@@ -661,6 +725,35 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
         )
         if requires_pytest and actual_pytest_pair is None:
             errors.append(f"{job}/{cell}/{tox_environment} is missing an actual pytest version")
+            invalid_groups.add(expected_group)
+        pytest_floor = specification.get("pytest_floor")
+        floor_triplet = _version_triplet(str(pytest_floor)) if pytest_floor is not None else None
+        if requires_pytest and pytest_floor is not None and actual_pytest_triplet is None:
+            errors.append(
+                f"{job}/{cell}/{tox_environment} is missing an exact pytest version for the "
+                f"CPython {specification['python']} floor {pytest_floor}"
+            )
+            invalid_groups.add(expected_group)
+        elif (
+            requires_pytest
+            and floor_triplet is not None
+            and actual_pytest_triplet is not None
+            and actual_pytest_triplet < floor_triplet
+        ):
+            errors.append(
+                f"{job}/{cell}/{tox_environment} reports pytest {pytest_version!r}; "
+                f"CPython {specification['python']} requires at least {pytest_floor}"
+            )
+            invalid_groups.add(expected_group)
+        if (
+            actual_pytest_triplet is not None
+            and declared_pytest_triplet is not None
+            and actual_pytest_triplet != declared_pytest_triplet
+        ):
+            errors.append(
+                f"{job}/{cell}/{tox_environment} reports pytest {pytest_version!r}; "
+                f"tox factor requires exactly {'.'.join(str(part) for part in declared_pytest_triplet)}"
+            )
             invalid_groups.add(expected_group)
         if actual_pytest_pair is not None and declared_pytest_factor == "latest" and actual_pytest_pair[0] != 9:
             errors.append(
@@ -700,6 +793,9 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
             passed_tests = record.get("passed_tests")
             if isinstance(passed_tests, bool) or not isinstance(passed_tests, int) or passed_tests < 1:
                 errors.append(f"{job}/{cell}/{tox_environment} selected no tests that passed")
+                invalid_groups.add(expected_group)
+            for command_error in _pytest_command_errors(f"{job}/{cell}/{tox_environment}", record, tox_result_entry):
+                errors.append(command_error)
                 invalid_groups.add(expected_group)
 
     groups: dict[str, dict[str, Any]] = {}
@@ -744,6 +840,7 @@ def collect_evidence(root: Path, expected_sha: str, inventory_path: Path) -> tup
                     "command",
                     "selected_tests",
                     "passed_tests",
+                    "pytest_commands",
                     "remote_worker_runs",
                     "outcome",
                     "returncode",

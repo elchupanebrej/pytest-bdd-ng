@@ -24,6 +24,7 @@ from typing import Any
 
 import pytest
 import yaml
+from packaging.markers import default_environment
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from pytest_cuke import given, parsers, then, when
@@ -1664,11 +1665,23 @@ def required_cpython_cells_use_latest_and_compatible_floor_pytest(consumer: Any)
     expected_floor_lines = {
         ("cpython", "3.11", "linux", "x86_64"): "8.0.x",
         ("cpython", "3.12", "linux", "runner-native"): "8.4.x",
+        ("cpython", "3.14", "linux", "runner-native"): "8.4.2",
+        ("cpython", "3.15", "linux", "runner-native"): "9.1.1",
     }
     for key, floor in expected_floor_lines.items():
         cell = by_key.get(key)
         assert cell is not None, key
         assert floor in cell.get("required_pytest_lines", []), (key, cell)
+    expected_floor_environments = {
+        ("cpython", "3.14", "linux", "runner-native"): "py314-pytest842-coverage-lin",
+        ("cpython", "3.15", "linux", "runner-native"): "py315-pytest911-coverage-lin",
+    }
+    for key, tox_environment in expected_floor_environments.items():
+        cell = by_key.get(key)
+        assert cell is not None, key
+        required_ci = cell.get("required_ci")
+        assert isinstance(required_ci, dict), cell
+        assert tox_environment in required_ci.get("tox_envs", []), (key, cell)
 
 
 @then("every required runtime cell should include core install and example acceptance")
@@ -3290,8 +3303,21 @@ def installed_metadata_declares_runtime_floors_without_implementation_markers(co
         requirement for requirement in requirements if re.sub(r"[-_.]+", "-", requirement.name).casefold() == "pytest"
     ]
     assert pytest_requirements, requirements
-    assert all(requirement.specifier.contains("8.0") for requirement in pytest_requirements), pytest_requirements
-    assert all(not requirement.specifier.contains("7.99") for requirement in pytest_requirements), pytest_requirements
+
+    def accepts(python_version: str, pytest_version: str) -> bool:
+        environment = {**default_environment(), "python_version": python_version}
+        return all(
+            requirement.specifier.contains(pytest_version)
+            for requirement in pytest_requirements
+            if requirement.marker is None or requirement.marker.evaluate(environment)
+        )
+
+    assert accepts("3.11", "8.0.0"), pytest_requirements
+    assert not accepts("3.11", "7.99.0"), pytest_requirements
+    assert not accepts("3.14", "8.4.1"), pytest_requirements
+    assert accepts("3.14", "8.4.2"), pytest_requirements
+    assert not accepts("3.15", "9.1.0"), pytest_requirements
+    assert accepts("3.15", "9.1.1"), pytest_requirements
 
     implementation_markers = [
         str(requirement)

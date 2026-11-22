@@ -148,11 +148,17 @@ def _run_pair_check(config: CompatibilityConfig, namespace: argparse.Namespace) 
 
 def _run_tox_expansion(config: CompatibilityConfig, namespace: argparse.Namespace) -> int:
     names = expanded_tox_env_names(config)
+    policy_only = config.tox_env_template is not None
     if namespace.json:
-        _emit_json({"toxEnvNames": names})
+        _emit_json({"toxEnvNames": names, "policyOnly": policy_only})
     else:
         for name in names:
             print(name)
+        if policy_only:
+            print(
+                "cuke compatibility: expanded names are policy-only; verify them with `tox list --no-desc`",
+                file=sys.stderr,
+            )
     return 0
 
 

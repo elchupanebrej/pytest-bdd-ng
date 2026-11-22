@@ -200,6 +200,10 @@ Feature: Aggregate the full supported environment proof
     When I run the matrix runner with a failing nested pytest summary and a passing outer summary
     Then it should record the outer pytest counts for core acceptance
 
+  Scenario: The matrix runner rejects an optional pytest command that selects no tests
+    When I run the matrix runner for an optional environment whose first pytest command selects no tests
+    Then it should fail the optional cell for its empty pytest command
+
   Scenario: The matrix runner normalizes an AMD64 architecture alias
     When I run the matrix runner on a host reporting the AMD64 architecture
     Then the matrix runner should record the normalized x86_64 architecture
@@ -266,6 +270,30 @@ Feature: Aggregate the full supported environment proof
     And one test-group environment records zero selected tests
     When I run the full environment proof aggregator
     Then the proof summary should fail with a selected no tests diagnostic
+
+  Scenario: The aggregator rejects a pytest command that selects no tests
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one optional environment records a pytest command that selected no tests
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a per-command selected no tests diagnostic
+
+  Scenario: The aggregator rejects a pytest command whose tests all skipped
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And one optional environment records a pytest command whose tests all skipped
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a per-command no tests passed diagnostic
+
+  Scenario: The aggregator rejects pytest below the CPython floor
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the CPython 3.14 floor environment reports pytest below its floor
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with a below-floor pytest diagnostic
+
+  Scenario: The aggregator rejects a pytest patch that differs from the exact floor cell
+    Given evidence artifacts are synthesized from every job cell and tox environment in the inventory
+    And the CPython 3.14 floor environment reports a different pytest patch
+    When I run the full environment proof aggregator
+    Then the proof summary should fail with an exact pytest patch diagnostic
 
   Scenario: The aggregator rejects an absent test selection count
     Given evidence artifacts are synthesized from every job cell and tox environment in the inventory

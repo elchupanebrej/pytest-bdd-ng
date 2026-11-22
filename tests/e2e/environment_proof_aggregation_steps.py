@@ -105,12 +105,14 @@ def _group_for(job: str, tox_environment: str) -> str:
     return "quality"
 
 
-def _pytest_version(tox_environment: str, group: str) -> str | None:
-    match = re.search(r"(?:^|-)pytest(?P<factor>\d{1,2}|latest)(?:-|$)", tox_environment)
+def _pytest_version(tox_environment: str, group: str, python_version: str = "") -> str | None:
+    match = re.search(r"(?:^|-)pytest(?P<factor>\d{1,3}|latest)(?:-|$)", tox_environment)
     if match and match.group("factor") == "latest":
-        return "9.0.1"
+        return "9.2.0" if python_version == "3.15" else "9.0.1"
     if match:
         factor = match.group("factor")
+        if len(factor) == 3:
+            return f"{factor[0]}.{factor[1]}.{factor[2]}"
         return f"{factor[0]}.{factor[1]}.0" if len(factor) == 2 else f"{factor}.0.0"
     if tox_environment == "typecheck":
         return "9.0.1"
@@ -325,7 +327,7 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
             runtime = cell_record.get("runtime")
             expected_platform = cell_record.get("platform")
             architecture = cell_record.get("architecture", "x86_64")
-            pytest_version = _pytest_version(tox_environment, group)
+            pytest_version = _pytest_version(tox_environment, group, python_version)
             optional_versions = _optional_versions(tox_environment)
             assert isinstance(python_version, str) and python_version, cell_record
             assert isinstance(runtime, str) and runtime, cell_record
@@ -356,6 +358,19 @@ def _synthesize_context(project_root: Path, tmp_path: Path) -> ProofAggregationC
                 "run_url": "https://github.com/example/project/actions/runs/123456",
                 "selected_tests": 1 if group in _TEST_GROUPS else None,
                 "passed_tests": 1 if group in _TEST_GROUPS else None,
+                "pytest_commands": (
+                    [
+                        {
+                            "index": 0,
+                            "command": "python -m pytest -q",
+                            "selected_tests": 1,
+                            "passed_tests": 1,
+                            "outcome": "passed",
+                        }
+                    ]
+                    if group in _TEST_GROUPS
+                    else []
+                ),
                 "optional_versions": optional_versions,
                 "system_tool_versions": _system_tool_versions(tox_environment, expected_platform),
                 "system_tool_commands": _system_tool_commands(tox_environment, expected_platform),
@@ -586,6 +601,52 @@ def zero_selected_tests_for_environment(proof_aggregation: ProofAggregationConte
 def zero_passed_tests_for_environment(proof_aggregation: ProofAggregationContext) -> None:
     artifact = _first_test_artifact(proof_aggregation)
     _mutate_environment(artifact, lambda environment: environment.__setitem__("passed_tests", 0))
+
+
+@given("one optional environment records a pytest command that selected no tests")
+def zero_selected_pytest_command_for_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _optional_allure_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        command = environment["pytest_commands"][0]
+        command.update(selected_tests=0, passed_tests=0, outcome="failed")
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("one optional environment records a pytest command whose tests all skipped")
+def zero_passed_pytest_command_for_environment(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _optional_allure_artifact(proof_aggregation)
+
+    def mutate(environment: dict[str, Any]) -> None:
+        command = environment["pytest_commands"][0]
+        command.update(passed_tests=0, outcome="failed")
+
+    _mutate_environment(artifact, mutate)
+
+
+@given("the CPython 3.14 floor environment reports pytest below its floor")
+def report_pytest_below_cpython_314_floor(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _tox_environment_artifact(proof_aggregation, "py314-pytest842-coverage-lin")
+    _set_pytest_version(artifact, "8.4.1")
+
+
+@given("the CPython 3.14 floor environment reports a different pytest patch")
+def report_wrong_pytest_patch_for_cpython_314_floor(proof_aggregation: ProofAggregationContext) -> None:
+    artifact = _tox_environment_artifact(proof_aggregation, "py314-pytest842-coverage-lin")
+    _set_pytest_version(artifact, "8.4.3")
+
+
+def _set_pytest_version(artifact: EvidenceArtifact, pytest_version: str) -> None:
+    def mutate(environment: dict[str, Any]) -> None:
+        environment["pytest"] = pytest_version
+        entry = environment["tox_result"]["testenvs"][environment["tox_environment"]]
+        entry["installed_packages"] = [
+            f"pytest=={pytest_version}" if package.startswith("pytest==") else package
+            for package in entry["installed_packages"]
+        ]
+
+    _mutate_environment(artifact, mutate)
 
 
 @given("one test-group environment omits its selected test count")
@@ -2174,6 +2235,46 @@ def proof_summary_fails_for_empty_test_selection(
     assert "selected no tests" in proof_aggregation_result.stderr
 
 
+@then("the proof summary should fail with a per-command selected no tests diagnostic")
+def proof_summary_fails_for_empty_command_selection(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "pytest command 0 selected no tests" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with a per-command no tests passed diagnostic")
+def proof_summary_fails_for_empty_command_pass(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "pytest command 0 passed no tests" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with a below-floor pytest diagnostic")
+def proof_summary_fails_for_pytest_below_floor(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires at least 8.4.2" in proof_aggregation_result.stderr
+
+
+@then("the proof summary should fail with an exact pytest patch diagnostic")
+def proof_summary_fails_for_wrong_pytest_patch(
+    proof_aggregation: ProofAggregationContext,
+    proof_aggregation_result: subprocess.CompletedProcess[str],
+) -> None:
+    assert proof_aggregation_result.returncode != 0, proof_aggregation_result.stdout
+    assert _summary(proof_aggregation).get("outcome") == "failed", _summary(proof_aggregation)
+    assert "requires exactly 8.4.2" in proof_aggregation_result.stderr
+
+
 @then("the proof summary should fail with a duplicate evidence diagnostic")
 def proof_summary_fails_for_duplicate_evidence(
     proof_aggregation: ProofAggregationContext,
@@ -2487,6 +2588,7 @@ def _run_selected_matrix_environment(
     installed_runtime: dict[str, Any] | None = None,
     host_runtime: dict[str, str] | None = None,
     system_tool_evidence: tuple[dict[str, str | None], dict[str, dict[str, Any] | None]] | None = None,
+    job: str = "full-matrix",
 ) -> dict[str, Any]:
     monkeypatch.syspath_prepend(str(Path(request.config.rootpath) / "scripts"))
     runner = importlib.import_module("run_env_matrix_cell")
@@ -2571,7 +2673,7 @@ def _run_selected_matrix_environment(
         [
             "run_env_matrix_cell.py",
             "--job",
-            "full-matrix",
+            job,
             "--cell",
             str(cell["id"]),
             "--tox-env",
@@ -2610,6 +2712,79 @@ def run_matrix_runner_for_one_selected_environment(
         monkeypatch,
         requested_environment="py313-pytestlatest-runner-selected",
     )
+
+
+@when(
+    "I run the matrix runner for an optional environment whose first pytest command selects no tests",
+    target_fixture="empty_pytest_command_run",
+)
+def run_matrix_runner_with_empty_pytest_command(
+    request: Any,
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> dict[str, Any]:
+    environment = "py314-struct-bdd"
+    system_versions = dict.fromkeys(_SYSTEM_TOOL_VERSION_KEYS, "0.0.0")
+    system_commands = dict.fromkeys(_SYSTEM_TOOL_VERSION_KEYS, None)
+    system_commands["tox"] = {"executable": "/usr/bin/tox", "argv": ["/usr/bin/tox", "--version"]}
+    system_commands["uv"] = {
+        "executable": f"/project/.tox/{environment}/bin/uv",
+        "argv": [f"/project/.tox/{environment}/bin/uv", "--version"],
+    }
+    return _run_selected_matrix_environment(
+        request,
+        tmp_path,
+        monkeypatch,
+        requested_environment=environment,
+        job="optional-integrations",
+        selected_cell={
+            "id": "struct-bdd-py314-linux",
+            "runtime": "CPython",
+            "python": "3.14",
+            "platform": "linux",
+            "architecture": "x86_64",
+            "runner": "ubuntu-latest",
+            "tox_envs": [environment],
+        },
+        installed_runtime={
+            "python": "3.14.0",
+            "runtime": "CPython",
+            "packages": {
+                "pytest": "9.0.1",
+                "hjson": "3.1.0",
+                "json5": "0.15.0",
+                "pyhocon": "0.3.63",
+                "PyYAML": "6.0.3",
+            },
+        },
+        system_tool_evidence=(system_versions, system_commands),
+        tox_stdout=(
+            f"{environment}: commands[0]> python -m pytest --cuke-autoload optional-struct-bdd-extra.feature\n"
+            "no tests ran in 0.01s\n"
+            f"{environment}: commands[1]> python -m pytest tests/integration/struct-bdd/test_deserialization.py -q\n"
+            "1 passed in 0.01s\n"
+        ),
+    )
+
+
+@then("it should fail the optional cell for its empty pytest command")
+def empty_optional_pytest_command_fails(empty_pytest_command_run: dict[str, Any]) -> None:
+    capture = empty_pytest_command_run
+    assert capture["returncode"] == 1, capture
+    evidence = json.loads(capture["output_path"].read_text(encoding="utf-8"))
+    record = evidence["environments"][0]
+    assert record["outcome"] == "failed", record
+    assert record["selected_tests"] == 1, record
+    assert record["passed_tests"] == 1, record
+    assert [command["index"] for command in record["pytest_commands"]] == [0, 1], record
+    assert record["pytest_commands"][0] == {
+        "index": 0,
+        "command": "python -m pytest --cuke-autoload optional-struct-bdd-extra.feature",
+        "selected_tests": 0,
+        "passed_tests": 0,
+        "outcome": "failed",
+    }, record
+    assert record["pytest_commands"][1]["outcome"] == "passed", record
 
 
 @when(

@@ -252,6 +252,17 @@ def _test_counts(output: str) -> dict[str, int] | None:
     return summary or None
 
 
+def _tox_command_lines(output: str) -> dict[int, str]:
+    """Return the rendered command line for each tox command index in the log."""
+    commands: dict[int, str] = {}
+    command_pattern = re.compile(r"\bcommands\[(\d+)\]>\s?(.*)$")
+    for line in output.splitlines():
+        match = command_pattern.search(line)
+        if match is not None:
+            commands[int(match.group(1))] = match.group(2)
+    return commands
+
+
 def _test_counts_by_tox_command(output: str) -> dict[int, dict[str, int]]:
     """Use each tox command's final pytest summary, after any nested test runs."""
     command_counts: dict[int, dict[str, int]] = {}
@@ -372,6 +383,34 @@ def main() -> int:
         selected_tests = sum(test_counts.values()) if test_counts else None
         passed_tests = test_counts.get("passed", 0) if test_counts else None
         environment_group = evidence_group(args.job, env_name)
+        command_counts = _test_counts_by_tox_command(output)
+        pytest_command_results: list[dict[str, Any]] = []
+        if environment_group in TEST_EVIDENCE_GROUPS:
+            for command_index, command_text in sorted(_tox_command_lines(output).items()):
+                if "pytest" not in command_text:
+                    continue
+                counts = command_counts.get(command_index, {})
+                command_selected_tests = sum(counts.values())
+                command_passed_tests = counts.get("passed", 0)
+                command_outcome = "passed" if command_selected_tests > 0 and command_passed_tests > 0 else "failed"
+                pytest_command_results.append(
+                    {
+                        "index": command_index,
+                        "command": command_text,
+                        "selected_tests": command_selected_tests,
+                        "passed_tests": command_passed_tests,
+                        "outcome": command_outcome,
+                    }
+                )
+                if command_outcome == "failed":
+                    overall_status = "failed"
+                    environment_outcome = "failed"
+                    problem = "selected no tests" if command_selected_tests < 1 else "selected no tests that passed"
+                    _write_console_text(
+                        f"run-env-matrix: {env_name} pytest command {command_index} {problem}; "
+                        "refusing to record hollow acceptance evidence",
+                        stream=sys.stderr,
+                    )
         acceptance_command_results: dict[str, dict[str, int | str]] | None = None
         if environment_group in TEST_EVIDENCE_GROUPS:
             if selected_tests is None or selected_tests < 1:
@@ -390,7 +429,6 @@ def main() -> int:
                     stream=sys.stderr,
                 )
         if args.job == "full-matrix" and "pytest" in env_name:
-            command_counts = _test_counts_by_tox_command(output)
             acceptance_command_results = {}
             for command_name, command_index in _CORE_ACCEPTANCE_COMMANDS:
                 counts = command_counts.get(command_index, {})
@@ -431,6 +469,7 @@ def main() -> int:
             "command": command,
             "selected_tests": selected_tests,
             "passed_tests": passed_tests,
+            "pytest_commands": pytest_command_results,
             "system_tool_versions": system_tool_versions,
             "system_tool_commands": system_tool_commands,
             "outcome": environment_outcome,
