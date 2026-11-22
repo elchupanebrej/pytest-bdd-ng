@@ -1699,7 +1699,7 @@ def consumer_local_xdist_manifests_match_batches(
             envelope
             for envelope in envelopes
             if not str(envelope.get("attachment", {}).get("mediaType", "")).startswith(
-                "application/vnd.pytest-cuke."
+                ("application/vnd.pytest-cuke.", "application/vnd.pytest-bdd.")
             )
         ]
 
@@ -1749,7 +1749,9 @@ def consumer_local_xdist_manifests_match_batches(
                     "envelopes": presented_tail_envelopes,
                 }
         sequences = sorted(batches_by_sequence)
-        presented_envelope_count = sum(len(batch.get("envelopes", [])) for batch in batches_by_sequence.values())
+        presented_envelope_count = sum(
+            len(canonical_envelopes(batch.get("envelopes", []))) for batch in batches_by_sequence.values()
+        )
         internal_envelope_count = record.get("internal_envelope_count")
         assert sequences == list(range(manifest["batch_count"])), (record, sequences)
         assert manifest.get("batch_count") == len(batches_by_sequence), (record, len(batches_by_sequence))

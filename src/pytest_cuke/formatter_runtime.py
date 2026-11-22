@@ -554,12 +554,15 @@ class FormatterSession:
     def write_message(self, message: Message) -> None:
         """Send one controller message through the live/replay normalization path."""
         attachment = message.attachment
-        if attachment is not None and attachment.media_type in {
+        media_type = attachment.media_type if attachment is not None else None
+        keep_external_source = media_type == IDE_LAUNCH_MEDIA_TYPE and any(
+            request.name == "cucumber-json" for request in self.requests
+        )
+        if media_type in {
             PYTEST_STEP_OUTCOME_MEDIA_TYPE,
             IDE_DIAGNOSTIC_MEDIA_TYPE,
-            IDE_LAUNCH_MEDIA_TYPE,
             IDE_STEP_BINDING_MEDIA_TYPE,
-        }:
+        } or (media_type == IDE_LAUNCH_MEDIA_TYPE and not keep_external_source):
             # Internal diagnostics stay in the saved stream, not in live output.
             return
         with self._delivery_lock:

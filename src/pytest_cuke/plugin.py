@@ -15,6 +15,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Literal, cast
 from unittest.mock import patch
+from urllib.parse import urlsplit
 from warnings import catch_warnings, simplefilter
 
 import pytest
@@ -590,19 +591,22 @@ def _zero_match_skip_reason(feature: Feature, scenario: Scenario) -> str:
     )
 
 
-def _scenario_identity(binding: tuple[Feature, Scenario]) -> tuple[str, int]:
+def _scenario_identity(binding: tuple[Feature, Scenario], rootpath: Path) -> tuple[str, int]:
     feature, scenario = binding
     source = feature.filename or feature.uri or feature.rel_filename or ""
+    if source.startswith("file:"):
+        source = urlsplit(source).path
     path = Path(source)
-    if path.is_absolute():
-        source = str(path.resolve())
-    return source, scenario.line
+    if not path.is_absolute():
+        path = Path(rootpath) / path
+    return str(path.resolve()), scenario.line
 
 
-def _drop_autoload_duplicates(items: list[Any]) -> None:
+def _drop_autoload_duplicates(config: Config, items: list[Any]) -> None:
     """Keep the explicit binding when autoload collected the same scenario."""
+    rootpath = Path(getattr(config, "rootpath", Path.cwd()))
     explicit = {
-        _scenario_identity(binding)
+        _scenario_identity(binding, rootpath)
         for item in items
         if not _is_feature_autoload_item(item) and (binding := _bound_scenario(item)) is not None
     }
@@ -614,7 +618,7 @@ def _drop_autoload_duplicates(items: list[Any]) -> None:
         if not (
             _is_feature_autoload_item(item)
             and (binding := _bound_scenario(item)) is not None
-            and _scenario_identity(binding) in explicit
+            and _scenario_identity(binding, rootpath) in explicit
         )
     ]
 
@@ -637,7 +641,7 @@ def _skip_empty_scenarios(items: list[Any]) -> None:
 @pytest.hookimpl(trylast=True)
 def pytest_collection_modifyitems(config: Config, items: list[Any]) -> None:
     """Validate explicit bindings after pytest has applied item selection."""
-    _drop_autoload_duplicates(items)
+    _drop_autoload_duplicates(config, items)
     _skip_empty_scenarios(items)
     if (
         _generation_mode_enabled(config)
