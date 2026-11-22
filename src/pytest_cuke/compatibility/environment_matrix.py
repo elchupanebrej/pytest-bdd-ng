@@ -1387,6 +1387,12 @@ def _validate_runtime_inventory(
     }, diagnostics
 
 
+def _uploads_evidence_artifact(step: Any) -> bool:
+    """Accept both the upstream upload action and the repo retry wrapper around it."""
+    uses = str(step.get("uses", "")) if isinstance(step, dict) else ""
+    return uses.startswith("actions/upload-artifact@") or uses == "./.github/actions/upload-evidence"
+
+
 def _runtime_artifact_reference_error(
     project_root: Path,
     cell: dict[str, Any],
@@ -1425,7 +1431,7 @@ def _runtime_artifact_reference_error(
 
     matching_upload = False
     for step in steps:
-        if not isinstance(step, dict) or not str(step.get("uses", "")).startswith("actions/upload-artifact@"):
+        if not _uploads_evidence_artifact(step):
             continue
         upload_options = step.get("with")
         if not isinstance(upload_options, dict):

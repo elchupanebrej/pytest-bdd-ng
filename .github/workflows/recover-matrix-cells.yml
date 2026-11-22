@@ -1,0 +1,40 @@
+name: Recover cancelled matrix cells
+
+on:  # yamllint disable-line rule:truthy
+  workflow_run:
+    workflows: ["Main testing workflow"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: Finished workflow run whose cancelled cells should be recovered
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: recover-cancelled-cells-${{ github.event.workflow_run.id || inputs.run-id }}
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    # Only a finished run is touched, so no in-progress cell can be restarted.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event != 'pull_request' && github.event.workflow_run.conclusion != 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 600
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - name: Re-run cancelled cells, then the aggregate proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run-id }}
+        run: python scripts/recover_cancelled_cells.py --repository "$REPOSITORY" --run-id "$RUN_ID"

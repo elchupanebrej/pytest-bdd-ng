@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import py
-from mako.template import Template
 
 from pytest_cuke.compatibility.pytest import wrap_session
 from pytest_cuke.model import StepType
@@ -214,6 +213,8 @@ def generate_code(
     feature_pickle_steps: Sequence[tuple[tuple[Feature, Pickle], PickleStep]],
 ) -> str:
     """Generate test code for the given filenames."""
+    from mako.template import Template  # noqa: PLC0415
+
     with as_file(files("pytest_cuke.template").joinpath("test.py.mak")) as path:
         template_factory = cast("Callable[..., _TemplateProtocol]", Template)
         template = template_factory(filename=str(path))
