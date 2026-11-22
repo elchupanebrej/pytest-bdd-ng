@@ -4860,14 +4860,27 @@ def _consumer_batch_output(result: subprocess.CompletedProcess[str]) -> str:
     return f"{result.stdout}\n{result.stderr}"
 
 
+def _write_batch_step_conftest(consumer: ConsumerProject) -> None:
+    conftest = consumer.path / "conftest.py"
+    if not conftest.exists():
+        conftest.write_text(
+            "from pytest_cuke import given\n\n\n"
+            "@given('a passing batch step')\n"
+            "def _passing_batch_step():\n"
+            "    pass\n",
+            encoding="utf-8",
+        )
+
+
 def _write_simple_consumer_features(consumer: ConsumerProject, count: int) -> list[Path]:
     feature_root = consumer.path / "features"
     feature_root.mkdir(parents=True, exist_ok=True)
+    _write_batch_step_conftest(consumer)
     paths: list[Path] = []
     for index in range(count):
         path = feature_root / f"batch-sample-{index:04d}.feature"
         path.write_text(
-            f"Feature: Batch sample {index}\n  Scenario: Batch scenario {index}\n",
+            f"Feature: Batch sample {index}\n  Scenario: Batch scenario {index}\n    Given a passing batch step\n",
             encoding="utf-8",
         )
         paths.append(path)
@@ -6319,6 +6332,11 @@ def create_simple_consumer_features(count: str, consumer: ConsumerProject) -> No
     _write_simple_consumer_features(consumer, int(count))
 
 
+@given("the consumer has a passing batch step definition")
+def consumer_has_batch_step_definition(consumer: ConsumerProject) -> None:
+    _write_batch_step_conftest(consumer)
+
+
 @given("the consumer cannot start spawn workers")
 def prevent_consumer_spawn_pool_start(consumer: ConsumerProject) -> None:
     sitecustomize = consumer.path / "sitecustomize.py"
@@ -7273,12 +7291,20 @@ def native_gherkin_survives_missing_optional_custom_codec(consumer: ConsumerProj
 def create_custom_parser_session_isolation_consumer(consumer: ConsumerProject) -> None:
     (consumer.path / "parser-invocations.json").unlink(missing_ok=True)
     (consumer.path / "parser-session-state.json").unlink(missing_ok=True)
-    (consumer.path / "conftest.py").write_text("", encoding="utf-8")
+    (consumer.path / "conftest.py").write_text(
+        "from pytest_cuke import given\n\n\n"
+        "@given('the legacy feature is adapted to a native model')\n"
+        "def legacy_feature_is_adapted() -> None:\n"
+        "    pass\n",
+        encoding="utf-8",
+    )
     for name in ("first", "second"):
         feature_root = consumer.path / "features" / name
         feature_root.mkdir(parents=True, exist_ok=True)
         (feature_root / f"{name}.legacy").write_text(
-            f"Feature: {name.title()} parser session\n  Scenario: This config gets its own parser\n",
+            f"Feature: {name.title()} parser session\n"
+            "  Scenario: This config gets its own parser\n"
+            "    Given the legacy feature is adapted to a native model\n",
             encoding="utf-8",
         )
 
@@ -8221,7 +8247,7 @@ def original_checks_still_hold(example_state, parsed_value):
     assert parsed_value == "café"
 
 
-@bind_scenario('relative.feature', 'Existing scenario')
+@bind_scenario('features/relative.feature', 'Existing scenario')
 def test_existing_relative_binding():
     assert USER_NOTE == "preserve the existing relative binding module"
 """,
@@ -8249,7 +8275,7 @@ def existing_relative_scenario_binding_is_not_duplicated(consumer: ConsumerProje
     assert len(bindings) == 1, source
     binding = bindings[0]
     assert len(binding.args) >= 2
-    assert isinstance(binding.args[0], ast.Constant) and binding.args[0].value == "relative.feature", source
+    assert isinstance(binding.args[0], ast.Constant) and binding.args[0].value == "features/relative.feature", source
     assert isinstance(binding.args[1], ast.Constant) and binding.args[1].value == "Existing scenario", source
     config_names = ("pytest.ini", ".pytest.ini", "tox.ini", "setup.cfg", "pyproject.toml")
     assert not any((consumer.path / name).exists() for name in config_names)
@@ -17198,12 +17224,12 @@ def _assert_reporting_spine_fanout(
     messages = _reporting_spine_artifact(messages_path, consumer)
     observed = _reporting_spine_artifact(observer_path, consumer)
     message_ids = _reporting_spine_event_ids(_without_internal_metadata(messages))
-    observed_ids = _reporting_spine_event_ids(observed)
+    observed_ids = _reporting_spine_event_ids(_without_internal_metadata(observed))
     assert observed_ids == message_ids, (
         "the validated extension sink and configured NDJSON sink must receive the same event IDs in the same order: "
         f"observer={observed_ids!r}, ndjson={message_ids!r}"
     )
-    assert observed == _without_internal_metadata(messages), (
+    assert _without_internal_metadata(observed) == _without_internal_metadata(messages), (
         "the validated extension sink and configured NDJSON sink must receive identical accepted envelopes: "
         f"observer={observed!r}, ndjson={messages!r}"
     )

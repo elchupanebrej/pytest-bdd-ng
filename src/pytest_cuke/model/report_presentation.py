@@ -6,14 +6,12 @@ import json
 from typing import TYPE_CHECKING, Any
 
 from pytest_cuke.const import (
-    PYTEST_OUTCOME_MEDIA_TYPE,
-    PYTEST_SOURCE_MEDIA_TYPE,
-    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
-)
-from pytest_cuke.model.message_extension import (
     IDE_DIAGNOSTIC_MEDIA_TYPE,
     IDE_LAUNCH_MEDIA_TYPE,
     IDE_STEP_BINDING_MEDIA_TYPE,
+    PYTEST_OUTCOME_MEDIA_TYPE,
+    PYTEST_SOURCE_MEDIA_TYPE,
+    PYTEST_STEP_OUTCOME_MEDIA_TYPE,
 )
 
 

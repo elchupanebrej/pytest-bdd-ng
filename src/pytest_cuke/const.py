@@ -21,6 +21,10 @@ class Steps:
         LIBERAL_OPTION = "cuke_liberal_steps"
 
 
+IDE_DIAGNOSTIC_MEDIA_TYPE = "application/vnd.pytest-bdd.diagnostic+json"
+IDE_LAUNCH_MEDIA_TYPE = "application/vnd.pytest-bdd.launch+json"
+IDE_STEP_BINDING_MEDIA_TYPE = "application/vnd.pytest-bdd.step-binding+json"
+
 PYTEST_OUTCOME_MEDIA_TYPE = "application/vnd.pytest-cuke.pytest-outcome+json"
 PYTEST_STEP_OUTCOME_MEDIA_TYPE = "application/vnd.pytest-cuke.step-outcome+json"
 PYTEST_SOURCE_MEDIA_TYPE = "application/vnd.pytest-cuke.source+json"

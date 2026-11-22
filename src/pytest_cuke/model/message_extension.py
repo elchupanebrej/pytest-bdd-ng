@@ -9,6 +9,9 @@ from urllib.parse import urlsplit
 from attrs import frozen
 
 from pytest_cuke.const import (  # noqa: F401 - re-exported for existing imports
+    IDE_DIAGNOSTIC_MEDIA_TYPE,
+    IDE_LAUNCH_MEDIA_TYPE,
+    IDE_STEP_BINDING_MEDIA_TYPE,
     PYTEST_OUTCOME_MEDIA_TYPE,
     PYTEST_SOURCE_MEDIA_TYPE,
     PYTEST_STEP_OUTCOME_MEDIA_TYPE,
@@ -38,9 +41,7 @@ ExpressionType = StepDefinitionPatternType
 EventEnvelope: TypeAlias = Envelope
 PayloadKind: TypeAlias = str
 PAYLOAD_KINDS: Final[tuple[str, ...]] = message_field_names(Envelope)
-IDE_LAUNCH_MEDIA_TYPE: Final = "application/vnd.pytest-bdd.launch+json"
-IDE_STEP_BINDING_MEDIA_TYPE: Final = "application/vnd.pytest-bdd.step-binding+json"
-IDE_DIAGNOSTIC_MEDIA_TYPE: Final = "application/vnd.pytest-bdd.diagnostic+json"
+
 
 CONTROLLER_SINGULAR_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = ("meta", "test_run_started", "test_run_finished")
 STRUCTURAL_DEDUPLICATED_PAYLOAD_KINDS: Final[tuple[PayloadKind, ...]] = (

@@ -235,7 +235,7 @@ Feature: IDE step binding diagnostics
       def test_south_shared_scenario_binding():
           pass
       """
-    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-messages-ndjson=split-worker.ndjson -q -n2 --dist=loadfile tests"
+    When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python --cuke-messages-ndjson=split-worker.ndjson -q -n2 --dist=loadfile -o cuke_features_dir=features tests"
     Then pytest should exit with code 0
     And the test outcome should have 2 passed scenarios
     And consumer artifact "split-worker.ndjson" should contain one complete duplicate binding diagnostic for both worker modules

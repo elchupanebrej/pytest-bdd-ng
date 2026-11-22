@@ -10,6 +10,7 @@ Feature: Cached batch feature collection
       """gherkin
       Feature: External batch examples
         Scenario Outline: External row <name>
+          Given a passing batch step
 
           Examples: table: external-batch.csv
       """
@@ -63,25 +64,31 @@ Feature: Cached batch feature collection
 
   Scenario: A later pytest process sees an edited feature file
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer has a passing batch step definition
     And consumer file "features/editable.feature" contains:
       """gherkin
       Feature: Editable source
         Scenario: The first version is collected
+          Given a passing batch step
       """
     When I run independent collection processes before and after replacing "features/editable.feature" with:
       """gherkin
       Feature: Editable source
         Scenario: The updated version is collected
+          Given a passing batch step
       """
     Then the later pytest process should collect the edited feature and pass its scenario
 
   Scenario: Equivalent feature paths do not duplicate items while distinct bindings remain
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project
+    And the consumer has a passing batch step definition
     And consumer file "features/catalog.feature" contains:
       """gherkin
       Feature: Binding catalog
         Scenario: First requested scenario
+          Given a passing batch step
         Scenario: Second requested scenario
+          Given a passing batch step
       """
     And consumer file "test_bindings.py" contains:
       """python

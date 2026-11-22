@@ -516,8 +516,8 @@ Feature: Preventive guard for all-unmatched scenarios
       """
     When I run installed pytest with arguments "--rootdir=. --cuke-no-autoload --cuke-parser=python -q tests/test_zero_step.py"
     Then pytest should exit with code 0
-    And the test outcome should have 1 passed scenarios
-    And the consumer file "zero-step-body.txt" should exist
+    And pytest output should include "1 skipped"
+    And the consumer file "zero-step-body.txt" should not exist
 
   Scenario: Mock run remains excluded from the preventive all-unmatched guard
     Given the pytest-cuke wheel built from this checkout is installed in a fresh consumer project

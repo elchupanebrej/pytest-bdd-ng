@@ -26,6 +26,7 @@ Feature: Historical custom feature parsers use an explicit adapter
       """gherkin
       Feature: Café with a legacy parser
         Scenario: Decode the feature source
+          Given the legacy feature is adapted to a native model
       """
     And consumer file "test_legacy_encoding.py" contains:
       """python

@@ -518,6 +518,8 @@ Feature: Local and subprocess Cucumber Messages consolidation
       """python
       import os
 
+      import pytest
+
       from pytest_cuke import given, parsers
 
 
