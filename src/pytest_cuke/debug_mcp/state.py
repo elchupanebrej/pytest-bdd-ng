@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import copy
 import time
-from threading import TIMEOUT_MAX, Condition
+from contextlib import suppress
+from threading import TIMEOUT_MAX, Condition, Event, Thread
 from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 if TYPE_CHECKING:
@@ -45,6 +46,11 @@ class FailureQueue:
         self._sequence = 0
         self._artifact_written_sequences: set[int] = set()
         self._status = "waiting"
+        self._publish_event = Event()
+        self._pending_state: dict[str, Any] | None = None
+        self._publisher: Thread | None = None
+        if on_change is not None:
+            self._start_publisher()
 
     def hold_failure(
         self,
@@ -175,6 +181,8 @@ class FailureQueue:
         """Attach the discovery writer once endpoint startup has completed."""
         with self._condition:
             self._on_change = callback
+            if callback is not None and self._publisher is None:
+                self._start_publisher()
 
     def close(self) -> None:
         with self._condition:
@@ -239,12 +247,39 @@ class FailureQueue:
         return record
 
     def _publish_locked(self) -> None:
-        if self._on_change is not None:
-            self._on_change(
-                {
-                    "session_id": self.session_id,
-                    "status": self._status,
-                    "active_failure": copy.deepcopy(self._active_failure),
-                    "last_release": copy.deepcopy(self._last_release),
-                }
-            )
+        if self._on_change is None or self._publisher is None:
+            return
+        self._pending_state = {
+            "session_id": self.session_id,
+            "status": self._status,
+            "active_failure": copy.deepcopy(self._active_failure),
+            "last_release": copy.deepcopy(self._last_release),
+        }
+        self._publish_event.set()
+
+    def _start_publisher(self) -> None:
+        self._publisher = Thread(
+            target=self._publish_loop,
+            name="pytest-cuke-debug-mcp-discovery",
+            daemon=True,
+        )
+        self._publisher.start()
+
+    def _publish_loop(self) -> None:
+        """Publish the newest state off the queue lock so a slow transport cannot stall holds."""
+        # Newest state only: a transport that is slow or down must not grow an unbounded backlog.
+        while True:
+            self._publish_event.wait()
+            with self._condition:
+                self._publish_event.clear()
+                state = self._pending_state
+                self._pending_state = None
+                callback = self._on_change
+                closed = self._closed
+            if state is not None and callback is not None:
+                # The callback owns its own error reporting; a transport error must never
+                # kill this thread or escape into the holding pytest hook.
+                with suppress(Exception):
+                    callback(state)
+            if closed:
+                return

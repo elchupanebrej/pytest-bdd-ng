@@ -98,6 +98,24 @@ def test_worker_discovery_updates_its_record_and_the_root_index(tmp_path) -> Non
     assert json.loads(index.path.read_text(encoding="utf-8"))["workers"] == []
 
 
+def test_removed_publisher_ignores_a_late_state_update(tmp_path) -> None:
+    path = tmp_path / "cuke" / "debug-mcp" / "session.json"
+    publisher = DiscoveryPublisher(
+        path=path,
+        session_id="session-1",
+        host="127.0.0.1",
+        debugger_endpoint="http://127.0.0.1:40001/mcp",
+        inspection_endpoint="http://127.0.0.1:40002/mcp",
+        debugger_pid=1234,
+    )
+    publisher.write_initial()
+
+    publisher.remove()
+    publisher.publish_queue_state({"status": "closed", "active_failure": None, "last_release": None})
+
+    assert not path.exists()
+
+
 def test_outline_context_retains_row_values_and_source_identity() -> None:
     row = TableRow(
         cells=(TableCell(value="outline-row-17"), TableCell(value="debug MCP failure sentinel")),

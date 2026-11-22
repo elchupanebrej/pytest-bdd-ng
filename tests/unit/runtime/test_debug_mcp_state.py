@@ -299,3 +299,57 @@ def test_release_cannot_advance_to_another_failure_during_artifact_write() -> No
     assert write_results == ["paired-files-written"]
     assert release_results[0]["artifact_status"] == "written"
     assert hold_results[0]["artifact_status"] == "written"
+
+
+def test_discovery_publish_does_not_block_inspection_or_heartbeat() -> None:
+    publish_entered = threading.Event()
+    unblock_publish = threading.Event()
+
+    def on_change(state: dict[str, Any]) -> None:
+        if state["status"] == "holding_failure":
+            publish_entered.set()
+            assert unblock_publish.wait(timeout=2.0)
+
+    queue = FailureQueue(session_id="session-1", timeout_seconds=5.0, lease_seconds=5.0, on_change=on_change)
+    hold_result: list[dict[str, Any]] = []
+    hold = threading.Thread(
+        target=lambda: hold_result.append(
+            queue.hold_failure(
+                nodeid="tests/test_failure.py::test_slow_publish",
+                phase="call",
+                error_type="RuntimeError",
+                error_message="slow discovery transport",
+                bdd_context=None,
+            )
+        )
+    )
+    hold.start()
+    assert publish_entered.wait(timeout=1.0)
+
+    inspected: list[dict[str, Any]] = []
+    inspect_probe = threading.Thread(target=lambda: inspected.append(queue.inspect_failure()))
+    inspect_probe.start()
+    inspect_probe.join(timeout=0.5)
+    inspect_blocked = inspect_probe.is_alive()
+
+    heartbeats: list[dict[str, Any]] = []
+    heartbeat_probe = threading.Thread(
+        target=lambda: heartbeats.append(queue.heartbeat(session_id="session-1", sequence=1))
+    )
+    heartbeat_probe.start()
+    heartbeat_probe.join(timeout=0.5)
+    heartbeat_blocked = heartbeat_probe.is_alive()
+
+    try:
+        assert not inspect_blocked, "inspect_failure stalled behind the discovery publish"
+        assert not heartbeat_blocked, "heartbeat stalled behind the discovery publish"
+    finally:
+        unblock_publish.set()
+        inspect_probe.join(timeout=2.0)
+        heartbeat_probe.join(timeout=2.0)
+        queue.release_failure(session_id="session-1", sequence=1)
+        hold.join(timeout=2.0)
+
+    assert not hold.is_alive()
+    assert hold_result[0]["reason"] == "explicit"
+
