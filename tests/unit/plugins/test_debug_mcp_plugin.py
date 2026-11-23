@@ -339,7 +339,7 @@ def _wait_until(predicate: Callable[[], bool], timeout: float = 2.0) -> None:
         if predicate():
             return
         time.sleep(0.01)
-    pytest.fail("timed out waiting for the Debug MCP publish attempt")
+    pytest.fail("timed out waiting for the Debug MCP publish state")
 
 
 def _wait_for_active(queue: FailureQueue, timeout: float = 2.0) -> dict[str, object]:
@@ -410,9 +410,10 @@ def test_failed_discovery_publish_keeps_the_hold_and_warns_once(transport: str, 
     hold, errors = _start_failure_hold(plugin)
     active = _wait_for_active(queue)
     _wait_until(lambda: failing.attempts >= 1)
+    _wait_until(lambda: any("holding failure #1" in line for line in reporter.lines))
+    _wait_until(lambda: any("discovery publish failed" in line for line in reporter.lines))
     assert errors == []
     assert plugin._holds == 1
-    assert any("holding failure #1" in line for line in reporter.lines)
     assert sum("discovery publish failed" in line for line in reporter.lines) == 1
 
     queue.release_failure(session_id="session-1", sequence=active["sequence"])
@@ -429,6 +430,7 @@ def test_failed_discovery_publish_keeps_the_hold_and_warns_once(transport: str, 
     _wait_until(lambda: any(state.get("active_failure") for state in recording.states))
     queue.release_failure(session_id="session-1", sequence=active["sequence"])
     hold.join(timeout=2.0)
+    _wait_until(lambda: any("holding failure #2" in line for line in reporter.lines))
 
     assert not hold.is_alive()
     assert errors == []
