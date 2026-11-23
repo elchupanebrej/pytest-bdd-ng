@@ -620,6 +620,14 @@ def install_host_built_native_consumer(tmp_path_factory):
     )
 
 
+@given("the original Markdown fixture is copied into the consumer")
+def copy_original_markdown_fixture(consumer: ConsumerProject) -> None:
+    checkout_root = Path(__file__).resolve().parents[2]
+    destination = consumer.path / "features" / "description.feature.md"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(checkout_root / "features" / "feature" / "description.feature.md", destination)
+
+
 @when("I run the native parser model parity test in the installed consumer")
 def run_native_parser_model_parity_test(consumer: ConsumerProject) -> None:
     checkout_root = Path(__file__).resolve().parents[2]

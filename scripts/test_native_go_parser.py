@@ -62,7 +62,7 @@ def main() -> int:
     consumer_environment = os.environ.copy()
     consumer_environment["PYTEST_CUKE_BUILD_GO"] = "off"
     consumer_environment["PYTEST_CUKE_NATIVE_WHEEL"] = str(wheels[0])
-    return subprocess.run(
+    consumer_run = subprocess.run(
         [
             sys.executable,
             "-m",
@@ -71,6 +71,51 @@ def main() -> int:
             "features/native-go-parser/optional-native-go-parser.feature",
         ],
         env=consumer_environment,
+        check=False,
+    )
+
+    return consumer_run.returncode or _check_markdown_parity(wheels[0])
+
+
+def _check_markdown_parity(wheel: Path) -> int:
+    """Prove Go and Python build the same model for every Markdown feature we ship."""
+    environment = os.environ.copy()
+    environment["PYTEST_CUKE_BUILD_GO"] = "off"
+    install_native_wheel = subprocess.run(  # noqa: S603 - fixed pip command and built wheel
+        [sys.executable, "-m", "pip", "install", "--no-deps", "--force-reinstall", str(wheel)],
+        env=environment,
+        check=False,
+    )
+    if install_native_wheel.returncode:
+        return install_native_wheel.returncode
+
+    native_available = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from pytest_cuke._native_go._bridge import gherkin_go_available;"
+            " raise SystemExit(0 if gherkin_go_available() else 1)",
+        ],
+        env=environment,
+        check=False,
+    )
+    if native_available.returncode:
+        print("the installed wheel cannot load the Go parser library", file=sys.stderr)
+        return 2
+
+    return subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "-q",
+            "-p",
+            "no:cuke",
+            "--confcutdir",
+            "tests/unit/parser",
+            "tests/unit/parser/test_native_go_markdown_parity.py",
+        ],
+        env=environment,
         check=False,
     ).returncode
 

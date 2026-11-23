@@ -187,6 +187,35 @@ Feature: Optional native Go parser and Python fallback
     Then pytest should exit with code 0
     And the test outcome should have 1 passed scenarios
 
+  # #411 criterion 1: an explicitly selected Go backend must execute Markdown,
+  # using the original fixture whose fenced blocks are docstrings and whose
+  # tables are GFM rows separated by a `|---|` comment line.
+  Scenario: Explicit Go selection executes an original Markdown feature
+    Given a host-built native pytest-cuke wheel is installed when supplied
+    And consumer file "conftest.py" contains:
+      """python
+      from pytest_cuke import given, then, when
+
+
+      @given("File {name} with content:")
+      def file_with_content(name, step):
+          pass
+
+
+      @when("run pytest")
+      def run_pytest():
+          pass
+
+
+      @then("pytest outcome must contain tests with statuses:")
+      def outcome(step):
+          pass
+      """
+    And the original Markdown fixture is copied into the consumer
+    When I run installed pytest with arguments "--rootdir=. --cuke-parser=go -q"
+    Then pytest should exit with code 0
+    And the test outcome should have 1 passed scenarios
+
   Scenario: Native Go preserves both step arguments and their declared order
     Given a host-built native pytest-cuke wheel is installed when supplied
     And consumer file "conftest.py" contains:
