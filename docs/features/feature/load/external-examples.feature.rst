@@ -1,5 +1,5 @@
 Feature: External CSV and TSV Examples sources
-''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Scenario outlines can load their examples table from a separate file
 while retaining the source feature identity in reports.
@@ -18,14 +18,14 @@ lines; source reports retain the marker and physical dataset row
 locations separately. This checkout has no batch collector yet.
 
 Scenario: The installed public facade loads autoloaded and explicitly bound sources
-
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  Given the pytest-cuke wheel built from this checkout is installed in
    a fresh consumer project
 
 -  And consumer file "conftest.py" contains:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given, parsers, then
 
@@ -57,7 +57,7 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
 
 -  And consumer file "features/users.csv" contains:
 
-   ::
+   .. code:: text
 
       name,tier
       Ada,gold
@@ -65,7 +65,7 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
 
 -  And consumer file "features/users.feature" contains:
 
-   ::
+   .. code:: gherkin
 
       Feature: External users
         Background:
@@ -79,7 +79,7 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
 
 -  And consumer file "features/inline-users.feature" contains:
 
-   ::
+   .. code:: gherkin
 
       Feature: Inline users
         Background:
@@ -97,7 +97,7 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
 -  And consumer file "features/markdown-users.tab" contains UTF-8 BOM
    and CRLF:
 
-   ::
+   .. code:: text
 
       name\ttier
       Tina\tbronze
@@ -105,11 +105,11 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
 
 -  And consumer file "features/markdown-users.feature.md" contains:
 
-   ::
+   .. code:: markdown
 
       # Feature: External Markdown users
       ## Scenario Outline: Look up a Markdown user
-        * Given the lookup service is ready
+        * Given the user lookup service is ready
         * Given user row <name> has tier <tier>
         * Then looked up user <name> has tier <tier>
       ### Examples:
@@ -117,7 +117,7 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
 
 -  And consumer file "features/report-users.csv" contains:
 
-   ::
+   .. code:: text
 
       name,expected
       passed,passed
@@ -125,7 +125,7 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
 
 -  And consumer file "features/reported-users.feature" contains:
 
-   ::
+   .. code:: gherkin
 
       Feature: External rows in reports
         Background:
@@ -147,21 +147,21 @@ Scenario: The installed public facade loads autoloaded and explicitly bound sour
    URIs, Background steps, and outcomes
 
 Scenario: Invalid external sources fail collection with both paths
-
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  Given the pytest-cuke wheel built from this checkout is installed in
    a fresh consumer project
 
 -  And consumer file "features/broken.csv" contains:
 
-   ::
+   .. code:: text
 
       name,tier
       Ada
 
 -  And consumer file "features/broken.feature" contains:
 
-   ::
+   .. code:: gherkin
 
       Feature: Invalid external examples
         Scenario Outline: Read an invalid source
@@ -178,14 +178,14 @@ Scenario: Invalid external sources fail collection with both paths
    and both paths
 
 Scenario: Explicit bindings and subsequent sessions read current source rows
-
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  Given the pytest-cuke wheel built from this checkout is installed in
    a fresh consumer project
 
 -  And consumer file "conftest.py" contains:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given, parsers, then
 
@@ -204,7 +204,7 @@ Scenario: Explicit bindings and subsequent sessions read current source rows
 
 -  And consumer file "features/users.csv" contains:
 
-   ::
+   .. code:: text
 
       name,tier
       Ada,gold
@@ -212,7 +212,7 @@ Scenario: Explicit bindings and subsequent sessions read current source rows
 
 -  And consumer file "features/users.feature" contains:
 
-   ::
+   .. code:: gherkin
 
       Feature: External users
         Background:
@@ -226,7 +226,7 @@ Scenario: Explicit bindings and subsequent sessions read current source rows
 
 -  When consumer file "test_explicit_binding.py" contains:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import scenario
 
@@ -243,7 +243,7 @@ Scenario: Explicit bindings and subsequent sessions read current source rows
 
 -  When consumer file "features/users.csv" contains:
 
-   ::
+   .. code:: text
 
       name,tier
       Lin,platinum

@@ -6,7 +6,7 @@ Scenario:
 
 -  Given File "Steps.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -16,7 +16,7 @@ Scenario:
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given
       from cucumber_messages import Step

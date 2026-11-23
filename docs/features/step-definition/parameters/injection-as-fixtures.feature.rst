@@ -1,5 +1,5 @@
 Feature: Step definitions parameters injection as fixtures
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Step arguments are injected into step context and could be used as
 normal fixtures with the names equal to the names of the arguments by
@@ -14,11 +14,11 @@ inside of the fixture tree could be set/override in a ad-hoc way by just
 choosing the proper name for the step argument.
 
 Scenario: Step parameters are injected as fixtures by default
-
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from re import compile as parse
       from pytest_cuke import given, then
@@ -37,7 +37,7 @@ Scenario: Step parameters are injected as fixtures by default
 
 -  Given File "Freshness.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -46,7 +46,7 @@ Scenario: Step parameters are injected as fixtures by default
 
 -  Given File "test_freshness.py" with content:
 
-   ::
+   .. code:: python
 
       from enum import Enum
       from pytest import fixture
@@ -79,11 +79,11 @@ Scenario: Step parameters are injected as fixtures by default
    +--------+
 
 Scenario: Step parameters injection as fixtures could be disabled
-
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from re import compile as parse
       from pytest_cuke import given, then
@@ -110,7 +110,7 @@ Scenario: Step parameters injection as fixtures could be disabled
 
 -  Given File "Freshness.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -119,7 +119,7 @@ Scenario: Step parameters injection as fixtures could be disabled
 
 -  Given File "test_freshness.py" with content:
 
-   ::
+   .. code:: python
 
       import pytest
       from pytest_cuke import scenario
@@ -141,11 +141,11 @@ Scenario: Step parameters injection as fixtures could be disabled
    +--------+
 
 Scenario: Step parameters renaming on injection as fixtures
-
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from re import compile as parse
       from pytest_cuke import given, then
@@ -171,7 +171,7 @@ Scenario: Step parameters renaming on injection as fixtures
 
 -  Given File "Freshness.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -180,7 +180,7 @@ Scenario: Step parameters renaming on injection as fixtures
 
 -  Given File "test_freshness.py" with content:
 
-   ::
+   .. code:: python
 
       import pytest
       from pytest_cuke import scenario
@@ -203,11 +203,11 @@ Scenario: Step parameters renaming on injection as fixtures
    +--------+
 
 Scenario: Only allowed step parameters injection as fixtures
-
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given
 
@@ -222,7 +222,7 @@ Scenario: Only allowed step parameters injection as fixtures
 
 -  Given File "Freshness.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -230,7 +230,7 @@ Scenario: Only allowed step parameters injection as fixtures
 
 -  Given File "test_freshness.py" with content:
 
-   ::
+   .. code:: python
 
       import pytest
       from pytest_cuke import scenario

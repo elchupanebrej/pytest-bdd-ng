@@ -6,7 +6,7 @@ Scenario:
 
 -  Given File "Passed.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         @todo
@@ -18,7 +18,7 @@ Scenario:
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       import pytest
       from pytest_cuke import given

@@ -45,15 +45,23 @@ Generated feature pages
 
 ``docs/features/features.rst`` and the Markdown feature fragments under
 ``docs/features/`` are produced from the Gherkin files under ``features/``.
-Regenerate them with the ``doc-gen`` extra::
+The generator requires Pandoc 3.4, which CI pins; other releases emit
+different RST. Regenerate them with the ``doc-gen`` extra::
 
     .env/bin/pip install -e ".[doc-gen]"
     .env/bin/python src/pytest_cuke/script/bdd_tree_to_rst.py features docs/features
 
-The checked-in index is curated, so review the regenerated page instead of
-committing it blindly. The strict build validates that every generated include
-target exists and is linked. Do not hand-edit the generated fragments; update
+The generator rewrites the tree and exits non-zero whenever it finds any
+difference, including on a tree it just synchronized, so read its diff report
+instead of its exit status. Do not hand-edit the generated fragments; update
 the generator instead.
+
+The ``Documentation drift`` workflow regenerates the pages into a temporary
+tree, strips trailing whitespace, and fails when the result differs from
+``docs/features``. Run the same check locally with the pinned Pandoc on
+``PATH``::
+
+    python -m pytest_cuke.script.docs_drift features docs/features
 
 CI gate
 -------
@@ -63,4 +71,6 @@ environment installs the ``test``, ``doc-gen`` and ``docs`` extras, runs
 ``tests/unit/docs/test_doc.py -m doc_gen``, and then runs the strict Sphinx
 build. The lane is declared in ``config/env-matrix.yaml`` and selected by the
 ``quality`` matrix job in ``.github/workflows/main.yml``. A documentation build
-warning fails that lane and therefore the aggregate proof.
+warning fails that lane and therefore the aggregate proof. The separate
+``Documentation drift`` workflow fails a branch whose checked-in pages no
+longer match a fresh generation.

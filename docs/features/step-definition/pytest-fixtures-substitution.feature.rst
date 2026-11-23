@@ -14,7 +14,7 @@ Scenario:
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest import fixture
       from pytest_cuke import given, when, then
@@ -38,7 +38,7 @@ Scenario:
 
 -  Given File "Cucumber.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -48,7 +48,7 @@ Scenario:
 
 -  Given File "test_freshness.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import scenario
 

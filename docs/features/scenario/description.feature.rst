@@ -12,7 +12,7 @@ Scenario:
 
 -  Given File "Description.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -22,7 +22,7 @@ Scenario:
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given
 

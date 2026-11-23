@@ -1,12 +1,12 @@
 Feature: Gherkin features load by scenario and scenarios functions
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Background:
-
+'''''''''''
 
 -  Given File "Passing.feature" in the temporary path with content:
 
-   ::
+   .. code:: gherkin
 
       Feature: Passing feature
         Scenario: Passing scenario
@@ -14,7 +14,7 @@ Background:
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import step
 
@@ -23,11 +23,11 @@ Background:
         ...
 
 Scenario: "scenario" function is used as decorator
-
+''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  And File "test_scenario_load.py" with fixture templated content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import scenario
       from pathlib import Path
@@ -38,11 +38,11 @@ Scenario: "scenario" function is used as decorator
         ...
 
 Scenario: "scenarios" function is used as decorator
-
+'''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  And File "test_scenario_load.py" with fixture templated content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import scenarios
       from pathlib import Path
@@ -63,11 +63,11 @@ Scenario: "scenarios" function is used as decorator
    +--------+
 
 Scenario: "scenario" function is used to register feature as test
-
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  And File "test_scenario_load.py" with fixture templated content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import scenario
       from pathlib import Path
@@ -85,11 +85,11 @@ Scenario: "scenario" function is used to register feature as test
    +--------+
 
 Scenario: "scenarios" function is used to register feature as test
-
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 -  And File "test_scenario_load.py" with fixture templated content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import scenarios
       from pathlib import Path
