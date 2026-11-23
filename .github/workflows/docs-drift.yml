@@ -1,0 +1,29 @@
+name: Documentation drift
+
+on:  # yamllint disable-line rule:truthy
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-drift:
+    name: Generated feature pages match their sources
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - uses: r-lib/actions/setup-pandoc@v2
+        with:
+          pandoc-version: '3.4'
+      - name: Point pypandoc at the pinned Pandoc
+        run: echo "PYPANDOC_PANDOC=$(command -v pandoc)" >> "$GITHUB_ENV"
+      - name: Install the pinned documentation generator
+        run: python -m pip install -e ".[doc-gen]"
+      - name: Regenerate the feature pages and fail on drift
+        run: python -m pytest_cuke.script.docs_drift features docs/features
