@@ -20,7 +20,6 @@ OPTIONAL_VERSION_KEYS = (
     "json5",
     "mcp",
     "mcp-pdb",
-    "pandoc",
     "panflute",
     "playwright",
     "pycmarkgfm",
@@ -55,7 +54,7 @@ def required_optional_versions(tox_environment: str) -> tuple[str, ...]:
     is_playwright_report = "playwright-report" in tox_environment
     is_doc_generation = "doc-gen" in tox_environment
     if is_doc_generation:
-        required.extend(("pandoc", "panflute", "pycmarkgfm", "pypandoc"))
+        required.extend(("panflute", "pycmarkgfm", "pypandoc"))
     if "struct-bdd" in tox_environment:
         required.extend(("hjson", "json5", "pyhocon", "PyYAML"))
     if "debug-mcp" in tox_environment:

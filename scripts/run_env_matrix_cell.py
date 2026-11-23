@@ -27,7 +27,7 @@ from environment_evidence import (
 )
 
 _OPTIONAL_PACKAGES = ("pytest", *OPTIONAL_VERSION_KEYS)
-_VERSION_PATTERN = re.compile(r"(?<![\w.])v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(?![\w.])")
+_VERSION_PATTERN = re.compile(r"(?<![\w.])v?\d+\.\d+(?:\.\d+)?(?:[-+][0-9A-Za-z.-]+)?(?![\w.])")
 _GO_VERSION_PATTERN = re.compile(r"\bgo\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b")
 _PYTEST_ARGUMENT = re.compile(r"(?:^|[/\\])pytest(?:\.exe)?$", re.IGNORECASE)
 _CORE_ACCEPTANCE_COMMANDS = (("core_tests", 0), ("tutorial_example", 1))

@@ -2713,9 +2713,6 @@ lanes:
     name: sphinx
     remedy: install pytest-cuke[docs] in the documentation tox environment
   - type: python-package
-    name: pandoc
-    remedy: install pytest-cuke[doc-gen] in the documentation tox environment
-  - type: python-package
     name: panflute
     remedy: install pytest-cuke[doc-gen] in the documentation tox environment
   - type: python-package

@@ -2999,7 +2999,7 @@ def doc_generation_lane_declares_extra_and_pandoc(consumer: Any) -> None:
         for item in prerequisites
         if item.get("type") == "python-package"
     }
-    expected_packages = {"pandoc", "panflute", "pycmarkgfm", "pypandoc", "sphinx"}
+    expected_packages = {"panflute", "pycmarkgfm", "pypandoc", "sphinx"}
     assert expected_packages <= package_names, (expected_packages, package_names)
     pandoc = [
         item
