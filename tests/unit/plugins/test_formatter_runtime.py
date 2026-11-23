@@ -590,6 +590,36 @@ def test_formatter_detects_early_exit_and_removes_staged_output(
     assert not list(tmp_path.glob(".formatter-output.txt.*.pytest-cuke-tmp"))
 
 
+def test_launch_attachment_reaches_only_the_cucumber_json_formatter() -> None:
+    from pytest_cuke.const import IDE_LAUNCH_MEDIA_TYPE
+
+    def _named(name: str) -> FormatterRequest:
+        return FormatterRequest(name=name, command=(sys.executable, "-c", "pass"))
+
+    session = FormatterSession(None, (_named("cucumber-json"), _named("pretty")))
+    session._started = True
+    delivered: list[tuple[str, dict[str, object]]] = []
+
+    class Recorder:
+        failure = None
+
+        def __init__(self, name: str) -> None:
+            self.request = _named(name)
+
+        def write_envelope(self, envelope: dict[str, object]) -> None:
+            delivered.append((self.request.name, envelope))
+
+    session._processes = [Recorder("cucumber-json"), Recorder("pretty")]  # type: ignore[list-item]
+    launch = {"attachment": {"mediaType": IDE_LAUNCH_MEDIA_TYPE, "body": "{}", "contentEncoding": "IDENTITY"}}
+    readable = {"attachment": {"mediaType": "text/plain", "body": "readable", "contentEncoding": "IDENTITY"}}
+
+    session._write_envelope(launch)
+    session._write_envelope(readable)
+
+    assert [name for name, envelope in delivered if envelope is launch] == ["cucumber-json"]
+    assert [name for name, envelope in delivered if envelope is readable] == ["cucumber-json", "pretty"]
+
+
 def test_worker_batch_keeps_internal_step_outcome_metadata_out_of_formatters() -> None:
     from pytest_cuke.const import PYTEST_STEP_OUTCOME_MEDIA_TYPE
 
