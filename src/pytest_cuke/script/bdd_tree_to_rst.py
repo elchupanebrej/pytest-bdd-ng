@@ -34,9 +34,24 @@ SECTION_SYMBOLS = "-#!\"$%&'()*+,./:;<=>?@[\\]^_`{|}~="
 # links to them.
 PANDOC_HEADING_TARGET = re.compile(r"^\.\. _[A-Za-z0-9][A-Za-z0-9_-]*:\n\n", re.MULTILINE)
 
+# Pandoc 3.4 keeps the fence language in ``.. code:: <language>``, and the
+# strict Sphinx build warns when Pygments has no lexer for it. csv/tsv have
+# none; add any other fence language that Pygments lacks here.
+UNSUPPORTED_CODE_LANGUAGES = {"csv": "text", "tsv": "text"}
+CODE_LANGUAGE = re.compile(r"^(?P<indent>[ \t]*)\.\. code:: (?P<language>\S+)$", re.MULTILINE)
+
 
 def strip_pandoc_heading_targets(rst_content: str) -> str:
     return PANDOC_HEADING_TARGET.sub("", rst_content)
+
+
+def normalize_code_languages(rst_content: str) -> str:
+    def replace(match: "re.Match[str]") -> str:
+        if language := UNSUPPORTED_CODE_LANGUAGES.get(match["language"]):
+            return f"{match['indent']}.. code:: {language}"
+        return match[0]
+
+    return CODE_LANGUAGE.sub(replace, rst_content)
 
 
 def diff_folders(dcmp: dircmp[Any]) -> list[Any]:
@@ -53,6 +68,18 @@ def adjust_heading_level(elem: Any, doc: Any, *, level: int) -> Any:
         new_level = elem.level + level
         return pf.Header(*elem.content, level=new_level)
     return elem
+
+
+def index_underline(depth: int, title: str) -> str:
+    """Underline an index title one level below its parent.
+
+    docutils fixes each underline character to the depth where it first
+    appears, in document order, and included fragments introduce their own
+    characters first. Deeper index levels would then need a new character
+    below an already known one, which docutils rejects as an inconsistent
+    title level, so index titles stop nesting after the second level.
+    """
+    return SECTION_SYMBOLS[min(depth - 1, 1)] * len(title)
 
 
 def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
@@ -88,18 +115,20 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
             # language=rst
             f"""\
                 {processable_rel_path.name}
-                {SECTION_SYMBOLS[len(processable_rel_path.parts) - 1] * len(processable_rel_path.name)}
+                {index_underline(len(processable_rel_path.parts), processable_rel_path.name)}
 
             """
         )
 
-        gherkin_file_paths = chain(processable_path.glob("*.gherkin"), processable_path.glob("*.feature"))
-        markdown_gherkin_file_paths = chain(
-            processable_path.glob("*.gherkin.md"), processable_path.glob("*.feature.md")
+        # Filesystem order varies per directory and filesystem; sort every walk so
+        # a regenerated index is identical on any machine.
+        gherkin_file_paths = sorted(chain(processable_path.glob("*.gherkin"), processable_path.glob("*.feature")))
+        markdown_gherkin_file_paths = sorted(
+            chain(processable_path.glob("*.gherkin.md"), processable_path.glob("*.feature.md"))
         )
-        struct_bdd_file_paths = processable_path.glob("*.bdd.yaml")
+        struct_bdd_file_paths = sorted(processable_path.glob("*.bdd.yaml"))
 
-        sub_processable_paths = list(filter(methodcaller("is_dir"), processable_path.iterdir()))
+        sub_processable_paths = sorted(filter(methodcaller("is_dir"), processable_path.iterdir()))
 
         for path in markdown_gherkin_file_paths:
             rel_path = path.relative_to(features_path)
@@ -111,9 +140,10 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
             html_data = pycmarkgfm.gfm_to_html((features_path / rel_path).read_text())
 
             rst_content = pypandoc.convert_text(
-                html_data, "rst", format="html", extra_args=[f"--shift-heading-level-by={offset + 1}"]
+                html_data, "rst", format="html", extra_args=[f"--shift-heading-level-by={min(offset + 1, 3)}"]
             )
             rst_content = strip_pandoc_heading_targets(rst_content)
+            rst_content = normalize_code_languages(rst_content)
 
             abs_path.with_suffix(".rst").write_text(rst_content, encoding="utf-8")
 
@@ -123,7 +153,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
                 # language=rst
                 f"""\
                     {stemmed_path}
-                    {SECTION_SYMBOLS[offset - 1] * len(stemmed_path)}
+                    {index_underline(offset, stemmed_path)}
 
                     .. include:: {path.relative_to(features_path).with_suffix(".rst").as_posix()}
 
@@ -136,7 +166,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
                 # language=rst
                 f"""\
                     {rel_path.stem}
-                    {SECTION_SYMBOLS[len(rel_path.parts) - 1] * len(rel_path.stem)}
+                    {index_underline(len(rel_path.parts), rel_path.stem)}
 
                     .. include:: {(output_path_rel_to_features_path / path.relative_to(features_path)).as_posix()}
                        :code: gherkin
@@ -150,7 +180,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
                 # language=rst
                 f"""\
                     {rel_path.stem}
-                    {SECTION_SYMBOLS[len(rel_path.parts) - 1] * len(rel_path.stem)}
+                    {index_underline(len(rel_path.parts), rel_path.stem)}
 
                     .. include:: {(output_path_rel_to_features_path / path.relative_to(features_path)).as_posix()}
                        :code: yaml
@@ -158,7 +188,7 @@ def convert(features_path: Path, output_path: Path, temp_path: Path) -> None:
                 """
             )
 
-        processable_paths.extendleft(sub_processable_paths)
+        processable_paths.extendleft(reversed(sub_processable_paths))
 
     index_file.write_text(content.rstrip("\n") + "\n")
 

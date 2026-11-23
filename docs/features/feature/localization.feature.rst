@@ -9,7 +9,7 @@ Scenario:
 
 -  Given File "Localized.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       #language: pt
       #encoding: UTF-8
@@ -21,7 +21,7 @@ Scenario:
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import  given, when, then
 

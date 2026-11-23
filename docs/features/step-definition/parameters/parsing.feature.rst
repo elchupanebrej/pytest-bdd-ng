@@ -1,5 +1,5 @@
 Feature: Step definitions parameters parsing
-''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Step parameters often enable the reuse of steps, which can reduce the
 amount of code required. This methodology allows for the same step to be
@@ -8,14 +8,14 @@ arguments. There are an multiple step parameter parsers available for
 your use.
 
 Rule: Step definitions parameters parsing
-
+'''''''''''''''''''''''''''''''''''''''''
 
 Background:
 
 
 -  Given File "Parametrized.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature: StepHandler arguments
         Scenario: Every step takes a parameter with the same name
@@ -38,7 +38,7 @@ Example: Heuristic parser guesses a type and builds particular parser to be appl
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       import pytest
       from pytest_cuke import given, when, then
@@ -111,7 +111,7 @@ Example: by "parse"
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       import pytest
       from pytest_cuke import given, when, then
@@ -177,7 +177,7 @@ Example: by "cfparse"
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       import pytest
       from pytest_cuke import given, when, then
@@ -236,7 +236,7 @@ Example: by "cucumber-expressions"
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from functools import partial
       import pytest
@@ -311,7 +311,7 @@ Example: by "cucumber-regular-expressions"
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       import pytest
       from pytest_cuke import given, when, then
@@ -390,7 +390,7 @@ Example: by "regular-expressions"
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       import pytest
       from pytest_cuke import given, when, then

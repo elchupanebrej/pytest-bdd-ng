@@ -12,7 +12,7 @@ Scenario: Single fixture injection
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given
 
@@ -22,7 +22,7 @@ Scenario: Single fixture injection
 
 -  Given File "Freshness.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -30,7 +30,7 @@ Scenario: Single fixture injection
 
 -  Given File "test_freshness.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import scenario
 
@@ -54,7 +54,7 @@ Scenario: Multiple fixtures injection
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given
 
@@ -64,7 +64,7 @@ Scenario: Multiple fixtures injection
 
 -  Given File "Freshness.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -72,7 +72,7 @@ Scenario: Multiple fixtures injection
 
 -  Given File "test_freshness.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import scenario
 

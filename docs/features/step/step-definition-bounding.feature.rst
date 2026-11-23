@@ -6,7 +6,7 @@ Scenario: Steps are executed by corresponding step keyword decorator
 
 -  Given File "steps.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature: Steps are executed by corresponding step keyword decorator
 
@@ -26,7 +26,7 @@ Scenario: Steps are executed by corresponding step keyword decorator
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given, when, then, step
       from pytest import fixture
@@ -88,7 +88,7 @@ Scenario: Steps could be executed by aliased step keyword decorator
 
 -  Given File "steps.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature: Steps could be executed by aliased step keyword decorator
         Scenario:
@@ -103,7 +103,7 @@ Scenario: Steps could be executed by aliased step keyword decorator
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given, when, then, step
 
@@ -148,7 +148,7 @@ Background:
 
 -  Given File "steps.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature: Steps could be executed by liberal step keyword decorator
         Scenario:
@@ -181,7 +181,7 @@ Scenario: Same step is used with different keywords
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given, when, then, step
 
@@ -218,7 +218,7 @@ Scenario: Keyworded steps could be treated as liberal by pytest command line opt
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import given, when, then, step
 

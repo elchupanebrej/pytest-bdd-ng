@@ -1,12 +1,12 @@
 Feature: Step definitions parameters could have default values
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Scenario:
-
+'''''''''
 
 -  Given File "Example.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -17,7 +17,7 @@ Scenario:
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from enum import Enum
       from re import compile as parse

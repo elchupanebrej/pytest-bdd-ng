@@ -1,15 +1,15 @@
 Feature: Scenario Outline examples could be tagged
-''''''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Rule:
-
+'''''
 
 Background:
 
 
 -  Given File "steps.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature: Steps are executed by corresponding step keyword decorator
 
@@ -34,7 +34,7 @@ Background:
 
 -  Given File "pytest.ini" with content:
 
-   ::
+   .. code:: ini
 
       [pytest]
       markers =
@@ -44,7 +44,7 @@ Background:
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke.compatibility.pytest import fail
       from pytest_cuke import given
@@ -135,14 +135,14 @@ Scenario:
    ====== ======
 
 Rule: Mixing tags on feature & examples level
-
+'''''''''''''''''''''''''''''''''''''''''''''
 
 Background:
 
 
 -  Given File "steps.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       @feature_tag
       Feature: Steps are executed by corresponding step keyword decorator
@@ -160,7 +160,7 @@ Background:
 
 -  Given File "pytest.ini" with content:
 
-   ::
+   .. code:: ini
 
       [pytest]
       markers =
@@ -169,7 +169,7 @@ Background:
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke.compatibility.pytest import fail
       from pytest_cuke import given

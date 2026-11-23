@@ -1,12 +1,12 @@
 Feature: Step definitions parameters parsing by custom parser
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Scenario:
-
+'''''''''
 
 -  Given File "Example.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
@@ -14,7 +14,7 @@ Scenario:
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       import re
       from pytest_cuke import given, parsers

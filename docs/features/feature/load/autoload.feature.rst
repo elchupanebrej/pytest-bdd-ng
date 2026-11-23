@@ -1,19 +1,19 @@
 Feature: Gherkin features autoload
-''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default gherkin features are autoloaded and treated as usual pytest
 tests if are placed in the tests hierarchy proposed by pytest. This
 behavior could be disabled
 
 Rule: Feature autoload
-
+''''''''''''''''''''''
 
 Background:
 
 
 -  Given File "Passing.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature: Passing feature
         Scenario: Passing scenario
@@ -21,7 +21,7 @@ Background:
 
 -  Given File "Another.passing.feature.md" with content:
 
-   ::
+   .. code:: markdown
 
       # Feature: Passing feature
       ## Scenario: Passing scenario
@@ -36,7 +36,7 @@ Background:
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import step
 
@@ -75,7 +75,7 @@ Scenario: Feature autoload could be disabled via pytest.ini
 
 -  Given Set pytest.ini content to:
 
-   ::
+   .. code:: ini
 
       [pytest]
       cuke_autoload=false

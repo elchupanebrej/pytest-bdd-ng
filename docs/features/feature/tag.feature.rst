@@ -16,7 +16,7 @@ Background:
 
 -  Given File "Passed.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       @passed
       Feature: Steps are executed by corresponding step keyword decorator
@@ -25,7 +25,7 @@ Background:
 
 -  Given File "Failed.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       @failed
       Feature: Steps are executed by corresponding step keyword decorator
@@ -34,7 +34,7 @@ Background:
 
 -  Given File "Both.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       @both
       Feature: Steps are executed by corresponding step keyword decorator
@@ -46,7 +46,7 @@ Background:
 
 -  Given File "pytest.ini" with content:
 
-   ::
+   .. code:: ini
 
       [pytest]
       markers =
@@ -56,7 +56,7 @@ Background:
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke.compatibility.pytest import fail
       from pytest_cuke import given

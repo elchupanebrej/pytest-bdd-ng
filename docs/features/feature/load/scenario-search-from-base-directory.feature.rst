@@ -1,5 +1,5 @@
 Feature: Feature files search is started from base directory
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default, pytest-cuke will use current module's path as base path for
 finding feature files, but this behaviour can be changed in the pytest
@@ -10,11 +10,11 @@ also override features base path on a per-scenario basis, in order to
 override the path for specific tests.
 
 Background:
-
+'''''''''''
 
 -  Given File "Passing.feature" in the temporary path with content:
 
-   ::
+   .. code:: gherkin
 
       Feature: Passing feature
         Scenario: Passing scenario
@@ -24,7 +24,7 @@ Background:
 
 -  And File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import step
       from pytest_cuke.compatibility.pytest import fail
@@ -39,18 +39,18 @@ Background:
 
 -  And File "test_feature.py" with content:
 
-   ::
+   .. code:: python
 
       from pytest_cuke import scenarios
 
       test = scenarios('Passing.feature')
 
 Scenario:
-
+'''''''''
 
 -  Given File "pytest.ini" with fixture templated content:
 
-   ::
+   .. code:: ini
 
       [pytest]
       cuke_features_dir={tmp_path}

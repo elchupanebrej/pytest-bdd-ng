@@ -1,26 +1,26 @@
 Feature: Step definitions parameters conversion
-'''''''''''''''''''''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There is possibility to pass argument converters which may be useful if
 you need to postprocess step arguments after the parser.
 
 Background:
-
+'''''''''''
 
 -  Given File "Example.feature" with content:
 
-   ::
+   .. code:: gherkin
 
       Feature:
         Scenario:
           Given I have a cucumber
 
 Scenario: for non-anonymous groups
-
+''''''''''''''''''''''''''''''''''
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from enum import Enum
       from pytest_cuke import given
@@ -44,7 +44,7 @@ Scenario: for non-anonymous groups
    +--------+
 
 Rule: for anonymous groups
-
+''''''''''''''''''''''''''
 
 ::
 
@@ -56,7 +56,7 @@ Scenario:
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from enum import Enum
       from pytest_cuke import given
@@ -88,7 +88,7 @@ Scenario:
 
 -  Given File "conftest.py" with content:
 
-   ::
+   .. code:: python
 
       from enum import Enum
       from pytest_cuke import given
