@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import pytest
@@ -86,17 +87,18 @@ def test_native_parser_preserves_immutable_feature_model_fields() -> None:
     assert examples.as_dicts() == [{"значение": "café"}, {"значение": "示例"}]
 
 
-def test_auto_uses_python_markdown_model_when_native_parser_cannot_parse_it() -> None:
+def test_explicit_go_parses_markdown_without_python_fallback() -> None:
     _require_native_parser()
-    markdown = "# Feature: Markdown\n\n## Scenario: Python markdown\n* Given a step\n"
+    markdown = "# Feature: Markdown\n\n## Scenario: Go markdown\n* Given a step\n"
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        native_feature = MarkdownParser().parse_text(markdown, parser_mode="go")
+
     python_feature = MarkdownParser().parse_text(markdown, parser_mode="python")
-
-    with pytest.warns(RuntimeWarning, match="falling back to Python"):
-        auto_feature = MarkdownParser().parse_text(markdown, parser_mode="auto")
-
-    assert _without_ids(as_dict(auto_feature)) == _without_ids(as_dict(python_feature))
-    assert auto_feature.name == "Markdown"
-    assert auto_feature.scenarios[0].name == "Python markdown"
+    assert _without_ids(as_dict(native_feature)) == _without_ids(as_dict(python_feature))
+    assert native_feature.name == "Markdown"
+    assert native_feature.scenarios[0].name == "Go markdown"
 
 
 def test_auto_keeps_python_location_for_malformed_input_rejected_by_native_parser() -> None:

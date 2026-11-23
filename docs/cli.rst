@@ -225,11 +225,11 @@ the ini value:
    pytest --cuke-parser=go
 
 The default is ``auto``. It uses the optional packaged Go parser when that
-library is available and compatible, and otherwise reports a diagnostic and
-parses with Python. If the Go parser rejects malformed Gherkin, Python parses
-it again so collection keeps the usual location-aware syntax error. Markdown
-whose native result differs from the Python model also uses the Python result
-in ``auto`` mode.
+library is available, and otherwise reports a diagnostic and parses with
+Python. If the Go parser rejects malformed Gherkin, Python parses it again so
+collection keeps the usual location-aware syntax error. Markdown features are
+parsed by the native matcher in both ``auto`` and ``go`` mode; nothing compares
+native and Python Markdown models at run time.
 
 ``python`` always uses the Python parser and does not initialize the native
 library. ``go`` requires an installable native library and reports how to
