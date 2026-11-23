@@ -268,6 +268,7 @@ class GherkinParser(BaseParser):
             kwargs.get("parser_mode"),
             markdown=False,
             python_parser=lambda: _parse_python_document(content, uri, self.id_generator, markdown=False),
+            uri=uri or "",
         )
         return build_feature_from_dict(raw_dict, uri=uri or "")
 
@@ -294,6 +295,7 @@ class MarkdownParser(BaseParser):
             kwargs.get("parser_mode"),
             markdown=True,
             python_parser=lambda: _parse_python_document(content, uri, self.id_generator, markdown=True),
+            uri=uri or "",
         )
         return build_feature_from_dict(raw_dict, uri=uri or "")
 

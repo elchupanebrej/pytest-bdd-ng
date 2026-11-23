@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import warnings
 from enum import Enum
 from typing import Any, cast
 
+from pytest_cuke.exceptions import FeatureConcreteParseError
+
 logger = logging.getLogger(__name__)
+
+_SYNTAX_LOCATION = re.compile(r"\((?P<line>\d+):(?P<column>\d+)\):")
 
 
 class ParserBackend(str, Enum):
@@ -61,6 +66,7 @@ def parse_gherkin_document(
     *,
     markdown: bool,
     python_parser: Any,
+    uri: str = "",
 ) -> dict[str, Any]:
     """Parse Gherkin with the selected backend, preserving Python semantics on fallback."""
     selected_backend = normalize_parser_backend(backend)
@@ -77,6 +83,9 @@ def parse_gherkin_document(
         )
 
         if isinstance(exc, NativeParserSyntaxError):
+            if markdown and selected_backend is ParserBackend.GO:
+                # Markdown parses natively in every mode, so report Go's own location.
+                raise _markdown_syntax_error(exc, content, uri) from exc
             # Reparse through the canonical Python parser to preserve its source location.
             python_document = cast("dict[str, Any]", python_parser())
             if selected_backend is ParserBackend.GO:
@@ -91,18 +100,6 @@ def parse_gherkin_document(
             raise NativeParserError(f"Go parser failed: {exc}") from exc
         _warn_fallback(str(exc) or type(exc).__name__)
         return cast("dict[str, Any]", python_parser())
-
-    if markdown:
-        python_document = cast("dict[str, Any]", python_parser())
-        if not _documents_equivalent(native_document, python_document):
-            if selected_backend is ParserBackend.GO:
-                from pytest_cuke._native_go._types import NativeParserCompatibilityError  # noqa: PLC0415
-
-                raise NativeParserCompatibilityError(
-                    "Go and Python Markdown parser outputs differ; use --cuke-parser=auto or python."
-                )
-            _warn_fallback("Go Markdown output differs from the Python parser")
-            return python_document
 
     return native_document
 
@@ -171,22 +168,15 @@ def _normalize_null_collections(value: Any) -> None:
             _normalize_null_collections(child)
 
 
-def _documents_equivalent(first: dict[str, Any], second: dict[str, Any]) -> bool:
-    """Compare parsed models while disregarding generated identifiers."""
-    from pytest_cuke.gherkin_builder import build_feature_from_dict  # noqa: PLC0415
-    from pytest_cuke.model.serialization import as_dict  # noqa: PLC0415
-
-    return bool(
-        _without_ids(as_dict(build_feature_from_dict(first))) == _without_ids(as_dict(build_feature_from_dict(second)))
-    )
-
-
-def _without_ids(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {key: _without_ids(child) for key, child in value.items() if key != "id"}
-    if isinstance(value, list | tuple):
-        return [_without_ids(child) for child in value]
-    return value
+def _markdown_syntax_error(exc: Any, content: str, uri: str) -> FeatureConcreteParseError:
+    """Rebuild a Go Markdown syntax error with the Python parser's location fields."""
+    message = str(exc)
+    location = _SYNTAX_LOCATION.search(message)
+    line = int(location["line"]) if location else 0
+    column = max(int(location["column"]), 1) if location else 1
+    lines = content.splitlines()
+    line_text = lines[line - 1] if 1 <= line <= len(lines) else ""
+    return FeatureConcreteParseError(message, line, line_text, uri, column=column)
 
 
 def _warn_fallback(reason: str) -> None:

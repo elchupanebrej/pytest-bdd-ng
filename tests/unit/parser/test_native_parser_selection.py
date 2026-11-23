@@ -35,6 +35,23 @@ def test_auto_mode_falls_back_with_a_diagnostic_when_library_is_missing(caplog: 
     assert "library absent" in caplog.text
 
 
+def test_auto_markdown_falls_back_with_a_diagnostic_when_library_is_missing(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    markdown = "# Feature: Markdown fallback\n\n## Scenario: Python markdown\n* Given a step\n"
+
+    with (
+        patch("pytest_cuke._native_go._bridge._load_library", side_effect=OSError("library absent")),
+        caplog.at_level(logging.WARNING, logger="pytest_cuke.parser_backend"),
+    ):
+        feature = MarkdownParser().parse_text(markdown, parser_mode="auto")
+
+    assert feature.name == "Markdown fallback"
+    assert feature.scenarios[0].name == "Python markdown"
+    assert "falling back to Python" in caplog.text
+    assert "library absent" in caplog.text
+
+
 def test_explicit_go_mode_fails_actionably_when_library_is_missing() -> None:
     with (
         patch("pytest_cuke._native_go._bridge._load_library", side_effect=OSError("library absent")),
@@ -55,12 +72,15 @@ def test_auto_mode_preserves_python_location_aware_syntax_error() -> None:
     assert error.value.args[3] == "broken.feature"
 
 
-def test_auto_mode_uses_python_output_for_incompatible_markdown() -> None:
-    native_empty_feature = '{"type":"GherkinDocument","feature":null,"comments":[]}'
-    markdown = "# Feature: Markdown\n\n## Scenario: Python markdown\n* Given a step\n"
+def test_explicit_go_markdown_syntax_error_reports_the_go_location() -> None:
+    markdown = "# Feature: Broken\n\n## Scenario: Broken\n* Given a step\n* Broken step\n"
+    native_error = '{"errorType":"syntax","errors":[{"message":"Parser errors:\\n(4:3): expected: #Empty"}]}'
 
-    with patch("pytest_cuke._native_go._bridge.parse_gherkin_markdown", return_value=native_empty_feature):
-        feature = MarkdownParser().parse_text(markdown, parser_mode="auto")
+    with (
+        patch("pytest_cuke._native_go._bridge.parse_gherkin_markdown", return_value=native_error),
+        pytest.raises(FeatureConcreteParseError) as error,
+    ):
+        MarkdownParser().parse_text(markdown, uri="broken.feature.md", parser_mode="go")
 
-    assert feature.name == "Markdown"
-    assert feature.scenarios[0].name == "Python markdown"
+    assert error.value.args == ("Parser errors:\n(4:3): expected: #Empty", 4, "* Given a step", "broken.feature.md")
+    assert error.value.column == 3

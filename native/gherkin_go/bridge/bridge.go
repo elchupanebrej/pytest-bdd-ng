@@ -27,13 +27,15 @@ type failure struct {
 
 //export ParseGherkinDocument
 func ParseGherkinDocument(source *C.char, length C.int) *C.char {
-	return parseAndSerialize(C.GoStringN(source, length))
+	return parseAndSerialize(
+		C.GoStringN(source, length),
+		gherkin.NewLanguageMatcher(gherkin.DialectsBuiltin(), gherkin.DefaultDialect),
+	)
 }
 
 //export ParseGherkinMarkdown
 func ParseGherkinMarkdown(source *C.char, length C.int) *C.char {
-	markdown := C.GoStringN(source, length)
-	return parseAndSerialize(extractGherkinFromMarkdown(markdown))
+	return parseAndSerialize(C.GoStringN(source, length), newMarkdownMatcher())
 }
 
 //export FreeCString
@@ -48,34 +50,7 @@ func Version() *C.char {
 	return C.CString("v42.0.1")
 }
 
-func extractGherkinFromMarkdown(markdown string) string {
-	lines := strings.Split(markdown, "\n")
-	gherkinLines := make([]string, 0, len(lines))
-	inBlock := false
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "```gherkin") ||
-			strings.HasPrefix(trimmed, "```feature") ||
-			strings.HasPrefix(trimmed, "```cucumber") ||
-			strings.HasPrefix(trimmed, "```Gherkin") {
-			inBlock = true
-			continue
-		}
-		if inBlock && strings.HasPrefix(trimmed, "```") {
-			inBlock = false
-			continue
-		}
-		if inBlock {
-			gherkinLines = append(gherkinLines, line)
-		}
-	}
-	if len(gherkinLines) == 0 {
-		return markdown
-	}
-	return strings.Join(gherkinLines, "\n")
-}
-
-func parseAndSerialize(input string) (result *C.char) {
+func parseAndSerialize(input string, matcher gherkin.Matcher) (result *C.char) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			result = serializeFailure(failure{
@@ -85,13 +60,16 @@ func parseAndSerialize(input string) (result *C.char) {
 		}
 	}()
 
-	document, err := gherkin.ParseGherkinDocument(strings.NewReader(input), (&messages.Incrementing{}).NewId)
-	if err != nil {
+	builder := gherkin.NewAstBuilder((&messages.Incrementing{}).NewId)
+	parser := gherkin.NewParser(builder)
+	parser.StopAtFirstError(false)
+	if err := parser.Parse(gherkin.NewScanner(strings.NewReader(input)), matcher); err != nil {
 		return serializeFailure(failure{
 			ErrorType: "syntax",
 			Errors:    []parserError{{Message: err.Error()}},
 		})
 	}
+	document := builder.GetGherkinDocument()
 	if document == nil || document.Feature == nil {
 		return serializeFailure(failure{ErrorType: "empty", Message: "Go parser returned no Feature"})
 	}

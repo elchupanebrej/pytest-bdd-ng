@@ -29,6 +29,7 @@ from environment_evidence import (
 _OPTIONAL_PACKAGES = ("pytest", *OPTIONAL_VERSION_KEYS)
 _VERSION_PATTERN = re.compile(r"(?<![\w.])v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?(?![\w.])")
 _GO_VERSION_PATTERN = re.compile(r"\bgo\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\b")
+_PYTEST_ARGUMENT = re.compile(r"(?:^|[/\\])pytest(?:\.exe)?$", re.IGNORECASE)
 _CORE_ACCEPTANCE_COMMANDS = (("core_tests", 0), ("tutorial_example", 1))
 
 
@@ -263,6 +264,11 @@ def _tox_command_lines(output: str) -> dict[int, str]:
     return commands
 
 
+def _runs_pytest(command_text: str) -> bool:
+    """Report whether a rendered tox command runs pytest, matching the aggregator's argv check."""
+    return any(_PYTEST_ARGUMENT.search(argument) for argument in command_text.split())
+
+
 def _test_counts_by_tox_command(output: str) -> dict[int, dict[str, int]]:
     """Use each tox command's final pytest summary, after any nested test runs."""
     command_counts: dict[int, dict[str, int]] = {}
@@ -387,7 +393,7 @@ def main() -> int:
         pytest_command_results: list[dict[str, Any]] = []
         if environment_group in TEST_EVIDENCE_GROUPS:
             for command_index, command_text in sorted(_tox_command_lines(output).items()):
-                if "pytest" not in command_text:
+                if not _runs_pytest(command_text):
                     continue
                 counts = command_counts.get(command_index, {})
                 command_selected_tests = sum(counts.values())
