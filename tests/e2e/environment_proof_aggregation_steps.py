@@ -30,7 +30,6 @@ _OPTIONAL_VERSION_KEYS = (
     "json5",
     "mcp",
     "mcp-pdb",
-    "pandoc",
     "panflute",
     "playwright",
     "pycmarkgfm",
@@ -47,7 +46,7 @@ _STRUCT_BDD_ENV = "py314-struct-bdd"
 _STRUCT_BDD_PACKAGES = ("hjson", "json5", "pyhocon", "PyYAML")
 _PLAYWRIGHT_REPORT_ENV = "py314-pytestlatest-playwright-report"
 _PLAYWRIGHT_REPORT_PACKAGES = ("allure-pytest", "pytest-xdist", "gherkin-official", "playwright")
-_DOC_GENERATION_PACKAGES = ("pandoc", "panflute", "pycmarkgfm", "pypandoc")
+_DOC_GENERATION_PACKAGES = ("panflute", "pycmarkgfm", "pypandoc")
 _FORMATTER_SYSTEM_TOOL_VERSION_KEYS = ("node", "npm", "npx", "allure-cli", "uv")
 _NATIVE_SYSTEM_TOOL_VERSION_KEYS = ("go", "native-compiler")
 _SYSTEM_TOOL_VERSION_KEYS = ("tox", *_FORMATTER_SYSTEM_TOOL_VERSION_KEYS, "pandoc", *_NATIVE_SYSTEM_TOOL_VERSION_KEYS)
@@ -132,7 +131,6 @@ def _optional_versions(tox_environment: str) -> dict[str, str | None]:
         "json5": "0.15.0" if is_struct_bdd else None,
         "mcp": "1.24.2" if is_debug_mcp else None,
         "mcp-pdb": "0.6.2" if is_debug_mcp else None,
-        "pandoc": "2.4.1" if is_doc_generation else None,
         "panflute": "2.3.0" if is_doc_generation else None,
         "playwright": "1.63.0" if "playwright" in tox_environment else None,
         "pycmarkgfm": "1.2.0" if is_doc_generation else None,
