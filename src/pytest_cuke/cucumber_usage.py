@@ -36,12 +36,16 @@ const stepDefinitionsById = new Map();
 const renderTable = Table.prototype.toString;
 Table.prototype.toString = function (...args) {
   if (useTtyLayout && this.options?.head?.[0] === "Pattern / Text") {
-    const availableWidth = Math.max(30, terminalColumns - 4);
-    const countWidth = 5;
+    // cli-table3 adds one border character per column plus the outer edges on top of the column widths.
+    const columnCount = 4;
+    const availableWidth = Math.max(30, terminalColumns - columnCount - 1);
+    const countWidth = 6;
     const durationWidth = Math.min(14, Math.max(10, Math.floor(availableWidth * 0.2)));
-    const locationWidth = Math.min(24, Math.max(12, Math.floor(availableWidth * 0.28)));
-    const patternWidth = Math.max(12, availableWidth - countWidth - durationWidth - locationWidth);
-    this.options.colWidths = [patternWidth, durationWidth, locationWidth, countWidth];
+    const locationWidth = Math.min(24, Math.max(10, Math.floor(availableWidth * 0.28)));
+    const patternWidth = Math.max(16, availableWidth - countWidth - durationWidth - locationWidth);
+    // Keep every header on one line: the pattern column keeps its minimum, location yields its share.
+    const fittedLocationWidth = Math.max(10, availableWidth - countWidth - durationWidth - patternWidth);
+    this.options.colWidths = [patternWidth, durationWidth, fittedLocationWidth, countWidth];
     this.options.wordWrap = true;
   }
   return renderTable.apply(this, args);
