@@ -352,4 +352,3 @@ def test_discovery_publish_does_not_block_inspection_or_heartbeat() -> None:
 
     assert not hold.is_alive()
     assert hold_result[0]["reason"] == "explicit"
-

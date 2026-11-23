@@ -70,7 +70,7 @@ Feature: Cucumber Usage backend finalization failure
 _USAGE_BACKEND_PRELOAD = """\
 if (
     process.execArgv.includes("--input-type=module") &&
-    process.execArgv.some((argument) => argument.includes("UsageFormatter"))
+    process.execArgv.some((argument) => argument.includes("getUsage"))
 ) {
   process.once("beforeExit", () => {
     throw new Error("usage backend finalization sentinel");

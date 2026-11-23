@@ -3539,8 +3539,7 @@ def aggregate_proof_requires_live_formatter_acceptance_evidence(consumer: Any) -
         for step in formatter_steps
         if isinstance(step, dict)
         and (
-            step.get("uses") == "actions/upload-artifact@v4"
-            or step.get("uses") == "./.github/actions/upload-evidence"
+            step.get("uses") == "actions/upload-artifact@v4" or step.get("uses") == "./.github/actions/upload-evidence"
         )
     ]
     assert any(

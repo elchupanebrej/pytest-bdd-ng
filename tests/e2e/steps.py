@@ -6633,20 +6633,42 @@ _STRUCT_BDD_CONSUMER_FILES = (
     "contract.bdd.toml",
 )
 _STRUCT_BDD_CASE_VARIANT = "contract-uppercase.BDD.YAML"
+_STRUCT_BDD_PASSING_STEP = "the structured scenario passes"
+_STRUCT_BDD_CONFTEST = (
+    "from pytest_cuke import given\n\n"
+    f'@given("{_STRUCT_BDD_PASSING_STEP}")\n'
+    "def structured_scenario_passes():\n"
+    "    pass\n"
+)
 
 
 def _struct_bdd_payload(relative_path: str) -> str:
     name = Path(relative_path).name
     scenario = f"Scenario for {name}"
+    step = f"Given: {_STRUCT_BDD_PASSING_STEP}"
     lowered_path = relative_path.lower()
     if lowered_path.endswith((".bdd", ".bdd.yaml", ".bdd.yml")):
-        return f"Name: StructBDD {name}\nSteps:\n  - Step:\n      Name: {scenario}\n"
+        return f"Name: StructBDD {name}\nSteps:\n  - Step:\n      Name: {scenario}\n      Steps:\n        - {step}\n"
     if lowered_path.endswith(".bdd.hocon"):
-        return f'Name = "StructBDD {name}"\nSteps = [{{ Step = {{ Name = "{scenario}" }} }}]\n'
+        return (
+            f'Name = "StructBDD {name}"\nSteps = [{{ Step = {{ Name = "{scenario}", '
+            f'Steps = [{{ Given = "{_STRUCT_BDD_PASSING_STEP}" }}] }} }}]\n'
+        )
     if lowered_path.endswith(".bdd.json5"):
-        return f"{{ Name: 'StructBDD {name}', Steps: [{{ Step: {{ Name: '{scenario}' }} }}], }}\n"
+        return (
+            f"{{ Name: 'StructBDD {name}', Steps: [{{ Step: {{ Name: '{scenario}', "
+            f"Steps: [{{ Given: '{_STRUCT_BDD_PASSING_STEP}' }}] }} }}], }}\n"
+        )
     if lowered_path.endswith(".bdd.json"):
-        return json.dumps({"Name": f"StructBDD {name}", "Steps": [{"Step": {"Name": scenario}}]}) + "\n"
+        return (
+            json.dumps(
+                {
+                    "Name": f"StructBDD {name}",
+                    "Steps": [{"Step": {"Name": scenario, "Steps": [{"Given": _STRUCT_BDD_PASSING_STEP}]}}],
+                }
+            )
+            + "\n"
+        )
     if lowered_path.endswith(".bdd.hjson"):
         return (
             "{\n"
@@ -6655,13 +6677,19 @@ def _struct_bdd_payload(relative_path: str) -> str:
             "    {\n"
             "      Step: {\n"
             f'        Name: "{scenario}"\n'
+            "        Steps: [\n"
+            f'          {{ Given: "{_STRUCT_BDD_PASSING_STEP}" }}\n'
+            "        ]\n"
             "      }\n"
             "    }\n"
             "  ]\n"
             "}\n"
         )
     if lowered_path.endswith(".bdd.toml"):
-        return f'Name = "StructBDD {name}"\n\n[[Steps]]\n[Steps.Step]\nName = "{scenario}"\n'
+        return (
+            f'Name = "StructBDD {name}"\n\n[[Steps]]\n[Steps.Step]\nName = "{scenario}"\n\n'
+            f'[[Steps.Step.Steps]]\nGiven = "{_STRUCT_BDD_PASSING_STEP}"\n'
+        )
     raise ValueError(f"no StructBDD consumer payload is defined for {relative_path}")
 
 
@@ -6693,6 +6721,7 @@ def create_all_struct_bdd_consumer_suffixes(consumer: ConsumerProject) -> None:
     # ignore data and unknown files rather than trying to parse them.
     for relative_path in ("ordinary.yaml", "ordinary.json", "unsupported.bdd.txt"):
         (feature_root / relative_path).write_text("not a feature: [", encoding="utf-8")
+    (consumer.path / "conftest.py").write_text(_STRUCT_BDD_CONFTEST, encoding="utf-8")
 
 
 @given("the consumer also has an uppercase StructBDD suffix variant")
@@ -6763,9 +6792,14 @@ def create_overlapping_struct_bdd_locators(consumer: ConsumerProject) -> None:
     feature_root.mkdir(parents=True, exist_ok=True)
     feature_path = "features/overlap.bdd.yaml"
     (consumer.path / feature_path).write_text(
-        "Name: Overlapping locators\nSteps:\n  - Step:\n      Name: One selected scenario\n",
+        "Name: Overlapping locators\n"
+        "Steps:\n"
+        "  - Step:\n"
+        "      Name: One selected scenario\n"
+        f"      Steps:\n        - Given: {_STRUCT_BDD_PASSING_STEP}\n",
         encoding="utf-8",
     )
+    (consumer.path / "conftest.py").write_text(_STRUCT_BDD_CONFTEST, encoding="utf-8")
     (consumer.path / "test_overlap.py").write_text(
         "from pytest_cuke import scenarios\n\n"
         "@scenarios('.', 'overlap.bdd.yaml', return_test_decorator=True)\n"
@@ -6930,9 +6964,12 @@ def create_struct_bdd_loader_failure_fixtures(consumer: ConsumerProject) -> None
     feature_root = consumer.path / "features"
     feature_root.mkdir(parents=True, exist_ok=True)
     (feature_root / "core.feature").write_text(
-        "Feature: Core Gherkin stays available\n  Scenario: Core scenario passes without optional loaders\n",
+        "Feature: Core Gherkin stays available\n"
+        "  Scenario: Core scenario passes without optional loaders\n"
+        f"    Given {_STRUCT_BDD_PASSING_STEP}\n",
         encoding="utf-8",
     )
+    (consumer.path / "conftest.py").write_text(_STRUCT_BDD_CONFTEST, encoding="utf-8")
     (feature_root / "malformed.bdd.json").write_text('{"Name": "Broken", "Steps": [', encoding="utf-8")
     (feature_root / "optional.bdd.json5").write_text(
         _struct_bdd_payload("optional.bdd.json5"),

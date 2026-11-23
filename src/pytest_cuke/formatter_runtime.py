@@ -36,6 +36,17 @@ if TYPE_CHECKING:
 
 _STOP_WRITER = object()
 
+# Launch attachments carry internal binding data that only the Cucumber JSON surface reads,
+# for external example sources. Every other live formatter must not see them.
+_LAUNCH_ATTACHMENT_CONSUMERS = frozenset({"cucumber-json"})
+
+
+def _consumes_envelope(request: FormatterRequest, envelope: dict[str, Any]) -> bool:
+    attachment = envelope.get("attachment")
+    if isinstance(attachment, dict) and attachment.get("mediaType") == IDE_LAUNCH_MEDIA_TYPE:
+        return request.name in _LAUNCH_ATTACHMENT_CONSUMERS
+    return True
+
 
 class FormatterRuntimeError(RuntimeError):
     """A selected formatter failed to consume or finish its Messages stream."""
@@ -555,14 +566,11 @@ class FormatterSession:
         """Send one controller message through the live/replay normalization path."""
         attachment = message.attachment
         media_type = attachment.media_type if attachment is not None else None
-        keep_external_source = media_type == IDE_LAUNCH_MEDIA_TYPE and any(
-            request.name == "cucumber-json" for request in self.requests
-        )
         if media_type in {
             PYTEST_STEP_OUTCOME_MEDIA_TYPE,
             IDE_DIAGNOSTIC_MEDIA_TYPE,
             IDE_STEP_BINDING_MEDIA_TYPE,
-        } or (media_type == IDE_LAUNCH_MEDIA_TYPE and not keep_external_source):
+        }:
             # Internal diagnostics stay in the saved stream, not in live output.
             return
         with self._delivery_lock:
@@ -715,6 +723,8 @@ class FormatterSession:
         errors: list[Exception] = []
         for process in self._processes:
             if process.failure is not None:
+                continue
+            if not _consumes_envelope(process.request, envelope):
                 continue
             try:
                 process.write_envelope(envelope)
