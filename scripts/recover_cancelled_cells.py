@@ -18,11 +18,16 @@ def _run_gh(arguments: list[str]) -> str:
     gh = shutil.which("gh")
     if gh is None:
         raise RuntimeError("the gh command is required to recover matrix runs")
-    # The arguments are the fixed API endpoints this script owns.
-    result = subprocess.run([gh, *arguments], capture_output=True, text=True, check=False)  # noqa: S603
-    if result.returncode:
-        raise RuntimeError(f"gh {' '.join(arguments)} failed: {result.stderr.strip()}")
-    return result.stdout
+    error = ""
+    for delay in (0, 5, 15):
+        if delay:
+            time.sleep(delay)
+        # The arguments are the fixed API endpoints this script owns.
+        result = subprocess.run([gh, *arguments], capture_output=True, text=True, check=False)  # noqa: S603
+        if not result.returncode:
+            return result.stdout
+        error = result.stderr.strip()
+    raise RuntimeError(f"gh {' '.join(arguments)} failed: {error}")
 
 
 def _decode_array_documents(text: str) -> list[list[dict[str, Any]]]:

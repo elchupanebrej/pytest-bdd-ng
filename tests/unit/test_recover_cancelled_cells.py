@@ -10,7 +10,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 from pytest import MonkeyPatch, mark
@@ -138,6 +138,19 @@ def test_stops_when_a_recovered_cell_still_fails(monkeypatch: MonkeyPatch) -> No
 
     assert code == 1
     assert fake.reruns == 1
+
+
+def test_retries_a_transient_api_failure(monkeypatch: MonkeyPatch) -> None:
+    module = _load_module()
+    outcomes = [
+        SimpleNamespace(returncode=1, stderr="HTTP 502", stdout=""),
+        SimpleNamespace(returncode=0, stderr="", stdout="ok"),
+    ]
+    monkeypatch.setattr(module.shutil, "which", lambda _name: "gh")
+    monkeypatch.setattr(module.subprocess, "run", lambda *_args, **_kwargs: outcomes.pop(0))
+    monkeypatch.setattr(module.time, "sleep", lambda _seconds: None)
+
+    assert module._run_gh(["api", "repos/owner/repo"]) == "ok"
 
 
 def test_does_nothing_without_cancelled_cells(monkeypatch: MonkeyPatch) -> None:
