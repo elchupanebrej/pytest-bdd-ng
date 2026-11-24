@@ -1,8 +1,8 @@
 """Runnable check for cancelled-cell recovery (`scripts/recover_cancelled_cells.py`).
 
-Recovery may only re-run jobs the runner pool cancelled. Completed, failed, and
-in-progress jobs must stay untouched, and the aggregate proof is re-run only
-after every recovered cell passed.
+Recovery may only re-run jobs the runner pool cancelled. Completed jobs must stay
+untouched, and the aggregate proof is only accepted when it passes in the
+recovery attempt.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "recover_cancelled_ce
 
 SUCCESS = {"status": "completed", "conclusion": "success"}
 CANCELLED = {"status": "completed", "conclusion": "cancelled"}
-IN_PROGRESS = {"status": "in_progress", "conclusion": None}
 
 
 def _load_module() -> ModuleType:
@@ -33,26 +32,29 @@ def _load_module() -> ModuleType:
 
 
 class FakeGithub:
-    """Serve run/job snapshots and record job re-run requests."""
+    """Serve run/job snapshots and record failed-jobs re-run requests."""
 
-    def __init__(self, run_status: str, snapshots: list[list[dict[str, Any]]]) -> None:
-        self.run_status = run_status
+    def __init__(self, statuses: list[dict[str, Any]], snapshots: list[list[dict[str, Any]]]) -> None:
+        self.statuses = statuses
         self.snapshots = snapshots
-        self.calls = 0
-        self.reruns: list[int] = []
+        self.status_calls = 0
+        self.job_calls = 0
+        self.reruns = 0
 
     def __call__(self, arguments: list[str]) -> str:
         endpoint, _, _ = arguments[1].partition("?")
         if endpoint.endswith("/jobs"):
-            snapshot = self.snapshots[min(self.calls, len(self.snapshots) - 1)]
-            self.calls += 1
+            snapshot = self.snapshots[min(self.job_calls, len(self.snapshots) - 1)]
+            self.job_calls += 1
             # Two pages prove that concatenated `gh api --paginate` output is decoded.
             half = max(1, len(snapshot) // 2)
             return json.dumps(snapshot[:half]) + json.dumps(snapshot[half:])
-        if endpoint.endswith("/rerun"):
-            self.reruns.append(int(endpoint.split("/")[-2]))
+        if endpoint.endswith("/rerun-failed-jobs"):
+            self.reruns += 1
             return "{}"
-        return json.dumps({"id": 7, "status": self.run_status})
+        status = self.statuses[min(self.status_calls, len(self.statuses) - 1)]
+        self.status_calls += 1
+        return json.dumps(status)
 
 
 def _recover(module: ModuleType, fake: FakeGithub, monkeypatch: MonkeyPatch) -> tuple[int, list[str]]:
@@ -69,48 +71,34 @@ def _recover(module: ModuleType, fake: FakeGithub, monkeypatch: MonkeyPatch) -> 
 
 
 def test_refuses_to_touch_a_run_that_is_still_running(monkeypatch: MonkeyPatch) -> None:
-    fake = FakeGithub("in_progress", [[]])
+    fake = FakeGithub([{"status": "in_progress", "run_attempt": 1}], [[]])
 
     code, _logs = _recover(_load_module(), fake, monkeypatch)
 
     assert code == 2
-    assert fake.reruns == []
-    assert fake.calls == 0
+    assert fake.reruns == 0
+    assert fake.job_calls == 0
 
 
-def test_reruns_only_cancelled_cells_then_the_aggregate_proof(monkeypatch: MonkeyPatch) -> None:
+def test_reruns_cancelled_cells_then_requires_the_aggregate_proof(monkeypatch: MonkeyPatch) -> None:
     fake = FakeGithub(
-        "completed",
+        [
+            {"status": "completed", "run_attempt": 1},
+            {"status": "queued", "run_attempt": 2},
+            {"status": "completed", "run_attempt": 2},
+        ],
         [
             [
                 {"id": 1, "name": "Full runtime matrix (cpython-311-linux / all)", **SUCCESS},
                 {"id": 2, "name": "Full runtime matrix (cpython-311-macos / all)", **CANCELLED},
-                {"id": 3, "name": "Full runtime matrix (graalpy-253-linux / all)", **IN_PROGRESS},
-                {"id": 4, "name": "aggregate-proof", **CANCELLED},
-            ],
-            [
-                {"id": 1, "name": "Full runtime matrix (cpython-311-linux / all)", **SUCCESS},
-                {"id": 2, "name": "Full runtime matrix (cpython-311-macos / all)", **IN_PROGRESS},
-                {"id": 3, "name": "Full runtime matrix (graalpy-253-linux / all)", **IN_PROGRESS},
-                {"id": 4, "name": "aggregate-proof", **CANCELLED},
-            ],
-            [
-                {"id": 1, "name": "Full runtime matrix (cpython-311-linux / all)", **SUCCESS},
-                {"id": 2, "name": "Full runtime matrix (cpython-311-macos / all)", **SUCCESS},
                 {"id": 3, "name": "Full runtime matrix (graalpy-253-linux / all)", **SUCCESS},
                 {"id": 4, "name": "aggregate-proof", **CANCELLED},
             ],
             [
-                {"id": 1, "name": "Full runtime matrix (cpython-311-linux / all)", **SUCCESS},
-                {"id": 2, "name": "Full runtime matrix (cpython-311-macos / all)", **SUCCESS},
-                {"id": 3, "name": "Full runtime matrix (graalpy-253-linux / all)", **SUCCESS},
-                {"id": 4, "name": "aggregate-proof", **IN_PROGRESS},
-            ],
-            [
-                {"id": 1, "name": "Full runtime matrix (cpython-311-linux / all)", **SUCCESS},
-                {"id": 2, "name": "Full runtime matrix (cpython-311-macos / all)", **SUCCESS},
-                {"id": 3, "name": "Full runtime matrix (graalpy-253-linux / all)", **SUCCESS},
-                {"id": 4, "name": "aggregate-proof", **SUCCESS},
+                {"id": 11, "name": "Full runtime matrix (cpython-311-linux / all)", **SUCCESS},
+                {"id": 12, "name": "Full runtime matrix (cpython-311-macos / all)", **SUCCESS},
+                {"id": 13, "name": "Full runtime matrix (graalpy-253-linux / all)", **SUCCESS},
+                {"id": 14, "name": "aggregate-proof", **SUCCESS},
             ],
         ],
     )
@@ -118,14 +106,17 @@ def test_reruns_only_cancelled_cells_then_the_aggregate_proof(monkeypatch: Monke
     code, logs = _recover(_load_module(), fake, monkeypatch)
 
     assert code == 0
-    assert fake.reruns == [2, 4]
+    assert fake.reruns == 1
     assert any("cpython-311-macos" in line for line in logs)
-    assert any("aggregate proof" in line for line in logs)
+    assert any("recovery complete" in line for line in logs)
 
 
 def test_stops_when_a_recovered_cell_still_fails(monkeypatch: MonkeyPatch) -> None:
     fake = FakeGithub(
-        "completed",
+        [
+            {"status": "completed", "run_attempt": 1},
+            {"status": "completed", "run_attempt": 2},
+        ],
         [
             [
                 {"id": 2, "name": "Full runtime matrix (cpython-311-macos / all)", **CANCELLED},
@@ -146,4 +137,17 @@ def test_stops_when_a_recovered_cell_still_fails(monkeypatch: MonkeyPatch) -> No
     code, _logs = _recover(_load_module(), fake, monkeypatch)
 
     assert code == 1
-    assert fake.reruns == [2]
+    assert fake.reruns == 1
+
+
+def test_does_nothing_without_cancelled_cells(monkeypatch: MonkeyPatch) -> None:
+    fake = FakeGithub(
+        [{"status": "completed", "run_attempt": 1}],
+        [[{"id": 1, "name": "Full runtime matrix (cpython-311-linux / all)", **SUCCESS}]],
+    )
+
+    code, logs = _recover(_load_module(), fake, monkeypatch)
+
+    assert code == 0
+    assert fake.reruns == 0
+    assert logs == ["recover: no cancelled cells to recover"]
