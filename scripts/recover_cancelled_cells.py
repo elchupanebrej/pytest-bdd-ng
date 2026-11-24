@@ -62,33 +62,30 @@ class GithubRun:
         payload = self._api(f"actions/runs/{self.run_id}/jobs?per_page=100", "--paginate")
         return [job for page in _decode_array_documents(payload) for job in page]
 
-    def rerun(self, job_id: int) -> None:
-        self._api(f"actions/jobs/{job_id}/rerun", "--method", "POST")
+    def rerun_failed(self) -> None:
+        self._api(f"actions/runs/{self.run_id}/rerun-failed-jobs", "--method", "POST")
 
 
-def _wait_for(
+def _wait_for_run(
     run: GithubRun,
-    job_ids: set[int],
     *,
+    attempt_before: int,
     timeout: float,
     poll_interval: float,
     log: Callable[[str], None],
 ) -> list[dict[str, Any]]:
     deadline = time.monotonic() + timeout
     while True:
-        jobs = run.jobs()
-        by_id = {int(job["id"]): job for job in jobs}
-        pending = [job_id for job_id in job_ids if by_id.get(job_id, {}).get("status") != "completed"]
-        if not pending:
-            return jobs
+        payload = run.status()
+        if int(payload.get("run_attempt", 0)) > attempt_before and payload.get("status") == "completed":
+            return run.jobs()
         if time.monotonic() >= deadline:
-            names = ", ".join(str(by_id.get(job_id, {}).get("name")) for job_id in pending)
-            raise RuntimeError(f"timed out after {timeout:.0f}s waiting for {names}")
-        log(f"waiting for {len(pending)} recovered job(s)")
+            raise RuntimeError(f"timed out after {timeout:.0f}s waiting for run {run.run_id}")
+        log("waiting for the recovered run to complete")
         time.sleep(poll_interval)
 
 
-def recover(  # noqa: PLR0911 - each guard answers with its own recovery outcome
+def recover(
     run: GithubRun,
     *,
     aggregate_job: str,
@@ -96,48 +93,48 @@ def recover(  # noqa: PLR0911 - each guard answers with its own recovery outcome
     poll_interval: float,
     log: Callable[[str], None] = print,
 ) -> int:
-    status = run.status().get("status")
-    if status != "completed":
+    payload = run.status()
+    if payload.get("status") != "completed":
         print(
-            f"recover: run {run.run_id} is {status!r}; refusing to rerun cells before the run completes",
+            f"recover: run {run.run_id} is {payload.get('status')!r}; refusing to rerun cells before the run completes",
             file=sys.stderr,
         )
         return 2
 
-    cells = [
-        job
+    cancelled = [
+        str(job["name"])
         for job in run.jobs()
         if job.get("status") == "completed"
         and job.get("conclusion") == "cancelled"
         and job.get("name") != aggregate_job
     ]
-    if not cells:
+    if not cancelled:
         log("recover: no cancelled cells to recover")
         return 0
 
-    for job in cells:
-        log(f"recover: re-running cancelled cell {job.get('name')!r}")
-        run.rerun(int(job["id"]))
-    jobs = _wait_for(run, {int(job["id"]) for job in cells}, timeout=timeout, poll_interval=poll_interval, log=log)
+    # GitHub rejects a second job re-run once the new attempt starts, so recover
+    # through the failed-jobs re-run. It re-runs every non-success job, which
+    # covers these cells and the aggregate proof, and keeps completed outputs.
+    log(f"recover: re-running {len(cancelled)} cancelled cell(s): {', '.join(cancelled)}")
+    run.rerun_failed()
+    jobs = _wait_for_run(
+        run,
+        attempt_before=int(payload.get("run_attempt", 1)),
+        timeout=timeout,
+        poll_interval=poll_interval,
+        log=log,
+    )
 
-    by_id = {int(job["id"]): job for job in jobs}
-    failed = [job["name"] for job in cells if by_id[int(job["id"])].get("conclusion") != "success"]
+    by_name = {str(job.get("name")): job for job in jobs}
+    failed = [name for name in cancelled if by_name.get(name, {}).get("conclusion") != "success"]
     if failed:
         print(f"recover: recovered cells did not pass: {', '.join(failed)}", file=sys.stderr)
         return 1
 
-    aggregate = next((job for job in jobs if job.get("name") == aggregate_job), None)
+    aggregate = by_name.get(aggregate_job)
     if aggregate is None:
         print(f"recover: run {run.run_id} has no {aggregate_job!r} job", file=sys.stderr)
         return 1
-    if aggregate.get("conclusion") == "success":
-        log("recover: aggregate proof already passed")
-        return 0
-
-    log(f"recover: re-running aggregate proof {aggregate_job!r}")
-    run.rerun(int(aggregate["id"]))
-    jobs = _wait_for(run, {int(aggregate["id"])}, timeout=timeout, poll_interval=poll_interval, log=log)
-    aggregate = next(job for job in jobs if job.get("name") == aggregate_job)
     if aggregate.get("conclusion") != "success":
         print(f"recover: aggregate proof did not pass: {aggregate.get('conclusion')!r}", file=sys.stderr)
         return 1
