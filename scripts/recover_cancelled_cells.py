@@ -30,20 +30,7 @@ def _run_gh(arguments: list[str]) -> str:
     raise RuntimeError(f"gh {' '.join(arguments)} failed: {error}")
 
 
-def _decode_array_documents(text: str) -> list[list[dict[str, Any]]]:
-    """Decode the concatenated JSON arrays `gh api --paginate` prints."""
-    decoder = json.JSONDecoder()
-    documents: list[list[dict[str, Any]]] = []
-    index = 0
-    while True:
-        while index < len(text) and text[index].isspace():
-            index += 1
-        if index >= len(text):
-            return documents
-        document, index = decoder.raw_decode(text, index)
-        if not isinstance(document, list):
-            raise ValueError("GitHub job listing page is not a JSON array")
-        documents.append(document)
+
 
 
 class GithubRun:
@@ -64,8 +51,11 @@ class GithubRun:
         return payload
 
     def jobs(self) -> list[dict[str, Any]]:
-        payload = self._api(f"actions/runs/{self.run_id}/jobs?per_page=100", "--paginate")
-        return [job for page in _decode_array_documents(payload) for job in page]
+        payload = self._api(f"actions/runs/{self.run_id}/jobs?per_page=100", "--paginate", "--jq", ".jobs[]")
+        jobs = [json.loads(line) for line in payload.splitlines() if line.strip()]
+        if not all(isinstance(job, dict) for job in jobs):
+            raise ValueError("GitHub job listing entry is not a JSON object")
+        return jobs
 
     def rerun_failed(self) -> None:
         self._api(f"actions/runs/{self.run_id}/rerun-failed-jobs", "--method", "POST")

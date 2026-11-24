@@ -46,9 +46,8 @@ class FakeGithub:
         if endpoint.endswith("/jobs"):
             snapshot = self.snapshots[min(self.job_calls, len(self.snapshots) - 1)]
             self.job_calls += 1
-            # Two pages prove that concatenated `gh api --paginate` output is decoded.
-            half = max(1, len(snapshot) // 2)
-            return json.dumps(snapshot[:half]) + json.dumps(snapshot[half:])
+            # `gh api --jq '.jobs[]'` prints one JSON object per line.
+            return "\n".join(json.dumps(job) for job in snapshot)
         if endpoint.endswith("/rerun-failed-jobs"):
             self.reruns += 1
             return "{}"
