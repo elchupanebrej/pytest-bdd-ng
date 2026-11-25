@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
 LEDGER = Path(__file__).resolve().parents[3] / "docs" / "parity" / "ledger.json"
+LEDGER_MD = LEDGER.with_suffix(".md")
 CATEGORIES = {
     "proven analogue",
     "agreed replacement/addition",
@@ -85,3 +87,31 @@ def test_ledger_binds_the_proof_ref_and_wheel() -> None:
     assert len(ledger["wheel"]["sha256"]) == 64
     assert len(ledger["former_unexecuted_rows"]) == 16
     assert len(ledger["nested_docstring_rows"]) == 2
+
+
+def test_markdown_projection_matches_the_json() -> None:
+    ledger = _ledger()
+    markdown = LEDGER_MD.read_text(encoding="utf-8")
+
+    assert f"> **{ledger['parity_statement']}**" in markdown
+
+    counts = ledger["counts"]
+    for category, count in counts.items():
+        if category == "total":
+            continue
+        assert re.search(rf"^\| {re.escape(category)} \| {count} \|$", markdown, re.MULTILINE), category
+    agreed = counts["agreed replacement/addition"] + counts["agreed exclusion"]
+    assert f"## Unproven gaps ({counts['unproven gap']})" in markdown
+    assert f"## Agreed replacements and exclusions ({agreed})" in markdown
+
+    for decision in ledger["decisions"]:
+        assert f"| `{decision['id']}` |" in markdown, decision["id"]
+
+    matrix = markdown.split("## Matrix: 219 external declarations", 1)[1]
+    for row in ledger["rows"]:
+        match = re.search(rf"^\| {row['id']} \| (.+)$", matrix, re.MULTILINE)
+        assert match, row["id"]
+        line = match.group(0)
+        assert f"| {row['category']} |" in line, row["id"]
+        if row["category"].startswith("agreed"):
+            assert f"decision {row['decision']}" in line, row["id"]
