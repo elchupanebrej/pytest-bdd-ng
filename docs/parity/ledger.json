@@ -112,13 +112,19 @@
  "counts": {
   "total": 219,
   "proven analogue": 204,
-  "agreed replacement/addition": 10,
+  "agreed replacement/addition": 11,
   "agreed exclusion": 3,
-  "unproven gap": 2
+  "unproven gap": 1
  },
  "full_parity_claimed": false,
- "parity_statement": "No full parity is claimed. Of the 219 external declarations, 204 are proven analogues, 10 are agreed replacements/additions, 3 are agreed exclusions, and 2 remain unproven gaps. Because declarations 133, 179 are unproven at 8ea8a5fd5b48a25f9c8d395b388858fefa107676, pytest-cuke must not be described as having full functional parity with origin/refactoring at fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce.",
+ "parity_statement": "No full parity is claimed. Of the 219 external declarations, 204 are proven analogues, 11 are agreed replacements/additions, 3 are agreed exclusions, and 1 remains an unproven gap. Because declaration 179 is unproven at 8ea8a5fd5b48a25f9c8d395b388858fefa107676, pytest-cuke must not be described as having full functional parity with origin/refactoring at fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce.",
  "decisions": [
+  {
+   "id": "US-4",
+   "kind": "numbered user story with owner decision",
+   "source": "#385 user story 4 + Out of Scope; product cuke_parser setting (inferred)",
+   "text": "User story 4: choose the Python or Go backend and use automatic fallback. The product selects the backend through the cuke_parser CLI/ini setting (auto|go|python). Out of Scope: old API, flag, return-code, and migration names need not match. An environment variable is an old interface name, so PYTEST_BDD_GHERKIN_BACKEND is intentionally not restored."
+  },
   {
    "id": "US-15",
    "kind": "numbered user story with owner decision",
@@ -2840,14 +2846,14 @@
    "line": 55,
    "kind": "Scenario",
    "title": "Environment variable controls backend selection",
-   "category": "unproven gap",
-   "decision": null,
-   "reason": "No run sets PYTEST_BDD_GHERKIN_BACKEND. The product selects the backend through the cuke_parser CLI/ini setting (auto|go|python); no test or feature at 8ea8a5fd reads the reference environment variable. The exact old name is not preserved and no numbered decision names an approved replacement for it.",
+   "category": "agreed replacement/addition",
+   "decision": "US-4",
+   "reason": null,
    "probe": null,
    "command": null,
    "exit": null,
    "result": null,
-   "note": "No run sets PYTEST_BDD_GHERKIN_BACKEND. The product selects the backend through the cuke_parser CLI/ini setting (auto|go|python); no test or feature at 8ea8a5fd reads the reference environment variable. The exact old name is not preserved and no numbered decision names an approved replacement for it.",
+   "note": "#385 user story 4 + Out of Scope: the product selects the backend through the cuke_parser CLI/ini setting (auto|go|python); the old PYTEST_BDD_GHERKIN_BACKEND name is intentionally not restored.",
    "evidence_file": "native-go-parity-evidence.md",
    "evidence": null
   },
@@ -4729,10 +4735,10 @@
    "line": 55,
    "title": "Environment variable controls backend selection",
    "recorded_reason": "backend selection not re-executed against the native bridge",
-   "proof_head_category": "unproven gap",
+   "proof_head_category": "agreed replacement/addition",
    "proof_head_run": null,
    "proof_head_job": null,
-   "note": "No run sets PYTEST_BDD_GHERKIN_BACKEND. The product selects the backend through the cuke_parser CLI/ini setting (auto|go|python); no test or feature at 8ea8a5fd reads the reference environment variable. The exact old name is not preserved and no numbered decision names an approved replacement for it."
+   "note": "#385 user story 4 + Out of Scope: backend selection is cuke_parser (auto|go|python); the old PYTEST_BDD_GHERKIN_BACKEND name is intentionally not restored."
   },
   {
    "id": 156,

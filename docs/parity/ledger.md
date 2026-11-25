@@ -28,7 +28,7 @@ Examples: 7 independent projects, 17 passed, every project exit 0. Command: `PYT
 
 ## Parity statement
 
-> **No full parity is claimed. Of the 219 external declarations, 204 are proven analogues, 10 are agreed replacements/additions, 3 are agreed exclusions, and 2 remain unproven gaps. Because declarations 133, 179 are unproven at 8ea8a5fd5b48a25f9c8d395b388858fefa107676, pytest-cuke must not be described as having full functional parity with origin/refactoring at fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce.**
+> **No full parity is claimed. Of the 219 external declarations, 204 are proven analogues, 11 are agreed replacements/additions, 3 are agreed exclusions, and 1 remains an unproven gap. Because declaration 179 is unproven at 8ea8a5fd5b48a25f9c8d395b388858fefa107676, pytest-cuke must not be described as having full functional parity with origin/refactoring at fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce.**
 
 The machine-readable flag is `false`. It agrees with the prose.
 
@@ -37,19 +37,20 @@ The machine-readable flag is `false`. It agrees with the prose.
 | Category | Rows |
 | --- | ---: |
 | proven analogue | 204 |
-| agreed replacement/addition | 10 |
+| agreed replacement/addition | 11 |
 | agreed exclusion | 3 |
-| unproven gap | 2 |
+| unproven gap | 1 |
 | **Total** | **219** |
 
 Row identities are unique (`path:line`), and the category counts are computed from the 219 rows.
 
 ## Numbered decisions cited
 
-Citations resolve to this table. `US-15` and `US-27` are numbered user stories in #385 that carry the owner decision; their question numbers were not preserved in the harness record. Every other citation is a numbered owner question from the parity discussion recorded in #385.
+Citations resolve to this table. `US-4`, `US-15`, and `US-27` are numbered user stories in #385 that carry the owner decision; their question numbers were not preserved in the harness record. Every other citation is a numbered owner question from the parity discussion recorded in #385.
 
 | Id | Kind | Text | Source |
 | --- | --- | --- | --- |
+| `US-4` | numbered user story with owner decision | User story 4: choose the Python or Go backend and use automatic fallback. The product selects the backend through the cuke_parser CLI/ini setting (auto\|go\|python). Out of Scope: old API, flag, return-code, and migration names need not match. An environment variable is an old interface name, so PYTEST_BDD_GHERKIN_BACKEND is intentionally not restored. | #385 user story 4 + Out of Scope; product cuke_parser setting (inferred) |
 | `US-15` | numbered user story with owner decision | User story 15: a Python stub for a missing step without requiring Node. Owner decision: the missing-step hint is a usable pytest-cuke Python stub by default; the original JavaScript snippets formatter is replaced, not restored. | #385 user story 15 + Implementation Decisions (question number not preserved) |
 | `US-27` | numbered user story with owner decision | User story 27: ordinary tests run without Node and report what to install when a selected formatter lacks dependencies. Out of Scope: automatic Node/npm installation; the product must not install formatter packages on demand. | #385 user story 27 + Out of Scope (question number not preserved) |
 | `89-92` | numbered decision range | A manual binding path resolves from the configured root, or from pytest rootdir when none is set; a completely empty NDJSON stream is an error; an explicitly bound .feature.md without a Feature declaration is an error; one failing test does not by itself make the shared Allure stage broken, and real session-finish errors are surfaced. | harness parity-discussion.md, questions 89-92 |
@@ -63,18 +64,17 @@ Citations resolve to this table. `US-15` and `US-27` are numbered user stories i
 | `121` | numbered decision | Source-code architecture evaluation, its prose descriptions, and the entity-to-score mapping belong to the Development Harness; they are stored there and updated on request. Architecture scores and score descriptions are not stored next to product sources. | harness parity-discussion.md, owner change recorded with answer 121 |
 | `125` | numbered decision | The architecture mapping with scores and score descriptions is versioned in the private harness repository, not a separate score-history system; only current scores are authoritative. | harness parity-discussion.md, question 125 |
 
-## Unproven gaps (2)
+## Unproven gaps (1)
 
 | Id | File:line | Declaration | Why it is still unproven | Exercising run at the proof SHA |
 | ---: | --- | --- | --- | --- |
-| 133 | `08 Go Parser/01 Go parser backend.feature.md:55` | Environment variable controls backend selection | No run sets PYTEST_BDD_GHERKIN_BACKEND. The product selects the backend through the cuke_parser CLI/ini setting (auto\|go\|python); no test or feature at 8ea8a5fd reads the reference environment variable. The exact old name is not preserved and no numbered decision names an approved replacement for it. | none |
 | 179 | `12 Formatters/08 CCK Allure compatibility.feature.md:18` | Allure report renders step names | No job checks Allure step names in the rendered report. Browser report acceptance (browser-report) renders only the passed-scenario page and asserts the scenario name and passed status. The native Allure cells assert result JSON steps but do not render the browser report. | none |
 
-Both rows were also unexecuted in the previous ledger. They are not promoted on an older revision, a partial probe, or an implementation without a run.
+This row was also unexecuted in the previous ledger. It is not promoted on an older revision, a partial probe, or an implementation without a run. Row 133 is no longer a gap: #385 user story 4 chooses `cuke_parser` and its Out of Scope section drops the old `PYTEST_BDD_GHERKIN_BACKEND` name, so the row is an agreed replacement.
 
 ## The 16 formerly unexecuted rows
 
-The ticket text says thirteen. The source ledger records sixteen rows whose probe was `not executed` and seven more unproven rows that were executed and showed a mismatch (23 unproven in total). The ledger's own set is authoritative, so this table has sixteen rows. Fourteen are now exercised at `8ea8a5fd`; two are not.
+The ticket text says thirteen. The source ledger records sixteen rows whose probe was `not executed` and seven more unproven rows that were executed and showed a mismatch (23 unproven in total). The ledger's own set is authoritative, so this table has sixteen rows. Fourteen are now exercised at `8ea8a5fd`, one is an agreed replacement, and one is not.
 
 | Id | File:line | Recorded reason (at e063e53f) | At 8ea8a5fd | Run / job |
 | ---: | --- | --- | --- | --- |
@@ -83,7 +83,7 @@ The ticket text says thirteen. The source ledger records sixteen rows whose prob
 | 124 | `07 Report/08 xdist remote network reporting.feature.md:50` | Docker daemon unavailable; SSH transport not executed on this revision | proven analogue | [45279198666](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45279198666) / Remote xdist acceptance (remote-ssh) |
 | 130 | `08 Go Parser/01 Go parser backend.feature.md:27` | pure wheel has no native Go bridge and no Go toolchain is available; native parse not executed on e063e53f | proven analogue | [45279198666](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45279198666) / Native Go parser acceptance (native-linux) |
 | 132 | `08 Go Parser/01 Go parser backend.feature.md:51` | version logging requires the native bridge; not executed on e063e53f | proven analogue | [45279198666](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45279198666) / Full runtime matrix (cpython-314-linux / py314-pytestlatest-coverage-lin) |
-| 133 | `08 Go Parser/01 Go parser backend.feature.md:55` | backend selection not re-executed against the native bridge | unproven gap | none |
+| 133 | `08 Go Parser/01 Go parser backend.feature.md:55` | backend selection not re-executed against the native bridge | agreed replacement/addition | decision US-4 |
 | 156 | `12 Formatters/02 Progress formatters.feature.md:44` | no distinct quiet mode was found/tested on the installed CLI | proven analogue | [45279198666](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45279198666) / Live formatter acceptance (live-formatters-linux) |
 | 157 | `12 Formatters/02 Progress formatters.feature.md:51` | no distinct verbose mode was found/tested on the installed CLI | proven analogue | [45279198666](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45279198666) / Live formatter acceptance (live-formatters-linux) |
 | 179 | `12 Formatters/08 CCK Allure compatibility.feature.md:18` | browser acceptance checks the scenario name and passed status, not step names | unproven gap | none |
@@ -95,11 +95,12 @@ The ticket text says thirteen. The source ledger records sixteen rows whose prob
 | 205 | `17 Debug MCP/01 Agentic debugging.feature.md:39` | the installed-wheel Debug MCP acceptance feature exceeded the 30-minute run limit without a result | proven analogue | [45279198666](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45279198666) / Optional integration acceptance (debug-mcp-py314-linux / py314-debug-mcp) |
 | 206 | `17 Debug MCP/01 Agentic debugging.feature.md:45` | the installed-wheel Debug MCP xdist acceptance feature exceeded the 30-minute run limit without a result | proven analogue | [45279198666](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45279198666) / Optional integration acceptance (debug-mcp-py314-linux / py314-debug-mcp) |
 
-## Agreed replacements and exclusions (13)
+## Agreed replacements and exclusions (14)
 
 | Id | Category | File:line | Decision | Basis |
 | ---: | --- | --- | --- | --- |
 | 129 | agreed exclusion | `07 Report/09 Cucumber formatter reports.feature.md:155` | `US-27` | #385 Out of Scope: automatic Node/npm installation; the product must not auto-install formatter packages |
+| 133 | agreed replacement/addition | `08 Go Parser/01 Go parser backend.feature.md:55` | `US-4` | #385 user story 4 + Out of Scope: the product selects the backend through cuke_parser (auto\|go\|python); the old PYTEST_BDD_GHERKIN_BACKEND name is intentionally not restored |
 | 158 | agreed replacement/addition | `12 Formatters/03 Snippets formatter.feature.md:23` | `US-15` | #385 agrees a Python snippet without Node; the original JS snippets formatter is not required |
 | 159 | agreed replacement/addition | `12 Formatters/03 Snippets formatter.feature.md:30` | `US-15` | #385 agrees the Python snippet shape; the JS template is replaced |
 | 169 | agreed replacement/addition | `12 Formatters/06 Allure formatter.feature.md:54` | `89-92` | Decisions 89-92: a completely empty NDJSON stream is an error (exit 2). The previous note cited only decision 91; 91 is the .feature.md missing-Feature clause, so the citation is corrected to the grouped range. |
@@ -117,7 +118,7 @@ The ticket text says thirteen. The source ledger records sixteen rows whose prob
 
 The reference inventory extracted 221 lines. Two are Scenario/Scenario Outline lines inside Gherkin DocStrings, not external declarations. They were the unnamed phantom rows in the 221 count. They are now named in the appendix and reclassified as test data; the external count is 219.
 
-Two further corrections are recorded in the rows: the malformed-feature row (`16 Batch Collection/01 Batch collection edge cases.feature.md:73`) moves from `unproven gap` to `agreed replacement/addition` because decisions 99 and 106 intentionally change the reference behaviour to a parse error; and the tolerant row (`13 Code Generator/01 Code generation.feature.md:375`) no longer cites decision 131, which is the custom MIME-hook decision, but decision 109, which is the tolerant-policy decision.
+Three corrections are recorded in the rows: the malformed-feature row (`16 Batch Collection/01 Batch collection edge cases.feature.md:73`) moves from `unproven gap` to `agreed replacement/addition` because decisions 99 and 106 intentionally change the reference behaviour to a parse error; the tolerant row (`13 Code Generator/01 Code generation.feature.md:375`) no longer cites decision 131, which is the custom MIME-hook decision, but decision 109, which is the tolerant-policy decision; and `08 Go Parser/01 Go parser backend.feature.md:55` moves from `unproven gap` to `agreed replacement/addition` because #385 user story 4 selects the backend through `cuke_parser`, while its Out of Scope section drops the old `PYTEST_BDD_GHERKIN_BACKEND` name.
 
 ## Claims the proof-run jobs do not cover
 
@@ -130,7 +131,7 @@ The ledger does not promote, and must not be read as covering, the claims #418 n
 
 ## Matrix: 219 external declarations
 
-`Run / job` names the proof run (`45279198666`) and the job or cell. `Probe` is a local probe, and `old probe` is the #390 probe recorded in the harness evidence. Rows with no run are unproven.
+`Run / job` names the proof run (`45279198666`) and the job or cell. `Probe` is a local probe, and `old probe` is the #390 probe recorded in the harness evidence. Rows with no run and no agreed decision are unproven.
 
 ### 01 Tutorial (1)
 
@@ -303,7 +304,7 @@ The ledger does not promote, and must not be read as covering, the claims #418 n
 | 130 | `08 Go Parser/01 Go parser backend.feature.md:27` | Parse succeeds when Go library is available | proven analogue | probe P-native-go-proof-head | [45279198666](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45279198666) / Native Go parser acceptance (native-linux) | native-linux cell passed: 40 selected, 40 passed |
 | 131 | `08 Go Parser/01 Go parser backend.feature.md:39` | Falls back to Python parser when Go unavailable | proven analogue | probe P-go-fallback | harness probe: pytest-scenario-report-evidence.md | Go parser unavailable warning; Python fallback executed |
 | 132 | `08 Go Parser/01 Go parser backend.feature.md:51` | Go parser version is logged on first use | proven analogue | probe P-go-version-log-proof-head | [45279198666](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45279198666) / Full runtime matrix (cpython-314-linux / py314-pytestlatest-coverage-lin) | cell passed: 1905 selected, 0 failed (1810 passed in this command) |
-| 133 | `08 Go Parser/01 Go parser backend.feature.md:55` | Environment variable controls backend selection | unproven gap | unproven: No run sets PYTEST_BDD_GHERKIN_BACKEND. The product selects the backend through the cuke_parser CLI/ini setting (auto\|go\|python); no test or feature at 8ea8a5fd reads the reference environment variable. The exact old name is not preserved and no numbered decision names an approved replacement for it. | none at this SHA |  |
+| 133 | `08 Go Parser/01 Go parser backend.feature.md:55` | Environment variable controls backend selection | agreed replacement/addition | decision US-4 | agreed | backend selected through cuke_parser (auto\|go\|python); old PYTEST_BDD_GHERKIN_BACKEND name not restored |
 
 ### 09 Tag Expressions (8)
 
