@@ -381,14 +381,14 @@ filterwarnings = [
   "ignore::pytest.PytestConfigWarning"
 ]
 markers = [
-  "unit: Unit tests",
-  "integration: Integration tests",
-  "contract: Contract tests",
-  "e2e: End-to-end tests",
-  "external: External integration tests",
-  "slow: Runtime-cost marker curated in tests/slow-tests.txt (not a Test Group); use -m 'not slow' for the fast selection",
-  "typecheck: Strict runtime-source Mypy acceptance probes",
-  "doc_gen: Tests that require optional documentation-generation dependencies and Pandoc"
+  "unit: Unit Test Group",
+  "integration: Integration Test Group",
+  "contract: Contract Test Group",
+  "e2e: End-to-end Test Group",
+  "external: Lane Attribute for tests that require external xdist worker transports (Docker/SSH remote or OS-isolated gateways); not a Test Group",
+  "slow: Lane Attribute curated in tests/slow-tests.txt (not a Test Group); use -m 'not slow' for the fast selection",
+  "typecheck: Lane Attribute for strict runtime-source Mypy acceptance probes; not a Test Group",
+  "doc_gen: Lane Attribute for tests that require optional documentation-generation dependencies and Pandoc; not a Test Group"
 ]
 cuke_autoload = true
 cuke_features_dir = "features"

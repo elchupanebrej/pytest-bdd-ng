@@ -6,6 +6,12 @@ order. This workflow is off by default. Leave ``cuke_test_group_order`` empty
 to keep the usual collection and execution behavior; the disabled workflow does
 not create barrier state or poll for test completion.
 
+.. note::
+
+   These ordered groups are a runtime ordering feature. They are unrelated to
+   the suite's Test Groups (unit, integration, contract, e2e) and to the
+   ``external`` Lane Attribute used for CI selection.
+
 Configure the ordered group names and optional assignment rules in the
 ``[pytest]`` section:
 
