@@ -30,6 +30,7 @@ from packaging.specifiers import SpecifierSet
 from pytest_cuke import given, parsers, then, when
 from pytest_cuke.compatibility.environment_matrix import _collected_count, check_environment_inventory
 from pytest_cuke.compatibility.runtime_compat import is_pair_compatible
+from pytest_cuke.message_schema_sync import UPSTREAM_RELEASES
 
 
 def _is_evidence_upload_step(step: object) -> bool:
@@ -3198,7 +3199,7 @@ def local_uv_evidence_matches_tox_acceptance_environments(
 @then("the messages schema tox command should use the fixture for the installed Cucumber Messages release")
 def messages_schema_tox_command_uses_installed_schema_fixture(request: pytest.FixtureRequest) -> None:
     repository_root = Path(request.config.rootpath)
-    release = distribution_version("cucumber-messages")
+    release = UPSTREAM_RELEASES[distribution_version("cucumber-messages")].protocol_version
     source_directory = f"tests/fixtures/message-schemas-v{release.replace('.', '-')}"
     result = subprocess.run(
         ["tox", "config", "-e", "messages-schema"],
@@ -3239,20 +3240,20 @@ def messages_schema_tox_command_uses_installed_schema_fixture(request: pytest.Fi
             elif argument.startswith("--source-dir="):
                 configured_source_directories.append(argument.partition("=")[2])
     assert configured_source_directories == [source_directory], (
-        f"messages-schema must use --source-dir {source_directory!r} for cucumber-messages {release}; "
+        f"messages-schema must use --source-dir {source_directory!r} for Messages protocol {release}; "
         f"configured={configured_source_directories!r}"
     )
 
     envelope_schema = repository_root / source_directory / "jsonschema" / "Envelope.json"
     assert envelope_schema.is_file(), (
-        f"messages-schema fixture for cucumber-messages {release} is missing {envelope_schema}"
+        f"messages-schema fixture for Messages protocol {release} is missing {envelope_schema}"
     )
 
 
 @then("the messages schema inventory carrier should use the fixture for the installed Cucumber Messages release")
 def messages_schema_inventory_uses_installed_schema_fixture(request: pytest.FixtureRequest) -> None:
     repository_root = Path(request.config.rootpath)
-    release = distribution_version("cucumber-messages")
+    release = UPSTREAM_RELEASES[distribution_version("cucumber-messages")].protocol_version
     source_directory = f"tests/fixtures/message-schemas-v{release.replace('.', '-')}"
     inventory_path = repository_root / "config" / "env-matrix.yaml"
     inventory = yaml.safe_load(inventory_path.read_text(encoding="utf-8"))
@@ -3273,7 +3274,7 @@ def messages_schema_inventory_uses_installed_schema_fixture(request: pytest.Fixt
         arguments[index + 1] for index, argument in enumerate(arguments[:-1]) if argument == "--source-dir"
     )
     assert configured_source_directories == [source_directory], (
-        f"messages-schema inventory must use --source-dir {source_directory!r} for cucumber-messages {release}; "
+        f"messages-schema inventory must use --source-dir {source_directory!r} for Messages protocol {release}; "
         f"configured={configured_source_directories!r}"
     )
 
