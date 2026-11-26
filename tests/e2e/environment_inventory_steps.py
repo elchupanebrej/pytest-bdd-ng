@@ -3244,7 +3244,7 @@ def messages_schema_tox_command_uses_installed_schema_fixture(request: pytest.Fi
         f"configured={configured_source_directories!r}"
     )
 
-    envelope_schema = repository_root / source_directory / "jsonschema" / "Envelope.json"
+    envelope_schema = repository_root / source_directory / "jsonschema" / "Envelope.schema.json"
     assert envelope_schema.is_file(), (
         f"messages-schema fixture for Messages protocol {release} is missing {envelope_schema}"
     )
