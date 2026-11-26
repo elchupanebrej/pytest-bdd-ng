@@ -19,7 +19,8 @@ from pytest_cuke import given, then, when
 
 
 _SCENARIO_NAME = "Chromium shows a passed pytest-cuke scenario"
-_ALLURE_PYTEST_VERSION = "2.16.2"
+_ALLURE_COMMONS_VERSION = "2.16.2"
+_STEP_NAME = "the report-producing assertion passes"
 _ALLURE_CLI_VERSION = "3.20.0"
 
 
@@ -47,11 +48,11 @@ def _consumer_path(consumer: Any, relative_path: str) -> Path:
     return Path(consumer.path) / path
 
 
-@given("the consumer installs the pinned Allure pytest adapter")
-def consumer_installs_pinned_allure_pytest_adapter(consumer: Any) -> None:
+@given("the consumer installs the pinned Allure commons dependency")
+def consumer_installs_pinned_allure_commons(consumer: Any) -> None:
     uv = shutil.which("uv")
     assert uv is not None, (
-        "the browser-report contract needs uv to install Allure in its isolated consumer; "
+        "the browser-report contract needs uv to install Allure commons in its isolated consumer; "
         "install uv before running this lane"
     )
     result = subprocess.run(
@@ -61,7 +62,7 @@ def consumer_installs_pinned_allure_pytest_adapter(consumer: Any) -> None:
             "install",
             "--python",
             str(consumer.python),
-            f"allure-pytest=={_ALLURE_PYTEST_VERSION}",
+            f"allure-python-commons=={_ALLURE_COMMONS_VERSION}",
         ],
         cwd=consumer.path,
         check=False,
@@ -70,18 +71,18 @@ def consumer_installs_pinned_allure_pytest_adapter(consumer: Any) -> None:
         timeout=180,
     )
     assert result.returncode == 0, (
-        f"could not install allure-pytest=={_ALLURE_PYTEST_VERSION} in the report consumer:\n"
+        f"could not install allure-python-commons=={_ALLURE_COMMONS_VERSION} in the report consumer:\n"
         f"{result.stdout}\n{result.stderr}"
     )
     probe = subprocess.run(
-        [str(consumer.python), "-c", "import allure_pytest"],
+        [str(consumer.python), "-c", "import allure_commons"],
         cwd=consumer.path,
         env=consumer.env,
         check=False,
         capture_output=True,
         text=True,
     )
-    assert probe.returncode == 0, f"allure-pytest is not importable in the report consumer:\n{probe.stderr}"
+    assert probe.returncode == 0, f"allure-python-commons is not importable in the report consumer:\n{probe.stderr}"
 
 
 @given("the consumer writes a real reportable pytest-cuke scenario", target_fixture="allure_browser_context")
@@ -139,12 +140,12 @@ class _QuietReportHandler(SimpleHTTPRequestHandler):
         del format, args
 
 
-def _visible_scenario_text(page: Any, scenario_name: str) -> str | None:
+def _visible_scenario(page: Any, scenario_name: str) -> Any | None:
     scenario = page.get_by_text(scenario_name, exact=False)
     for index in range(scenario.count()):
         item = scenario.nth(index)
         if item.is_visible():
-            return item.inner_text()
+            return item
     return None
 
 
@@ -191,7 +192,7 @@ def _open_browser_report(report_directory: Path, scenario_name: str) -> BrowserR
                 expand_all = page.get_by_role("button", name=re.compile(r"^expand all$", re.IGNORECASE))
                 if expand_all.count() and expand_all.first.is_visible():
                     expand_all.first.click()
-                visible_scenario = _visible_scenario_text(page, scenario_name)
+                visible_scenario = _visible_scenario(page, scenario_name)
                 if visible_scenario is None:
                     for label in ("Suites", "Tests", "Behaviors"):
                         navigation_item = page.get_by_text(label, exact=True)
@@ -205,7 +206,7 @@ def _open_browser_report(report_directory: Path, scenario_name: str) -> BrowserR
                             )
                         except Exception:
                             continue
-                        visible_scenario = _visible_scenario_text(page, scenario_name)
+                        visible_scenario = _visible_scenario(page, scenario_name)
                         if visible_scenario is not None:
                             break
                 body_text = page.locator("body").inner_text()
@@ -213,6 +214,10 @@ def _open_browser_report(report_directory: Path, scenario_name: str) -> BrowserR
                     f"the Allure report opened at {page.url}, but Chromium did not render scenario "
                     f"{scenario_name!r} as visible text. Visible page excerpt: {body_text[:3000]!r}"
                 )
+                visible_scenario.click()
+                step = page.get_by_text(_STEP_NAME, exact=False).first
+                step.wait_for(state="visible", timeout=30_000)
+                body_text = page.locator("body").inner_text()
                 return BrowserReportInspection(
                     scenario_name=scenario_name,
                     browser_title=page.title(),
@@ -281,3 +286,8 @@ def chromium_displays_passed_pytest_cuke_scenario(
         f"Visible page excerpt: {allure_browser_inspection.visible_text[:3000]!r}"
     )
     assert allure_browser_inspection.url.startswith("http://127.0.0.1:"), allure_browser_inspection
+
+
+@then("Chromium should display the executed step name in the rendered report")
+def chromium_displays_executed_step_name(allure_browser_inspection: BrowserReportInspection) -> None:
+    assert _STEP_NAME in allure_browser_inspection.visible_text
