@@ -214,15 +214,14 @@ def _open_browser_report(report_directory: Path, scenario_name: str) -> BrowserR
                     f"the Allure report opened at {page.url}, but Chromium did not render scenario "
                     f"{scenario_name!r} as visible text. Visible page excerpt: {body_text[:3000]!r}"
                 )
-                scenario_markup = visible_scenario.evaluate("element => element.parentElement.parentElement.outerHTML")
-                visible_scenario.click()
+                page.get_by_test_id("tree-leaf").filter(has_text=scenario_name).first.click(timeout=30_000)
                 step = page.get_by_text(_STEP_NAME, exact=False).first
                 try:
                     step.wait_for(state="visible", timeout=30_000)
                 except Exception as error:
                     raise AssertionError(
                         f"Allure did not render step {_STEP_NAME!r} at {page.url}. "
-                        f"Visible page: {page.locator('body').inner_text()[:6000]!r}. Scenario markup: {scenario_markup!r}"
+                        f"Visible page: {page.locator('body').inner_text()[:6000]!r}"
                     ) from error
                 body_text = page.locator("body").inner_text()
                 return BrowserReportInspection(
