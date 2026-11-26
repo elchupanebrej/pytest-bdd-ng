@@ -4,6 +4,7 @@ import json
 def test_configured_ci_environment_reaches_real_messages(pytester, monkeypatch):
     """Exercise native metadata emission; the supplied CI coordinates are test inputs."""
     environment = {
+        "GITHUB_EVENT_NAME": "push",
         "GITHUB_SERVER_URL": "https://github.com",
         "GITHUB_REPOSITORY": "example/project-under-test",
         "GITHUB_RUN_ID": "42",
