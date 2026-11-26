@@ -216,7 +216,13 @@ def _open_browser_report(report_directory: Path, scenario_name: str) -> BrowserR
                 )
                 visible_scenario.click()
                 step = page.get_by_text(_STEP_NAME, exact=False).first
-                step.wait_for(state="visible", timeout=30_000)
+                try:
+                    step.wait_for(state="visible", timeout=30_000)
+                except Exception as error:
+                    raise AssertionError(
+                        f"Allure did not render step {_STEP_NAME!r} at {page.url}. "
+                        f"Visible page: {page.locator('body').inner_text()[:6000]!r}"
+                    ) from error
                 body_text = page.locator("body").inner_text()
                 return BrowserReportInspection(
                     scenario_name=scenario_name,
