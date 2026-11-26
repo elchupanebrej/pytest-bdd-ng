@@ -28,7 +28,7 @@ Examples: 7 independent projects, 17 passed, every project exit 0. Command: `PYT
 
 ## Parity statement
 
-> **No full parity is claimed. Of the 219 external declarations, 204 are proven analogues, 11 are agreed replacements/additions, 3 are agreed exclusions, and 1 remains an unproven gap. Because declaration 179 is unproven at 8ea8a5fd5b48a25f9c8d395b388858fefa107676, pytest-cuke must not be described as having full functional parity with origin/refactoring at fb5f16f11f3f66fce97a5eeb5f5a862ab71949ce.**
+> **No full parity is claimed. Of the 219 external declarations, 205 are proven analogues, 11 are agreed replacements/additions, 3 are agreed exclusions, and none remains an unproven gap. A full parity claim requires a separate decision.**
 
 The machine-readable flag is `false`. It agrees with the prose.
 
@@ -36,10 +36,10 @@ The machine-readable flag is `false`. It agrees with the prose.
 
 | Category | Rows |
 | --- | ---: |
-| proven analogue | 204 |
+| proven analogue | 205 |
 | agreed replacement/addition | 11 |
 | agreed exclusion | 3 |
-| unproven gap | 1 |
+| unproven gap | 0 |
 | **Total** | **219** |
 
 Row identities are unique (`path:line`), and the category counts are computed from the 219 rows.
@@ -64,13 +64,9 @@ Citations resolve to this table. `US-4`, `US-15`, and `US-27` are numbered user 
 | `121` | numbered decision | Source-code architecture evaluation, its prose descriptions, and the entity-to-score mapping belong to the Development Harness; they are stored there and updated on request. Architecture scores and score descriptions are not stored next to product sources. | harness parity-discussion.md, owner change recorded with answer 121 |
 | `125` | numbered decision | The architecture mapping with scores and score descriptions is versioned in the private harness repository, not a separate score-history system; only current scores are authoritative. | harness parity-discussion.md, question 125 |
 
-## Unproven gaps (1)
+## Unproven gaps (0)
 
-| Id | File:line | Declaration | Why it is still unproven | Exercising run at the proof SHA |
-| ---: | --- | --- | --- | --- |
-| 179 | `12 Formatters/08 CCK Allure compatibility.feature.md:18` | Allure report renders step names | No job checks Allure step names in the rendered report. Browser report acceptance (browser-report) renders only the passed-scenario page and asserts the scenario name and passed status. The native Allure cells assert result JSON steps but do not render the browser report. | none |
-
-This row was also unexecuted in the previous ledger. It is not promoted on an older revision, a partial probe, or an implementation without a run. Row 133 is no longer a gap: #385 user story 4 chooses `cuke_parser` and its Out of Scope section drops the old `PYTEST_BDD_GHERKIN_BACKEND` name, so the row is an agreed replacement.
+Row 179 was unproven at `8ea8a5fd`. The browser report job in [45785137379](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45785137379/job/139790158751) proves it at `9a13ecbb33d42bc0111d7a5742b8d105a33bb97d`. The full parity claim remains a separate decision.
 
 ## The 16 formerly unexecuted rows
 
@@ -370,7 +366,7 @@ The ledger does not promote, and must not be read as covering, the claims #418 n
 | 176 | `12 Formatters/07 Allure schema field coverage.feature.md:81` | Post-hoc pytest CLI import produces TestResult schema fields | agreed replacement/addition | decision 119 | agreed | 8 files written for 3 scenarios |
 | 177 | `12 Formatters/07 Allure schema field coverage.feature.md:121` | Post-hoc pytest CLI import produces container schema fields | agreed replacement/addition | decision 119 | agreed | summary.json: 2 passed, 2 failed, 0 broken |
 | 178 | `12 Formatters/08 CCK Allure compatibility.feature.md:10` | Allure report renders scenario names | proven analogue | probe A6-browser | harness probe: allure-container-semantics-evidence.md | 1 passed |
-| 179 | `12 Formatters/08 CCK Allure compatibility.feature.md:18` | Allure report renders step names | unproven gap | unproven: No job checks Allure step names in the rendered report. Browser report acceptance (browser-report) renders only the passed-scenario page and asserts the scenario name and passed status. The native Allure cells assert result JSON steps but do not render the browser report. | none at this SHA |  |
+| 179 | `12 Formatters/08 CCK Allure compatibility.feature.md:18` | Allure report renders step names | proven analogue | probe A6-browser-step-name | [45785137379](https://github.com/elchupanebrej/pytest-bdd-ng/actions/runs/45785137379/job/139790158751) / browser-report | 1 passed |
 | 180 | `12 Formatters/08 CCK Allure compatibility.feature.md:26` | Allure report renders test status | proven analogue | probe A6-browser | harness probe: allure-container-semantics-evidence.md | 1 passed |
 
 ### 13 Code Generator (9)
